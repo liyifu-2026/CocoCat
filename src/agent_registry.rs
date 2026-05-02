@@ -10,6 +10,7 @@ pub struct AgentConfig {
     pub interpreter: String,
     pub script: String,
     pub enabled: bool,
+    pub scene: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
