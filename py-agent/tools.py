@@ -217,15 +217,19 @@ class SubAgentTool(Tool):
                 text=True,
                 timeout=120,
             )
-            for line in result.stdout.strip().split("\n"):
+            for line in result.stdout.splitlines():
                 line = line.strip()
-                if line:
-                    try:
-                        resp = json.loads(line)
-                        if resp.get("result"):
-                            return json.dumps(resp["result"], indent=2, ensure_ascii=False)
-                    except json.JSONDecodeError:
-                        continue
+                if not line:
+                    continue
+                try:
+                    resp = json.loads(line)
+                    if resp.get("result"):
+                        return json.dumps(resp["result"], indent=2, ensure_ascii=False)
+                    if resp.get("error"):
+                        err = resp["error"]
+                        return f"Sub-agent error [{err.get('code', '?')}]: {err.get('message', 'unknown')}"
+                except json.JSONDecodeError:
+                    continue
             return result.stdout.strip() or "(no output)"
         except subprocess.TimeoutExpired:
             return "Error: sub-agent task timed out after 120s"
