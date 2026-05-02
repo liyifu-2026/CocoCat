@@ -589,6 +589,60 @@ class WebSearchTool(Tool):
             return f"Search failed: {e}"
 
 
+class McpCallTool(Tool):
+    """Call a tool from an MCP server."""
+    name = "mcp_call"
+    description = "Call a tool from an MCP (Model Context Protocol) server. Specify the server command, tool name, and arguments."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "server_command": {"type": "string", "description": "Shell command to start the MCP server"},
+            "tool_name": {"type": "string", "description": "Name of the tool to call"},
+            "arguments": {"type": "object", "description": "Arguments to pass to the tool"},
+        },
+        "required": ["server_command", "tool_name"],
+    }
+
+    def execute(self, server_command="", tool_name="", arguments=None, **kwargs) -> str:
+        import subprocess, json
+        try:
+            proc = subprocess.Popen(
+                server_command, shell=True,
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True,
+            )
+            init = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "cococat", "version": "1.0"}}})
+            proc.stdin.write(init + "\n")
+            proc.stdin.flush()
+            proc.stdout.readline()
+
+            call = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": tool_name, "arguments": arguments or {}}})
+            proc.stdin.write(call + "\n")
+            proc.stdin.flush()
+
+            result_lines = []
+            for line in proc.stdout:
+                line = line.strip()
+                if line:
+                    try:
+                        resp = json.loads(line)
+                        content_list = resp.get("result", {}).get("content", [])
+                        for c in content_list:
+                            if isinstance(c, dict) and c.get("type") == "text":
+                                result_lines.append(c["text"])
+                        if "error" in resp:
+                            result_lines.append(f"Error: {resp['error'].get('message', '')}")
+                    except json.JSONDecodeError:
+                        continue
+                if len(result_lines) > 3:
+                    break
+
+            proc.terminate()
+            return "\n".join(result_lines) if result_lines else "(no result)"
+        except Exception as e:
+            return f"MCP call failed: {e}"
+
+
 class EditFileTool(Tool):
     """Replace text in a file using search/replace (claw-code pattern)."""
     name = "edit_file"
@@ -706,4 +760,5 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(WebSearchTool())
     registry.register(EditFileTool())
     registry.register(AskUserTool())
+    registry.register(McpCallTool())
     return registry
