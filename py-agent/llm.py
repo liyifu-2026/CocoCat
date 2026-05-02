@@ -32,24 +32,26 @@ class LLMClient:
             kwargs["tool_choice"] = "auto"
 
         response = self.client.chat.completions.create(**kwargs)
-        choice = response.choices[0]
+
+        choice = response.model_dump()["choices"][0]
+        message = choice.get("message", {})
 
         result = {
-            "content": choice.message.content or "",
+            "content": message.get("content") or "",
             "tool_calls": [],
-            "finish_reason": choice.finish_reason,
+            "finish_reason": choice.get("finish_reason", "stop"),
         }
 
-        if choice.message.tool_calls:
-            for tc in choice.message.tool_calls:
-                try:
-                    args = json.loads(tc.function.arguments)
-                except json.JSONDecodeError:
-                    args = {"_error": f"failed to parse arguments: {tc.function.arguments}"}
-                result["tool_calls"].append({
-                    "id": tc.id,
-                    "name": tc.function.name,
-                    "arguments": args,
-                })
+        raw_tool_calls = message.get("tool_calls") or []
+        for tc in raw_tool_calls:
+            try:
+                args = json.loads(tc["function"]["arguments"])
+            except (json.JSONDecodeError, KeyError):
+                args = {"_error": f"failed to parse arguments: {tc.get('function', {}).get('arguments', '?')}"}
+            result["tool_calls"].append({
+                "id": tc["id"],
+                "name": tc["function"]["name"],
+                "arguments": args,
+            })
 
         return result
