@@ -39,6 +39,95 @@ def auto_dream(agent_id: str, agent_name: str, llm) -> None:
             pass
 
 
+import re
+
+
+def estimate_tokens(text: str) -> int:
+    return len(text) // 4
+
+
+def estimate_messages_tokens(messages: list[dict]) -> int:
+    total = 0
+    for msg in messages:
+        text = json.dumps(msg, ensure_ascii=False)
+        total += estimate_tokens(text)
+    return total
+
+
+CONSOLIDATION_PROMPT = """Summarize the following conversation turn in 1-2 sentences. Focus on what was asked, what tool was used, and what result was obtained.
+
+## Content
+{content}
+
+## Summary
+"""
+
+
+def consolidate(messages: list[dict], llm, budget: int = 8000) -> list[dict]:
+    current = estimate_messages_tokens(messages)
+    if current <= budget:
+        return messages
+
+    system_msgs = [m for m in messages if m.get("role") == "system"]
+    non_system = [m for m in messages if m.get("role") != "system"]
+
+    if len(non_system) < 4:
+        return messages
+
+    split = len(non_system) // 2
+    to_consolidate = non_system[:split]
+    keep = non_system[split:]
+
+    content_parts = []
+    for m in to_consolidate:
+        role = m.get("role", "?")
+        text = str(m.get("content", ""))[:500]
+        if text:
+            content_parts.append(f"[{role}] {text}")
+
+    if not content_parts:
+        return system_msgs + keep
+
+    content = "\n\n".join(content_parts)
+    prompt = CONSOLIDATION_PROMPT.format(content=content)
+
+    try:
+        response = llm.chat(
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=256,
+            temperature=0.3,
+        )
+        summary = (response.get("content") or "").strip()
+    except Exception:
+        summary = f"[Consolidated {len(to_consolidate)} messages]"
+
+    summary_msg = {
+        "role": "system",
+        "content": f"[Consolidated Context]\n{summary}",
+    }
+
+    result = system_msgs + [summary_msg] + keep
+    saved = current - estimate_messages_tokens(result)
+
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "type": "consolidation",
+        "messages_before": len(to_consolidate),
+        "tokens_saved": saved,
+    }
+    log_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..", "agents", "_consolidation_log.jsonl"
+    )
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+    return result
+
+
 class AgentLoop:
     """Main agent execution loop.
 
@@ -95,6 +184,9 @@ class AgentLoop:
 
         while iteration < self.max_iterations:
             iteration += 1
+
+            if iteration > 1:
+                messages = consolidate(messages, self.llm, budget=8000)
 
             response = self.llm.chat(
                 messages=messages,
