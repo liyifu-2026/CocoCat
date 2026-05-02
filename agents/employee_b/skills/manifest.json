@@ -1,0 +1,4 @@
+{
+  "public": ["communication", "file-ops"],
+  "private": []
+}
