@@ -1,5 +1,6 @@
 mod transport;
 mod agent_manager;
+mod agent_registry;
 
 use agent_manager::AgentProcess;
 use serde_json::json;
