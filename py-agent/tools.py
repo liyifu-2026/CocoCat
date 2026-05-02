@@ -237,6 +237,59 @@ class SubAgentTool(Tool):
             return f"Error spawning sub-agent: {e}"
 
 
+class DispatchTaskTool(Tool):
+    """Request dispatching a task to another agent via Rust core proxy."""
+    name = "dispatch_task"
+    description = "Send a task to another agent in the team. The target agent will process the task and the result will be returned to you."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "target_id": {"type": "string", "description": "ID of the target agent (e.g. employee_a)"},
+            "prompt": {"type": "string", "description": "The task prompt to send to the target agent"},
+        },
+        "required": ["target_id", "prompt"],
+    }
+
+    def execute(self, target_id="", prompt="", **kwargs) -> str:
+        dispatch = {
+            "__dispatch__": True,
+            "target_id": target_id,
+            "method": "task",
+            "params": {"prompt": prompt},
+        }
+        return json.dumps(dispatch, ensure_ascii=False)
+
+
+class HireAgentTool(Tool):
+    """Request hiring a new agent. Creates a hire request file for the next restart."""
+    name = "hire_agent"
+    description = "Request hiring a new team member. Specify id, name, and optional personality description."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string", "description": "Unique ID for the new agent (e.g. employee_c)"},
+            "name": {"type": "string", "description": "Display name for the new agent (e.g. 员工C)"},
+            "personality": {"type": "string", "description": "Brief personality and role description"},
+        },
+        "required": ["id", "name"],
+    }
+
+    def execute(self, id="", name="", personality="", **kwargs) -> str:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        hire_dir = os.path.join(script_dir, "..", "agents", "hire_requests")
+        os.makedirs(hire_dir, exist_ok=True)
+        request = {
+            "id": id,
+            "name": name,
+            "personality": personality,
+            "requested_by": "leader",
+        }
+        filepath = os.path.join(hire_dir, f"{id}.json")
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(request, f, ensure_ascii=False, indent=2)
+        return f"Hire request created for '{name}' ({id}). An admin needs to restart CocoCat to activate the new agent."
+
+
 class ToolRegistry:
     """Registry of available tools (nanobot ToolRegistry pattern)."""
 
@@ -271,4 +324,6 @@ def create_default_registry(agent_runtime_path: str = "") -> ToolRegistry:
     registry.register(GlobSearchTool())
     registry.register(GrepSearchTool())
     registry.register(SubAgentTool(agent_runtime_path=agent_runtime_path))
+    registry.register(DispatchTaskTool())
+    registry.register(HireAgentTool())
     return registry
