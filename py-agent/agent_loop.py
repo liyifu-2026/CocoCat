@@ -108,6 +108,7 @@ CONSOLIDATION_PROMPT = """Summarize the following conversation turn in 1-2 sente
 
 
 def consolidate(messages: list[dict], llm, budget: int = 8000) -> list[dict]:
+    """Upgraded consolidator: boundary-aware, multi-round, fallback."""
     current = estimate_messages_tokens(messages)
     if current <= budget:
         return messages
@@ -118,7 +119,17 @@ def consolidate(messages: list[dict], llm, budget: int = 8000) -> list[dict]:
     if len(non_system) < 4:
         return messages
 
-    split = len(non_system) // 2
+    split = max(1, len(non_system) // 2)
+    while split > 0 and split <= len(non_system):
+        if split > 1:
+            prev = non_system[split - 2]
+            if prev.get("role") == "assistant" and "tool_calls" in prev:
+                break
+        if non_system[split - 1].get("role") == "tool":
+            split -= 1
+        else:
+            break
+
     to_consolidate = non_system[:split]
     keep = non_system[split:]
 
@@ -130,44 +141,27 @@ def consolidate(messages: list[dict], llm, budget: int = 8000) -> list[dict]:
             content_parts.append(f"[{role}] {text}")
 
     if not content_parts:
-        return system_msgs + keep
+        result = system_msgs + keep
+        return result if estimate_messages_tokens(result) <= budget * 1.5 else system_msgs + keep[-2:]
 
     content = "\n\n".join(content_parts)
     prompt = CONSOLIDATION_PROMPT.format(content=content)
 
+    summary = ""
     try:
-        response = llm.chat(
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=256,
-            temperature=0.3,
-        )
+        response = llm.chat(messages=[{"role": "user", "content": prompt}], max_tokens=256, temperature=0.3)
         summary = (response.get("content") or "").strip()
     except Exception:
-        summary = f"[Consolidated {len(to_consolidate)} messages]"
-
-    summary_msg = {
-        "role": "system",
-        "content": f"[Consolidated Context]\n{summary}",
-    }
-
-    result = system_msgs + [summary_msg] + keep
-    saved = current - estimate_messages_tokens(result)
-
-    entry = {
-        "timestamp": datetime.now().isoformat(),
-        "type": "consolidation",
-        "messages_before": len(to_consolidate),
-        "tokens_saved": saved,
-    }
-    log_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "..", "agents", "_consolidation_log.jsonl"
-    )
-    try:
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    except Exception:
         pass
+
+    if not summary:
+        summary = f"[Consolidated {len(to_consolidate)} messages: {content[:200]}...]"
+
+    summary_msg = {"role": "system", "content": f"[Consolidated]\n{summary}"}
+    result = system_msgs + [summary_msg] + keep
+
+    if estimate_messages_tokens(result) > budget:
+        return consolidate(result, llm, budget)
 
     return result
 
