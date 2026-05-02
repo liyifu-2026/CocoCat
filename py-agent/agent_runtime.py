@@ -11,7 +11,7 @@ def handle_request(request: dict) -> dict:
     elif method == "echo":
         return params
     else:
-        return {"error": f"unknown method: {method}"}
+        raise ValueError(f"Method not found: {method}")
 
 
 def main():
@@ -20,16 +20,22 @@ def main():
         if not line:
             continue
 
-        request = json.loads(line)
-        req_id = request.get("id")
-
+        req_id = None
         try:
+            request = json.loads(line)
+            req_id = request.get("id")
             result = handle_request(request)
             response = {"jsonrpc": "2.0", "result": result, "id": req_id}
+        except json.JSONDecodeError as e:
+            response = {
+                "jsonrpc": "2.0",
+                "error": {"code": -32700, "message": f"Parse error: {e}"},
+                "id": None,
+            }
         except Exception as e:
             response = {
                 "jsonrpc": "2.0",
-                "error": {"code": -1, "message": str(e)},
+                "error": {"code": -32603, "message": str(e)},
                 "id": req_id,
             }
 
