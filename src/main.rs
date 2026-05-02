@@ -11,18 +11,42 @@ fn main() {
 
     println!("Agent spawned, sending ping...");
 
-    let response = agent
+    let ping_response = agent
         .call("ping", None, 1)
         .expect("failed to communicate with agent");
 
-    println!("Response: {}", serde_json::to_string_pretty(&response).unwrap());
+    println!(
+        "Ping response: {}",
+        serde_json::to_string_pretty(&ping_response).unwrap()
+    );
 
-    if let Some(result) = response.result {
+    if let Some(result) = ping_response.result {
         if result.get("pong") == Some(&serde_json::json!(true)) {
             println!("MVP PASSED: Rust ↔ Python communication verified!");
         }
     }
 
-    // AgentProcess Drop impl will kill and wait automatically
+    println!("\nTesting echo with parameters...");
+
+    let echo_params = serde_json::json!({
+        "message": "hello from Rust",
+        "value": 42
+    });
+
+    let echo_response = agent
+        .call("echo", Some(echo_params.clone()), 2)
+        .expect("failed to echo");
+
+    println!(
+        "Echo response: {}",
+        serde_json::to_string_pretty(&echo_response).unwrap()
+    );
+
+    if echo_response.result == Some(echo_params) {
+        println!("ECHO PASSED: bi-directional parameter passing verified!");
+    } else {
+        println!("ECHO FAILED: response did not match");
+    }
+
     println!("CocoCat Core exiting.");
 }
