@@ -21,3 +21,11 @@ interpreter = "python"
 script = "py-agent/agent_runtime.py"
 enabled = true
 scene = "default"
+
+[[agents]]
+id = "employee_c"
+name = "员工C"
+interpreter = "python"
+script = "py-agent/agent_runtime.py"
+enabled = true
+scene = "default"
