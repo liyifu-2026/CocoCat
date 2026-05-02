@@ -493,6 +493,28 @@ class DreamTool(Tool):
             return f"Dream failed: {e}"
 
 
+class IngestToKbTool(Tool):
+    """Ingest a raw source file into a knowledge base. Two-stage LLM pipeline: analyze then generate wiki pages."""
+    name = "ingest_to_kb"
+    description = "Process a raw source file into structured wiki pages in a knowledge base. Specify kb_id and source_filename (relative to knowledge/{kb}/raw/sources/)."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "kb_id": {"type": "string", "description": "Knowledge base ID (e.g. team-wiki)"},
+            "source_filename": {"type": "string", "description": "Source filename in knowledge/{kb}/raw/sources/"},
+        },
+        "required": ["kb_id", "source_filename"],
+    }
+
+    def execute(self, kb_id="", source_filename="", **kwargs) -> str:
+        from ingest import run_ingest
+        try:
+            result = run_ingest(kb_id, source_filename)
+            return result
+        except Exception as e:
+            return f"Ingestion failed: {e}"
+
+
 class ToolRegistry:
     """Registry of available tools (nanobot ToolRegistry pattern)."""
 
@@ -533,4 +555,5 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(RememberTool(agent_id=agent_id))
     registry.register(RecallTool(agent_id=agent_id))
     registry.register(DreamTool(agent_id=agent_id, agent_name=agent_name))
+    registry.register(IngestToKbTool())
     return registry
