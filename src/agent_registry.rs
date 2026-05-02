@@ -1,4 +1,5 @@
 use crate::agent_manager::AgentProcess;
+use crate::transport;
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -78,6 +79,42 @@ impl AgentRegistry {
     /// Stop all agents and clear the registry
     pub fn stop_all(&mut self) {
         self.processes.clear();
+    }
+
+    /// Dispatch a message to a target agent by id.
+    /// Writes the dispatch to the agent's .msg file and sends a task call.
+    pub fn dispatch_message(
+        &mut self,
+        target_id: &str,
+        method: &str,
+        params: Option<serde_json::Value>,
+    ) -> Result<transport::JsonRpcResponse, String> {
+        let agent = self.processes.get_mut(target_id).ok_or_else(|| {
+            format!("agent '{}' not found or not running", target_id)
+        })?;
+
+        // Write the dispatch message to the agent's .msg file
+        if let Some(ref p) = params {
+            if let Some(prompt) = p.get("prompt").and_then(|v| v.as_str()) {
+                let timestamp = chrono::Utc::now().to_rfc3339();
+                let msg_content = format!(
+                    "{{sender: leader, timestamp: {}, content: {}}}",
+                    timestamp, prompt
+                );
+                let msg_path = format!("agents/dispatch_messages/{}.msg", target_id);
+                if let Ok(mut file) = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&msg_path)
+                {
+                    use std::io::Write;
+                    let _ = writeln!(file, "{}", msg_content);
+                }
+            }
+        }
+
+        // Send the task call to the agent
+        agent.call(method, params, 0)
     }
 }
 

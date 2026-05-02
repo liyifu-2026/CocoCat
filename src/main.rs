@@ -4,12 +4,18 @@ mod agent_registry;
 mod message_bus;
 
 use agent_registry::AgentRegistry;
+use message_bus::ChatMessage;
 use serde_json::json;
+use std::time::Instant;
 
 fn main() {
     println!("CocoCat Core starting...\n");
 
-    // 1. Load agent configs
+    // Ensure required directories exist
+    let _ = std::fs::create_dir_all("chat");
+    let _ = std::fs::create_dir_all("agents/dispatch_queue");
+    let _ = std::fs::create_dir_all("agents/dispatch_messages");
+
     let configs = AgentRegistry::load_config("agents/config.toml")
         .expect("failed to load agent config");
     println!("Loaded {} agent definitions\n", configs.len());
@@ -20,7 +26,6 @@ fn main() {
     }
     println!();
 
-    // 2. Spawn all agents
     let mut registry = AgentRegistry::new(configs);
     match registry.start_all() {
         Ok(()) => {}
@@ -30,7 +35,7 @@ fn main() {
     let running = registry.status().iter().filter(|s| s.running).count();
     println!("Spawned {running} agents\n");
 
-    // 3. Ping all
+    // Ping all
     println!("--- Health Check ---");
     for cfg in registry.configs.clone() {
         if !cfg.enabled { continue; }
@@ -40,11 +45,12 @@ fn main() {
             .and_then(|r| r.result)
             .map(|r| r.get("pong") == Some(&json!(true)))
             .unwrap_or(false);
-        println!("  {} {} ({})", if ok { "\u{2705}" } else { "\u{274C}" }, cfg.name, cfg.id);
+        let tick = if ok { "\u{2705}" } else { "\u{274C}" };
+        println!("  {} {} ({})", tick, cfg.name, cfg.id);
     }
     println!();
 
-    // 4. Identify all
+    // Identify all
     println!("--- Team Roster ---");
     for cfg in registry.configs.clone() {
         if !cfg.enabled { continue; }
@@ -57,33 +63,52 @@ fn main() {
     }
     println!();
 
-    // 5. Leader demo: manage team schedule using tools
-    println!("--- Leader Schedule Management ---");
+    // === Message Bus Demo ===
+    println!("--- Message Bus Demo ---");
+
+    // System: team online
+    message_bus::log_message(&ChatMessage {
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        from: "system".to_string(),
+        to: "*".to_string(),
+        content: "Team online. Message bus active.".to_string(),
+        message_type: "system".to_string(),
+    }).ok();
+
+    // Send a task to leader that uses dispatch_task tool
     if let Some(agent) = registry.get("leader") {
         let prompt = concat!(
-            "You are the team leader (组长). Your team has 3 members: yourself (leader), employee_a (员工A), and employee_b (员工B).\n\n",
-            "Please do the following:\n",
-            "1. Read the file agents/schedule.json to see the current schedule\n",
-            "2. The schedule is empty. Create a new schedule for today by writing to agents/schedule.json:\n",
-            "   - Task: 'Review PR #42' assigned to employee_a\n",
-            "   - Task: 'Write unit tests' assigned to employee_b\n",
-            "   - Task: 'Team standup' assigned to leader\n",
-            "3. Read the file back to confirm it was written correctly\n",
-            "4. Tell me the current team status and what everyone is working on\n\n",
-            "Use your read_file and write_file tools to complete these steps."
+            "You are the team leader (组长). Your team: employee_a (员工A) and employee_b (员工B).\n\n",
+            "Use your dispatch_task tool to send this EXACT message to employee_a:\n",
+            "\"Hello 员工A, this is a test message from the group chat. Please confirm you received this by responding with 'Message received by employee_a'.\"\n\n",
+            "After using dispatch_task, tell me what you did."
         );
         let params = json!({"prompt": prompt});
+        let start = Instant::now();
         match agent.call("task", Some(params), 1) {
             Ok(resp) => {
-                if let Some(result) = resp.result {
-                    let content = result.get("content").and_then(|c| c.as_str()).unwrap_or("(no content)");
-                    let iterations = result.get("iterations").and_then(|i| i.as_u64()).unwrap_or(0);
-                    println!("  Leader completed in {iterations} iterations.\n");
+                let elapsed = start.elapsed();
+                message_bus::log_message(&ChatMessage {
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                    from: "leader".to_string(),
+                    to: "*".to_string(),
+                    content: format!("Task completed in {:.1}s", elapsed.as_secs_f64()),
+                    message_type: "system".to_string(),
+                }).ok();
+
+                if let Some(ref result) = resp.result {
+                    let content = result["content"].as_str().unwrap_or("(no content)");
+                    let iterations = result["iterations"].as_u64().unwrap_or(0);
+                    println!("\n  Leader completed in {iterations} iterations ({:.1}s):\n", elapsed.as_secs_f64());
                     for line in content.lines() {
                         println!("    {line}");
                     }
-                } else if let Some(err) = resp.error {
-                    println!("  Error [{}]: {}", err.code, err.message);
+
+                    // Process any dispatch requests the agent created
+                    println!();
+                    check_and_process_dispatches(&mut registry);
+                } else if let Some(ref err) = resp.error {
+                    println!("  Leader error [{}]: {}", err.code, err.message);
                 }
             }
             Err(e) => {
@@ -93,17 +118,118 @@ fn main() {
     }
     println!();
 
-    // 6. Show final schedule
-    println!("--- Final Schedule ---");
-    match std::fs::read_to_string("agents/schedule.json") {
-        Ok(content) => {
-            for line in content.lines() {
-                println!("  {line}");
+    // Show recent chat log
+    println!("--- Chat Log ---");
+    match message_bus::read_recent(20) {
+        Ok(messages) => {
+            for msg in &messages {
+                let from = if msg.from == "system" { "●" } else { &msg.from };
+                let to = if msg.to == "*" { "team" } else { &msg.to };
+                println!("  [{from} -> {to}] {}", msg.content);
             }
         }
-        Err(e) => println!("  Failed to read schedule: {e}"),
+        Err(e) => println!("  Failed to read chat log: {e}"),
     }
     println!();
 
     println!("CocoCat Core exiting.");
+}
+
+/// Check dispatch queue and forward messages to target agents
+fn check_and_process_dispatches(registry: &mut AgentRegistry) {
+    let dispatch_dir = std::path::Path::new("agents/dispatch_queue");
+    if !dispatch_dir.exists() {
+        return;
+    }
+
+    let entries = match std::fs::read_dir(dispatch_dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    let mut processed = Vec::new();
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let dispatch: serde_json::Value = match serde_json::from_str(&content) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        let target_id = dispatch.get("target_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let method = dispatch.get("method").and_then(|v| v.as_str()).unwrap_or("task").to_string();
+        let params = dispatch.get("params").cloned();
+        let prompt = params.as_ref()
+            .and_then(|p| p.get("prompt"))
+            .and_then(|p| p.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        if target_id.is_empty() {
+            continue;
+        }
+
+        // Log the dispatch
+        message_bus::log_message(&ChatMessage {
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            from: "leader".to_string(),
+            to: target_id.clone(),
+            content: format!("Dispatching task: {:.80}", prompt),
+            message_type: "task".to_string(),
+        }).ok();
+
+        println!("  Routing dispatch to '{}'...", target_id);
+        match registry.dispatch_message(&target_id, &method, params) {
+            Ok(response) => {
+                println!("  \u{2705} Dispatch to '{}' succeeded", target_id);
+                if let Some(ref result) = response.result {
+                    if let Some(content) = result["content"].as_str() {
+                        println!("  Response: {:.120}", content);
+                        message_bus::log_message(&ChatMessage {
+                            timestamp: chrono::Utc::now().to_rfc3339(),
+                            from: target_id.clone(),
+                            to: "leader".to_string(),
+                            content: content.to_string(),
+                            message_type: "reply".to_string(),
+                        }).ok();
+                    }
+                } else if let Some(ref err) = response.error {
+                    println!("  \u{274C} Dispatch error [{}]: {}", err.code, err.message);
+                    message_bus::log_message(&ChatMessage {
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                        from: target_id.clone(),
+                        to: "leader".to_string(),
+                        content: format!("Error [{}]: {}", err.code, err.message),
+                        message_type: "reply".to_string(),
+                    }).ok();
+                }
+            }
+            Err(e) => {
+                println!("  \u{274C} Dispatch to '{}' failed: {}", target_id, e);
+                message_bus::log_message(&ChatMessage {
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                    from: "system".to_string(),
+                    to: "leader".to_string(),
+                    content: format!("Dispatch to {} failed: {}", target_id, e),
+                    message_type: "system".to_string(),
+                }).ok();
+            }
+        }
+
+        processed.push(path);
+    }
+
+    // Clean up processed dispatch files
+    for path in processed {
+        let _ = std::fs::remove_file(&path);
+    }
 }
