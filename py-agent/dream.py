@@ -110,18 +110,45 @@ def run_dream(agent_id: str, agent_name: str, llm_client=None) -> str:
     if not content:
         return "Dream produced no output."
 
+    # Phase 2: Use AgentLoop to surgically edit MEMORY.md
+    from agent_loop import AgentLoop
+    from tools import create_default_registry
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    agent_runtime_path = os.path.join(script_dir, "agent_runtime.py")
+    tools = create_default_registry(agent_runtime_path=agent_runtime_path)
+
     mem_path = _agent_memory_dir(agent_id, "MEMORY.md")
     os.makedirs(os.path.dirname(mem_path), exist_ok=True)
 
-    today = datetime.now().strftime("%Y-%m-%d")
-    header = f"\n### {today} Dream Consolidation\n"
-    with open(mem_path, "a", encoding="utf-8") as f:
-        f.write(f"{header}{content}\n")
+    current_memory = ""
+    if os.path.exists(mem_path):
+        with open(mem_path, "r", encoding="utf-8") as f:
+            current_memory = f.read()
+
+    edit_prompt = f"""You are a memory consolidation agent. Your task is to update {agent_name}'s long-term memory file.
+
+## Current MEMORY.md
+{current_memory[:3000] if current_memory else "(empty)"}
+
+## New Information to Incorporate
+{content[:2000]}
+
+## Instructions
+1. Read the current MEMORY.md using the read_file tool
+2. Merge the new information into MEMORY.md
+3. Use the edit_file tool to make targeted edits
+4. Remove outdated information if needed
+5. Keep the file well-organized with clear section headings
+
+Use read_file and edit_file tools to complete this task."""
+
+    edit_loop = AgentLoop(agent_id=agent_id, agent_name=f"{agent_name}-dream", tools=tools)
+    edit_loop.run(edit_prompt)
 
     set_cursor(agent_id, total_entries)
-
     entry_count = len(unprocessed)
-    return f"Dream processed {entry_count} history entries. Key findings added to long-term memory."
+    return f"Dream processed {entry_count} history entries. Memory updated via surgical editing."
 
 
 def _agent_memory_dir(agent_id: str, filename: str = "") -> str:
