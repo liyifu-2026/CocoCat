@@ -141,10 +141,20 @@ async def scene_chat(scene_id: str, request: Request):
     task = json.dumps({"jsonrpc": "2.0", "method": "task", "params": {"prompt": prompt}, "id": 1})
 
     try:
+        api_key = os.environ.get('OPENAI_API_KEY', '') or body.get('api_key', '')
+        base_url = os.environ.get('OPENAI_BASE_URL', 'https://api.deepseek.com')
+        model = os.environ.get('LLM_MODEL', 'deepseek-v4-flash')
+        agent_env = dict(os.environ)
+        agent_env.update({
+            'OPENAI_API_KEY': api_key,
+            'OPENAI_BASE_URL': base_url,
+            'LLM_MODEL': model,
+            'PYTHONPATH': str(BASE_DIR / 'py-agent'),
+        })
         result = subprocess.run(
             ["python", "-u", agent_script],
             input=task, capture_output=True, text=True, timeout=60,
-            env={**dict(os.environ), 'PYTHONPATH': str(BASE_DIR / 'py-agent')},
+            env=agent_env,
         )
         reply_text = "(no response)"
         for line in result.stdout.strip().split("\n"):
