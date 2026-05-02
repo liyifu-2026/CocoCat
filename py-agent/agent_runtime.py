@@ -72,6 +72,7 @@ def main():
                     agent_runtime_path=agent_runtime_path,
                     scene_id=current_scene,
                     agent_id=agent_id,
+                    agent_name=IDENTITY.get("name") or "Agent",
                 )
                 agent_loop = AgentLoop(
                     agent_id=agent_id,

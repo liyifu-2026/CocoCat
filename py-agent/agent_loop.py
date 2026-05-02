@@ -28,6 +28,17 @@ def append_history(agent_id: str, prompt: str, response: str, iterations: int):
         pass
 
 
+def auto_dream(agent_id: str, agent_name: str, llm) -> None:
+    """Auto-trigger Dream after every 3 unprocessed entries."""
+    from dream import get_unprocessed_history, run_dream
+    unprocessed, _ = get_unprocessed_history(agent_id)
+    if len(unprocessed) >= 3:
+        try:
+            run_dream(agent_id, agent_name, llm_client=llm)
+        except Exception:
+            pass
+
+
 class AgentLoop:
     """Main agent execution loop.
 
@@ -129,6 +140,7 @@ class AgentLoop:
             break
 
         append_history(self.agent_id, prompt, final_content, iteration)
+        auto_dream(self.agent_id, self.agent_name, self.llm)
 
         return {
             "content": final_content,

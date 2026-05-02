@@ -470,7 +470,7 @@ class RecallTool(Tool):
 class DreamTool(Tool):
     """Run the Dream process: analyze recent history and consolidate into MEMORY.md."""
     name = "dream"
-    description = "Process recent history and consolidate important findings into long-term memory."
+    description = "Process recent history and consolidate important findings into long-term memory. The LLM will analyze your task history and extract key facts, decisions, and patterns."
     parameters = {
         "type": "object",
         "properties": {
@@ -478,12 +478,19 @@ class DreamTool(Tool):
         },
     }
 
-    def __init__(self, agent_id: str = ""):
+    def __init__(self, agent_id: str = "", agent_name: str = "Agent"):
         super().__init__()
         self.agent_id = agent_id
+        self.agent_name = agent_name
 
     def execute(self, scope="recent", **kwargs) -> str:
-        return "Dream completed. History has been processed and key information added to long-term memory."
+        """Trigger the real Dream process."""
+        from dream import run_dream
+        try:
+            result = run_dream(self.agent_id, self.agent_name)
+            return result
+        except Exception as e:
+            return f"Dream failed: {e}"
 
 
 class ToolRegistry:
@@ -511,7 +518,7 @@ class ToolRegistry:
             return f"Error executing {name}: {e}"
 
 
-def create_default_registry(agent_runtime_path: str = "", scene_id: str = "default", agent_id: str = "") -> ToolRegistry:
+def create_default_registry(agent_runtime_path: str = "", scene_id: str = "default", agent_id: str = "", agent_name: str = "Agent") -> ToolRegistry:
     """Create registry with all standard tools."""
     registry = ToolRegistry()
     registry.register(ReadFileTool())
@@ -525,5 +532,5 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(SearchKbTool(scene_id=scene_id))
     registry.register(RememberTool(agent_id=agent_id))
     registry.register(RecallTool(agent_id=agent_id))
-    registry.register(DreamTool(agent_id=agent_id))
+    registry.register(DreamTool(agent_id=agent_id, agent_name=agent_name))
     return registry
