@@ -1,0 +1,44 @@
+"""Routes entry messages to scene-level user storage."""
+import os
+import json
+from datetime import datetime
+
+
+def store_message(scene_id: str, user_id: str, msg_dict: dict):
+    """Store a message in scenes/{scene_id}/users/{user_id}/history.jsonl."""
+    history_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..", "scenes", scene_id, "users", user_id
+    )
+    history_path = os.path.join(history_dir, "history.jsonl")
+    os.makedirs(history_dir, exist_ok=True)
+
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "direction": msg_dict.get("direction", "incoming"),
+        "content": msg_dict.get("content", ""),
+        "channel": msg_dict.get("channel_type", ""),
+    }
+    with open(history_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def get_history(scene_id: str, user_id: str, limit: int = 20) -> list[dict]:
+    """Read recent conversation history for a user in a scene."""
+    history_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..", "scenes", scene_id, "users", user_id, "history.jsonl"
+    )
+    if not os.path.exists(history_path):
+        return []
+
+    entries = []
+    with open(history_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    entries.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+    return entries[-limit:]
