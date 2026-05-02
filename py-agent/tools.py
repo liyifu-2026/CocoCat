@@ -251,13 +251,28 @@ class DispatchTaskTool(Tool):
     }
 
     def execute(self, target_id="", prompt="", **kwargs) -> str:
+        """Write a dispatch request file that Rust will read and forward."""
+        import os
+        import time
+        from datetime import datetime
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        queue_dir = os.path.join(script_dir, "..", "agents", "dispatch_queue")
+        os.makedirs(queue_dir, exist_ok=True)
+
         dispatch = {
             "__dispatch__": True,
             "target_id": target_id,
             "method": "task",
             "params": {"prompt": prompt},
+            "timestamp": datetime.now().isoformat(),
         }
-        return json.dumps(dispatch, ensure_ascii=False)
+
+        filename = f"dispatch_{target_id}_{time.time_ns()}.json"
+        filepath = os.path.join(queue_dir, filename)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(dispatch, f, ensure_ascii=False)
+
+        return f"Dispatch request queued for '{target_id}'. Message: '{prompt[:80]}...'"
 
 
 class HireAgentTool(Tool):
