@@ -1,6 +1,7 @@
 mod transport;
 mod agent_manager;
 mod agent_registry;
+mod message_bus;
 
 use agent_registry::AgentRegistry;
 use serde_json::json;
