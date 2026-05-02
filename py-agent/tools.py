@@ -589,6 +589,78 @@ class WebSearchTool(Tool):
             return f"Search failed: {e}"
 
 
+class EditFileTool(Tool):
+    """Replace text in a file using search/replace (claw-code pattern)."""
+    name = "edit_file"
+    description = "Replace text in a file. Specify old_string to find and new_string to replace it with. Use replace_all=true to replace all occurrences."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "File path"},
+            "old_string": {"type": "string", "description": "Text to find (exact match, not regex)"},
+            "new_string": {"type": "string", "description": "Text to replace with"},
+            "replace_all": {"type": "boolean", "description": "Replace all occurrences (default false)"},
+        },
+        "required": ["path", "old_string", "new_string"],
+    }
+
+    def execute(self, path="", old_string="", new_string="", replace_all=False, **kwargs) -> str:
+        import os
+        path = os.path.abspath(path)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                original = f.read()
+        except FileNotFoundError:
+            return f"Error: file not found: {path}"
+        except Exception as e:
+            return f"Error reading file: {e}"
+
+        if old_string == new_string:
+            return "Error: old_string and new_string must differ"
+
+        if old_string not in original:
+            return f"Error: old_string not found in file"
+
+        if replace_all:
+            updated = original.replace(old_string, new_string)
+        else:
+            updated = original.replace(old_string, new_string, 1)
+
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(updated)
+        except Exception as e:
+            return f"Error writing file: {e}"
+
+        return f"Applied edit to {path}"
+
+
+class AskUserTool(Tool):
+    """Ask the user a question and wait for response."""
+    name = "ask_user"
+    description = "Ask the user a question and get their response. The agent pauses and waits for user input."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "question": {"type": "string", "description": "Question to ask the user"},
+            "options": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Optional multiple-choice options",
+            },
+        },
+        "required": ["question"],
+    }
+
+    def execute(self, question="", options=None, **kwargs) -> str:
+        import os, json
+        from datetime import datetime
+        question_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", "_ask_user.json")
+        data = {"question": question, "options": options or [], "timestamp": datetime.now().isoformat(), "status": "pending"}
+        with open(question_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return f"Question saved: {question}\nWaiting for user response..."
+
 class ToolRegistry:
     """Registry of available tools (nanobot ToolRegistry pattern)."""
 
@@ -632,4 +704,6 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(IngestToKbTool())
     registry.register(WebFetchTool())
     registry.register(WebSearchTool())
+    registry.register(EditFileTool())
+    registry.register(AskUserTool())
     return registry
