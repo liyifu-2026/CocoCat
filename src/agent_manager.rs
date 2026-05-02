@@ -1,19 +1,20 @@
 use crate::transport::{self, JsonRpcRequest, JsonRpcResponse};
-use std::io::{BufRead, BufReader, Write};
-use std::process::{Child, Command, Stdio};
+use std::io::BufReader;
+use std::process::{Child, ChildStdin, Command, Stdio};
 
 pub struct AgentProcess {
-    pub child: Child,
-    pub stdin_writer: Box<dyn Write + Send>,
-    pub stdout_reader: Box<dyn BufRead + Send>,
+    child: Child,
+    stdin_writer: Option<ChildStdin>,
+    stdout_reader: BufReader<std::process::ChildStdout>,
+    interpreter: String,
 }
 
 impl AgentProcess {
-    /// Spawn a Python agent subprocess. `python_script_path` is the
-    /// path to the Python agent runtime file.
-    pub fn spawn(python_script_path: &str) -> Result<Self, String> {
-        let mut child = Command::new("python")
-            .arg("-u") // unbuffered stdout
+    /// Spawn an agent subprocess. `interpreter` is the program to run (e.g. "python"),
+    /// and `python_script_path` is the path to the agent runtime script.
+    pub fn spawn(interpreter: &str, python_script_path: &str) -> Result<Self, String> {
+        let mut child = Command::new(interpreter)
+            .arg("-u")
             .arg(python_script_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -27,8 +28,9 @@ impl AgentProcess {
 
         Ok(Self {
             child,
-            stdin_writer: Box::new(stdin_writer),
-            stdout_reader: Box::new(stdout_reader),
+            stdin_writer: Some(stdin_writer),
+            stdout_reader,
+            interpreter: interpreter.to_string(),
         })
     }
 
@@ -40,7 +42,7 @@ impl AgentProcess {
         id: u64,
     ) -> Result<JsonRpcResponse, String> {
         let req = JsonRpcRequest::new(method, params, id);
-        transport::send_request(&mut self.stdin_writer, &req)?;
+        transport::send_request(self.stdin_writer.as_mut().unwrap(), &req)?;
         transport::read_response(&mut self.stdout_reader)
     }
 
@@ -51,11 +53,20 @@ impl AgentProcess {
             .map_err(|e| format!("failed to kill agent: {}", e))
     }
 
-    /// Wait for the agent subprocess to exit
+    /// Close stdin, then wait for the agent subprocess to exit
     pub fn wait(&mut self) -> Result<(), String> {
+        drop(self.stdin_writer.take());
         self.child
             .wait()
             .map_err(|e| format!("failed to wait for agent: {}", e))?;
         Ok(())
+    }
+}
+
+impl Drop for AgentProcess {
+    fn drop(&mut self) {
+        drop(self.stdin_writer.take());
+        let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 }
