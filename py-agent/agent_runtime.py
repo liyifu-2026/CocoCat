@@ -68,6 +68,11 @@ def main():
         IDENTITY["name"] = args.name
         IDENTITY["scene"] = args.scene
 
+    # Start heartbeat for schedule-based execution
+    if IDENTITY.get("id"):
+        from heartbeat import start_heartbeat
+        start_heartbeat(IDENTITY["id"], IDENTITY.get("name", "Agent"), interval=300)
+
     agent_loop = None
 
     for line in sys.stdin:
