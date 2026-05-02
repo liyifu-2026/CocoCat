@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from llm import LLMClient
 from tools import ToolRegistry, create_default_registry
-from context import build_system_prompt, build_tool_descriptions, load_agent_memory
+from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_skills
 
 
 def append_history(agent_id: str, prompt: str, response: str, iterations: int):
@@ -162,6 +162,7 @@ class AgentLoop:
         tool_defs = self.tools.get_definitions()
         tool_desc = build_tool_descriptions(tool_defs)
         agent_memory = load_agent_memory(self.agent_id)
+        agent_skills = load_agent_skills(self.agent_id)
 
         system_prompt = build_system_prompt(
             agent_id=self.agent_id,
@@ -170,8 +171,9 @@ class AgentLoop:
             workspace=self.workspace,
             scene_name=self.scene_name,
             scene_context=self.scene_context,
-            env_skills=self.scene_skills,
             agent_memory=agent_memory,
+            agent_skills=agent_skills,
+            env_skills=self.scene_skills,
         )
 
         messages = [

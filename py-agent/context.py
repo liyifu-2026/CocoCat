@@ -14,6 +14,9 @@ SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the Coco
 {scene_context}
 
 ## Active Skills
+{agent_skills}
+
+## Scene Skills
 {env_skills}
 
 ## Your Long-Term Memory
@@ -41,8 +44,9 @@ def build_system_prompt(
     workspace: str = "",
     scene_name: str = "default",
     scene_context: str = "General-purpose work environment.",
-    env_skills: str = "",
     agent_memory: str = "",
+    agent_skills: str = "",
+    env_skills: str = "",
 ) -> str:
     return SYSTEM_PROMPT_TEMPLATE.format(
         agent_id=agent_id,
@@ -51,8 +55,9 @@ def build_system_prompt(
         workspace=workspace or os.getcwd(),
         scene_name=scene_name,
         scene_context=scene_context,
-        env_skills=env_skills or "(No special skills for this scene)",
         agent_memory=agent_memory or "(No long-term memories yet)",
+        agent_skills=agent_skills or "(No specific skills assigned)",
+        env_skills=env_skills or "(No special skills for this scene)",
     )
 
 
@@ -117,6 +122,42 @@ def load_mounted_kbs(scene_id: str) -> list[str]:
         return data.get("mounted", [])
     except Exception:
         return []
+
+
+def load_agent_skills(agent_id: str) -> str:
+    import os as _os
+    base = _os.path.dirname(_os.path.abspath(__file__))
+    manifest_path = _os.path.join(base, "..", "agents", agent_id, "skills", "manifest.json")
+    if not _os.path.exists(manifest_path):
+        return ""
+
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            manifest = json.load(f)
+    except Exception:
+        return ""
+
+    public_skills = manifest.get("public", [])
+    private_skills = manifest.get("private", [])
+    all_skill_names = public_skills + private_skills
+
+    parts = []
+    for skill_name in all_skill_names:
+        for subdir in ["public", "private"]:
+            skill_path = _os.path.join(base, "..", "skills", subdir, f"{skill_name}.md")
+            if _os.path.exists(skill_path):
+                try:
+                    with open(skill_path, "r", encoding="utf-8") as f:
+                        content = f.read().strip()
+                    if content:
+                        parts.append(content)
+                except Exception:
+                    pass
+                break
+
+    if not parts:
+        return ""
+    return "\n\n---\n\n".join(parts)
 
 
 def load_agent_memory(agent_id: str) -> str:
