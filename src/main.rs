@@ -2,58 +2,105 @@ mod transport;
 mod agent_manager;
 mod agent_registry;
 
-use agent_manager::AgentProcess;
+use agent_registry::AgentRegistry;
 use serde_json::json;
 
 fn main() {
     println!("CocoCat Core starting...\n");
 
-    // --- Ping test ---
-    let mut agent = AgentProcess::spawn("python", "py-agent/agent_runtime.py", &[])
-        .expect("failed to spawn agent");
+    // 1. Load config
+    let configs = AgentRegistry::load_config("agents/config.toml")
+        .expect("failed to load agent config");
+    println!("Loaded {} agent definitions\n", configs.len());
 
-    println!("[1/3] Ping test...");
-    let ping_resp = agent.call("ping", None, 1).expect("ping failed");
-    let pong_ok = ping_resp
-        .result
-        .map(|r| r.get("pong") == Some(&json!(true)))
-        .unwrap_or(false);
-    println!("  {} Ping OK\n", if pong_ok { "✅" } else { "❌" });
+    for cfg in &configs {
+        let status = if cfg.enabled { "enabled" } else { "disabled" };
+        println!("  [{status}] {} ({})", cfg.name, cfg.id);
+    }
+    println!();
 
-    // --- Echo test ---
-    println!("[2/3] Echo test...");
-    let echo_params = json!({"message": "hello from Rust", "value": 42});
-    let echo_resp = agent
-        .call("echo", Some(echo_params.clone()), 2)
-        .expect("echo failed");
-    let echo_ok = echo_resp.result == Some(echo_params);
-    println!("  {} Echo OK\n", if echo_ok { "✅" } else { "❌" });
+    // 2. Spawn agents (allows partial failures)
+    let mut registry = AgentRegistry::new(configs);
+    match registry.start_all() {
+        Ok(()) => {}
+        Err(e) => eprintln!("Warning: some agents failed to spawn: {e}"),
+    }
 
-    // --- Task test ---
-    println!("[3/3] Task test (requires OPENAI_API_KEY)...");
-    let task_params = json!({
-        "prompt": "Respond with exactly: Task infrastructure is working. List your available tools."
-    });
-    let task_resp = agent.call("task", Some(task_params), 3);
+    let statuses = registry.status();
+    let running_count = statuses.iter().filter(|s| s.running).count();
+    println!("Spawned {running_count} agents\n");
 
-    match task_resp {
-        Ok(resp) => {
-            if let Some(result) = resp.result {
-                let content = result.get("content").and_then(|c| c.as_str()).unwrap_or("(no content)");
-                let iterations = result.get("iterations").and_then(|i| i.as_u64()).unwrap_or(0);
-                println!("  Agent response ({iterations} iterations):");
-                for line in content.lines() {
-                    println!("    {line}");
-                }
-                println!();
-            } else if let Some(err) = resp.error {
-                println!("  Agent error [{}]: {}", err.code, err.message);
-            }
+    // 3. Ping each running agent
+    println!("--- Ping Test ---");
+    for cfg in registry.configs.clone() {
+        if !cfg.enabled {
+            continue;
         }
-        Err(e) => {
-            println!("  Task call failed (expected if no OPENAI_API_KEY): {e}");
+        let Some(agent) = registry.get(&cfg.id) else {
+            println!("  ⚠️  {} ({}) not running", cfg.name, cfg.id);
+            continue;
+        };
+        let result = match agent.call("ping", None, 1) {
+            Ok(r) => r,
+            Err(e) => {
+                println!("  ❌ {} ({}): ping failed — {e}", cfg.name, cfg.id);
+                continue;
+            }
+        };
+        let is_ok = result
+            .result
+            .map(|r| r.get("pong") == Some(&json!(true)))
+            .unwrap_or(false);
+        println!("  {} {} ({})", if is_ok { "✅" } else { "❌" }, cfg.name, cfg.id);
+    }
+    println!();
+
+    // 4. Identify each running agent
+    println!("--- Identity ---");
+    for cfg in registry.configs.clone() {
+        if !cfg.enabled {
+            continue;
+        }
+        let Some(agent) = registry.get(&cfg.id) else {
+            continue;
+        };
+        let result = match agent.call("identify", None, 2) {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+        if let Some(data) = result.result {
+            let agent_id = data.get("id").and_then(|v| v.as_str()).unwrap_or("?");
+            let agent_name = data.get("name").and_then(|v| v.as_str()).unwrap_or("?");
+            println!("  {}: id={agent_id}, name={agent_name}", cfg.id);
+        }
+    }
+    println!();
+
+    // 5. Send a simple task to leader
+    println!("--- Task Test (leader) ---");
+    let leader_id = "leader".to_string();
+    if let Some(agent) = registry.get(&leader_id) {
+        let task_params = json!({
+            "prompt": "Respond with your identity and list your available tools. Keep it under 100 words."
+        });
+        match agent.call("task", Some(task_params), 3) {
+            Ok(resp) => {
+                if let Some(result) = resp.result {
+                    let content = result.get("content").and_then(|c| c.as_str()).unwrap_or("(no content)");
+                    let iterations = result.get("iterations").and_then(|i| i.as_u64()).unwrap_or(0);
+                    println!("  Response from leader ({} iterations):", iterations);
+                    for line in content.lines() {
+                        println!("    {line}");
+                    }
+                } else if let Some(err) = resp.error {
+                    println!("  Error [{}]: {}", err.code, err.message);
+                }
+            }
+            Err(e) => {
+                println!("  Task call failed: {e}");
+            }
         }
     }
 
-    println!("CocoCat Core exiting.");
+    println!("\nCocoCat Core exiting.");
 }
