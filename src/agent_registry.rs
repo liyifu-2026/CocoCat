@@ -45,8 +45,12 @@ impl AgentRegistry {
             if !config.enabled {
                 continue;
             }
-            // Basic spawn without extra args for now (Task 3 adds identity args)
-            let extra_args: [&str; 0] = [];
+            let extra_args = [
+                "--id",
+                &config.id,
+                "--name",
+                &config.name,
+            ];
             let agent = AgentProcess::spawn(&config.interpreter, &config.script, &extra_args)?;
             self.processes.insert(config.id.clone(), agent);
         }

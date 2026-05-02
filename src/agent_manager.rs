@@ -11,11 +11,19 @@ pub struct AgentProcess {
 
 impl AgentProcess {
     /// Spawn an agent subprocess. `interpreter` is the program to run (e.g. "python"),
-    /// and `python_script_path` is the path to the agent runtime script.
-    pub fn spawn(interpreter: &str, python_script_path: &str) -> Result<Self, String> {
-        let mut child = Command::new(interpreter)
-            .arg("-u")
-            .arg(python_script_path)
+    /// `python_script_path` is the path to the agent runtime script,
+    /// and `extra_args` are additional CLI arguments passed after the script path.
+    pub fn spawn(
+        interpreter: &str,
+        python_script_path: &str,
+        extra_args: &[&str],
+    ) -> Result<Self, String> {
+        let mut cmd = Command::new(interpreter);
+        cmd.arg("-u").arg(python_script_path);
+        for arg in extra_args {
+            cmd.arg(arg);
+        }
+        let mut child = cmd
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())

@@ -9,7 +9,7 @@ fn main() {
     println!("CocoCat Core starting...\n");
 
     // --- Ping test ---
-    let mut agent = AgentProcess::spawn("python", "py-agent/agent_runtime.py")
+    let mut agent = AgentProcess::spawn("python", "py-agent/agent_runtime.py", &[])
         .expect("failed to spawn agent");
 
     println!("[1/3] Ping test...");
