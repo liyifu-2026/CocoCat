@@ -58,9 +58,12 @@ class AgentLoop:
 
             content = response.get("content", "") or ""
             tool_calls = response.get("tool_calls", []) or []
+            reasoning = response.get("reasoning_content")
 
             if tool_calls:
                 assistant_msg = {"role": "assistant", "content": content}
+                if reasoning:
+                    assistant_msg["reasoning_content"] = reasoning
                 assistant_msg["tool_calls"] = [
                     {
                         "id": tc["id"],
@@ -85,7 +88,10 @@ class AgentLoop:
                 continue
 
             final_content = content
-            messages.append({"role": "assistant", "content": content})
+            assistant_msg = {"role": "assistant", "content": content}
+            if reasoning:
+                assistant_msg["reasoning_content"] = reasoning
+            messages.append(assistant_msg)
             break
 
         return {
