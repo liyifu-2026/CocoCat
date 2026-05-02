@@ -97,6 +97,21 @@ def load_env_skills(scene_id: str) -> str:
     return "\n\n---\n\n".join(parts)
 
 
+def load_mounted_kbs(scene_id: str) -> list[str]:
+    """Return list of KB IDs mounted to this scene."""
+    import os as _os
+    scene_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "scenes", scene_id)
+    mount_path = _os.path.join(scene_dir, "mounted_kbs.json")
+    if not _os.path.exists(mount_path):
+        return []
+    try:
+        with open(mount_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("mounted", [])
+    except Exception:
+        return []
+
+
 def build_tool_descriptions(tools: list[dict]) -> str:
     """Build a human-readable tool list from OpenAI-style tool definitions."""
     lines = []

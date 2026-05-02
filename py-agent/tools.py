@@ -305,6 +305,92 @@ class HireAgentTool(Tool):
         return f"Hire request created for '{name}' ({id}). An admin needs to restart CocoCat to activate the new agent."
 
 
+class SearchKbTool(Tool):
+    """Search the knowledge bases mounted to your current scene."""
+    name = "search_kb"
+    description = "Search knowledge bases mounted to your current scene. Returns matching content from KB wiki pages."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "Search query (keywords or phrase)"},
+            "max_results": {"type": "integer", "description": "Maximum results to return (default 5)"},
+        },
+        "required": ["query"],
+    }
+
+    def __init__(self, scene_id: str = "default"):
+        super().__init__()
+        self.scene_id = scene_id
+
+    def execute(self, query="", max_results=5, **kwargs) -> str:
+        import os as _os
+        import re as _re
+
+        script_dir = _os.path.dirname(_os.path.abspath(__file__))
+        mount_path = _os.path.join(script_dir, "..", "scenes", self.scene_id, "mounted_kbs.json")
+
+        if not _os.path.exists(mount_path):
+            return "No knowledge bases mounted for this scene."
+
+        try:
+            with open(mount_path, "r", encoding="utf-8") as f:
+                mount_data = json.load(f)
+        except Exception as e:
+            return f"Failed to load mounted KBs: {e}"
+
+        mounted = mount_data.get("mounted", [])
+        if not mounted:
+            return "No knowledge bases mounted for this scene."
+
+        kb_base = _os.path.join(script_dir, "..", "knowledge")
+        results = []
+
+        for kb_id in mounted:
+            wiki_dir = _os.path.join(kb_base, kb_id, "wiki")
+            if not _os.path.isdir(wiki_dir):
+                continue
+
+            for root, dirs, files in _os.walk(wiki_dir):
+                for f in files:
+                    if not f.endswith(".md"):
+                        continue
+                    fp = _os.path.join(root, f)
+                    try:
+                        with open(fp, "r", encoding="utf-8", errors="replace") as fh:
+                            content = fh.read()
+                    except Exception:
+                        continue
+
+                    query_lower = query.lower()
+                    if query_lower in content.lower():
+                        lines = content.split("\n")
+                        matched_lines = []
+                        for i, line in enumerate(lines):
+                            if query_lower in line.lower():
+                                start = max(0, i - 1)
+                                end = min(len(lines), i + 3)
+                                snippet = "\n".join(lines[start:end])
+                                rel_path = _os.path.relpath(fp, kb_base)
+                                matched_lines.append(f"[{rel_path}:{i+1}]\n{snippet}")
+                        if matched_lines:
+                            results.extend(matched_lines)
+
+        if not results:
+            return f"No matches found for '{query}' in mounted KBs."
+
+        seen = set()
+        unique = []
+        for r in results:
+            if r not in seen:
+                seen.add(r)
+                unique.append(r)
+
+        top = unique[:max_results]
+        output = f"Found {len(unique)} matches (showing {len(top)}):\n\n"
+        output += "\n\n---\n\n".join(top)
+        return output
+
+
 class ToolRegistry:
     """Registry of available tools (nanobot ToolRegistry pattern)."""
 
@@ -330,7 +416,7 @@ class ToolRegistry:
             return f"Error executing {name}: {e}"
 
 
-def create_default_registry(agent_runtime_path: str = "") -> ToolRegistry:
+def create_default_registry(agent_runtime_path: str = "", scene_id: str = "default") -> ToolRegistry:
     """Create registry with all standard tools."""
     registry = ToolRegistry()
     registry.register(ReadFileTool())
@@ -341,4 +427,5 @@ def create_default_registry(agent_runtime_path: str = "") -> ToolRegistry:
     registry.register(SubAgentTool(agent_runtime_path=agent_runtime_path))
     registry.register(DispatchTaskTool())
     registry.register(HireAgentTool())
+    registry.register(SearchKbTool(scene_id=scene_id))
     return registry
