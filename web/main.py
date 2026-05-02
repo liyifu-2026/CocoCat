@@ -191,6 +191,85 @@ def get_user_history(scene_id: str, user_id: str, limit: int = 20):
     return {"history": history}
 
 
+@app.api_route("/api/channels/wechat/{scene_id}", methods=["GET", "POST"])
+async def wechat_webhook(scene_id: str, request: Request):
+    """WeChat webhook: receive messages from WeChat Official Account."""
+    import sys as _sys
+    _sys.path.insert(0, str(BASE_DIR / "py-agent"))
+    from channels.wechat import WeChatChannel
+
+    if request.method == "GET":
+        params = dict(request.query_params)
+        ch = WeChatChannel()
+        ch.start(scene_id, {"token": params.get("token", "")})
+        if ch.verify_signature(params.get("signature", ""), params.get("timestamp", ""), params.get("nonce", "")):
+            return HTMLResponse(params.get("echostr", ""))
+        return HTMLResponse("verification failed", status_code=403)
+
+    body = await request.body()
+    ch = WeChatChannel()
+    ch.start(scene_id, {})
+    chat_msg = ch.parse_wechat_message(body)
+    if not chat_msg:
+        return HTMLResponse("success")
+
+    from scene_router import store_message, get_history
+
+    store_message(scene_id, chat_msg.user_id, {
+        "content": chat_msg.content, "direction": "incoming", "channel_type": "wechat",
+    })
+
+    scene_dir = BASE_DIR / "scenes" / scene_id
+    context = ""
+    ctx_path = scene_dir / "CONTEXT.md"
+    if ctx_path.exists():
+        context = ctx_path.read_text(encoding="utf-8")
+
+    history = get_history(scene_id, chat_msg.user_id, limit=10)
+    history_text = "\n".join([f"[{h['direction']}] {h['content']}" for h in history])
+
+    api_key = os.environ.get('OPENAI_API_KEY', '')
+    base_url = os.environ.get('OPENAI_BASE_URL', 'https://api.deepseek.com')
+    model = os.environ.get('LLM_MODEL', 'deepseek-v4-flash')
+
+    agent_script = str(BASE_DIR / "py-agent" / "agent_runtime.py")
+    prompt = f"{context}\n\n## Conversation\n{history_text}\n\n[user] {chat_msg.content}\n\nRespond concisely."
+    task = json.dumps({"jsonrpc": "2.0", "method": "task", "params": {"prompt": prompt}, "id": 1})
+
+    try:
+        result = subprocess.run(
+            ["python", "-u", agent_script], input=task,
+            capture_output=True, text=True, timeout=60,
+            env={
+                'OPENAI_API_KEY': api_key,
+                'OPENAI_BASE_URL': base_url,
+                'LLM_MODEL': model,
+                'PYTHONPATH': str(BASE_DIR / 'py-agent'),
+            },
+        )
+        reply_text = "(processing)"
+        for line in result.stdout.strip().split("\n"):
+            line = line.strip()
+            if line:
+                try:
+                    resp = json.loads(line)
+                    ct = resp.get("result", {}).get("content", "")
+                    if ct:
+                        reply_text = ct
+                        break
+                except json.JSONDecodeError:
+                    pass
+    except Exception:
+        reply_text = "System busy, please try again later."
+
+    store_message(scene_id, chat_msg.user_id, {
+        "content": reply_text, "direction": "outgoing", "channel_type": "wechat",
+    })
+
+    xml_reply = ch.make_reply(chat_msg.user_id, "gh_xxx", reply_text)
+    return HTMLResponse(xml_reply, media_type="application/xml")
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard():
     return """<!DOCTYPE html>
