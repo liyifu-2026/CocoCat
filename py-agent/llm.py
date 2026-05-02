@@ -60,6 +60,24 @@ class OpenAICompatibleProvider(Provider):
             reasoning_content=message.get("reasoning_content"),
         )
 
+    def chat_stream(self, messages, tools=None, max_tokens=4096, temperature=0.7):
+        """Stream tokens from LLM. Yields dicts with 'type': 'delta'|'done'."""
+        kwargs = dict(model=self.model, messages=self._sanitize(messages), max_tokens=max_tokens, temperature=temperature, stream=True, stream_options={"include_usage": True})
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = "auto"
+
+        stream = self.client.chat.completions.create(**kwargs)
+        content_chunks = []
+        for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta
+            if delta.content:
+                content_chunks.append(delta.content)
+                yield {"type": "delta", "content": delta.content}
+        yield {"type": "done", "content": "".join(content_chunks)}
+
     def _sanitize(self, messages):
         allowed = {"role", "content", "tool_calls", "tool_call_id", "name", "reasoning_content"}
         return [{k: v for k, v in m.items() if k in allowed} for m in messages]
@@ -92,3 +110,10 @@ class LLMClient:
                         time.sleep(delay)
                         continue
         return {"content": f"LLM call failed after {max_retries} retries: {last_error}", "tool_calls": [], "finish_reason": "error"}
+
+    def chat_stream(self, messages, tools=None, max_tokens=4096, temperature=0.7):
+        for provider in self.providers:
+            if hasattr(provider, 'chat_stream'):
+                yield from provider.chat_stream(messages, tools=tools, max_tokens=max_tokens, temperature=temperature)
+                return
+        yield {"type": "done", "content": "(streaming not supported)"}
