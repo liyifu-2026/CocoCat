@@ -1,20 +1,48 @@
+"""CocoCat Agent Runtime — capable agent with LLM + tools + sub-agents."""
 import sys
 import json
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+IDENTITY = {"id": None, "name": "unknown"}
 
 
-def handle_request(request: dict) -> dict:
+def handle_request(request: dict, agent_loop=None) -> dict:
     method = request.get("method", "")
     params = request.get("params", {})
 
     if method == "ping":
-        return {"pong": True, "agent": "cococat-mvp"}
+        return {"pong": True, "agent": "cococat-capable"}
     elif method == "echo":
         return params
+    elif method == "identify":
+        return dict(IDENTITY)
+    elif method == "task":
+        if agent_loop is None:
+            return {"error": "agent loop not initialized"}
+        prompt = params.get("prompt", "")
+        if not prompt:
+            return {"error": "no prompt provided"}
+        result = agent_loop.run(prompt)
+        return result
     else:
         raise ValueError(f"Method not found: {method}")
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--id", default=None)
+    parser.add_argument("--name", default="unknown")
+    args, _ = parser.parse_known_args()
+    if args.id:
+        IDENTITY["id"] = args.id
+        IDENTITY["name"] = args.name
+
+    agent_loop = None
+
     for line in sys.stdin:
         line = line.strip()
         if not line:
@@ -24,7 +52,21 @@ def main():
         try:
             request = json.loads(line)
             req_id = request.get("id")
-            result = handle_request(request)
+
+            if request.get("method") == "task" and agent_loop is None:
+                from agent_loop import AgentLoop
+                from tools import create_default_registry
+
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                agent_runtime_path = os.path.join(script_dir, "agent_runtime.py")
+                tools = create_default_registry(agent_runtime_path=agent_runtime_path)
+                agent_loop = AgentLoop(
+                    agent_id=IDENTITY["id"] or "unknown",
+                    agent_name=IDENTITY["name"] or "Agent",
+                    tools=tools,
+                )
+
+            result = handle_request(request, agent_loop=agent_loop)
             response = {"jsonrpc": "2.0", "result": result, "id": req_id}
         except json.JSONDecodeError as e:
             response = {

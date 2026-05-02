@@ -182,6 +182,57 @@ class GrepSearchTool(Tool):
             return f"Error searching: {e}"
 
 
+class SubAgentTool(Tool):
+    """Spawn a child agent process to handle a subtask (claw-code Agent tool pattern)."""
+    name = "sub_agent"
+    description = "Spawn a child agent to handle a subtask. Provide a clear prompt describing what the subtask should accomplish."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "prompt": {"type": "string", "description": "Clear instructions for the subtask"},
+            "name": {"type": "string", "description": "Optional name for the sub-agent"},
+        },
+        "required": ["prompt"],
+    }
+
+    def __init__(self, agent_runtime_path: str = ""):
+        super().__init__()
+        self.agent_runtime_path = agent_runtime_path or os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "agent_runtime.py"
+        )
+
+    def execute(self, prompt="", name="subtask", **kwargs) -> str:
+        """Spawn a new Python process running agent_runtime.py with the subtask."""
+        try:
+            input_json = json.dumps({
+                "jsonrpc": "2.0",
+                "method": "task",
+                "params": {"prompt": prompt},
+                "id": 1,
+            })
+            result = subprocess.run(
+                ["python", "-u", self.agent_runtime_path, "--id", name, "--name", name],
+                input=input_json,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            for line in result.stdout.strip().split("\n"):
+                line = line.strip()
+                if line:
+                    try:
+                        resp = json.loads(line)
+                        if resp.get("result"):
+                            return json.dumps(resp["result"], indent=2, ensure_ascii=False)
+                    except json.JSONDecodeError:
+                        continue
+            return result.stdout.strip() or "(no output)"
+        except subprocess.TimeoutExpired:
+            return "Error: sub-agent task timed out after 120s"
+        except Exception as e:
+            return f"Error spawning sub-agent: {e}"
+
+
 class ToolRegistry:
     """Registry of available tools (nanobot ToolRegistry pattern)."""
 
@@ -207,7 +258,7 @@ class ToolRegistry:
             return f"Error executing {name}: {e}"
 
 
-def create_default_registry() -> ToolRegistry:
+def create_default_registry(agent_runtime_path: str = "") -> ToolRegistry:
     """Create registry with all standard tools."""
     registry = ToolRegistry()
     registry.register(ReadFileTool())
@@ -215,4 +266,5 @@ def create_default_registry() -> ToolRegistry:
     registry.register(ExecCommandTool())
     registry.register(GlobSearchTool())
     registry.register(GrepSearchTool())
+    registry.register(SubAgentTool(agent_runtime_path=agent_runtime_path))
     return registry
