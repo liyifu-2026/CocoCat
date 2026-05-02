@@ -5,6 +5,7 @@ from datetime import datetime
 from llm import LLMClient
 from tools import ToolRegistry, create_default_registry
 from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_skills
+import tiktoken
 
 
 def append_history(agent_id: str, prompt: str, response: str, iterations: int):
@@ -55,8 +56,21 @@ def _microcompact_tool_results(messages: list[dict], max_tool_chars: int = 2000)
     return result
 
 
+_enc = None
+def _get_encoder():
+    global _enc
+    if _enc is None:
+        try:
+            _enc = tiktoken.get_encoding("cl100k_base")
+        except Exception:
+            _enc = None
+    return _enc
+
 def estimate_tokens(text: str) -> int:
-    return len(text) // 4
+    enc = _get_encoder()
+    if enc:
+        return len(enc.encode(text))
+    return len(text) // 4  # fallback
 
 
 def estimate_messages_tokens(messages: list[dict]) -> int:
@@ -65,6 +79,23 @@ def estimate_messages_tokens(messages: list[dict]) -> int:
         text = json.dumps(msg, ensure_ascii=False)
         total += estimate_tokens(text)
     return total
+
+
+def _snip_history(messages: list[dict], budget: int = 8000) -> list[dict]:
+    current = estimate_messages_tokens(messages)
+    if current <= budget:
+        return messages
+    system_msgs = [m for m in messages if m.get("role") == "system"]
+    non_system = [m for m in messages if m.get("role") != "system"]
+    if len(non_system) <= 2:
+        return messages
+    keep = non_system[-2:]
+    to_snip = non_system[:-2]
+    summary = {"role": "system", "content": f"[{len(to_snip)} previous messages snipped for token budget]"}
+    result = system_msgs + [summary] + keep
+    if estimate_messages_tokens(result) > budget:
+        result = system_msgs + [{"role": "system", "content": "[Earlier conversation trimmed]"}, non_system[-1]]
+    return result
 
 
 CONSOLIDATION_PROMPT = """Summarize the following conversation turn in 1-2 sentences. Focus on what was asked, what tool was used, and what result was obtained.
@@ -214,16 +245,32 @@ class AgentLoop:
 
             if iteration > 1:
                 messages = consolidate(messages, self.llm, budget=8000)
+                messages = _snip_history(messages, budget=8000)
                 messages = _microcompact_tool_results(messages)
 
-            response = self.llm.chat(
-                messages=messages,
-                tools=tool_defs if tool_defs else None,
-            )
+            content = ""
+            tool_calls = []
+            reasoning = None
+            response = None
+            for retry in range(3):
+                response = self.llm.chat(
+                    messages=messages,
+                    tools=tool_defs if tool_defs else None,
+                )
+                content = response.get("content", "") or ""
+                tool_calls = response.get("tool_calls", []) or []
+                reasoning = response.get("reasoning_content")
+                if content.strip() or tool_calls:
+                    break
 
-            content = response.get("content", "") or ""
-            tool_calls = response.get("tool_calls", []) or []
-            reasoning = response.get("reasoning_content")
+            if response and response.get("finish_reason") == "length" and content.strip():
+                messages.append({"role": "assistant", "content": content})
+                messages.append({"role": "user", "content": "Please continue from where you left off."})
+                response = self.llm.chat(
+                    messages=messages,
+                    tools=tool_defs if tool_defs else None,
+                )
+                content += (response.get("content", "") or "")
 
             if tool_calls:
                 assistant_msg = {"role": "assistant", "content": content}
