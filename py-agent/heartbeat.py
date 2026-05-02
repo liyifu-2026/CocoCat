@@ -50,6 +50,20 @@ def _heartbeat_loop(agent_id: str, agent_name: str, interval: int):
     while True:
         time.sleep(interval)
         try:
+            from mailbox import read_inbox, mark_read
+            messages = read_inbox(agent_id)
+            unread = [m for m in messages if m.get("status") == "unread"]
+            if unread:
+                print(f"[Mailbox] {agent_name} has {len(unread)} unread message(s)")
+                for i, msg in enumerate(messages):
+                    if msg.get("status") == "unread":
+                        from_prompt = f"[Message from {msg.get('from', 'unknown')}]\n{msg.get('content', '')}"
+                        _execute_task(agent_id, agent_name, {"id": i, "task": from_prompt})
+                        mark_read(agent_id, i)
+        except Exception as e:
+            print(f"[Mailbox] Error: {e}")
+
+        try:
             tasks = get_pending_tasks(agent_id)
             if not tasks:
                 continue

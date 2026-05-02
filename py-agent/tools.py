@@ -643,6 +643,28 @@ class McpCallTool(Tool):
             return f"MCP call failed: {e}"
 
 
+class SendMessageTool(Tool):
+    """Send a message to another agent's mailbox."""
+    name = "send_message"
+    description = "Send a message to another agent. The target agent will receive it in their mailbox and can respond on their next heartbeat."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "to": {"type": "string", "description": "Target agent ID (e.g. employee_a)"},
+            "message": {"type": "string", "description": "Message content"},
+        },
+        "required": ["to", "message"],
+    }
+
+    def __init__(self, from_agent: str = ""):
+        super().__init__()
+        self.from_agent = from_agent
+
+    def execute(self, to="", message="", **kwargs) -> str:
+        from mailbox import send_message
+        return send_message(to, self.from_agent, message)
+
+
 class EditFileTool(Tool):
     """Replace text in a file using search/replace (claw-code pattern)."""
     name = "edit_file"
@@ -761,4 +783,5 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(EditFileTool())
     registry.register(AskUserTool())
     registry.register(McpCallTool())
+    registry.register(SendMessageTool(from_agent=agent_id))
     return registry
