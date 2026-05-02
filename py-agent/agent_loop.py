@@ -242,13 +242,23 @@ class AgentLoop:
                 ]
                 messages.append(assistant_msg)
 
-                for tc in tool_calls:
-                    result = self.tools.execute(tc["name"], tc.get("arguments", {}))
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tc["id"],
-                        "content": result,
-                    })
+                from concurrent.futures import ThreadPoolExecutor, as_completed
+                with ThreadPoolExecutor(max_workers=len(tool_calls)) as executor:
+                    futures = {}
+                    for tc in tool_calls:
+                        f = executor.submit(self.tools.execute, tc["name"], tc.get("arguments", {}))
+                        futures[f] = tc
+                    for f in as_completed(futures):
+                        tc = futures[f]
+                        try:
+                            result = f.result(timeout=60)
+                        except Exception as e:
+                            result = f"Tool error: {e}"
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tc["id"],
+                            "content": result,
+                        })
 
                 continue
 
