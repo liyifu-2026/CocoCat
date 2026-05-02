@@ -3,6 +3,7 @@ import json
 import subprocess
 import os
 import glob as glob_module
+import re
 from pathlib import Path
 
 
@@ -165,7 +166,6 @@ class GrepSearchTool(Tool):
                     try:
                         with open(fp, "r", encoding="utf-8", errors="replace") as fh:
                             for i, line in enumerate(fh, 1):
-                                import re
                                 if re.search(pattern, line):
                                     rel = os.path.relpath(fp, path)
                                     matches.append(f"{rel}:{i}: {line.rstrip()[:200]}")
