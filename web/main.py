@@ -1,9 +1,11 @@
 """CocoCat Web Management Panel — FastAPI backend."""
 import json
 import os
+import sys
+import subprocess
 from pathlib import Path
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 
 app = FastAPI(title="CocoCat Panel")
 
@@ -103,6 +105,80 @@ def list_knowledge():
             if d.is_dir():
                 kbs.append({"id": d.name, "path": str(d)})
     return kbs
+
+
+@app.post("/api/scenes/{scene_id}/chat")
+async def scene_chat(scene_id: str, request: Request):
+    """Entry point for external users to send messages to a scene."""
+    body = await request.json()
+    user_id = body.get("user_id", "anonymous")
+    content = body.get("content", "")
+
+    if not content:
+        return JSONResponse({"error": "content is required"}, status_code=400)
+
+    sys.path.insert(0, str(BASE_DIR / "py-agent"))
+
+    from scene_router import store_message, get_history
+
+    store_message(scene_id, user_id, {
+        "content": content,
+        "direction": "incoming",
+        "channel_type": "web_api",
+    })
+
+    scene_dir = BASE_DIR / "scenes" / scene_id
+    context = ""
+    ctx_path = scene_dir / "CONTEXT.md"
+    if ctx_path.exists():
+        context = ctx_path.read_text(encoding="utf-8")
+
+    history = get_history(scene_id, user_id, limit=10)
+    history_text = "\n".join([f"[{h['direction']}] {h['content']}" for h in history])
+
+    agent_script = str(BASE_DIR / "py-agent" / "agent_runtime.py")
+    prompt = f"{context}\n\n## Conversation\n{history_text}\n\n[user] {content}\n\nRespond to the user's message concisely."
+    task = json.dumps({"jsonrpc": "2.0", "method": "task", "params": {"prompt": prompt}, "id": 1})
+
+    try:
+        result = subprocess.run(
+            ["python", "-u", agent_script],
+            input=task, capture_output=True, text=True, timeout=60,
+            env={**dict(os.environ), 'PYTHONPATH': str(BASE_DIR / 'py-agent')},
+        )
+        reply_text = "(no response)"
+        for line in result.stdout.strip().split("\n"):
+            line = line.strip()
+            if line:
+                try:
+                    resp = json.loads(line)
+                    content_text = resp.get("result", {}).get("content", "")
+                    if content_text:
+                        reply_text = content_text
+                        break
+                except json.JSONDecodeError:
+                    continue
+    except subprocess.TimeoutExpired:
+        reply_text = "Agent processing timed out."
+    except Exception as e:
+        reply_text = f"Agent error: {e}"
+
+    store_message(scene_id, user_id, {
+        "content": reply_text,
+        "direction": "outgoing",
+        "channel_type": "web_api",
+    })
+
+    return JSONResponse({"reply": reply_text, "user_id": user_id})
+
+
+@app.get("/api/scenes/{scene_id}/users/{user_id}/history")
+def get_user_history(scene_id: str, user_id: str, limit: int = 20):
+    """Read a user's conversation history in a scene."""
+    sys.path.insert(0, str(BASE_DIR / "py-agent"))
+    from scene_router import get_history
+    history = get_history(scene_id, user_id, limit=limit)
+    return {"history": history}
 
 
 @app.get("/", response_class=HTMLResponse)

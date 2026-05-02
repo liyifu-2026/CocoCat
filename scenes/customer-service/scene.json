@@ -1,0 +1,17 @@
+{
+  "scene_id": "customer-service",
+  "title": "智能客服",
+  "version": "1.0",
+  "description": "Customer service scene with multi-entry support",
+  "entries": [
+    {
+      "channel": "web_api",
+      "config": { "endpoint": "/api/scenes/customer-service/chat" },
+      "after_import": "ready"
+    }
+  ],
+  "config_after_import": {
+    "mounted_kbs": [],
+    "assigned_agents": { "min": 1, "current": [] }
+  }
+}
