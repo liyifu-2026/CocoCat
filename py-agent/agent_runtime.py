@@ -58,12 +58,13 @@ def main():
             if request.get("method") == "task" and agent_loop is None:
                 from agent_loop import AgentLoop
                 from tools import create_default_registry
-                from context import load_scene_context
+                from context import load_scene_context, load_env_skills
 
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 agent_runtime_path = os.path.join(script_dir, "agent_runtime.py")
 
                 scene_name, scene_context = load_scene_context(IDENTITY.get("scene", "default"))
+                scene_skills = load_env_skills(IDENTITY.get("scene", "default"))
 
                 tools = create_default_registry(agent_runtime_path=agent_runtime_path)
                 agent_loop = AgentLoop(
@@ -72,6 +73,7 @@ def main():
                     tools=tools,
                     scene_name=scene_name,
                     scene_context=scene_context,
+                    scene_skills=scene_skills,
                 )
 
             result = handle_request(request, agent_loop=agent_loop)

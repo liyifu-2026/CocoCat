@@ -22,6 +22,7 @@ class AgentLoop:
         workspace: str = "",
         scene_name: str = "default",
         scene_context: str = "",
+        scene_skills: str = "",
     ):
         self.agent_id = agent_id
         self.agent_name = agent_name
@@ -31,6 +32,7 @@ class AgentLoop:
         self.workspace = workspace
         self.scene_name = scene_name
         self.scene_context = scene_context
+        self.scene_skills = scene_skills
 
     def run(self, prompt: str) -> dict:
         """Execute a task prompt and return the result."""
@@ -44,6 +46,7 @@ class AgentLoop:
             workspace=self.workspace,
             scene_name=self.scene_name,
             scene_context=self.scene_context,
+            env_skills=self.scene_skills,
         )
 
         messages = [

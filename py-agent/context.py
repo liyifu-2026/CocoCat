@@ -13,6 +13,9 @@ SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the Coco
 ## Scene Context
 {scene_context}
 
+## Active Skills
+{env_skills}
+
 ## Capabilities
 You have access to the following tools:
 {tool_descriptions}
@@ -33,6 +36,7 @@ def build_system_prompt(
     workspace: str = "",
     scene_name: str = "default",
     scene_context: str = "General-purpose work environment.",
+    env_skills: str = "",
 ) -> str:
     return SYSTEM_PROMPT_TEMPLATE.format(
         agent_id=agent_id,
@@ -41,6 +45,7 @@ def build_system_prompt(
         workspace=workspace or os.getcwd(),
         scene_name=scene_name,
         scene_context=scene_context,
+        env_skills=env_skills or "(No special skills for this scene)",
     )
 
 
@@ -57,6 +62,39 @@ def load_scene_context(scene_id: str) -> tuple[str, str]:
         if first_line.startswith("# "):
             name = first_line[2:].strip()
     return name, context
+
+
+def load_env_skills(scene_id: str) -> str:
+    """Load env-tagged skills from scenes/{scene_id}/skills/manifest.json and their .md files."""
+    scene_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scenes", scene_id)
+    manifest_path = os.path.join(scene_dir, "skills", "manifest.json")
+
+    if not os.path.exists(manifest_path):
+        return ""
+
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            manifest = json.load(f)
+    except Exception:
+        return ""
+
+    env_skills = manifest.get("env_skills", [])
+    if not env_skills:
+        return ""
+
+    parts = []
+    for skill_name in env_skills:
+        skill_path = os.path.join(scene_dir, "skills", f"{skill_name}.md")
+        if os.path.exists(skill_path):
+            with open(skill_path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+            if content:
+                parts.append(content)
+
+    if not parts:
+        return ""
+
+    return "\n\n---\n\n".join(parts)
 
 
 def build_tool_descriptions(tools: list[dict]) -> str:
