@@ -1,0 +1,20 @@
+[[agents]]
+id = "leader"
+name = "组长"
+interpreter = "python"
+script = "py-agent/agent_runtime.py"
+enabled = true
+
+[[agents]]
+id = "employee_a"
+name = "员工A"
+interpreter = "python"
+script = "py-agent/agent_runtime.py"
+enabled = true
+
+[[agents]]
+id = "employee_b"
+name = "员工B"
+interpreter = "python"
+script = "py-agent/agent_runtime.py"
+enabled = true
