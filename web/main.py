@@ -221,9 +221,69 @@ async def scene_chat(scene_id: str, request: Request):
         return JSONResponse({"error": "content is required"}, status_code=400)
 
     sys.path.insert(0, str(BASE_DIR / "py-agent"))
+    from scene_router import store_message, get_history
 
-    api_key = body.get('api_key', '')
-    reply_text = _agent_process_message(scene_id, user_id, content, "web_api", api_key)
+    store_message(scene_id, user_id, {
+        "content": content, "direction": "incoming", "channel_type": "web_api",
+    })
+
+    scene_dir = BASE_DIR / "scenes" / scene_id
+    context = ""
+    ctx_path = scene_dir / "CONTEXT.md"
+    if ctx_path.exists():
+        context = ctx_path.read_text(encoding="utf-8")
+
+    history = get_history(scene_id, user_id, limit=10)
+    history_text = "\n".join([f"[{h['direction']}] {h['content']}" for h in history])
+
+    api_key = body.get('api_key', '') or os.environ.get('OPENAI_API_KEY', '')
+    base_url = os.environ.get('OPENAI_BASE_URL', 'https://api.deepseek.com')
+    model = os.environ.get('LLM_MODEL', 'deepseek-v4-flash')
+
+    agent_script = str(BASE_DIR / "py-agent" / "agent_runtime.py")
+    prompt = f"{context}\n\n## Conversation\n{history_text}\n\n[user] {content}\n\nRespond concisely."
+
+    reply_text = "(processing)"
+    try:
+        task = json.dumps({"jsonrpc": "2.0", "method": "task_stream", "params": {"prompt": prompt}, "id": 1})
+        proc = subprocess.Popen(
+            ["python", "-u", agent_script], stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            env={'OPENAI_API_KEY': api_key, 'OPENAI_BASE_URL': base_url, 'LLM_MODEL': model},
+        )
+        proc.stdin.write(task)
+        proc.stdin.close()
+
+        full_content = ""
+        for line in proc.stdout:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                evt = json.loads(line)
+                if evt.get("event") == "delta":
+                    full_content += evt.get("content", "")
+                    try:
+                        asyncio.get_event_loop().create_task(
+                            manager.broadcast("stream_delta", {
+                                "scene_id": scene_id, "user_id": user_id,
+                                "delta": evt.get("content", ""),
+                            })
+                        )
+                    except: pass
+                elif evt.get("event") == "done":
+                    full_content = evt.get("content", full_content)
+            except json.JSONDecodeError:
+                continue
+
+        reply_text = full_content or "(no response)"
+        proc.wait(timeout=10)
+    except Exception as e:
+        reply_text = f"Stream error: {e}"
+
+    store_message(scene_id, user_id, {
+        "content": reply_text, "direction": "outgoing", "channel_type": "web_api",
+    })
     return JSONResponse({"reply": reply_text, "user_id": user_id})
 
 
