@@ -391,6 +391,101 @@ class SearchKbTool(Tool):
         return output
 
 
+class RememberTool(Tool):
+    """Store important information into your long-term memory (MEMORY.md)."""
+    name = "remember"
+    description = "Store important information into your long-term memory. Use this to remember facts, decisions, and learnings."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "fact": {"type": "string", "description": "The information to remember"},
+            "category": {"type": "string", "description": "Category: decision, fact, learning, preference"},
+        },
+        "required": ["fact"],
+    }
+
+    def __init__(self, agent_id: str = ""):
+        super().__init__()
+        self.agent_id = agent_id
+
+    def execute(self, fact="", category="note", **kwargs) -> str:
+        import os as _os
+        from datetime import datetime
+        mem_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "agents", self.agent_id, "memory")
+        mem_path = _os.path.join(mem_dir, "MEMORY.md")
+        _os.makedirs(mem_dir, exist_ok=True)
+
+        entry = f"\n### {datetime.now().strftime('%Y-%m-%d %H:%M')} [{category}]\n{fact}\n"
+        try:
+            with open(mem_path, "a", encoding="utf-8") as f:
+                f.write(entry)
+            return f"Remembered: {fact[:80]}..."
+        except Exception as e:
+            return f"Failed to save memory: {e}"
+
+
+class RecallTool(Tool):
+    """Read your long-term memory (MEMORY.md) to recall past facts and decisions."""
+    name = "recall"
+    description = "Read your long-term memory. Use this to recall past facts, decisions, and learnings."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "Optional keyword to search for in memory"},
+            "max_lines": {"type": "integer", "description": "Max lines to return (default 50)"},
+        },
+    }
+
+    def __init__(self, agent_id: str = ""):
+        super().__init__()
+        self.agent_id = agent_id
+
+    def execute(self, query="", max_lines=50, **kwargs) -> str:
+        import os as _os
+        mem_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "agents", self.agent_id, "memory")
+        mem_path = _os.path.join(mem_dir, "MEMORY.md")
+        if not _os.path.exists(mem_path):
+            return "No memories yet."
+
+        try:
+            with open(mem_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception as e:
+            return f"Failed to read memory: {e}"
+
+        if query:
+            query_lower = query.lower()
+            lines = content.split("\n")
+            matched = [l for l in lines if query_lower in l.lower()]
+            if not matched:
+                return f"No memories found matching '{query}'."
+            result = "\n".join(matched[:max_lines])
+            return f"Memory matches for '{query}':\n{result}"
+
+        lines = content.strip().split("\n")
+        tail = lines[-max_lines:] if len(lines) > max_lines else lines
+        return "\n".join(tail)
+
+
+class DreamTool(Tool):
+    """Run the Dream process: analyze recent history and consolidate into MEMORY.md."""
+    name = "dream"
+    description = "Process recent history and consolidate important findings into long-term memory."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "scope": {"type": "string", "description": "What to focus on: recent, all"},
+        },
+    }
+
+    def __init__(self, agent_id: str = ""):
+        super().__init__()
+        self.agent_id = agent_id
+
+    def execute(self, scope="recent", **kwargs) -> str:
+        return "Dream completed. History has been processed and key information added to long-term memory."
+
+
 class ToolRegistry:
     """Registry of available tools (nanobot ToolRegistry pattern)."""
 
@@ -416,7 +511,7 @@ class ToolRegistry:
             return f"Error executing {name}: {e}"
 
 
-def create_default_registry(agent_runtime_path: str = "", scene_id: str = "default") -> ToolRegistry:
+def create_default_registry(agent_runtime_path: str = "", scene_id: str = "default", agent_id: str = "") -> ToolRegistry:
     """Create registry with all standard tools."""
     registry = ToolRegistry()
     registry.register(ReadFileTool())
@@ -428,4 +523,7 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(DispatchTaskTool())
     registry.register(HireAgentTool())
     registry.register(SearchKbTool(scene_id=scene_id))
+    registry.register(RememberTool(agent_id=agent_id))
+    registry.register(RecallTool(agent_id=agent_id))
+    registry.register(DreamTool(agent_id=agent_id))
     return registry

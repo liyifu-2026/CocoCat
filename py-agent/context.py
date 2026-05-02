@@ -16,6 +16,9 @@ SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the Coco
 ## Active Skills
 {env_skills}
 
+## Your Long-Term Memory
+{agent_memory}
+
 ## Capabilities
 You have access to the following tools:
 {tool_descriptions}
@@ -23,9 +26,11 @@ You have access to the following tools:
 ## Guidelines
 1. You can use tools to read/write files, execute commands, and search the workspace.
 2. When you need to delegate a subtask, use the sub_agent tool to spawn a child agent.
-3. Think step by step before using tools.
-4. When you have completed the task, provide a clear summary of what was done.
-5. You work in the directory: {workspace}
+3. Use the remember tool to store important facts in long-term memory.
+4. Use the recall tool to retrieve past memories.
+5. When you complete a task, key information is automatically saved to your history.
+6. Think step by step before using tools.
+7. You work in the directory: {workspace}
 """
 
 
@@ -37,6 +42,7 @@ def build_system_prompt(
     scene_name: str = "default",
     scene_context: str = "General-purpose work environment.",
     env_skills: str = "",
+    agent_memory: str = "",
 ) -> str:
     return SYSTEM_PROMPT_TEMPLATE.format(
         agent_id=agent_id,
@@ -46,6 +52,7 @@ def build_system_prompt(
         scene_name=scene_name,
         scene_context=scene_context,
         env_skills=env_skills or "(No special skills for this scene)",
+        agent_memory=agent_memory or "(No long-term memories yet)",
     )
 
 
@@ -110,6 +117,19 @@ def load_mounted_kbs(scene_id: str) -> list[str]:
         return data.get("mounted", [])
     except Exception:
         return []
+
+
+def load_agent_memory(agent_id: str) -> str:
+    """Load the agent's MEMORY.md for system prompt injection."""
+    import os as _os
+    mem_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "agents", agent_id, "memory", "MEMORY.md")
+    if not _os.path.exists(mem_path):
+        return ""
+    try:
+        with open(mem_path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return ""
 
 
 def build_tool_descriptions(tools: list[dict]) -> str:

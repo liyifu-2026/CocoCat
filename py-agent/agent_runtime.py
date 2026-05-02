@@ -67,13 +67,15 @@ def main():
                 scene_skills = load_env_skills(IDENTITY.get("scene", "default"))
 
                 current_scene = IDENTITY.get("scene", "default")
+                agent_id = IDENTITY.get("id") or "unknown"
                 tools = create_default_registry(
                     agent_runtime_path=agent_runtime_path,
                     scene_id=current_scene,
+                    agent_id=agent_id,
                 )
                 agent_loop = AgentLoop(
-                    agent_id=IDENTITY["id"] or "unknown",
-                    agent_name=IDENTITY["name"] or "Agent",
+                    agent_id=agent_id,
+                    agent_name=IDENTITY.get("name") or "Agent",
                     tools=tools,
                     scene_name=scene_name,
                     scene_context=scene_context,

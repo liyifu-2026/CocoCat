@@ -1,8 +1,31 @@
 """ReAct agent loop (nanobot AgentRunner + claw-code ConversationRuntime pattern)."""
 import json
+import os
+from datetime import datetime
 from llm import LLMClient
 from tools import ToolRegistry, create_default_registry
-from context import build_system_prompt, build_tool_descriptions
+from context import build_system_prompt, build_tool_descriptions, load_agent_memory
+
+
+def append_history(agent_id: str, prompt: str, response: str, iterations: int):
+    """Append a task result to the agent's history.jsonl (nanobot pattern)."""
+    if not agent_id or agent_id == "unknown":
+        return
+    history_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", agent_id, "memory")
+    history_path = os.path.join(history_dir, "history.jsonl")
+    os.makedirs(history_dir, exist_ok=True)
+
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "prompt": prompt[:200],
+        "response_summary": response[:200],
+        "iterations": iterations,
+    }
+    try:
+        with open(history_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
 
 
 class AgentLoop:
@@ -38,6 +61,7 @@ class AgentLoop:
         """Execute a task prompt and return the result."""
         tool_defs = self.tools.get_definitions()
         tool_desc = build_tool_descriptions(tool_defs)
+        agent_memory = load_agent_memory(self.agent_id)
 
         system_prompt = build_system_prompt(
             agent_id=self.agent_id,
@@ -47,6 +71,7 @@ class AgentLoop:
             scene_name=self.scene_name,
             scene_context=self.scene_context,
             env_skills=self.scene_skills,
+            agent_memory=agent_memory,
         )
 
         messages = [
@@ -102,6 +127,8 @@ class AgentLoop:
                 assistant_msg["reasoning_content"] = reasoning
             messages.append(assistant_msg)
             break
+
+        append_history(self.agent_id, prompt, final_content, iteration)
 
         return {
             "content": final_content,
