@@ -1,9 +1,10 @@
 # Team Wiki Index
 
-Auto-generated catalog. Last updated: (pending)
+Auto-generated. Last updated: 2026-05-03 00:29
 
 ## Entities
-(none yet)
+- cococat
 
 ## Concepts
-(none yet)
+- message-bus-architecture
+- multi-agent-systems
