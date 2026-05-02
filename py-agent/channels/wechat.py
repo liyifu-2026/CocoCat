@@ -57,4 +57,4 @@ class WeChatChannel(Channel):
 </xml>"""
 
     def send(self, reply: str, user_id: str):
-        pass
+        raise NotImplementedError("WeChat uses passive reply via HTTP response")

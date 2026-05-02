@@ -107,6 +107,60 @@ def list_knowledge():
     return kbs
 
 
+def _agent_process_message(scene_id: str, user_id: str, content: str, channel_type: str, api_key: str = ""):
+    """Shared agent invocation logic for all channels."""
+    from scene_router import store_message, get_history
+    import subprocess, json
+
+    store_message(scene_id, user_id, {
+        "content": content, "direction": "incoming", "channel_type": channel_type,
+    })
+
+    scene_dir = BASE_DIR / "scenes" / scene_id
+    context = ""
+    ctx_path = scene_dir / "CONTEXT.md"
+    if ctx_path.exists():
+        context = ctx_path.read_text(encoding="utf-8")
+
+    history = get_history(scene_id, user_id, limit=10)
+    history_text = "\n".join([f"[{h['direction']}] {h['content']}" for h in history])
+
+    api_key = api_key or os.environ.get('OPENAI_API_KEY', '')
+    base_url = os.environ.get('OPENAI_BASE_URL', 'https://api.deepseek.com')
+    model = os.environ.get('LLM_MODEL', 'deepseek-v4-flash')
+
+    agent_script = str(BASE_DIR / "py-agent" / "agent_runtime.py")
+    prompt = f"{context}\n\n## Conversation\n{history_text}\n\n[user] {content}\n\nRespond concisely."
+    task = json.dumps({"jsonrpc": "2.0", "method": "task", "params": {"prompt": prompt}, "id": 1})
+
+    reply_text = "(processing)"
+    try:
+        result = subprocess.run(
+            ["python", "-u", agent_script], input=task,
+            capture_output=True, text=True, timeout=60,
+            env={'OPENAI_API_KEY': api_key, 'OPENAI_BASE_URL': base_url, 'LLM_MODEL': model},
+        )
+        for line in result.stdout.strip().split("\n"):
+            line = line.strip()
+            if line:
+                try:
+                    resp = json.loads(line)
+                    ct = resp.get("result", {}).get("content", "")
+                    if ct: reply_text = ct; break
+                except json.JSONDecodeError:
+                    continue
+    except subprocess.TimeoutExpired:
+        reply_text = "System busy, please try again later."
+    except Exception as e:
+        print(f"[agent_process] Error: {e}")
+        reply_text = "System error."
+
+    store_message(scene_id, user_id, {
+        "content": reply_text, "direction": "outgoing", "channel_type": channel_type,
+    })
+    return reply_text
+
+
 @app.post("/api/scenes/{scene_id}/chat")
 async def scene_chat(scene_id: str, request: Request):
     """Entry point for external users to send messages to a scene."""
@@ -119,66 +173,8 @@ async def scene_chat(scene_id: str, request: Request):
 
     sys.path.insert(0, str(BASE_DIR / "py-agent"))
 
-    from scene_router import store_message, get_history
-
-    store_message(scene_id, user_id, {
-        "content": content,
-        "direction": "incoming",
-        "channel_type": "web_api",
-    })
-
-    scene_dir = BASE_DIR / "scenes" / scene_id
-    context = ""
-    ctx_path = scene_dir / "CONTEXT.md"
-    if ctx_path.exists():
-        context = ctx_path.read_text(encoding="utf-8")
-
-    history = get_history(scene_id, user_id, limit=10)
-    history_text = "\n".join([f"[{h['direction']}] {h['content']}" for h in history])
-
-    agent_script = str(BASE_DIR / "py-agent" / "agent_runtime.py")
-    prompt = f"{context}\n\n## Conversation\n{history_text}\n\n[user] {content}\n\nRespond to the user's message concisely."
-    task = json.dumps({"jsonrpc": "2.0", "method": "task", "params": {"prompt": prompt}, "id": 1})
-
-    try:
-        api_key = os.environ.get('OPENAI_API_KEY', '') or body.get('api_key', '')
-        base_url = os.environ.get('OPENAI_BASE_URL', 'https://api.deepseek.com')
-        model = os.environ.get('LLM_MODEL', 'deepseek-v4-flash')
-        agent_env = dict(os.environ)
-        agent_env.update({
-            'OPENAI_API_KEY': api_key,
-            'OPENAI_BASE_URL': base_url,
-            'LLM_MODEL': model,
-            'PYTHONPATH': str(BASE_DIR / 'py-agent'),
-        })
-        result = subprocess.run(
-            ["python", "-u", agent_script],
-            input=task, capture_output=True, text=True, timeout=60,
-            env=agent_env,
-        )
-        reply_text = "(no response)"
-        for line in result.stdout.strip().split("\n"):
-            line = line.strip()
-            if line:
-                try:
-                    resp = json.loads(line)
-                    content_text = resp.get("result", {}).get("content", "")
-                    if content_text:
-                        reply_text = content_text
-                        break
-                except json.JSONDecodeError:
-                    continue
-    except subprocess.TimeoutExpired:
-        reply_text = "Agent processing timed out."
-    except Exception as e:
-        reply_text = f"Agent error: {e}"
-
-    store_message(scene_id, user_id, {
-        "content": reply_text,
-        "direction": "outgoing",
-        "channel_type": "web_api",
-    })
-
+    api_key = body.get('api_key', '')
+    reply_text = _agent_process_message(scene_id, user_id, content, "web_api", api_key)
     return JSONResponse({"reply": reply_text, "user_id": user_id})
 
 
@@ -209,63 +205,12 @@ async def wechat_webhook(scene_id: str, request: Request):
     body = await request.body()
     ch = WeChatChannel()
     ch.start(scene_id, {})
+    api_key = ""
     chat_msg = ch.parse_wechat_message(body)
     if not chat_msg:
         return HTMLResponse("success")
 
-    from scene_router import store_message, get_history
-
-    store_message(scene_id, chat_msg.user_id, {
-        "content": chat_msg.content, "direction": "incoming", "channel_type": "wechat",
-    })
-
-    scene_dir = BASE_DIR / "scenes" / scene_id
-    context = ""
-    ctx_path = scene_dir / "CONTEXT.md"
-    if ctx_path.exists():
-        context = ctx_path.read_text(encoding="utf-8")
-
-    history = get_history(scene_id, chat_msg.user_id, limit=10)
-    history_text = "\n".join([f"[{h['direction']}] {h['content']}" for h in history])
-
-    api_key = os.environ.get('OPENAI_API_KEY', '')
-    base_url = os.environ.get('OPENAI_BASE_URL', 'https://api.deepseek.com')
-    model = os.environ.get('LLM_MODEL', 'deepseek-v4-flash')
-
-    agent_script = str(BASE_DIR / "py-agent" / "agent_runtime.py")
-    prompt = f"{context}\n\n## Conversation\n{history_text}\n\n[user] {chat_msg.content}\n\nRespond concisely."
-    task = json.dumps({"jsonrpc": "2.0", "method": "task", "params": {"prompt": prompt}, "id": 1})
-
-    try:
-        result = subprocess.run(
-            ["python", "-u", agent_script], input=task,
-            capture_output=True, text=True, timeout=60,
-            env={
-                'OPENAI_API_KEY': api_key,
-                'OPENAI_BASE_URL': base_url,
-                'LLM_MODEL': model,
-                'PYTHONPATH': str(BASE_DIR / 'py-agent'),
-            },
-        )
-        reply_text = "(processing)"
-        for line in result.stdout.strip().split("\n"):
-            line = line.strip()
-            if line:
-                try:
-                    resp = json.loads(line)
-                    ct = resp.get("result", {}).get("content", "")
-                    if ct:
-                        reply_text = ct
-                        break
-                except json.JSONDecodeError:
-                    pass
-    except Exception:
-        reply_text = "System busy, please try again later."
-
-    store_message(scene_id, chat_msg.user_id, {
-        "content": reply_text, "direction": "outgoing", "channel_type": "wechat",
-    })
-
+    reply_text = _agent_process_message(scene_id, chat_msg.user_id, chat_msg.content, "wechat", api_key)
     xml_reply = ch.make_reply(chat_msg.user_id, "gh_xxx", reply_text)
     return HTMLResponse(xml_reply, media_type="application/xml")
 
