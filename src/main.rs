@@ -58,7 +58,8 @@ fn main() {
         if let Some(data) = agent.call("identify", None, 0).ok().and_then(|r| r.result) {
             let name = data.get("name").and_then(|v| v.as_str()).unwrap_or("?");
             let id = data.get("id").and_then(|v| v.as_str()).unwrap_or("?");
-            println!("  {}: id={id}, name={name}", cfg.id);
+            let scene = data.get("scene").and_then(|v| v.as_str()).unwrap_or("?");
+            println!("  {}: id={id}, name={name}, scene={scene}", cfg.id);
         }
     }
     println!();
