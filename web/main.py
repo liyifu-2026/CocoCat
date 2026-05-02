@@ -4,12 +4,61 @@ import os
 import sys
 import subprocess
 from pathlib import Path
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
+import asyncio
 
 app = FastAPI(title="CocoCat Panel")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+class ConnectionManager:
+    def __init__(self):
+        self.active: list[WebSocket] = []
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.active.append(ws)
+
+    def disconnect(self, ws: WebSocket):
+        if ws in self.active:
+            self.active.remove(ws)
+
+    async def broadcast(self, event: str, data: dict):
+        import json
+        payload = json.dumps({"event": event, "data": data})
+        stale = []
+        for ws in self.active:
+            try:
+                await ws.send_text(payload)
+            except Exception:
+                stale.append(ws)
+        for ws in stale:
+            self.disconnect(ws)
+
+
+manager = ConnectionManager()
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await manager.connect(ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(ws)
+
+
+@app.on_event("startup")
+async def start_heartbeat():
+    asyncio.create_task(_heartbeat_loop())
+
+async def _heartbeat_loop():
+    while True:
+        await asyncio.sleep(10)
+        await manager.broadcast("heartbeat", {"timestamp": __import__("datetime").datetime.now().isoformat()})
 
 
 @app.get("/api/agents")
@@ -264,5 +313,27 @@ async function load() {
     '<br><div class="font-medium mt-2">Private:</div> ' + (skills.private.map(s=>s.title).join(', ')||'none');
 }
 load();
+</script>
+<div class="mt-6 bg-white p-4 rounded shadow">
+  <h2 class="font-semibold mb-3">Real-Time Events</h2>
+  <div id="ws-log" class="bg-gray-100 p-2 text-xs max-h-40 overflow-y-auto" style="font-family:monospace">Connecting...</div>
+</div>
+<script>
+(function(){
+  const el = document.getElementById('ws-log');
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => { el.innerHTML = '<div class="text-green-600">Connected</div>'; };
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    const line = document.createElement('div');
+    line.className = 'border-b border-gray-200 py-0.5';
+    let text = JSON.stringify(msg.data).substring(0, 120);
+    if (msg.event === 'heartbeat') return;
+    line.textContent = `${msg.event}: ${text}`;
+    el.insertBefore(line, el.firstChild);
+    if (el.children.length > 50) el.removeChild(el.lastChild);
+  };
+  ws.onclose = () => { el.innerHTML = '<div class="text-red-600">Disconnected</div>' + el.innerHTML; };
+})();
 </script>
 </body></html>"""
