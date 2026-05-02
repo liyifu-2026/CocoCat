@@ -26,6 +26,31 @@ def handle_request(request: dict, agent_loop=None) -> dict:
             return {"error": "no prompt provided"}
         result = agent_loop.run(prompt)
         return result
+    elif method == "task_stream":
+        if agent_loop is None:
+            return {"error": "agent loop not initialized"}
+        prompt = params.get("prompt", "")
+        if not prompt:
+            return {"error": "no prompt provided"}
+        result = agent_loop.llm.chat_stream(
+            messages=[
+                {"role": "system", "content": agent_loop._build_system_prompt()},
+                {"role": "user", "content": prompt},
+            ],
+        )
+        full_content = ""
+        for token in result:
+            if token["type"] == "delta":
+                full_content += token["content"]
+                line = json.dumps({"event": "delta", "content": token["content"]}, ensure_ascii=False)
+                sys.stdout.write(line + "\n")
+                sys.stdout.flush()
+            elif token["type"] == "done":
+                full_content = token.get("content", full_content)
+                line = json.dumps({"event": "done", "content": full_content}, ensure_ascii=False)
+                sys.stdout.write(line + "\n")
+                sys.stdout.flush()
+        return {"content": full_content, "streamed": True}
     else:
         raise ValueError(f"Method not found: {method}")
 

@@ -170,6 +170,18 @@ class AgentLoop:
         self.scene_context = scene_context
         self.scene_skills = scene_skills
 
+    def _build_system_prompt(self):
+        from context import build_system_prompt, build_tool_descriptions, load_agent_memory
+        tool_defs = self.tools.get_definitions()
+        tool_desc = build_tool_descriptions(tool_defs)
+        agent_memory = load_agent_memory(self.agent_id)
+        return build_system_prompt(
+            agent_id=self.agent_id, agent_name=self.agent_name,
+            tool_descriptions=tool_desc, workspace=self.workspace,
+            scene_name=self.scene_name, scene_context=self.scene_context,
+            agent_memory=agent_memory, agent_skills="", env_skills=self.scene_skills,
+        )
+
     def run(self, prompt: str) -> dict:
         """Execute a task prompt and return the result."""
         tool_defs = self.tools.get_definitions()
