@@ -20,6 +20,8 @@ class AgentLoop:
         llm: LLMClient | None = None,
         max_iterations: int = 20,
         workspace: str = "",
+        scene_name: str = "default",
+        scene_context: str = "",
     ):
         self.agent_id = agent_id
         self.agent_name = agent_name
@@ -27,6 +29,8 @@ class AgentLoop:
         self.llm = llm or LLMClient()
         self.max_iterations = max_iterations
         self.workspace = workspace
+        self.scene_name = scene_name
+        self.scene_context = scene_context
 
     def run(self, prompt: str) -> dict:
         """Execute a task prompt and return the result."""
@@ -38,6 +42,8 @@ class AgentLoop:
             agent_name=self.agent_name,
             tool_descriptions=tool_desc,
             workspace=self.workspace,
+            scene_name=self.scene_name,
+            scene_context=self.scene_context,
         )
 
         messages = [

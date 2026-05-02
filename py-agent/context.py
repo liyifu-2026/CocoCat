@@ -1,5 +1,6 @@
 """System prompt builder (nanobot ContextBuilder pattern)."""
 import os
+import json
 
 
 SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the CocoCat multi-agent team.
@@ -7,6 +8,10 @@ SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the Coco
 ## Identity
 - Name: {agent_name}
 - ID: {agent_id}
+- Current Scene: {scene_name}
+
+## Scene Context
+{scene_context}
 
 ## Capabilities
 You have access to the following tools:
@@ -18,10 +23,6 @@ You have access to the following tools:
 3. Think step by step before using tools.
 4. When you have completed the task, provide a clear summary of what was done.
 5. You work in the directory: {workspace}
-
-## Communication
-- You receive tasks via your team and report results back.
-- Be concise but thorough in your responses.
 """
 
 
@@ -30,13 +31,32 @@ def build_system_prompt(
     agent_name: str = "Agent",
     tool_descriptions: str = "",
     workspace: str = "",
+    scene_name: str = "default",
+    scene_context: str = "General-purpose work environment.",
 ) -> str:
     return SYSTEM_PROMPT_TEMPLATE.format(
         agent_id=agent_id,
         agent_name=agent_name,
         tool_descriptions=tool_descriptions,
         workspace=workspace or os.getcwd(),
+        scene_name=scene_name,
+        scene_context=scene_context,
     )
+
+
+def load_scene_context(scene_id: str) -> tuple[str, str]:
+    """Load scene name and CONTEXT.md content from scenes/{scene_id}/."""
+    scene_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scenes", scene_id)
+    name = scene_id
+    context = ""
+    context_path = os.path.join(scene_dir, "CONTEXT.md")
+    if os.path.exists(context_path):
+        with open(context_path, "r", encoding="utf-8") as f:
+            context = f.read()
+        first_line = context.strip().split("\n")[0].strip()
+        if first_line.startswith("# "):
+            name = first_line[2:].strip()
+    return name, context
 
 
 def build_tool_descriptions(tools: list[dict]) -> str:

@@ -47,12 +47,11 @@ impl AgentRegistry {
             if !config.enabled {
                 continue;
             }
-            let extra_args = [
-                "--id",
-                &config.id,
-                "--name",
-                &config.name,
-            ];
+            let mut extra_args: Vec<&str> = vec!["--id", &config.id, "--name", &config.name];
+            if let Some(scene) = &config.scene {
+                extra_args.push("--scene");
+                extra_args.push(scene);
+            }
             let agent = AgentProcess::spawn(&config.interpreter, &config.script, &extra_args)?;
             self.processes.insert(config.id.clone(), agent);
         }
