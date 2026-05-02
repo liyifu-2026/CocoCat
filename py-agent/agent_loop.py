@@ -42,6 +42,19 @@ def auto_dream(agent_id: str, agent_name: str, llm) -> None:
 import re
 
 
+def _microcompact_tool_results(messages: list[dict], max_tool_chars: int = 2000) -> list[dict]:
+    """Truncate verbose tool results to prevent context bloat (nanobot pattern)."""
+    result = []
+    for msg in messages:
+        if msg.get("role") == "tool" and isinstance(msg.get("content"), str):
+            content = msg["content"]
+            if len(content) > max_tool_chars:
+                msg = dict(msg)
+                msg["content"] = content[:max_tool_chars] + f"\n...[truncated {len(content) - max_tool_chars} chars]"
+        result.append(msg)
+    return result
+
+
 def estimate_tokens(text: str) -> int:
     return len(text) // 4
 
@@ -189,6 +202,7 @@ class AgentLoop:
 
             if iteration > 1:
                 messages = consolidate(messages, self.llm, budget=8000)
+                messages = _microcompact_tool_results(messages)
 
             response = self.llm.chat(
                 messages=messages,
