@@ -2,6 +2,7 @@
 import os
 import json
 import time
+import hashlib
 
 
 DREAM_PROMPT_TEMPLATE = """You are a Dream processor for {agent_name}, an AI agent in the CocoCat team.
@@ -92,7 +93,6 @@ def get_user_memory_dir(agent_id: str, user_hash: str) -> str:
 
 
 def _user_hash(user_id: str) -> str:
-    import hashlib
     return hashlib.sha256(user_id.encode()).hexdigest()[:16]
 
 
@@ -235,7 +235,7 @@ def run_user_dream(agent_id: str, agent_name: str, user_hash: str, llm_client=No
     if not entries:
         return "No new entries to process."
 
-    history_text = json.dumps(entries, ensure_ascii=False, indent=2)
+    history_text = json.dumps(entries, ensure_ascii=False, indent=2)[:4000]
     analysis_prompt = f"""Analyze these conversation entries and extract user preferences, habits, important facts about this user.
 Write concise bullet points for their PROFILE.md file.
 
@@ -249,7 +249,7 @@ Write concise bullet points for their PROFILE.md file.
     if not content:
         return "User dream produced no output."
 
-    import time
+    
     os.makedirs(user_dir, exist_ok=True)
     with open(profile_path, "a", encoding="utf-8") as f:
         f.write(f"\n## Dream Consolidation ({time.strftime('%Y-%m-%d')})\n")
