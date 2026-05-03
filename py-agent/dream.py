@@ -1,6 +1,7 @@
 """Dream process: analyze history and consolidate into MEMORY.md (nanobot Dream pattern)."""
 import os
 import json
+import time
 
 
 DREAM_PROMPT_TEMPLATE = """You are a Dream processor for {agent_name}, an AI agent in the CocoCat team.
@@ -29,6 +30,40 @@ Example:
 - Decided to use Rust for the core engine due to performance requirements
 - Learned that DeepSeek API requires reasoning_content to be passed back
 """
+
+
+DREAM_COUNT_MIN = 3
+DREAM_COUNT_MAX = 10
+DREAM_TOKEN_PER_ENTRY = 2000
+DREAM_TIME_TRIGGER = 1800  # 30 minutes in seconds
+
+
+def should_trigger_dream(unprocessed_entries: list, last_dream_time: float, now: float) -> bool:
+    if not unprocessed_entries:
+        return False
+    total_chars = 0
+    for e in unprocessed_entries:
+        content = e.get("content", "") if isinstance(e, dict) else str(e)
+        total_chars += len(content)
+
+    if now - last_dream_time >= DREAM_TIME_TRIGGER:
+        return True
+
+    if total_chars // DREAM_TOKEN_PER_ENTRY >= DREAM_COUNT_MIN:
+        return True
+
+    if len(unprocessed_entries) >= DREAM_COUNT_MIN and now - last_dream_time >= DREAM_TIME_TRIGGER // DREAM_COUNT_MIN:
+        return True
+
+    return False
+
+
+def read_last_dream_time(agent_id: str) -> float:
+    cursor_path = _agent_memory_dir(agent_id, ".dream_cursor")
+    try:
+        return os.path.getmtime(cursor_path)
+    except OSError:
+        return 0.0
 
 
 def get_cursor(agent_id: str) -> int:

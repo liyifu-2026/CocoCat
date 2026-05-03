@@ -2,6 +2,7 @@
 import json
 import os
 from datetime import datetime
+import time as _time
 from llm import LLMClient
 from tools import ToolRegistry, create_default_registry, PermissionMode
 from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_skills, load_agent_profile, load_user_profile
@@ -49,14 +50,14 @@ def _log_usage(agent_id: str, prompt: str, usage: dict, iterations: int):
 
 
 def auto_dream(agent_id: str, agent_name: str, llm) -> None:
-    """Auto-trigger Dream after every 3 unprocessed entries."""
-    from dream import get_unprocessed_history, run_dream
-    unprocessed, _ = get_unprocessed_history(agent_id)
-    if len(unprocessed) >= 3:
-        try:
+    from dream import get_unprocessed_history, run_dream, should_trigger_dream, read_last_dream_time
+    try:
+        unprocessed, _ = get_unprocessed_history(agent_id)
+        last_time = read_last_dream_time(agent_id)
+        if should_trigger_dream(unprocessed, last_time, _time.time()):
             run_dream(agent_id, agent_name, llm_client=llm)
-        except Exception:
-            pass
+    except Exception:
+        pass
 
 
 import re
