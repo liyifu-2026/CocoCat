@@ -27,6 +27,52 @@ def _tokenize(text: str) -> list[str]:
     return tokens
 
 
+import re as _re
+
+
+def _parse_related_frontmatter(filepath: str) -> list[str]:
+    """Parse YAML frontmatter and extract 'related' field (list of slugs)."""
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception:
+        return []
+    m = _re.search(r"^---\n(.+?)\n---", content, _re.DOTALL)
+    if not m:
+        return []
+    fm = m.group(1)
+    related = []
+    for line in fm.split("\n"):
+        line = line.strip()
+        if line.startswith("related:"):
+            rest = line[8:].strip()
+            if rest.startswith("["):
+                items = _re.findall(r'"([^"]+)"', rest)
+                if not items:
+                    items = _re.findall(r"'([^']+)'", rest)
+                if not items:
+                    items = [rest.strip("[] ").strip("'\"")]
+                related.extend(items)
+            break
+    return related
+
+
+def _find_page_by_slug(kb_base: str, mounted: list[str], slug: str) -> str | None:
+    """Find a wiki page by slug (filename without .md) across all KBs."""
+    slug_lower = slug.lower()
+    for kb_id in mounted:
+        wiki_dir = _os.path.join(kb_base, kb_id, "wiki")
+        if not _os.path.isdir(wiki_dir):
+            continue
+        for root, dirs, files in _os.walk(wiki_dir):
+            for fname in files:
+                if not fname.endswith(".md"):
+                    continue
+                if fname[:-3].lower() == slug_lower:
+                    return _os.path.join(root, fname)
+    return None
+
+
 class PermissionMode(Enum):
     READONLY = "readonly"
     WORKSPACE_WRITE = "write"
@@ -505,6 +551,43 @@ class SearchKbTool(Tool):
                     if score > 0:
                         rel_path = _os.path.relpath(fp, kb_base)
                         scored_pages.append((score, rel_path, matched_lines))
+
+        # === Graph expansion: follow related links ===
+        expanded_pages = set()
+        graph_additions = []
+        for parent_score, parent_path, parent_snippets in scored_pages:
+            parent_full_path = _os.path.join(kb_base, parent_path)
+            related_slugs = _parse_related_frontmatter(parent_full_path)
+            if not related_slugs:
+                continue
+            for slug in related_slugs:
+                related_page = _find_page_by_slug(kb_base, mounted, slug)
+                if not related_page:
+                    continue
+                if related_page in expanded_pages:
+                    continue
+                expanded_pages.add(related_page)
+                try:
+                    with open(related_page, "r", encoding="utf-8") as fh:
+                        r_content = fh.read()
+                except Exception:
+                    continue
+                r_lines = r_content.split("\n")
+                r_title = ""
+                for line in r_lines:
+                    if line.startswith("#"):
+                        r_title = line.strip()
+                        break
+                r_rel_path = _os.path.relpath(related_page, kb_base)
+                r_snippet = "\n".join(r_lines[:5])
+                child_score = parent_score // 2
+                graph_additions.append((
+                    child_score,
+                    r_rel_path,
+                    [f"[related to: {parent_path}]\n{r_snippet}"],
+                ))
+
+        scored_pages.extend(graph_additions)
 
         if not scored_pages:
             return f"No matches found for '{query}' in mounted KBs."
