@@ -8,6 +8,7 @@ import SceneDetail from "@/pages/SceneDetail"
 import Settings from "@/pages/Settings"
 import Knowledge from "@/pages/Knowledge"
 import KnowledgeDetail from "@/pages/KnowledgeDetail"
+import Mailbox from "@/pages/Mailbox"
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/scenes/:id" element={<SceneDetail />} />
           <Route path="/knowledge" element={<Knowledge />} />
           <Route path="/knowledge/:kbId" element={<KnowledgeDetail />} />
+          <Route path="/mailbox" element={<Mailbox />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
