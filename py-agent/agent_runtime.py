@@ -73,7 +73,8 @@ def main():
     # Start heartbeat for schedule-based execution
     if IDENTITY.get("id"):
         from heartbeat import start_heartbeat
-        start_heartbeat(IDENTITY["id"], IDENTITY.get("name", "Agent"), interval=300)
+        start_heartbeat(IDENTITY["id"], IDENTITY.get("name", "Agent"), interval=300,
+                        scene=IDENTITY.get("scene", "default"))
 
     agent_loop = None
 
