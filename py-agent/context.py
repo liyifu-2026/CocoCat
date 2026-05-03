@@ -78,6 +78,20 @@ def build_system_prompt(
     )
 
 
+def load_daily_log(agent_id: str) -> str:
+    """Load today's daily log from agents/{agent_id}/memory/daily/YYYY-MM-DD.md."""
+    base = os.path.dirname(os.path.abspath(__file__))
+    today = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+    log_path = os.path.join(base, "..", "agents", agent_id, "memory", "daily", f"{today}.md")
+    if not os.path.exists(log_path):
+        return ""
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return ""
+
+
 def load_user_profile(agent_id: str, user_id: str, base_dir: str = "") -> str:
     if not base_dir:
         base_dir = os.path.dirname(os.path.abspath(__file__))

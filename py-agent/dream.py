@@ -184,6 +184,17 @@ def run_dream(agent_id: str, agent_name: str, llm_client=None) -> str:
     if not content:
         return "Dream produced no output."
 
+    # Write daily log
+    try:
+        daily_dir = os.path.join(_agent_memory_dir(agent_id), "daily")
+        os.makedirs(daily_dir, exist_ok=True)
+        daily_path = os.path.join(daily_dir, f"{time.strftime('%Y-%m-%d')}.md")
+        with open(daily_path, "a", encoding="utf-8") as f:
+            f.write(f"\n## Dream Consolidation ({time.strftime('%Y-%m-%d %H:%M')})\n")
+            f.write(content + "\n")
+    except Exception:
+        pass
+
     # Phase 2: Use AgentLoop to surgically edit MEMORY.md (restricted to file tools only)
     from agent_loop import AgentLoop
     from tools import ToolRegistry, ReadFileTool, EditFileTool
@@ -254,7 +265,16 @@ Write concise bullet points for their PROFILE.md file.
     if not content:
         return "User dream produced no output."
 
-    
+    try:
+        daily_dir = os.path.join(user_dir, "daily")
+        os.makedirs(daily_dir, exist_ok=True)
+        daily_path = os.path.join(daily_dir, f"{time.strftime('%Y-%m-%d')}.md")
+        with open(daily_path, "a", encoding="utf-8") as f:
+            f.write(f"\n## Dream Consolidation ({time.strftime('%Y-%m-%d %H:%M')})\n")
+            f.write(content + "\n")
+    except Exception:
+        pass
+
     os.makedirs(user_dir, exist_ok=True)
     with open(profile_path, "a", encoding="utf-8") as f:
         f.write(f"\n## Dream Consolidation ({time.strftime('%Y-%m-%d')})\n")
