@@ -80,8 +80,11 @@ def load_user_profile(agent_id: str, user_id: str, base_dir: str = "") -> str:
     profile_path = os.path.join(base_dir, "..", "agents", agent_id, "memory", "users", user_hash, "PROFILE.md")
     if not os.path.exists(profile_path):
         return ""
-    with open(profile_path, "r", encoding="utf-8") as f:
-        return f.read().strip()
+    try:
+        with open(profile_path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return ""
 
 
 def _user_hash(user_id: str) -> str:

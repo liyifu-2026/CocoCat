@@ -22,8 +22,14 @@ def test_load_user_profile_exists():
 
 
 def test_load_user_profile_not_exists():
-    profile = load_user_profile(agent_id="test", user_id="nonexistent")
-    assert profile == ""
+    tmp = tempfile.mkdtemp()
+    try:
+        base_dir = os.path.join(tmp, "py-agent")
+        os.makedirs(base_dir)
+        profile = load_user_profile(agent_id="no_such_agent", user_id="nonexistent", base_dir=base_dir)
+        assert profile == ""
+    finally:
+        shutil.rmtree(tmp)
 
 
 def test_build_system_prompt_with_user():
