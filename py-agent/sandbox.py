@@ -69,3 +69,44 @@ class CommandValidator:
             if re.search(ip_pat, cmd):
                 return True
         return False
+
+
+if IS_WINDOWS:
+    _ALLOWED_ENV_KEYS = {"PATH", "SYSTEMROOT", "USERPROFILE", "APPDATA",
+                         "LOCALAPPDATA", "TEMP", "TMP", "COMSPEC"}
+else:
+    _ALLOWED_ENV_KEYS = {"PATH", "HOME", "USER", "LOGNAME", "TMPDIR", "TEMP", "SHELL"}
+
+
+class EnvironmentSanitizer:
+    def sanitize(self, env: dict) -> dict:
+        clean = {}
+        for k in _ALLOWED_ENV_KEYS:
+            if k in env:
+                clean[k] = env[k]
+        for k, v in env.items():
+            if k.startswith("COCOCAT_"):
+                clean[k] = v
+        return clean
+
+
+class PathValidator:
+    def validate(self, path: str, workspace: Path) -> tuple:
+        try:
+            resolved = Path(path).resolve()
+            ws = workspace.resolve()
+            if not str(resolved).startswith(str(ws)):
+                return False, "path outside workspace"
+            return True, ""
+        except Exception as e:
+            return False, f"path validation error: {e}"
+
+
+class OutputTruncator:
+    def __init__(self, max_chars: int = 10000):
+        self.max_chars = max_chars
+
+    def truncate(self, output: str) -> str:
+        if len(output) <= self.max_chars:
+            return output
+        return output[:self.max_chars] + f"\n... (truncated, {len(output) - self.max_chars} more chars)"

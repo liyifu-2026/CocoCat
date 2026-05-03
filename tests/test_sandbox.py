@@ -1,6 +1,8 @@
-import sys, pytest
+import sys, tempfile
+from pathlib import Path
+import pytest
 sys.path.insert(0, "py-agent")
-from sandbox import CommandValidator, IS_WINDOWS
+from sandbox import CommandValidator, IS_WINDOWS, EnvironmentSanitizer, PathValidator, OutputTruncator
 
 validator = CommandValidator()
 
@@ -33,3 +35,41 @@ def test_allow_safe_commands():
     assert validator.validate("python --version", "FULL_ACCESS")[0]
     assert validator.validate("git status", "FULL_ACCESS")[0]
     assert validator.validate("pip list", "FULL_ACCESS")[0]
+
+
+sanitizer = EnvironmentSanitizer()
+path_val = PathValidator()
+truncator = OutputTruncator()
+
+
+def test_env_sanitizer_removes_secrets():
+    dirty = {"PATH": "/usr/bin", "OPENAI_API_KEY": "sk-xxx", "HOME": "/root", "JWT_SECRET": "mysecret"}
+    clean = sanitizer.sanitize(dirty)
+    assert "OPENAI_API_KEY" not in clean
+    assert "JWT_SECRET" not in clean
+    assert "PATH" in clean
+    if not IS_WINDOWS:
+        assert "HOME" in clean
+
+
+def test_path_validator_allows_workspace():
+    ws = Path(tempfile.mkdtemp())
+    (ws / "test.txt").write_text("hello")
+    ok, _ = path_val.validate(str(ws / "test.txt"), ws)
+    assert ok
+
+
+def test_path_validator_blocks_outside():
+    ws = Path(tempfile.mkdtemp())
+    ok, reason = path_val.validate("/etc/passwd", ws)
+    assert not ok
+    assert "outside workspace" in reason
+
+
+def test_output_truncator():
+    short = "hello"
+    assert truncator.truncate(short) == short
+    long = "x" * 20000
+    truncated = truncator.truncate(long)
+    assert len(truncated) <= 10000 + 50
+    assert "truncated" in truncated
