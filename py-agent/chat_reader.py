@@ -71,7 +71,7 @@ def get_unread_messages(agent_id: str) -> list[dict]:
                 continue
 
             score = _calc_priority(msg.get("content", ""), msg.get("from", ""), agent_id)
-            if score < 30:
+            if score < 10:
                 continue
 
             unread.append({

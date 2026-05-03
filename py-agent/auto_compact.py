@@ -16,7 +16,12 @@ def compact_user_history(history_text: str, budget: int = AUTOCOMPACT_CHAR_BUDGE
         return ""
     if not should_compact(history_text, budget):
         return history_text
-    entries = [json.loads(l) for l in lines]
+    entries = []
+    for l in lines:
+        try:
+            entries.append(json.loads(l))
+        except json.JSONDecodeError:
+            continue
     recent = entries[-keep_recent:]
     old = entries[:-keep_recent]
     summary = {
