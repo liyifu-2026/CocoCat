@@ -521,25 +521,6 @@ class RecallTool(Tool):
         return "\n\n---\n\n".join(lines) if lines else "(no matching memories)"
 
 
-class RevertMemoryTool(Tool):
-    """Revert the last Dream commit to undo bad memory changes."""
-    name = "revert_memory"
-    required_permission = PermissionMode.WORKSPACE_WRITE
-    description = "Revert the last Dream commit to undo bad memory changes"
-    parameters = {"type": "object", "properties": {}}
-
-    def execute(self, agent_id: str = "", **kwargs) -> str:
-        from git_store import GitStore
-        from dream import _agent_memory_dir
-        mem_dir = _agent_memory_dir(agent_id)
-        store = GitStore(mem_dir)
-        last_msg = store.last_commit_message()
-        ok = store.revert()
-        if ok:
-            return f"Reverted: {last_msg}"
-        return "No previous commit to revert to"
-
-
 class DreamTool(Tool):
     """Run the Dream process: analyze recent history and consolidate into MEMORY.md."""
     name = "dream"
@@ -767,160 +748,6 @@ class SendMessageTool(Tool):
         return send_message(to, self.from_agent, message)
 
 
-class LearnSkillTool(Tool):
-    """Learn a new skill."""
-    name = "learn_skill"
-    description = "Learn a new skill and add it to your permanent skill set."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "skill_name": {"type": "string", "description": "Name of the skill to learn (e.g. code_review)"},
-        },
-        "required": ["skill_name"],
-    }
-
-    def __init__(self, agent_id: str = ""):
-        super().__init__()
-        self.agent_id = agent_id
-
-    def execute(self, skill_name="", **kwargs) -> str:
-        from sandbox import FileLock
-        import os, json
-        manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", self.agent_id, "skills", "manifest.json")
-        with FileLock(manifest_path):
-            if not os.path.exists(manifest_path):
-                return "No manifest found"
-            with open(manifest_path, "r") as f:
-                manifest = json.load(f)
-            if skill_name in manifest.get("private", []):
-                return f"Already knows '{skill_name}'"
-            manifest.setdefault("private", []).append(skill_name)
-            with open(manifest_path, "w") as f:
-                json.dump(manifest, f, indent=2)
-        return f"Learned skill '{skill_name}'"
-
-
-class ForgetSkillTool(Tool):
-    """Forget a skill."""
-    name = "forget_skill"
-    description = "Forget a skill you no longer need."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "skill_name": {"type": "string", "description": "Name of the skill to forget"},
-        },
-        "required": ["skill_name"],
-    }
-
-    def __init__(self, agent_id: str = ""):
-        super().__init__()
-        self.agent_id = agent_id
-
-    def execute(self, skill_name="", **kwargs) -> str:
-        from sandbox import FileLock
-        import os, json
-        manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", self.agent_id, "skills", "manifest.json")
-        with FileLock(manifest_path):
-            if not os.path.exists(manifest_path):
-                return "No manifest found"
-            with open(manifest_path, "r") as f:
-                manifest = json.load(f)
-            if skill_name not in manifest.get("private", []):
-                return f"Does not know '{skill_name}'"
-            manifest["private"] = [s for s in manifest["private"] if s != skill_name]
-            with open(manifest_path, "w") as f:
-                json.dump(manifest, f, indent=2)
-        return f"Forgot skill '{skill_name}'"
-
-
-class ListSkillsTool(Tool):
-    """List all skills."""
-    name = "list_skills"
-    description = "List all skills you currently have (public + private)."
-    parameters = {"type": "object", "properties": {}}
-
-    def __init__(self, agent_id: str = ""):
-        super().__init__()
-        self.agent_id = agent_id
-
-    def execute(self, **kwargs) -> str:
-        import os, json
-        manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", self.agent_id, "skills", "manifest.json")
-        if not os.path.exists(manifest_path):
-            return "No manifest found"
-        with open(manifest_path, "r") as f:
-            manifest = json.load(f)
-        public = manifest.get("public", [])
-        private = manifest.get("private", [])
-        lines = ["## Public Skills"]
-        lines.extend(f"- {s}" for s in public)
-        lines.append("\n## Private Skills")
-        lines.extend(f"- {s}" for s in private) if private else lines.append("(none)")
-        return "\n".join(lines)
-
-
-class SkillManageTool(Tool):
-    """Manage skills: install, uninstall, search, list."""
-    name = "skill_manage"
-    required_permission = PermissionMode.WORKSPACE_WRITE
-    description = "Manage skills. Actions: install (from URL/path), uninstall, search, list."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "action": {
-                "type": "string",
-                "enum": ["install", "uninstall", "search", "list"],
-                "description": "Action to perform",
-            },
-            "source": {"type": "string", "description": "For install: URL or local path to skill .md file"},
-            "name": {"type": "string", "description": "Skill name (for install/uninstall)"},
-            "query": {"type": "string", "description": "For search: search keyword"},
-        },
-        "required": ["action"],
-    }
-
-    def execute(self, action="", source="", name="", query="", **kwargs) -> str:
-        if action == "install":
-            from skill_hub import install_skill_from_path, install_skill_from_url
-            if not source:
-                return "Error: source is required for install"
-            if source.startswith(("http://", "https://")):
-                return install_skill_from_url(source, name)
-            return install_skill_from_path(source, name)
-        elif action == "uninstall":
-            from skill_hub import uninstall_skill
-            if not name:
-                return "Error: name is required for uninstall"
-            return uninstall_skill(name)
-        elif action == "search":
-            from skill_hub import search_marketplace as _search, check_skill_dependencies
-            if not query:
-                return "Error: query is required for search"
-            results = _search(query)
-            if not results:
-                return f"No skills found matching '{query}'."
-            lines = [f"Found {len(results)} skills matching '{query}':"]
-            for r in results[:10]:
-                deps_ok, missing = check_skill_dependencies(r["name"])
-                status = "✅" if deps_ok else f"⚠️ missing: {', '.join(missing)}"
-                lines.append(f"- {r['name']} [{status}]")
-                if r.get("description"):
-                    lines.append(f"  {r['description']}")
-            return "\n".join(lines)
-        elif action == "list":
-            from skill_hub import list_installed_skills
-            skills = list_installed_skills()
-            if not skills:
-                return "No skills installed."
-            lines = [f"Installed skills ({len(skills)}):", ""]
-            for s in skills:
-                v = s.get("version", 0)
-                t = s.get("type", "?")
-                lines.append(f"- {s['name']}  v{v}  ({t})")
-            return "\n".join(lines)
-        return f"Unknown action: {action}"
-
-
 class LspQueryTool(Tool):
     """Query LSP for code intelligence."""
     name = "lsp_query"
@@ -1105,7 +932,6 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(HireAgentTool())
     registry.register(RememberTool())
     registry.register(RecallTool())
-    registry.register(RevertMemoryTool())
     registry.register(DreamTool(agent_id=agent_id, agent_name=agent_name))
     registry.register(WebFetchTool())
     registry.register(WebSearchTool())
@@ -1113,10 +939,6 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(AskUserTool())
     registry.register(McpCallTool())
     registry.register(SendMessageTool(from_agent=agent_id))
-    registry.register(LearnSkillTool(agent_id=agent_id))
-    registry.register(ForgetSkillTool(agent_id=agent_id))
-    registry.register(ListSkillsTool(agent_id=agent_id))
-    registry.register(SkillManageTool())
     registry.register(LspQueryTool())
     registry.register(BrowserTool())
 
