@@ -15,6 +15,7 @@ SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the Coco
 
 ## Your Wiki Knowledge
 {knowledge_overview}
+Use search_kb to quickly search, or read_file directly on wiki pages you find in the index above.
 
 ## Active Skills
 {agent_skills}
