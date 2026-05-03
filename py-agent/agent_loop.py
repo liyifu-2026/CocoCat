@@ -29,6 +29,25 @@ def append_history(agent_id: str, prompt: str, response: str, iterations: int):
         pass
 
 
+def _log_usage(agent_id: str, prompt: str, usage: dict, iterations: int):
+    """Append token usage to agents/_usage.jsonl (nanobot pattern)."""
+    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", "_usage.jsonl")
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "agent_id": agent_id,
+        "prompt_preview": prompt[:100],
+        "input_tokens": usage.get("input", 0),
+        "output_tokens": usage.get("output", 0),
+        "total_tokens": usage.get("input", 0) + usage.get("output", 0),
+        "iterations": iterations,
+    }
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 def auto_dream(agent_id: str, agent_name: str, llm) -> None:
     """Auto-trigger Dream after every 3 unprocessed entries."""
     from dream import get_unprocessed_history, run_dream
@@ -235,6 +254,7 @@ class AgentLoop:
 
         iteration = 0
         final_content = ""
+        total_usage = {"input": 0, "output": 0}
 
         while iteration < self.max_iterations:
             iteration += 1
@@ -258,6 +278,11 @@ class AgentLoop:
                 reasoning = response.get("reasoning_content")
                 if content.strip() or tool_calls:
                     break
+
+            if response and "usage" in response:
+                u = response["usage"]
+                total_usage["input"] += u.get("input_tokens", 0) or u.get("prompt_tokens", 0) or 0
+                total_usage["output"] += u.get("output_tokens", 0) or u.get("completion_tokens", 0) or 0
 
             if response and response.get("finish_reason") == "length" and content.strip():
                 messages.append({"role": "assistant", "content": content})
@@ -314,6 +339,8 @@ class AgentLoop:
 
         append_history(self.agent_id, prompt, final_content, iteration)
         auto_dream(self.agent_id, self.agent_name, self.llm)
+        if total_usage.get("input", 0) or total_usage.get("output", 0):
+            _log_usage(self.agent_id, prompt, total_usage, iteration)
 
         return {
             "content": final_content,

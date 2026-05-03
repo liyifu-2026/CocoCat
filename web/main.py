@@ -145,6 +145,23 @@ def list_skills():
     return skills
 
 
+@app.get("/api/usage")
+def get_usage(limit: int = 50):
+    """Read recent token usage."""
+    usage_path = BASE_DIR / "agents" / "_usage.jsonl"
+    entries = []
+    if usage_path.exists():
+        with open(usage_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        entries.append(json.loads(line))
+                    except Exception:
+                        pass
+    return {"usage": entries[-limit:]}
+
+
 @app.get("/api/knowledge")
 def list_knowledge():
     kb_dir = BASE_DIR / "knowledge"
@@ -187,7 +204,7 @@ def _agent_process_message(scene_id: str, user_id: str, content: str, channel_ty
         result = subprocess.run(
             ["python", "-u", agent_script], input=task,
             capture_output=True, text=True, timeout=60,
-            env={'OPENAI_API_KEY': api_key, 'OPENAI_BASE_URL': base_url, 'LLM_MODEL': model},
+            env={**os.environ, 'OPENAI_API_KEY': api_key, 'OPENAI_BASE_URL': base_url, 'LLM_MODEL': model},
         )
         for line in result.stdout.strip().split("\n"):
             line = line.strip()
@@ -243,43 +260,7 @@ async def scene_chat(scene_id: str, request: Request):
     agent_script = str(BASE_DIR / "py-agent" / "agent_runtime.py")
     prompt = f"{context}\n\n## Conversation\n{history_text}\n\n[user] {content}\n\nRespond concisely."
 
-    reply_text = "(processing)"
-    try:
-        task = json.dumps({"jsonrpc": "2.0", "method": "task_stream", "params": {"prompt": prompt}, "id": 1})
-        proc = subprocess.Popen(
-            ["python", "-u", agent_script], stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            env={'OPENAI_API_KEY': api_key, 'OPENAI_BASE_URL': base_url, 'LLM_MODEL': model},
-        )
-        proc.stdin.write(task)
-        proc.stdin.close()
-
-        full_content = ""
-        for line in proc.stdout:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                evt = json.loads(line)
-                if evt.get("event") == "delta":
-                    full_content += evt.get("content", "")
-                    try:
-                        asyncio.get_event_loop().create_task(
-                            manager.broadcast("stream_delta", {
-                                "scene_id": scene_id, "user_id": user_id,
-                                "delta": evt.get("content", ""),
-                            })
-                        )
-                    except: pass
-                elif evt.get("event") == "done":
-                    full_content = evt.get("content", full_content)
-            except json.JSONDecodeError:
-                continue
-
-        reply_text = full_content or "(no response)"
-        proc.wait(timeout=10)
-    except Exception as e:
-        reply_text = f"Stream error: {e}"
+    reply_text = _agent_process_message(scene_id, user_id, content, "web_api", api_key)
 
     store_message(scene_id, user_id, {
         "content": reply_text, "direction": "outgoing", "channel_type": "web_api",
@@ -378,6 +359,16 @@ load();
   <h2 class="font-semibold mb-3">Real-Time Events</h2>
   <div id="ws-log" class="bg-gray-100 p-2 text-xs max-h-40 overflow-y-auto" style="font-family:monospace">Connecting...</div>
 </div>
+<div class="mt-6 bg-white p-4 rounded shadow">
+  <h2 class="font-semibold mb-3">Token Usage</h2>
+  <div id="usage" class="text-sm">Loading...</div>
+</div>
+<script>
+fetch('/api/usage?limit=10').then(r=>r.json()).then(d=>{
+  let html = d.usage.map(u => `<div class="border-b border-gray-100 py-1">${u.agent_id}: ${u.total_tokens} tokens (${u.iterations} iters)</div>`).join('');
+  document.getElementById('usage').innerHTML = html || '(no data)';
+});
+</script>
 <script>
 (function(){
   const el = document.getElementById('ws-log');
