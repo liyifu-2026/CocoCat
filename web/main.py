@@ -288,6 +288,9 @@ app.include_router(agents_router)
 from web.routes.knowledge import router as knowledge_router
 app.include_router(knowledge_router)
 
+from web.routes.scenes import router as scene_router
+app.include_router(scene_router)
+
 
 @app.get("/api/hiring/pending")
 def list_pending_hires():
