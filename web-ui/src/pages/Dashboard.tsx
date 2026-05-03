@@ -11,12 +11,18 @@ export default function Dashboard() {
   const agents = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
   const scenes = useQuery({ queryKey: ["scenes"], queryFn: () => scenesApi.list() })
   const hires = useQuery({ queryKey: ["hiring"], queryFn: () => hiringApi.listPending() })
-  const chat = useQuery({ queryKey: ["chat"], queryFn: () => chatApi.list(10) })
+  const chatGroups = useQuery({ queryKey: ["chat-groups"], queryFn: () => chatApi.listGroups() })
+  const defaultGroup = chatGroups.data?.groups?.find(g => g.is_default) ?? chatGroups.data?.groups?.[0]
+  const chatMessages = useQuery({
+    queryKey: ["chat-messages", defaultGroup?.id],
+    queryFn: () => chatApi.getMessages(defaultGroup!.id, 10),
+    enabled: !!defaultGroup,
+  })
 
   const onlineAgents = agents.data?.agents?.filter(a => a.enabled).length ?? 0
   const sceneCount = scenes.data?.scenes?.length ?? 0
   const pendingHires = hires.data?.pending?.length ?? 0
-  const recentMessages = chat.data?.messages?.length ?? 0
+  const recentMessages = chatMessages.data?.messages?.length ?? 0
 
   const metrics = [
     { label: "Online Agents", value: onlineAgents, icon: Users },
@@ -60,7 +66,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader><CardTitle className="text-lg">Recent Chat</CardTitle></CardHeader>
           <CardContent className="space-y-2 max-h-64 overflow-auto">
-            {chat.data?.messages?.slice(-5).reverse().map((m, i) => (
+            {chatMessages.data?.messages?.slice(-5).reverse().map((m, i) => (
               <div key={i} className="text-sm border-b border-border pb-1">
                 <span className="font-medium">[{m.from}]</span> {m.content.substring(0, 120)}
               </div>

@@ -3,13 +3,14 @@ import { cn } from "@/lib/utils"
 import { useSidebar } from "@/context/SidebarContext"
 import {
     LayoutDashboard, Users, FolderKanban, Settings, BookOpen, Mail, BarChart3,
- UserPlus,
+ UserPlus, MessageSquare,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PanelLeftClose, PanelLeft } from "lucide-react"
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/chat", label: "Chat", icon: MessageSquare },
   { to: "/agents", label: "Agents", icon: Users },
   { to: "/scenes", label: "Scenes", icon: FolderKanban },
   { to: "/hiring", label: "Hiring", icon: UserPlus },
