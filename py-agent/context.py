@@ -38,16 +38,7 @@ You have access to the following tools:
 5. When you complete a task, key information is automatically saved to your history.
 6. Think step by step before using tools.
 7. You work in the directory: {workspace}
-
-## Wiki Maintenance
-You maintain wiki pages at knowledge/team-wiki/. Use read_file/write_file/edit_file/grep to maintain them.
-- **Create/update**: write_file with YAML frontmatter (type/title/created/summary/related)
-- **Cross-refs**: Use [[Wikilink]] format. Update related pages' frontmatter when adding new ones.
-- **Lint**: grep wikilinks → check targets exist → check frontmatter
-- **Save Q&A**: write_file to wiki/ with frontmatter (concepts/ or entities/ subdir)
-- **Clip web**: web_fetch(url) → write_file to raw/sources/ with filename → then ingest_to_kb if needed
-- **Overview**: read all wiki pages → write_file wiki/overview.md synthesizing them
-- **Log**: prepend ## [date] op | title to knowledge/team-wiki/log.md
+{wiki_maintenance_schema}
 """
 
 
@@ -65,12 +56,14 @@ def build_system_prompt(
     user_profile: str = "",
     user_conversation: str = "",
     knowledge_overview: str = "",
+    mounted_kbs: list | None = None,
 ) -> str:
     profile_section = _build_profile_section(profile) if profile else ""
     if profile_section:
         profile_section = f"\n## Agent Profile\n{profile_section}"
     user_profile_section = f"\n## Current User\n{user_profile}" if user_profile else ""
     user_conversation_section = f"\n## Conversation History\n{user_conversation}" if user_conversation else ""
+    wiki_maintenance_schema = _build_wiki_schema(mounted_kbs)
     return SYSTEM_PROMPT_TEMPLATE.format(
         agent_id=agent_id,
         agent_name=agent_name,
@@ -85,7 +78,25 @@ def build_system_prompt(
         user_profile_section=user_profile_section,
         user_conversation_section=user_conversation_section,
         knowledge_overview=knowledge_overview or "(No knowledge bases mounted)",
+        wiki_maintenance_schema=wiki_maintenance_schema,
     )
+
+
+def _build_wiki_schema(mounted_kbs: list | None) -> str:
+    if not mounted_kbs:
+        return ""
+    kb_lines = ", ".join(f"knowledge/{kb}/" for kb in mounted_kbs)
+    sections = "\n\n## Wiki Maintenance\n"
+    sections += f"Your scene has these wikis mounted: {kb_lines}\n"
+    sections += "Use read_file/write_file/edit_file/grep to maintain them.\n"
+    sections += "- **Create/update**: write_file with YAML frontmatter (type/title/created/summary/related)\n"
+    sections += "- **Cross-refs**: Use [[Wikilink]] format. Update related pages' frontmatter.\n"
+    sections += "- **Lint**: grep wikilinks → check targets exist → check frontmatter\n"
+    sections += "- **Save Q&A**: write_file to wiki/concepts/ or wiki/entities/ with frontmatter\n"
+    sections += "- **Clip web**: web_fetch(url) → write_file to raw/sources/ → then ingest_to_kb\n"
+    sections += "- **Overview**: read all wiki pages → write_file wiki/overview.md synthesizing them\n"
+    sections += "- **Log**: Append ## [date] op | title to each wiki's log.md\n"
+    return sections
 
 
 def load_daily_log(agent_id: str, max_chars: int = 2000, max_entries: int = 5) -> str:
