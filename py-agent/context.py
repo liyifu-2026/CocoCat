@@ -15,7 +15,7 @@ SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the Coco
 
 ## Your Wiki Knowledge
 {knowledge_overview}
-Read wiki pages directly via read_file — the index above shows all available pages with paths.
+Read wiki pages directly via read_file. Create or update pages via write_file/edit_file — use YAML frontmatter (type/title/created/summary/related), [[Wikilink]] cross-refs, and update index.md + log.md. See schema.md in each KB for format rules.
 
 ## Active Skills
 {agent_skills}
