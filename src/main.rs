@@ -10,7 +10,7 @@ use std::fs;
 use std::time::Instant;
 
 fn process_hire_requests(registry: &mut AgentRegistry) {
-    let hire_dir = std::path::Path::new("agents/hire_requests");
+    let hire_dir = std::path::Path::new("agents/hire_requests/approved");
     if !hire_dir.exists() {
         return;
     }
@@ -64,6 +64,14 @@ fn process_hire_requests(registry: &mut AgentRegistry) {
         let _ = fs::write(format!("{}/MEMORY.md", mem_dir), format!("# {} Memory\n\nPersonal memories and learnings.\n", new_name));
         let _ = fs::write(format!("{}/history.jsonl", mem_dir), "");
         let _ = fs::write(format!("{}/.dream_cursor", mem_dir), "0");
+
+        // Write profile.json (immutable — skip if exists)
+        let profile_path = format!("agents/{}/profile.json", new_id);
+        if !std::path::Path::new(&profile_path).exists() {
+            if let Some(p) = hire.get("profile") {
+                let _ = fs::write(&profile_path, serde_json::to_string_pretty(p).unwrap());
+            }
+        }
 
         // 3. Spawn the new agent
         let new_config = agent_registry::AgentConfig {
@@ -136,6 +144,105 @@ fn check_user_questions() {
     let response = serde_json::json!({"question": q_text, "answer": answer, "status": "answered"});
     let _ = std::fs::write(question_path, serde_json::to_string_pretty(&response).unwrap());
     println!();
+}
+
+fn process_pending_hires() {
+    let pending_dir = std::path::Path::new("agents/hire_requests/pending");
+    if !pending_dir.exists() {
+        return;
+    }
+
+    let entries = match fs::read_dir(pending_dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        if path.file_name().and_then(|n| n.to_str()).map_or(false, |n| n.contains(".processed")) {
+            continue;
+        }
+
+        let content = match fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let req: serde_json::Value = match serde_json::from_str(&content) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        let name = req.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let id = req.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let role = req.get("profile").and_then(|p| p.get("role")).and_then(|v| v.as_str()).unwrap_or("N/A");
+        let scene = req.get("scene").and_then(|v| v.as_str()).unwrap_or("N/A");
+        let traits = req.get("profile").and_then(|p| p.get("traits")).and_then(|v| v.as_array()).map(|a| {
+            a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", ")
+        }).unwrap_or_default();
+        let objective = req.get("profile").and_then(|p| p.get("objective")).and_then(|v| v.as_str()).unwrap_or("N/A");
+
+        println!("\n--- Pending Hire ---");
+        println!("  Name:      {name}");
+        println!("  ID:        {id}");
+        println!("  Role:      {role}");
+        println!("  Scene:     {scene}");
+        println!("  Traits:    {traits}");
+        println!("  Objective: {objective}");
+        println!();
+
+        let question_path = std::path::Path::new("agents/_ask_user.json");
+        let question = json!({
+            "question": format!("Process hire request for '{}' ({})", name, id),
+            "options": ["Approve", "Modify and Approve", "Reject"],
+            "status": "pending"
+        });
+        if let Err(e) = fs::write(question_path, serde_json::to_string_pretty(&question).unwrap()) {
+            println!("  Failed to write question: {e}");
+            continue;
+        }
+
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            let answer_content = match fs::read_to_string(question_path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            let answer_json: serde_json::Value = match serde_json::from_str(&answer_content) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+            if answer_json.get("status").and_then(|v| v.as_str()) == Some("answered") {
+                let answer = answer_json.get("answer").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+                match answer.as_str() {
+                    "Approve" | "Modify and Approve" => {
+                        let approved_dir = std::path::Path::new("agents/hire_requests/approved");
+                        let _ = fs::create_dir_all(approved_dir);
+                        let dest = approved_dir.join(path.file_name().unwrap());
+                        let _ = fs::rename(&path, &dest);
+                        let marker_path = format!("{}.processed", dest.display());
+                        let _ = fs::write(&marker_path, "{}");
+                        println!("  => Approved: {name} ({id})");
+                    }
+                    _ => {
+                        let rejected_dir = std::path::Path::new("agents/hire_requests/rejected");
+                        let _ = fs::create_dir_all(rejected_dir);
+                        let dest = rejected_dir.join(path.file_name().unwrap());
+                        let _ = fs::rename(&path, &dest);
+                        let marker_path = format!("{}.processed", dest.display());
+                        let _ = fs::write(&marker_path, "{}");
+                        println!("  => Rejected: {name} ({id})");
+                    }
+                }
+
+                let _ = fs::remove_file(question_path);
+                break;
+            }
+        }
+    }
 }
 
 fn main() {
@@ -238,6 +345,7 @@ fn main() {
                     // Process any dispatch requests the agent created
                     println!();
                     check_and_process_dispatches(&mut registry);
+                    process_pending_hires();
                     process_hire_requests(&mut registry);
                     check_user_questions();
                 } else if let Some(ref err) = resp.error {
