@@ -131,3 +131,56 @@ def wrap_with_namespace(command: str) -> str:
         args.append("--net")
     args.extend(["sh", "-lc", command])
     return " ".join(args)
+
+
+import time
+import tempfile
+
+
+def atomic_write(path: str, content: str) -> None:
+    """Write content to path atomically (tmp file + rename)."""
+    path = os.path.abspath(path)
+    dir_name = os.path.dirname(path)
+    os.makedirs(dir_name, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name, prefix=".atomic_", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+            f.flush()
+            os.fsync(fd)
+        os.replace(tmp_path, path)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+
+
+class FileLock:
+    """Cross-platform file lock using advisory locking."""
+
+    def __init__(self, lock_path: str, timeout: float = 5.0):
+        self.lock_path = os.path.abspath(lock_path)
+        self.timeout = timeout
+        self.fd = None
+
+    def __enter__(self):
+        deadline = time.time() + self.timeout
+        while True:
+            try:
+                self.fd = os.open(self.lock_path + ".lock",
+                                  os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(self.fd, str(os.getpid()).encode())
+                return self
+            except FileExistsError:
+                if time.time() > deadline:
+                    raise TimeoutError(f"Could not acquire lock for {self.lock_path}")
+                time.sleep(0.05)
+
+    def __exit__(self, *args):
+        if self.fd:
+            os.close(self.fd)
+        lock_file = self.lock_path + ".lock"
+        try:
+            os.remove(lock_file)
+        except OSError:
+            pass

@@ -89,16 +89,14 @@ class WriteFileTool(Tool):
     }
 
     def execute(self, path="", content="", **kwargs) -> str:
-        from sandbox import PathValidator
+        from sandbox import PathValidator, atomic_write
         PROJECT_ROOT = Path(__file__).resolve().parent.parent
         pv = PathValidator()
         is_safe, reason = pv.validate(path, PROJECT_ROOT)
         if not is_safe:
             return f"Error: {reason}"
         try:
-            Path(path).parent.mkdir(parents=True, exist_ok=True)
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(content)
+            atomic_write(path, content)
             return f"Successfully wrote {len(content)} bytes to {path}"
         except Exception as e:
             return f"Error writing file: {e}"
@@ -772,17 +770,19 @@ class LearnSkillTool(Tool):
         self.agent_id = agent_id
 
     def execute(self, skill_name="", **kwargs) -> str:
+        from sandbox import FileLock
         import os, json
         manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", self.agent_id, "skills", "manifest.json")
-        if not os.path.exists(manifest_path):
-            return "No manifest found"
-        with open(manifest_path, "r") as f:
-            manifest = json.load(f)
-        if skill_name in manifest.get("private", []):
-            return f"Already knows '{skill_name}'"
-        manifest.setdefault("private", []).append(skill_name)
-        with open(manifest_path, "w") as f:
-            json.dump(manifest, f, indent=2)
+        with FileLock(manifest_path):
+            if not os.path.exists(manifest_path):
+                return "No manifest found"
+            with open(manifest_path, "r") as f:
+                manifest = json.load(f)
+            if skill_name in manifest.get("private", []):
+                return f"Already knows '{skill_name}'"
+            manifest.setdefault("private", []).append(skill_name)
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f, indent=2)
         return f"Learned skill '{skill_name}'"
 
 
@@ -803,17 +803,19 @@ class ForgetSkillTool(Tool):
         self.agent_id = agent_id
 
     def execute(self, skill_name="", **kwargs) -> str:
+        from sandbox import FileLock
         import os, json
         manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", self.agent_id, "skills", "manifest.json")
-        if not os.path.exists(manifest_path):
-            return "No manifest found"
-        with open(manifest_path, "r") as f:
-            manifest = json.load(f)
-        if skill_name not in manifest.get("private", []):
-            return f"Does not know '{skill_name}'"
-        manifest["private"] = [s for s in manifest["private"] if s != skill_name]
-        with open(manifest_path, "w") as f:
-            json.dump(manifest, f, indent=2)
+        with FileLock(manifest_path):
+            if not os.path.exists(manifest_path):
+                return "No manifest found"
+            with open(manifest_path, "r") as f:
+                manifest = json.load(f)
+            if skill_name not in manifest.get("private", []):
+                return f"Does not know '{skill_name}'"
+            manifest["private"] = [s for s in manifest["private"] if s != skill_name]
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f, indent=2)
         return f"Forgot skill '{skill_name}'"
 
 
@@ -860,7 +862,7 @@ class EditFileTool(Tool):
     }
 
     def execute(self, path="", old_string="", new_string="", replace_all=False, **kwargs) -> str:
-        from sandbox import PathValidator
+        from sandbox import PathValidator, FileLock, atomic_write
         PROJECT_ROOT = Path(__file__).resolve().parent.parent
         pv = PathValidator()
         is_safe, reason = pv.validate(path, PROJECT_ROOT)
@@ -868,30 +870,30 @@ class EditFileTool(Tool):
             return f"Error: {reason}"
         import os
         path = os.path.abspath(path)
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                original = f.read()
-        except FileNotFoundError:
-            return f"Error: file not found: {path}"
-        except Exception as e:
-            return f"Error reading file: {e}"
+        with FileLock(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    original = f.read()
+            except FileNotFoundError:
+                return f"Error: file not found: {path}"
+            except Exception as e:
+                return f"Error reading file: {e}"
 
-        if old_string == new_string:
-            return "Error: old_string and new_string must differ"
+            if old_string == new_string:
+                return "Error: old_string and new_string must differ"
 
-        if old_string not in original:
-            return f"Error: old_string not found in file"
+            if old_string not in original:
+                return f"Error: old_string not found in file"
 
-        if replace_all:
-            updated = original.replace(old_string, new_string)
-        else:
-            updated = original.replace(old_string, new_string, 1)
+            if replace_all:
+                updated = original.replace(old_string, new_string)
+            else:
+                updated = original.replace(old_string, new_string, 1)
 
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(updated)
-        except Exception as e:
-            return f"Error writing file: {e}"
+            try:
+                atomic_write(path, updated)
+            except Exception as e:
+                return f"Error writing file: {e}"
 
         return f"Applied edit to {path}"
 

@@ -89,20 +89,32 @@ def get_unread_messages(agent_id: str) -> list[dict]:
 
 
 def mark_as_read(agent_id: str, group_id: str, msg_index: int, score: int):
-    messages = _get_messages(group_id)
-    if msg_index < 0 or msg_index >= len(messages):
+    from sandbox import FileLock
+    messages_path = os.path.join(BASE, "..", "chat", group_id, "messages.jsonl")
+    if not os.path.exists(messages_path):
         return
-    msg = messages[msg_index]
-    if "read_by" not in msg:
-        msg["read_by"] = []
-    if not any(r["agent_id"] == agent_id for r in msg["read_by"]):
-        msg["read_by"].append({
-            "agent_id": agent_id,
-            "read_at": __import__("datetime").datetime.now().isoformat(),
-            "score": score,
-        })
-        messages[msg_index] = msg
-        _save_messages(group_id, messages)
+    with FileLock(messages_path):
+        with open(messages_path, "r", encoding="utf-8") as f:
+            messages = []
+            for line in f:
+                line = line.strip()
+                if line:
+                    messages.append(json.loads(line))
+        if msg_index < 0 or msg_index >= len(messages):
+            return
+        msg = messages[msg_index]
+        if "read_by" not in msg:
+            msg["read_by"] = []
+        if not any(r["agent_id"] == agent_id for r in msg["read_by"]):
+            msg["read_by"].append({
+                "agent_id": agent_id,
+                "read_at": __import__("datetime").datetime.now().isoformat(),
+                "score": score,
+            })
+            messages[msg_index] = msg
+            with open(messages_path, "w", encoding="utf-8") as f:
+                for m in messages:
+                    f.write(json.dumps(m, ensure_ascii=False) + "\n")
 
 
 def get_agent_cursor(agent_id: str) -> str:

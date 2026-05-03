@@ -10,6 +10,7 @@ def _mailbox_dir(agent_id: str) -> str:
 
 
 def send_message(to_agent: str, from_agent: str, content: str) -> str:
+    from sandbox import FileLock
     dir_path = _mailbox_dir(to_agent)
     os.makedirs(dir_path, exist_ok=True)
     inbox_path = os.path.join(dir_path, "inbox.jsonl")
@@ -19,8 +20,9 @@ def send_message(to_agent: str, from_agent: str, content: str) -> str:
         "timestamp": datetime.now().isoformat(),
         "status": "unread",
     }
-    with open(inbox_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    with FileLock(inbox_path):
+        with open(inbox_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     return f"Message sent to {to_agent}"
 
 
@@ -41,19 +43,17 @@ def read_inbox(agent_id: str) -> list[dict]:
 
 
 def mark_read(agent_id: str, idx: int):
-    messages = read_inbox(agent_id)
-    if 0 <= idx < len(messages):
-        messages[idx]["status"] = "read"
+    from sandbox import FileLock
     inbox_path = os.path.join(_mailbox_dir(agent_id), "inbox.jsonl")
-    fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(inbox_path), suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            for m in messages:
-                f.write(json.dumps(m, ensure_ascii=False) + "\n")
-        os.replace(tmp_path, inbox_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    if not os.path.exists(inbox_path):
+        return "Inbox is empty."
+    with FileLock(inbox_path):
+        with open(inbox_path, "r", encoding="utf-8") as f:
+            messages = [json.loads(line) for line in f if line.strip()]
+        if 0 <= idx < len(messages):
+            messages[idx]["status"] = "read"
+            with open(inbox_path, "w", encoding="utf-8") as f:
+                for m in messages:
+                    f.write(json.dumps(m, ensure_ascii=False) + "\n")
+            return f"Message {idx} marked as read."
+        return f"Message index {idx} out of range."
