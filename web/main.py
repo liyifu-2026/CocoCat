@@ -389,6 +389,49 @@ def _validate_hire_id(hire_id: str) -> bool:
     return bool(_VALID_ID.match(hire_id))
 
 
+def _create_agent_from_hire(hire_data: dict) -> dict:
+    """Create agent directory structure and register in config.toml (Python fallback for Rust)."""
+    new_id = hire_data.get("id", "")
+    new_name = hire_data.get("name", "")
+    if not new_id or not new_name:
+        return {"error": "missing id or name"}
+    # Update config.toml
+    config_path = BASE_DIR / "agents" / "config.toml"
+    if config_path.exists():
+        import tomllib, tomli_w
+        with open(config_path, "rb") as f:
+            config = tomllib.load(f)
+        agents = config.get("agents", [])
+        if not any(a.get("id") == new_id for a in agents):
+            agents.append({
+                "id": new_id, "name": new_name,
+                "interpreter": "python",
+                "script": "py-agent/agent_runtime.py",
+                "enabled": True, "scene": "default",
+            })
+        config["agents"] = agents
+        with open(config_path, "wb") as f:
+            tomli_w.dump(config, f)
+    # Create memory directory
+    mem_dir = BASE_DIR / "agents" / new_id / "memory"
+    mem_dir.mkdir(parents=True, exist_ok=True)
+    (mem_dir / "MEMORY.md").write_text(f"# {new_name} Memory\n\nPersonal memories and learnings.\n", encoding="utf-8")
+    (mem_dir / "history.jsonl").write_text("", encoding="utf-8")
+    (mem_dir / ".dream_cursor").write_text("0")
+    # Create skills manifest
+    skills_dir = BASE_DIR / "agents" / new_id / "skills"
+    skills_dir.mkdir(parents=True, exist_ok=True)
+    (skills_dir / "manifest.json").write_text(json.dumps({"public": [], "private": []}))
+    # Write profile.json
+    profile_path = BASE_DIR / "agents" / new_id / "profile.json"
+    if not profile_path.exists():
+        profile = hire_data.get("profile", {})
+        if not profile.get("gender"):
+            profile["gender"] = "male" if sum(ord(c) for c in new_id) % 2 == 0 else "female"
+        profile_path.write_text(json.dumps(profile, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"status": "created", "agent_id": new_id}
+
+
 @app.post("/api/hiring/pending/{hire_id}/approve")
 async def approve_hire(hire_id: str, request: Request):
     if not _validate_hire_id(hire_id):
@@ -415,6 +458,12 @@ async def approve_hire(hire_id: str, request: Request):
             return JSONResponse({"error": "failed to update profile"}, status_code=500)
     else:
         shutil.move(str(src), str(dst))
+    # Create agent (Python fallback, Rust also does this)
+    try:
+        hire_data = json.loads(dst.read_text(encoding="utf-8"))
+        _create_agent_from_hire(hire_data)
+    except Exception as e:
+        print(f"[hire] Agent creation fallback failed: {e}")
     return {"status": "approved", "hire_id": hire_id}
 
 
