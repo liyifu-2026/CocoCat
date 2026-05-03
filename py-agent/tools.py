@@ -1012,108 +1012,88 @@ class ListSkillsTool(Tool):
         return "\n".join(lines)
 
 
-class InstallSkillTool(Tool):
-    """Install a skill from a URL or local path."""
-    name = "install_skill"
+class SkillManageTool(Tool):
+    """Manage skills: install, uninstall, search, list."""
+    name = "skill_manage"
     required_permission = PermissionMode.WORKSPACE_WRITE
-    description = "Install a new skill from a file path or URL (raw .md file)."
+    description = "Manage skills. Actions: install (from URL/path), uninstall, search, list."
     parameters = {
         "type": "object",
         "properties": {
-            "source": {"type": "string", "description": "Local path or URL to the skill .md file"},
-            "name": {"type": "string", "description": "Optional skill name (defaults to filename)"},
+            "action": {
+                "type": "string",
+                "enum": ["install", "uninstall", "search", "list"],
+                "description": "Action to perform",
+            },
+            "source": {"type": "string", "description": "For install: URL or local path to skill .md file"},
+            "name": {"type": "string", "description": "Skill name (for install/uninstall)"},
+            "query": {"type": "string", "description": "For search: search keyword"},
         },
-        "required": ["source"],
+        "required": ["action"],
     }
 
-    def execute(self, source="", name="", **kwargs) -> str:
-        from skill_hub import install_skill_from_path, install_skill_from_url
-        if source.startswith(("http://", "https://")):
-            return install_skill_from_url(source, name)
-        return install_skill_from_path(source, name)
+    def execute(self, action="", source="", name="", query="", **kwargs) -> str:
+        if action == "install":
+            from skill_hub import install_skill_from_path, install_skill_from_url
+            if not source:
+                return "Error: source is required for install"
+            if source.startswith(("http://", "https://")):
+                return install_skill_from_url(source, name)
+            return install_skill_from_path(source, name)
+        elif action == "uninstall":
+            from skill_hub import uninstall_skill
+            if not name:
+                return "Error: name is required for uninstall"
+            return uninstall_skill(name)
+        elif action == "search":
+            from skill_hub import search_registry
+            if not query:
+                return "Error: query is required for search"
+            results = search_registry(query)
+            if not results:
+                return f"No skills found for '{query}'."
+            lines = [f"Found {len(results)} skill(s):", ""]
+            for r in results:
+                v = r.get("version", "?")
+                lines.append(f"- {r['name']}  v{v}  ({r.get('type', '?')})")
+            return "\n".join(lines)
+        elif action == "list":
+            from skill_hub import list_installed_skills
+            skills = list_installed_skills()
+            if not skills:
+                return "No skills installed."
+            lines = [f"Installed skills ({len(skills)}):", ""]
+            for s in skills:
+                v = s.get("version", 0)
+                t = s.get("type", "?")
+                lines.append(f"- {s['name']}  v{v}  ({t})")
+            return "\n".join(lines)
+        return f"Unknown action: {action}"
 
 
-class SearchSkillTool(Tool):
-    """Search for available skills in the local registry."""
-    name = "search_skill"
+class LspQueryTool(Tool):
+    """Query LSP for code intelligence."""
+    name = "lsp_query"
     required_permission = PermissionMode.READONLY
-    description = "Search for available skills by keyword."
+    description = "Query language server for code intelligence. Actions: hover (type info), definition (go-to-def), references (find all usages)."
     parameters = {
         "type": "object",
         "properties": {
-            "query": {"type": "string", "description": "Search keyword"},
-        },
-        "required": ["query"],
-    }
-
-    def execute(self, query="", **kwargs) -> str:
-        from skill_hub import search_registry
-        results = search_registry(query)
-        if not results:
-            return f"No skills found for '{query}'."
-        lines = [f"Found {len(results)} skill(s):", ""]
-        for r in results:
-            v = r.get("version", "?")
-            lines.append(f"- {r['name']}  v{v}  ({r.get('type', '?')})")
-        return "\n".join(lines)
-
-
-class UninstallSkillTool(Tool):
-    """Uninstall a skill."""
-    name = "uninstall_skill"
-    required_permission = PermissionMode.WORKSPACE_WRITE
-    description = "Remove an installed skill."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "skill_name": {"type": "string", "description": "Name of the skill to uninstall"},
-        },
-        "required": ["skill_name"],
-    }
-
-    def execute(self, skill_name="", **kwargs) -> str:
-        from skill_hub import uninstall_skill
-        return uninstall_skill(skill_name)
-
-
-class ListInstalledSkillsTool(Tool):
-    """List all installed skills with versions."""
-    name = "list_installed_skills"
-    required_permission = PermissionMode.READONLY
-    description = "List all installed skills with version information."
-    parameters = {"type": "object", "properties": {}}
-
-    def execute(self, **kwargs) -> str:
-        from skill_hub import list_installed_skills
-        skills = list_installed_skills()
-        if not skills:
-            return "No skills installed."
-        lines = [f"Installed skills ({len(skills)}):", ""]
-        for s in skills:
-            v = s.get("version", 0)
-            t = s.get("type", "?")
-            lines.append(f"- {s['name']}  v{v}  ({t})")
-        return "\n".join(lines)
-
-
-class LspHoverTool(Tool):
-    """Get type info and documentation for a symbol in a file."""
-    name = "lsp_hover"
-    required_permission = PermissionMode.READONLY
-    description = "Get type information and documentation for a symbol at a file position using LSP."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "file_path": {"type": "string", "description": "File path"},
+            "action": {
+                "type": "string",
+                "enum": ["hover", "definition", "references"],
+                "description": "Query type",
+            },
+            "file_path": {"type": "string", "description": "Target file path"},
             "line": {"type": "integer", "description": "Line number (0-based)"},
             "col": {"type": "integer", "description": "Column number (0-based)"},
             "language": {"type": "string", "description": "Language ID (e.g. python, typescript)"},
             "server_command": {"type": "string", "description": "LSP server command (e.g. pyright-langserver --stdio)"},
         },
-        "required": ["file_path", "line", "col"],
+        "required": ["action", "file_path", "line", "col"],
     }
 
-    def execute(self, file_path="", line=0, col=0, language="python", server_command="", **kwargs) -> str:
+    def execute(self, action="", file_path="", line=0, col=0, language="python", server_command="", **kwargs) -> str:
         from lsp_client import _lsp_pool
         cmd = server_command or _default_lsp_command(language)
         if not cmd:
@@ -1121,67 +1101,13 @@ class LspHoverTool(Tool):
         try:
             import os
             client = _lsp_pool.get(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
-            return client.hover(file_path, line, col, language) or "(no info)"
-        except Exception as e:
-            return f"LSP error: {e}"
-
-
-class LspDefinitionTool(Tool):
-    """Go to definition of a symbol in a file."""
-    name = "lsp_definition"
-    required_permission = PermissionMode.READONLY
-    description = "Find the definition location of a symbol at a file position using LSP."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "file_path": {"type": "string", "description": "File path"},
-            "line": {"type": "integer", "description": "Line number (0-based)"},
-            "col": {"type": "integer", "description": "Column number (0-based)"},
-            "language": {"type": "string", "description": "Language ID"},
-            "server_command": {"type": "string", "description": "LSP server command"},
-        },
-        "required": ["file_path", "line", "col"],
-    }
-
-    def execute(self, file_path="", line=0, col=0, language="python", server_command="", **kwargs) -> str:
-        from lsp_client import _lsp_pool
-        cmd = server_command or _default_lsp_command(language)
-        if not cmd:
-            return f"No LSP server configured for {language}"
-        try:
-            import os
-            client = _lsp_pool.get(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
-            return client.definition(file_path, line, col, language)
-        except Exception as e:
-            return f"LSP error: {e}"
-
-
-class LspReferencesTool(Tool):
-    """Find all references to a symbol in a file."""
-    name = "lsp_references"
-    required_permission = PermissionMode.READONLY
-    description = "Find all references to a symbol at a file position using LSP."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "file_path": {"type": "string", "description": "File path"},
-            "line": {"type": "integer", "description": "Line number (0-based)"},
-            "col": {"type": "integer", "description": "Column number (0-based)"},
-            "language": {"type": "string", "description": "Language ID"},
-            "server_command": {"type": "string", "description": "LSP server command"},
-        },
-        "required": ["file_path", "line", "col"],
-    }
-
-    def execute(self, file_path="", line=0, col=0, language="python", server_command="", **kwargs) -> str:
-        from lsp_client import _lsp_pool
-        cmd = server_command or _default_lsp_command(language)
-        if not cmd:
-            return f"No LSP server configured for {language}"
-        try:
-            import os
-            client = _lsp_pool.get(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
-            return client.references(file_path, line, col, language)
+            if action == "hover":
+                return client.hover(file_path, line, col, language) or "(no info)"
+            elif action == "definition":
+                return client.definition(file_path, line, col, language)
+            elif action == "references":
+                return client.references(file_path, line, col, language)
+            return f"Unknown action: {action}"
         except Exception as e:
             return f"LSP error: {e}"
 
@@ -1334,11 +1260,6 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(LearnSkillTool(agent_id=agent_id))
     registry.register(ForgetSkillTool(agent_id=agent_id))
     registry.register(ListSkillsTool(agent_id=agent_id))
-    registry.register(InstallSkillTool())
-    registry.register(SearchSkillTool())
-    registry.register(UninstallSkillTool())
-    registry.register(ListInstalledSkillsTool())
-    registry.register(LspHoverTool())
-    registry.register(LspDefinitionTool())
-    registry.register(LspReferencesTool())
+    registry.register(SkillManageTool())
+    registry.register(LspQueryTool())
     return registry
