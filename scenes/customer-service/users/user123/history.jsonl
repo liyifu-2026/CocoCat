@@ -1,0 +1,6 @@
+{"timestamp": "2026-05-03T01:30:16.171976", "direction": "incoming", "content": "Hello, I need help with my order", "channel": "web_api"}
+{"timestamp": "2026-05-03T01:30:30.438234", "direction": "outgoing", "content": "LLM call failed after 3 retries: Authentication Fails (governor)", "channel": "web_api"}
+{"timestamp": "2026-05-03T01:32:14.958421", "direction": "incoming", "content": "Hello, say hi and nothing else", "channel": "web_api"}
+{"timestamp": "2026-05-03T01:32:15.373800", "direction": "outgoing", "content": "(no response)", "channel": "web_api"}
+{"timestamp": "2026-05-03T01:37:11.343126", "direction": "incoming", "content": "say hi and nothing else", "channel": "web_api"}
+{"timestamp": "2026-05-03T01:37:17.077026", "direction": "outgoing", "content": "Hi", "channel": "web_api"}

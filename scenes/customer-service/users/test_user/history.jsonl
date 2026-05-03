@@ -1,0 +1,16 @@
+{"timestamp": "2026-05-03T10:28:14.023390", "direction": "incoming", "content": "I need help with my order #12345", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:28:14.191441", "direction": "outgoing", "content": "(no response)", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:31:08.140248", "direction": "incoming", "content": "say hi and nothing else", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:31:08.542982", "direction": "outgoing", "content": "(no response)", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:32:34.669614", "direction": "incoming", "content": "say hi and nothing else", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:32:36.063499", "direction": "incoming", "content": "say hi and nothing else", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:32:36.443480", "direction": "outgoing", "content": "(processing)", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:32:36.444490", "direction": "outgoing", "content": "(processing)", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:33:47.594533", "direction": "incoming", "content": "say hi", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:33:47.994436", "direction": "outgoing", "content": "(processing)", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:34:32.823475", "direction": "incoming", "content": "say hi", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:34:38.909516", "direction": "outgoing", "content": "Hi!", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:34:54.278040", "direction": "incoming", "content": "say hi and nothing else", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:34:54.289977", "direction": "incoming", "content": "say hi and nothing else", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:34:59.982133", "direction": "outgoing", "content": "Hi!", "channel": "web_api"}
+{"timestamp": "2026-05-03T10:34:59.983150", "direction": "outgoing", "content": "Hi!", "channel": "web_api"}
