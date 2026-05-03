@@ -38,6 +38,16 @@ You have access to the following tools:
 5. When you complete a task, key information is automatically saved to your history.
 6. Think step by step before using tools.
 7. You work in the directory: {workspace}
+
+## Wiki Maintenance
+You maintain wiki pages at knowledge/team-wiki/. Use read_file/write_file/edit_file/grep to maintain them.
+- **Create/update**: write_file with YAML frontmatter (type/title/created/summary/related)
+- **Cross-refs**: Use [[Wikilink]] format. Update related pages' frontmatter when adding new ones.
+- **Lint**: grep wikilinks → check targets exist → check frontmatter
+- **Save Q&A**: write_file to wiki/ with frontmatter (concepts/ or entities/ subdir)
+- **Clip web**: web_fetch(url) → write_file to raw/sources/ with filename → then ingest_to_kb if needed
+- **Overview**: read all wiki pages → write_file wiki/overview.md synthesizing them
+- **Log**: prepend ## [date] op | title to knowledge/team-wiki/log.md
 """
 
 

@@ -761,83 +761,6 @@ class IngestToKbTool(Tool):
             return f"Ingestion failed: {e}"
 
 
-class LintWikiTool(Tool):
-    """Health-check a knowledge base wiki."""
-    name = "lint_wiki"
-    required_permission = PermissionMode.READONLY
-    description = "Health-check a wiki for orphan pages, broken links, and missing frontmatter."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "kb_id": {"type": "string", "description": "Knowledge base ID"},
-        },
-        "required": ["kb_id"],
-    }
-
-    def execute(self, kb_id="", **kwargs) -> str:
-        from ingest import run_lint
-        return run_lint(kb_id)
-
-
-class SaveToKbTool(Tool):
-    """Save Q&A results or analysis as a new wiki page."""
-    name = "save_to_kb"
-    required_permission = PermissionMode.WORKSPACE_WRITE
-    description = "Save a valuable analysis or answer as a new wiki page for future reference."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "kb_id": {"type": "string", "description": "Knowledge base ID"},
-            "title": {"type": "string", "description": "Page title"},
-            "content": {"type": "string", "description": "Page content / analysis"},
-            "page_type": {"type": "string", "enum": ["entity", "concept"], "description": "Page type (default: concept)"},
-        },
-        "required": ["kb_id", "title", "content"],
-    }
-
-    def execute(self, kb_id="", title="", content="", page_type="concept", **kwargs) -> str:
-        from ingest import run_save_to_kb
-        return run_save_to_kb(kb_id, title, content, page_type)
-
-
-class ClipToKbTool(Tool):
-    """Fetch a webpage and save as raw source for KB ingestion."""
-    name = "clip_to_kb"
-    required_permission = PermissionMode.WORKSPACE_WRITE
-    description = "Fetch a URL, strip HTML, and save as a raw source file in the KB for later ingestion."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "kb_id": {"type": "string", "description": "Knowledge base ID"},
-            "url": {"type": "string", "description": "URL to clip"},
-            "filename": {"type": "string", "description": "Optional filename for the source"},
-        },
-        "required": ["kb_id", "url"],
-    }
-
-    def execute(self, kb_id="", url="", filename="", **kwargs) -> str:
-        from ingest import run_clip_to_kb
-        return run_clip_to_kb(kb_id, url, filename)
-
-
-class GenerateOverviewTool(Tool):
-    """Generate a synthesis overview page for a wiki."""
-    name = "generate_overview"
-    required_permission = PermissionMode.WORKSPACE_WRITE
-    description = "Generate or update the overview/synthesis page for a knowledge base wiki, summarizing all pages and their connections."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "kb_id": {"type": "string", "description": "Knowledge base ID"},
-        },
-        "required": ["kb_id"],
-    }
-
-    def execute(self, kb_id="", **kwargs) -> str:
-        from ingest import run_generate_overview
-        return run_generate_overview(kb_id)
-
-
 class WebFetchTool(Tool):
     """Fetch content from a URL and return as text."""
     name = "web_fetch"
@@ -1339,10 +1262,7 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(RevertMemoryTool())
     registry.register(DreamTool(agent_id=agent_id, agent_name=agent_name))
     registry.register(IngestToKbTool())
-    registry.register(LintWikiTool())
-    registry.register(SaveToKbTool())
-    registry.register(ClipToKbTool())
-    registry.register(GenerateOverviewTool())
+
     registry.register(WebFetchTool())
     registry.register(WebSearchTool())
     registry.register(EditFileTool())
