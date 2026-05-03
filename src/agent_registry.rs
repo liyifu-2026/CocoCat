@@ -20,7 +20,7 @@ pub struct AgentsConfig {
 
 pub struct AgentRegistry {
     pub configs: Vec<AgentConfig>,
-    processes: HashMap<String, AgentProcess>,
+    pub processes: HashMap<String, AgentProcess>,
 }
 
 impl AgentRegistry {
@@ -90,6 +90,49 @@ impl AgentRegistry {
     #[allow(dead_code)]
     pub fn stop_all(&mut self) {
         self.processes.clear();
+    }
+
+    /// Remove a dead agent's entry from the processes map
+    fn remove_dead(&mut self, id: &str) {
+        self.processes.remove(id);
+    }
+
+    /// Restart a single agent by config
+    pub fn restart_one(&mut self, id: &str) -> Result<(), String> {
+        self.remove_dead(id);
+        let config = self.configs.iter()
+            .find(|c| c.id == id)
+            .ok_or_else(|| format!("config not found for {}", id))?;
+        if !config.enabled {
+            return Err(format!("agent {} is disabled", id));
+        }
+        self.start_one(config.clone())?;
+        Ok(())
+    }
+
+    /// Health check: ping each running agent, restart dead ones. Returns list of restarted agents.
+    pub fn health_check(&mut self) -> Vec<String> {
+        let mut restarted = Vec::new();
+        let ids: Vec<String> = self.processes.keys().cloned().collect();
+        for id in ids {
+            let running = self.processes.get_mut(&id)
+                .map(|p| p.is_running())
+                .unwrap_or(false);
+            if !running {
+                self.remove_dead(&id);
+                println!("  Agent '{id}' is dead, restarting...");
+                match self.restart_one(&id) {
+                    Ok(()) => {
+                        println!("  Agent '{id}' restarted successfully");
+                        restarted.push(id);
+                    }
+                    Err(e) => {
+                        eprintln!("  Failed to restart agent '{id}': {e}");
+                    }
+                }
+            }
+        }
+        restarted
     }
 
     /// Dispatch a message to a target agent by id.

@@ -6,6 +6,8 @@ mod agent_registry;
 use agent_registry::AgentRegistry;
 use serde_json::json;
 use std::fs;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 fn process_hire_requests(registry: &mut AgentRegistry) {
@@ -383,8 +385,59 @@ fn main() {
     }
     println!();
 
+    // === Daemon Loop ===
+    println!("--- Entering Daemon Mode (type 'quit' or 'exit' to stop) ---");
+
+    let running = Arc::new(AtomicBool::new(true));
+    setup_shutdown_handler(running.clone());
+
+    let mut last_health_check = Instant::now();
+    let health_check_interval = std::time::Duration::from_secs(15);
+
+    while running.load(Ordering::Relaxed) {
+        if last_health_check.elapsed() >= health_check_interval {
+            let restarted = registry.health_check();
+            if !restarted.is_empty() {
+                println!("  Health check: restarted {} agents", restarted.len());
+            }
+            last_health_check = Instant::now();
+        }
+
+        check_and_process_dispatches(&mut registry);
+        process_pending_hires();
+        process_hire_requests(&mut registry);
+        check_user_questions();
+        message_bus::get_and_persist_counter();
+
+        std::thread::sleep(std::time::Duration::from_secs(5));
+    }
+
+    println!("\nShutting down...");
     message_bus::get_and_persist_counter();
     println!("CocoCat Core exiting.");
+}
+
+fn setup_shutdown_handler(running: Arc<AtomicBool>) {
+    let r = running.clone();
+    std::thread::spawn(move || {
+        let mut input = String::new();
+        while r.load(Ordering::Relaxed) {
+            input.clear();
+            match std::io::stdin().read_line(&mut input) {
+                Ok(_) => {
+                    let trimmed = input.trim();
+                    if trimmed.eq_ignore_ascii_case("quit") || trimmed.eq_ignore_ascii_case("exit") {
+                        r.store(false, Ordering::Relaxed);
+                        break;
+                    }
+                }
+                Err(_) => {
+                    r.store(false, Ordering::Relaxed);
+                    break;
+                }
+            }
+        }
+    });
 }
 
 /// Check dispatch queue and forward messages to target agents

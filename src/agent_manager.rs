@@ -56,6 +56,14 @@ impl AgentProcess {
         transport::read_response(&mut self.stdout_reader)
     }
 
+    /// Check if process has exited without blocking. Returns true if still running.
+    pub fn is_running(&mut self) -> bool {
+        match self.child.try_wait() {
+            Ok(None) => true,
+            _ => false,
+        }
+    }
+
     /// Terminate the agent subprocess
     pub fn kill(&mut self) -> Result<(), String> {
         self.child
