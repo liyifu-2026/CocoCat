@@ -5,6 +5,17 @@ import os
 import glob as glob_module
 import re
 from pathlib import Path
+from enum import Enum
+
+
+class PermissionMode(Enum):
+    READONLY = "readonly"
+    WORKSPACE_WRITE = "write"
+    FULL_ACCESS = "full"
+
+    def __le__(self, other):
+        order = [PermissionMode.READONLY, PermissionMode.WORKSPACE_WRITE, PermissionMode.FULL_ACCESS]
+        return order.index(self) <= order.index(other)
 
 
 class Tool:
@@ -12,6 +23,7 @@ class Tool:
     name: str = ""
     description: str = ""
     parameters: dict = {}
+    required_permission: PermissionMode = PermissionMode.FULL_ACCESS
 
     def to_openai_schema(self) -> dict:
         return {
@@ -29,6 +41,7 @@ class Tool:
 
 class ReadFileTool(Tool):
     name = "read_file"
+    required_permission = PermissionMode.READONLY
     description = "Read a text file. Specify path (required), offset (1-based, default 1), and limit (default 2000 lines)."
     parameters = {
         "type": "object",
@@ -58,6 +71,7 @@ class ReadFileTool(Tool):
 
 class WriteFileTool(Tool):
     name = "write_file"
+    required_permission = PermissionMode.WORKSPACE_WRITE
     description = "Write content to a file, creating directories if needed."
     parameters = {
         "type": "object",
@@ -80,6 +94,7 @@ class WriteFileTool(Tool):
 
 class ExecCommandTool(Tool):
     name = "exec_command"
+    required_permission = PermissionMode.FULL_ACCESS
     description = "Execute a shell command. Returns stdout + stderr. Use timeout for long-running commands."
     parameters = {
         "type": "object",
@@ -116,6 +131,7 @@ class ExecCommandTool(Tool):
 
 class GlobSearchTool(Tool):
     name = "glob_search"
+    required_permission = PermissionMode.READONLY
     description = "Search for files matching a glob pattern. Example: **/*.py"
     parameters = {
         "type": "object",
@@ -143,6 +159,7 @@ class GlobSearchTool(Tool):
 
 class GrepSearchTool(Tool):
     name = "grep_search"
+    required_permission = PermissionMode.READONLY
     description = "Search file contents using a regex pattern."
     parameters = {
         "type": "object",
@@ -185,6 +202,7 @@ class GrepSearchTool(Tool):
 class SubAgentTool(Tool):
     """Spawn a child agent process to handle a subtask (claw-code Agent tool pattern)."""
     name = "sub_agent"
+    required_permission = PermissionMode.FULL_ACCESS
     description = "Spawn a child agent to handle a subtask. Provide a clear prompt describing what the subtask should accomplish."
     parameters = {
         "type": "object",
@@ -240,6 +258,7 @@ class SubAgentTool(Tool):
 class DispatchTaskTool(Tool):
     """Request dispatching a task to another agent via Rust core proxy."""
     name = "dispatch_task"
+    required_permission = PermissionMode.FULL_ACCESS
     description = "Send a task to another agent in the team. The target agent will process the task and the result will be returned to you."
     parameters = {
         "type": "object",
@@ -278,6 +297,7 @@ class DispatchTaskTool(Tool):
 class HireAgentTool(Tool):
     """Request hiring a new agent. Creates a hire request file for the next restart."""
     name = "hire_agent"
+    required_permission = PermissionMode.FULL_ACCESS
     description = "Request hiring a new team member. Specify id, name, and optional personality description."
     parameters = {
         "type": "object",
@@ -308,6 +328,7 @@ class HireAgentTool(Tool):
 class SearchKbTool(Tool):
     """Search the knowledge bases mounted to your current scene."""
     name = "search_kb"
+    required_permission = PermissionMode.READONLY
     description = "Search knowledge bases mounted to your current scene. Returns matching content from KB wiki pages."
     parameters = {
         "type": "object",
@@ -394,6 +415,7 @@ class SearchKbTool(Tool):
 class RememberTool(Tool):
     """Store important information into your long-term memory (MEMORY.md)."""
     name = "remember"
+    required_permission = PermissionMode.WORKSPACE_WRITE
     description = "Store important information into your long-term memory. Use this to remember facts, decisions, and learnings."
     parameters = {
         "type": "object",
@@ -427,6 +449,7 @@ class RememberTool(Tool):
 class RecallTool(Tool):
     """Read your long-term memory (MEMORY.md) to recall past facts and decisions."""
     name = "recall"
+    required_permission = PermissionMode.READONLY
     description = "Read your long-term memory. Use this to recall past facts, decisions, and learnings."
     parameters = {
         "type": "object",
@@ -470,6 +493,7 @@ class RecallTool(Tool):
 class DreamTool(Tool):
     """Run the Dream process: analyze recent history and consolidate into MEMORY.md."""
     name = "dream"
+    required_permission = PermissionMode.WORKSPACE_WRITE
     description = "Process recent history and consolidate important findings into long-term memory. The LLM will analyze your task history and extract key facts, decisions, and patterns."
     parameters = {
         "type": "object",
@@ -496,6 +520,7 @@ class DreamTool(Tool):
 class IngestToKbTool(Tool):
     """Ingest a raw source file into a knowledge base. Two-stage LLM pipeline: analyze then generate wiki pages."""
     name = "ingest_to_kb"
+    required_permission = PermissionMode.WORKSPACE_WRITE
     description = "Process a raw source file into structured wiki pages in a knowledge base. Specify kb_id and source_filename (relative to knowledge/{kb}/raw/sources/)."
     parameters = {
         "type": "object",
@@ -518,6 +543,7 @@ class IngestToKbTool(Tool):
 class WebFetchTool(Tool):
     """Fetch content from a URL and return as text."""
     name = "web_fetch"
+    required_permission = PermissionMode.READONLY
     description = "Fetch content from a URL and return it as text. Useful for reading documentation, APIs, and web pages."
     parameters = {
         "type": "object",
@@ -552,6 +578,7 @@ class WebFetchTool(Tool):
 class WebSearchTool(Tool):
     """Search the web using DuckDuckGo (no API key needed)."""
     name = "web_search"
+    required_permission = PermissionMode.READONLY
     description = "Search the web for information. Returns a list of results with titles and snippets."
     parameters = {
         "type": "object",
@@ -592,6 +619,7 @@ class WebSearchTool(Tool):
 class McpCallTool(Tool):
     """Call a tool from an MCP server."""
     name = "mcp_call"
+    required_permission = PermissionMode.FULL_ACCESS
     description = "Call a tool from an MCP (Model Context Protocol) server. Specify the server command, tool name, and arguments."
     parameters = {
         "type": "object",
@@ -646,6 +674,7 @@ class McpCallTool(Tool):
 class SendMessageTool(Tool):
     """Send a message to another agent's mailbox."""
     name = "send_message"
+    required_permission = PermissionMode.FULL_ACCESS
     description = "Send a message to another agent. The target agent will receive it in their mailbox and can respond on their next heartbeat."
     parameters = {
         "type": "object",
@@ -668,6 +697,7 @@ class SendMessageTool(Tool):
 class EditFileTool(Tool):
     """Replace text in a file using search/replace (claw-code pattern)."""
     name = "edit_file"
+    required_permission = PermissionMode.WORKSPACE_WRITE
     description = "Replace text in a file. Specify old_string to find and new_string to replace it with. Use replace_all=true to replace all occurrences."
     parameters = {
         "type": "object",
@@ -714,6 +744,7 @@ class EditFileTool(Tool):
 class AskUserTool(Tool):
     """Ask the user a question and wait for response."""
     name = "ask_user"
+    required_permission = PermissionMode.FULL_ACCESS
     description = "Ask the user a question and get their response. The agent pauses and waits for user input."
     parameters = {
         "type": "object",
@@ -752,10 +783,12 @@ class ToolRegistry:
     def get_definitions(self) -> list[dict]:
         return [t.to_openai_schema() for t in self._tools.values()]
 
-    def execute(self, name: str, arguments: dict) -> str:
+    def execute(self, name: str, arguments: dict, current_mode: PermissionMode = PermissionMode.FULL_ACCESS) -> str:
         tool = self._tools.get(name)
         if not tool:
             return f"Error: unknown tool '{name}'"
+        if not (tool.required_permission <= current_mode):
+            return f"Permission denied: '{name}' requires {tool.required_permission.value}, current mode is {current_mode.value}"
         try:
             return tool.execute(**arguments)
         except Exception as e:

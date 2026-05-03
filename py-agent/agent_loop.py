@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime
 from llm import LLMClient
-from tools import ToolRegistry, create_default_registry
+from tools import ToolRegistry, create_default_registry, PermissionMode
 from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_skills
 import tiktoken
 
@@ -184,6 +184,7 @@ class AgentLoop:
         scene_name: str = "default",
         scene_context: str = "",
         scene_skills: str = "",
+        permission_mode: PermissionMode = PermissionMode.FULL_ACCESS,
     ):
         self.agent_id = agent_id
         self.agent_name = agent_name
@@ -194,6 +195,7 @@ class AgentLoop:
         self.scene_name = scene_name
         self.scene_context = scene_context
         self.scene_skills = scene_skills
+        self.permission_mode = permission_mode
 
     def _build_system_prompt(self):
         from context import build_system_prompt, build_tool_descriptions, load_agent_memory
@@ -287,7 +289,7 @@ class AgentLoop:
                 with ThreadPoolExecutor(max_workers=len(tool_calls)) as executor:
                     futures = {}
                     for tc in tool_calls:
-                        f = executor.submit(self.tools.execute, tc["name"], tc.get("arguments", {}))
+                        f = executor.submit(self.tools.execute, tc["name"], tc.get("arguments", {}), self.permission_mode)
                         futures[f] = tc
                     for f in as_completed(futures):
                         tc = futures[f]
