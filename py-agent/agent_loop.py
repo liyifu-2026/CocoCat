@@ -139,13 +139,14 @@ def consolidate(messages: list[dict], llm, budget: int = 8000) -> list[dict]:
     if len(non_system) < 4:
         return messages
 
-    split = max(1, len(non_system) // 2)
-    while split > 0 and split <= len(non_system):
-        if split > 1:
-            prev = non_system[split - 2]
-            if prev.get("role") == "assistant" and "tool_calls" in prev:
-                break
-        if non_system[split - 1].get("role") == "tool":
+    # Find a safe split at a round boundary near the midpoint
+    target = max(1, len(non_system) // 2)
+    split = target
+    while split > 0:
+        msg = non_system[split - 1]
+        if msg.get("role") == "tool":
+            split -= 1
+        elif msg.get("role") == "assistant" and "tool_calls" in msg:
             split -= 1
         else:
             break
