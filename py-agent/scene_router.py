@@ -3,13 +3,18 @@ import os
 import json
 from datetime import datetime
 
+_BASE = None  # test seam: set to override base directory
+
+
+def _scenes_dir() -> str:
+    if _BASE:
+        return _BASE
+    return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scenes"))
+
 
 def store_message(scene_id: str, user_id: str, msg_dict: dict):
     """Store a message in scenes/{scene_id}/users/{user_id}/history.jsonl."""
-    history_dir = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "..", "scenes", scene_id, "users", user_id
-    )
+    history_dir = os.path.join(_scenes_dir(), scene_id, "users", user_id)
     history_path = os.path.join(history_dir, "history.jsonl")
     os.makedirs(history_dir, exist_ok=True)
 
@@ -25,10 +30,7 @@ def store_message(scene_id: str, user_id: str, msg_dict: dict):
 
 def get_history(scene_id: str, user_id: str, limit: int = 20) -> list[dict]:
     """Read recent conversation history for a user in a scene."""
-    history_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "..", "scenes", scene_id, "users", user_id, "history.jsonl"
-    )
+    history_path = os.path.join(_scenes_dir(), scene_id, "users", user_id, "history.jsonl")
     if not os.path.exists(history_path):
         return []
 
