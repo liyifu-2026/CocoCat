@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { scenesApi } from "@/api/scenes"
 import { agentsApi } from "@/api/agents"
+import { entriesApi } from "@/api/entries"
+import { EntryManager } from "@/components/EntryManager"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,6 +19,12 @@ export default function SceneDetail() {
   const scene = data?.scenes?.find(s => s.id === id)
   const queryClient = useQueryClient()
   const { data: agentsData } = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
+  const channels = useQuery({ queryKey: ["channels"], queryFn: () => entriesApi.listChannels() })
+  const entriesConfig = useQuery({
+    queryKey: ["scene", id, "entries"],
+    queryFn: () => entriesApi.getSceneEntries(id!),
+    enabled: !!id,
+  })
   const [editingContext, setEditingContext] = useState(false)
   const [contextText, setContextText] = useState("")
   const [newKb, setNewKb] = useState("")
@@ -162,6 +170,19 @@ export default function SceneDetail() {
           </CardContent>
         </Card>
       </div>
+
+      <EntryManager
+        title="Scene Entries"
+        entries={entriesConfig.data?.entries}
+        allChannels={channels.data?.channels}
+        onSave={async (newEntries) => {
+          await entriesApi.updateSceneEntries(scene.id, newEntries)
+          queryClient.invalidateQueries({ queryKey: ["scene", id, "entries"] })
+        }}
+      />
+      <p className="text-xs text-muted-foreground -mt-2">
+        Messages from these channels are routed to agents assigned to this scene.
+      </p>
 
       <div className="pt-4 border-t border-border">
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

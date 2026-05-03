@@ -2,6 +2,8 @@ import { useState } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { agentsApi } from "@/api/agents"
+import { entriesApi } from "@/api/entries"
+import { EntryManager } from "@/components/EntryManager"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -45,6 +47,13 @@ export default function AgentDetail() {
   const history = useQuery({
     queryKey: ["agent", id, "history"],
     queryFn: () => agentsApi.history(id!),
+    enabled: !!id,
+  })
+
+  const channels = useQuery({ queryKey: ["channels"], queryFn: () => entriesApi.listChannels() })
+  const entriesConfig = useQuery({
+    queryKey: ["agent", id, "entries"],
+    queryFn: () => entriesApi.getAgentEntries(id!),
     enabled: !!id,
   })
 
@@ -92,6 +101,7 @@ export default function AgentDetail() {
           <TabsTrigger value="skills">Skills</TabsTrigger>
           <TabsTrigger value="memory">Memory</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="entries">Entries</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="mt-4">
@@ -320,6 +330,20 @@ export default function AgentDetail() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+        <TabsContent value="entries" className="mt-4">
+          <EntryManager
+            title="Personal Entries"
+            entries={entriesConfig.data?.entries}
+            allChannels={channels.data?.channels}
+            onSave={async (newEntries) => {
+              await entriesApi.updateAgentEntries(agent.id, newEntries)
+              queryClient.invalidateQueries({ queryKey: ["agent", id, "entries"] })
+            }}
+          />
+          <p className="text-xs text-muted-foreground mt-2">
+            Configure how others can reach this agent directly. Leave empty for internal-only communication.
+          </p>
         </TabsContent>
       </Tabs>
       <div className="pt-4 border-t border-border">
