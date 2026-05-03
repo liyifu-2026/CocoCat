@@ -59,11 +59,31 @@ def test_path_validator_allows_workspace():
     assert ok
 
 
+def test_path_validator_case_insensitive_windows():
+    ws = Path(tempfile.mkdtemp())
+    (ws / "test.txt").write_text("hello")
+    if IS_WINDOWS:
+        upper_path = str(ws / "test.txt").upper()
+        ok, _ = path_val.validate(upper_path, ws)
+        assert ok
+    else:
+        ok, _ = path_val.validate(str(ws / "test.txt"), ws)
+        assert ok
+
+
 def test_path_validator_blocks_outside():
     ws = Path(tempfile.mkdtemp())
     ok, reason = path_val.validate("/etc/passwd", ws)
     assert not ok
     assert "outside workspace" in reason
+
+
+def test_env_sanitizer_preserves_cococat_vars():
+    dirty = {"COCOCAT_WORKSPACE": "/project", "COCOCAT_MODE": "dev", "PATH": "/usr/bin"}
+    clean = sanitizer.sanitize(dirty)
+    assert clean.get("COCOCAT_WORKSPACE") == "/project"
+    assert clean.get("COCOCAT_MODE") == "dev"
+    assert clean.get("PATH") == "/usr/bin"
 
 
 def test_output_truncator():
@@ -73,3 +93,10 @@ def test_output_truncator():
     truncated = truncator.truncate(long)
     assert len(truncated) <= 10000 + 50
     assert "truncated" in truncated
+
+
+def test_output_truncator_custom_max():
+    text = "hello world " * 10
+    truncated = truncator.truncate(text, max_chars=5)
+    assert "truncated" in truncated
+    assert len(truncated) < len(text)

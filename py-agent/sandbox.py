@@ -95,7 +95,12 @@ class PathValidator:
         try:
             resolved = Path(path).resolve()
             ws = workspace.resolve()
-            if not str(resolved).startswith(str(ws)):
+            resolved_str = str(resolved)
+            ws_str = str(ws)
+            if IS_WINDOWS:
+                resolved_str = resolved_str.casefold()
+                ws_str = ws_str.casefold()
+            if not resolved_str.startswith(ws_str):
                 return False, "path outside workspace"
             return True, ""
         except Exception as e:
