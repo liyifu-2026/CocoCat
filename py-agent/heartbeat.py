@@ -47,6 +47,8 @@ def start_heartbeat(agent_id: str, agent_name: str, interval: int = 300, scene: 
 
 
 def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = "default"):
+    from agent_runner import AgentRunner
+    runner = AgentRunner(agent_id, agent_name, scene)
     while True:
         time.sleep(interval)
         try:
@@ -58,7 +60,7 @@ def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = 
                 for i, msg in enumerate(messages):
                     if msg.get("status") == "unread":
                         from_prompt = f"[Message from {msg.get('from', 'unknown')}]\n{msg.get('content', '')}"
-                        _execute_task(agent_id, agent_name, {"id": i, "task": from_prompt}, scene=scene)
+                        _execute_task(agent_id, agent_name, {"id": i, "task": from_prompt}, scene=scene, runner=runner)
                         mark_read(agent_id, i)
         except Exception as e:
             print(f"[Mailbox] Error: {e}")
@@ -72,7 +74,7 @@ def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = 
                 for item in unread_chat:
                     try:
                         prompt = f"[Chat: {item['group_name']}] [from {item['from']}] (priority: {item['score']})\n{item['content']}"
-                        _execute_task(agent_id, agent_name, {"id": f"chat_{item['group_id']}_{item['msg_index']}", "task": prompt}, scene=scene)
+                        _execute_task(agent_id, agent_name, {"id": f"chat_{item['group_id']}_{item['msg_index']}", "task": prompt}, scene=scene, runner=runner)
                     except Exception as e:
                         print(f"[ChatReader] Failed to process: {e}")
                     mark_as_read(agent_id, item['group_id'], item['msg_index'], item['score'])
@@ -85,7 +87,7 @@ def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = 
                 continue
             print(f"[Heartbeat] {agent_name} found {len(tasks)} pending task(s)")
             for task in tasks:
-                _execute_task(agent_id, agent_name, task, scene=scene)
+                _execute_task(agent_id, agent_name, task, scene=scene, runner=runner)
         except Exception as e:
             print(f"[Heartbeat] Error: {e}")
 
@@ -96,7 +98,7 @@ def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = 
             pass
 
 
-def _execute_task(agent_id: str, agent_name: str, task: dict, scene: str = "default"):
+def _execute_task(agent_id: str, agent_name: str, task: dict, scene: str = "default", runner=None):
     from agent_runner import AgentRunner
 
     task_id = task.get("id")
@@ -105,7 +107,8 @@ def _execute_task(agent_id: str, agent_name: str, task: dict, scene: str = "defa
         update_task_status(task_id, "failed", "No task description")
         return
 
-    runner = AgentRunner(agent_id, agent_name, scene)
+    if runner is None:
+        runner = AgentRunner(agent_id, agent_name, scene)
 
     try:
         result = runner.run(prompt)

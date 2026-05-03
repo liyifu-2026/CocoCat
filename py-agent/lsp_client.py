@@ -2,6 +2,64 @@ import subprocess
 import json
 import os
 import threading
+import time
+
+
+class LSPPool:
+    """Pool of LSP server connections, keyed by (server_command, root_uri)."""
+
+    def __init__(self, idle_timeout: int = 600):
+        self._clients: dict[str, tuple[LSPClient, float]] = {}
+        self._lock = threading.Lock()
+        self._idle_timeout = idle_timeout
+
+    def _key(self, server_command: str, root_uri: str) -> str:
+        return f"{server_command}|{root_uri}"
+
+    def get(self, server_command: str, root_uri: str) -> "LSPClient":
+        key = self._key(server_command, root_uri)
+        with self._lock:
+            entry = self._clients.get(key)
+            if entry:
+                client, _ = entry
+                self._clients[key] = (client, time.time())
+                return client
+            client = LSPClient(server_command, root_uri)
+            self._clients[key] = (client, time.time())
+            return client
+
+    def release(self, server_command: str, root_uri: str):
+        key = self._key(server_command, root_uri)
+        with self._lock:
+            entry = self._clients.pop(key, None)
+            if entry:
+                entry[0].close()
+
+    def cleanup(self):
+        now = time.time()
+        with self._lock:
+            stale = [k for k, (_, t) in self._clients.items() if now - t > self._idle_timeout]
+            for k in stale:
+                client, _ = self._clients.pop(k)
+                try:
+                    client.close()
+                except Exception:
+                    pass
+
+
+_lsp_pool = LSPPool()
+
+
+def _start_cleanup_thread():
+    def _loop():
+        while True:
+            time.sleep(300)
+            _lsp_pool.cleanup()
+    t = threading.Thread(target=_loop, daemon=True)
+    t.start()
+
+
+_start_cleanup_thread()
 
 
 class LSPClient:

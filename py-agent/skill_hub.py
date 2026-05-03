@@ -2,6 +2,8 @@ import os
 import json
 import tempfile
 import shutil
+import re
+import time
 from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
@@ -48,12 +50,18 @@ def install_skill_from_path(source: str, name: str = "") -> str:
         return f"Error: unsupported source type: {source}"
     registry = load_registry()
     entry = next((e for e in registry if e.get("name") == skill_name), None)
+    version = (entry.get("version", 0) if entry else 0) + 1
     if entry:
         entry["source"] = str(source)
+        entry["version"] = version
+        entry["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     else:
-        registry.append({"name": skill_name, "source": str(source), "type": "local"})
+        registry.append({
+            "name": skill_name, "source": str(source), "type": "local",
+            "version": 1, "installed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        })
     save_registry(registry)
-    return f"Installed skill: {skill_name}"
+    return f"Installed skill: {skill_name} (v{version})"
 
 
 def install_skill_from_url(url: str, name: str = "") -> str:
@@ -70,12 +78,55 @@ def install_skill_from_url(url: str, name: str = "") -> str:
     dest.write_text(content, encoding="utf-8")
     registry = load_registry()
     entry = next((e for e in registry if e.get("name") == skill_name), None)
+    version = (entry.get("version", 0) if entry else 0) + 1
     if entry:
         entry["source"] = url
+        entry["version"] = version
+        entry["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     else:
-        registry.append({"name": skill_name, "source": url, "type": "remote"})
+        registry.append({
+            "name": skill_name, "source": url, "type": "remote",
+            "version": 1, "installed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        })
     save_registry(registry)
-    return f"Installed skill from URL: {skill_name}"
+    return f"Installed skill from URL: {skill_name} (v{version})"
+
+
+def validate_skill(name: str) -> str:
+    """Validate that a skill file has the required # Skill: header."""
+    skill_file = SKILLS_DIR / "public" / f"{name}.md"
+    if not skill_file.exists():
+        return f"Error: skill '{name}' not found"
+    content = skill_file.read_text(encoding="utf-8")
+    if not re.search(r"^# Skill:\s+\S", content, re.MULTILINE):
+        return f"Warning: skill '{name}' missing '# Skill:' header"
+    return f"Skill '{name}' is valid"
+
+
+def uninstall_skill(name: str) -> str:
+    """Remove a skill from the filesystem and registry."""
+    skill_file = SKILLS_DIR / "public" / f"{name}.md"
+    if skill_file.exists():
+        skill_file.unlink()
+    skill_dir = SKILLS_DIR / "public" / name
+    if skill_dir.exists():
+        shutil.rmtree(str(skill_dir))
+    registry = load_registry()
+    registry = [e for e in registry if e.get("name") != name]
+    save_registry(registry)
+    return f"Uninstalled skill: {name}"
+
+
+def list_installed_skills() -> list[dict]:
+    """List all installed skills with version info."""
+    registry = load_registry()
+    if registry:
+        return registry
+    results = []
+    for f in sorted((SKILLS_DIR / "public").iterdir()):
+        if f.suffix == ".md":
+            results.append({"name": f.stem, "source": str(f), "type": "local", "version": 0})
+    return results
 
 
 def search_registry(query: str) -> list[dict]:

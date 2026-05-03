@@ -1053,7 +1053,46 @@ class SearchSkillTool(Tool):
             return f"No skills found for '{query}'."
         lines = [f"Found {len(results)} skill(s):", ""]
         for r in results:
-            lines.append(f"- {r['name']}  ({r.get('type', '?')})")
+            v = r.get("version", "?")
+            lines.append(f"- {r['name']}  v{v}  ({r.get('type', '?')})")
+        return "\n".join(lines)
+
+
+class UninstallSkillTool(Tool):
+    """Uninstall a skill."""
+    name = "uninstall_skill"
+    required_permission = PermissionMode.WORKSPACE_WRITE
+    description = "Remove an installed skill."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "skill_name": {"type": "string", "description": "Name of the skill to uninstall"},
+        },
+        "required": ["skill_name"],
+    }
+
+    def execute(self, skill_name="", **kwargs) -> str:
+        from skill_hub import uninstall_skill
+        return uninstall_skill(skill_name)
+
+
+class ListInstalledSkillsTool(Tool):
+    """List all installed skills with versions."""
+    name = "list_installed_skills"
+    required_permission = PermissionMode.READONLY
+    description = "List all installed skills with version information."
+    parameters = {"type": "object", "properties": {}}
+
+    def execute(self, **kwargs) -> str:
+        from skill_hub import list_installed_skills
+        skills = list_installed_skills()
+        if not skills:
+            return "No skills installed."
+        lines = [f"Installed skills ({len(skills)}):", ""]
+        for s in skills:
+            v = s.get("version", 0)
+            t = s.get("type", "?")
+            lines.append(f"- {s['name']}  v{v}  ({t})")
         return "\n".join(lines)
 
 
@@ -1075,16 +1114,14 @@ class LspHoverTool(Tool):
     }
 
     def execute(self, file_path="", line=0, col=0, language="python", server_command="", **kwargs) -> str:
-        from lsp_client import LSPClient
+        from lsp_client import _lsp_pool
         cmd = server_command or _default_lsp_command(language)
         if not cmd:
             return f"No LSP server configured for {language}"
         try:
             import os
-            client = LSPClient(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
-            result = client.hover(file_path, line, col, language)
-            client.close()
-            return result or "(no info)"
+            client = _lsp_pool.get(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
+            return client.hover(file_path, line, col, language) or "(no info)"
         except Exception as e:
             return f"LSP error: {e}"
 
@@ -1107,16 +1144,14 @@ class LspDefinitionTool(Tool):
     }
 
     def execute(self, file_path="", line=0, col=0, language="python", server_command="", **kwargs) -> str:
-        from lsp_client import LSPClient
+        from lsp_client import _lsp_pool
         cmd = server_command or _default_lsp_command(language)
         if not cmd:
             return f"No LSP server configured for {language}"
         try:
             import os
-            client = LSPClient(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
-            result = client.definition(file_path, line, col, language)
-            client.close()
-            return result
+            client = _lsp_pool.get(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
+            return client.definition(file_path, line, col, language)
         except Exception as e:
             return f"LSP error: {e}"
 
@@ -1139,16 +1174,14 @@ class LspReferencesTool(Tool):
     }
 
     def execute(self, file_path="", line=0, col=0, language="python", server_command="", **kwargs) -> str:
-        from lsp_client import LSPClient
+        from lsp_client import _lsp_pool
         cmd = server_command or _default_lsp_command(language)
         if not cmd:
             return f"No LSP server configured for {language}"
         try:
             import os
-            client = LSPClient(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
-            result = client.references(file_path, line, col, language)
-            client.close()
-            return result
+            client = _lsp_pool.get(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
+            return client.references(file_path, line, col, language)
         except Exception as e:
             return f"LSP error: {e}"
 
@@ -1303,6 +1336,8 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(ListSkillsTool(agent_id=agent_id))
     registry.register(InstallSkillTool())
     registry.register(SearchSkillTool())
+    registry.register(UninstallSkillTool())
+    registry.register(ListInstalledSkillsTool())
     registry.register(LspHoverTool())
     registry.register(LspDefinitionTool())
     registry.register(LspReferencesTool())
