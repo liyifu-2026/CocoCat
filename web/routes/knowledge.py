@@ -87,3 +87,59 @@ def get_wiki_page(kb_id: str, page_type: str, page_name: str):
         "frontmatter": frontmatter,
         "body": body.strip(),
     }
+
+
+@router.get("/api/knowledge/{kb_id}/search")
+def search_wiki(kb_id: str, q: str = ""):
+    wiki_dir = BASE_DIR / "knowledge" / kb_id / "wiki"
+    if not wiki_dir.exists() or not q:
+        return {"results": []}
+
+    q_lower = q.lower()
+    results = []
+
+    for type_dir in wiki_dir.iterdir():
+        if not type_dir.is_dir():
+            continue
+        for md_file in type_dir.iterdir():
+            if md_file.suffix != ".md":
+                continue
+            content = md_file.read_text(encoding="utf-8")
+            if q_lower not in content.lower():
+                continue
+
+            name = md_file.stem
+            page_type = type_dir.name
+            title = name
+            snippet = ""
+
+            fm_match = re.match(r"^---\n(.+?)\n---\n*(.*)", content, re.DOTALL)
+            if fm_match:
+                fm = fm_match.group(1)
+                body = fm_match.group(2)
+                tm = re.search(r"^title:\s*\"?(.+?)\"?\s*$", fm, re.MULTILINE)
+                if tm:
+                    title = tm.group(1).strip()
+                body_lower = body.lower()
+                idx = body_lower.find(q_lower)
+                if idx >= 0:
+                    start = max(0, idx - 60)
+                    end = min(len(body), idx + len(q) + 60)
+                    snippet = body[start:end].replace("\n", " ")
+            else:
+                body = content
+                idx = body.lower().find(q_lower)
+                if idx >= 0:
+                    start = max(0, idx - 60)
+                    end = min(len(body), idx + len(q) + 60)
+                    snippet = body[start:end].replace("\n", " ")
+
+            results.append({
+                "name": name,
+                "title": title,
+                "type": page_type,
+                "path": f"/api/knowledge/{kb_id}/wiki/{page_type}/{name}",
+                "snippet": snippet.strip(),
+            })
+
+    return {"results": results}
