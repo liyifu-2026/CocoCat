@@ -5,6 +5,7 @@ from datetime import datetime
 import time as _time
 from llm import LLMClient
 from tools import ToolRegistry, create_default_registry, PermissionMode
+from plugin_hooks import HookRegistry
 from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_skills, load_agent_profile, load_user_profile
 import tiktoken
 
@@ -219,6 +220,14 @@ class AgentLoop:
         self.scene_skills = scene_skills
         self.permission_mode = permission_mode
         self.user_id = user_id
+        self.hook_registry = HookRegistry()
+        try:
+            from plugin_manager import discover_plugins, load_plugin_hooks
+            for pname, manifest in discover_plugins().items():
+                hooks = load_plugin_hooks(manifest)
+                self.hook_registry.register_all(hooks)
+        except Exception:
+            pass
 
     def _build_system_prompt(self, user_id: str = ""):
         from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_profile, load_user_profile, load_mounted_kbs
@@ -348,14 +357,26 @@ class AgentLoop:
                 with ThreadPoolExecutor(max_workers=len(tool_calls)) as executor:
                     futures = {}
                     for tc in tool_calls:
-                        f = executor.submit(self.tools.execute, tc["name"], tc.get("arguments", {}), self.permission_mode)
-                        futures[f] = tc
+                        tool_name = tc["name"]
+                        tool_args = tc.get("arguments", {})
+                        allowed, reason, modified_args = self.hook_registry.run_pre_tool_call(tool_name, tool_args)
+                        if not allowed:
+                            result = f"Error: Tool call denied by plugin: {reason}"
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tc["id"],
+                                "content": result,
+                            })
+                            continue
+                        f = executor.submit(self.tools.execute, tool_name, modified_args, self.permission_mode)
+                        futures[f] = (tc, tool_name, modified_args)
                     for f in as_completed(futures):
-                        tc = futures[f]
+                        tc, tool_name, modified_args = futures[f]
                         try:
                             result = f.result(timeout=60)
                         except Exception as e:
                             result = f"Tool error: {e}"
+                        result = self.hook_registry.run_post_tool_call(tool_name, modified_args, result)
                         messages.append({
                             "role": "tool",
                             "tool_call_id": tc["id"],

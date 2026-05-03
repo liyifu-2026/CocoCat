@@ -1305,6 +1305,14 @@ class ToolRegistry:
     def execute(self, name: str, arguments: dict, current_mode: PermissionMode = PermissionMode.FULL_ACCESS) -> str:
         tool = self._tools.get(name)
         if not tool:
+            try:
+                from plugin_manager import discover_plugins, load_plugin_tools
+                for pname, manifest in discover_plugins().items():
+                    for ptool in load_plugin_tools(manifest):
+                        if ptool.name == name:
+                            return ptool.execute(**arguments)
+            except Exception:
+                pass
             return f"Error: unknown tool '{name}'"
         if not (tool.required_permission <= current_mode):
             return f"Permission denied: '{name}' requires {tool.required_permission.value}, current mode is {current_mode.value}"
@@ -1346,4 +1354,13 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(ListSkillsTool(agent_id=agent_id))
     registry.register(SkillManageTool())
     registry.register(LspQueryTool())
+
+    try:
+        from plugin_manager import discover_plugins, load_plugin_tools
+        for pname, manifest in discover_plugins().items():
+            for ptool in load_plugin_tools(manifest):
+                registry.register(ptool)
+    except Exception as e:
+        print(f"[PluginLoader] Failed to load plugin tools: {e}")
+
     return registry

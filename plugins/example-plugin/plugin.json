@@ -1,0 +1,23 @@
+{
+  "name": "example-plugin",
+  "version": "1.0.0",
+  "description": "Example plugin demonstrating tools and hooks",
+  "tools": [
+    {
+      "name": "hello_world",
+      "description": "A simple hello world tool — returns a greeting",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string", "description": "Name to greet"}
+        },
+        "required": ["name"]
+      },
+      "handler": "hello_tool.py:hello_world"
+    }
+  ],
+  "hooks": {
+    "pre_tool_call": ["hooks/logger.py:log_pre_tool"],
+    "post_tool_call": ["hooks/logger.py:log_post_tool"]
+  }
+}
