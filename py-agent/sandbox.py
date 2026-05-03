@@ -22,7 +22,7 @@ _DANGEROUS_PATTERNS_WIN = [
 ]
 
 _DANGEROUS_PATTERNS_LIN = [
-    r"\brm\s+-rf\s+/\b",
+    r"\brm\s+-rf\s+/",
     r"\bmkfs\b",
     r"\bdd\s+if=",
     r"\bshred\b",
