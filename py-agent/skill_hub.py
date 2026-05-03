@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import tempfile
 import shutil
@@ -101,6 +102,99 @@ def validate_skill(name: str) -> str:
     if not re.search(r"^# Skill:\s+\S", content, re.MULTILINE):
         return f"Warning: skill '{name}' missing '# Skill:' header"
     return f"Skill '{name}' is valid"
+
+
+def parse_skill_metadata(content: str) -> dict:
+    """Parse YAML frontmatter from skill markdown content."""
+    m = re.match(r"^---\n(.+?)\n---", content, re.DOTALL)
+    if not m:
+        return {}
+    fm = m.group(1)
+    metadata = {}
+    for line in fm.split("\n"):
+        line = line.strip()
+        if ":" in line:
+            key, val = line.split(":", 1)
+            key = key.strip()
+            val = val.strip()
+            metadata[key] = val
+    requires_match = re.search(r"requires:\n((?:\s+.*\n?)*)", content)
+    if requires_match:
+        requires = {}
+        for rline in requires_match.group(1).split("\n"):
+            rline = rline.strip()
+            if rline.startswith("- "):
+                continue
+            if ":" in rline:
+                rk, rv = rline.split(":", 1)
+                requires[rk.strip()] = [x.strip().strip('"') for x in rv.split(",")]
+        metadata["requires"] = requires
+    return metadata
+
+
+def check_skill_dependencies(skill_name: str) -> tuple[bool, list[str]]:
+    """Check if a skill's dependencies are met. Returns (ok, missing_reasons)."""
+    base = Path(__file__).resolve().parent.parent
+    for subdir in ["skills/public", "skills/private"]:
+        skill_path = base / subdir / f"{skill_name}.md"
+        if skill_path.exists():
+            content = skill_path.read_text(encoding="utf-8")
+            meta = parse_skill_metadata(content)
+            break
+    else:
+        return True, []
+
+    missing = []
+    requires = meta.get("requires", {})
+
+    for bin_name in requires.get("bins", []):
+        if not shutil.which(bin_name):
+            missing.append(f"Missing binary: {bin_name}")
+
+    for env_var in requires.get("env", []):
+        if not os.environ.get(env_var):
+            missing.append(f"Missing env var: {env_var}")
+
+    platform_req = meta.get("platform", "")
+    if platform_req and platform_req != sys.platform:
+        missing.append(f"Requires platform: {platform_req}, current: {sys.platform}")
+
+    return len(missing) == 0, missing
+
+
+def get_skill_summary(skill_name: str) -> str:
+    """Get a one-line summary of a skill (first line after frontmatter)."""
+    base = Path(__file__).resolve().parent.parent
+    for subdir in ["skills/public", "skills/private"]:
+        skill_path = base / subdir / f"{skill_name}.md"
+        if skill_path.exists():
+            content = skill_path.read_text(encoding="utf-8")
+            body = re.sub(r"^---\n.*?\n---\n", "", content, flags=re.DOTALL).strip()
+            first_line = body.split("\n")[0].strip()
+            return first_line.lstrip("#").strip()
+    return skill_name
+
+
+def search_marketplace(query: str) -> list[dict]:
+    """Search for skills in the local registry and known remote sources."""
+    results = []
+    for entry in load_registry():
+        if query.lower() in entry.get("name", "").lower() or query.lower() in entry.get("description", "").lower():
+            results.append(entry)
+    base = Path(__file__).resolve().parent.parent
+    public_dir = base / "skills" / "public"
+    if public_dir.exists():
+        for f in public_dir.iterdir():
+            if f.suffix == ".md":
+                if query.lower() in f.stem.lower():
+                    meta = parse_skill_metadata(f.read_text(encoding="utf-8"))
+                    results.append({
+                        "name": f.stem,
+                        "description": meta.get("description", ""),
+                        "source": str(f),
+                        "type": "local",
+                    })
+    return results
 
 
 def uninstall_skill(name: str) -> str:

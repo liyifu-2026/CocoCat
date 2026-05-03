@@ -1046,16 +1046,19 @@ class SkillManageTool(Tool):
                 return "Error: name is required for uninstall"
             return uninstall_skill(name)
         elif action == "search":
-            from skill_hub import search_registry
+            from skill_hub import search_marketplace as _search, check_skill_dependencies
             if not query:
                 return "Error: query is required for search"
-            results = search_registry(query)
+            results = _search(query)
             if not results:
-                return f"No skills found for '{query}'."
-            lines = [f"Found {len(results)} skill(s):", ""]
-            for r in results:
-                v = r.get("version", "?")
-                lines.append(f"- {r['name']}  v{v}  ({r.get('type', '?')})")
+                return f"No skills found matching '{query}'."
+            lines = [f"Found {len(results)} skills matching '{query}':"]
+            for r in results[:10]:
+                deps_ok, missing = check_skill_dependencies(r["name"])
+                status = "✅" if deps_ok else f"⚠️ missing: {', '.join(missing)}"
+                lines.append(f"- {r['name']} [{status}]")
+                if r.get("description"):
+                    lines.append(f"  {r['description']}")
             return "\n".join(lines)
         elif action == "list":
             from skill_hub import list_installed_skills

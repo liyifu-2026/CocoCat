@@ -250,8 +250,9 @@ def load_knowledge_overview(scene_id: str) -> str:
     return "\n\n".join(parts)
 
 
-def load_agent_skills(agent_id: str) -> str:
+def load_agent_skills(agent_id: str, progressive: bool = True) -> str:
     import os as _os
+    from skill_hub import get_skill_summary, check_skill_dependencies
     base = _os.path.dirname(_os.path.abspath(__file__))
     manifest_path = _os.path.join(base, "..", "agents", agent_id, "skills", "manifest.json")
     if not _os.path.exists(manifest_path):
@@ -263,27 +264,44 @@ def load_agent_skills(agent_id: str) -> str:
     except Exception:
         return ""
 
-    public_skills = manifest.get("public", [])
-    private_skills = manifest.get("private", [])
-    all_skill_names = public_skills + private_skills
+    all_skill_names = manifest.get("public", []) + manifest.get("private", [])
 
-    parts = []
-    for skill_name in all_skill_names:
-        for subdir in ["public", "private"]:
-            skill_path = _os.path.join(base, "..", "skills", subdir, f"{skill_name}.md")
-            if _os.path.exists(skill_path):
-                try:
-                    with open(skill_path, "r", encoding="utf-8") as f:
-                        content = f.read().strip()
-                    if content:
-                        parts.append(content)
-                except Exception:
-                    pass
-                break
+    available = []
+    for name in all_skill_names:
+        ok, _missing = check_skill_dependencies(name)
+        if ok:
+            available.append(name)
 
-    if not parts:
+    if not available:
         return ""
-    return "\n\n---\n\n".join(parts)
+
+    if progressive:
+        lines = ["You have the following skills available. Use read_file to view full content:"]
+        for name in available:
+            summary = get_skill_summary(name)
+            for subdir in ["public", "private"]:
+                path = _os.path.join(base, "..", "skills", subdir, f"{name}.md")
+                if _os.path.exists(path):
+                    lines.append(f"- {name}: {summary}  (`skills/{subdir}/{name}.md`)")
+                    break
+        return "\n".join(lines)
+    else:
+        parts = []
+        for skill_name in available:
+            for subdir in ["public", "private"]:
+                skill_path = _os.path.join(base, "..", "skills", subdir, f"{skill_name}.md")
+                if _os.path.exists(skill_path):
+                    try:
+                        with open(skill_path, "r", encoding="utf-8") as f:
+                            content = f.read().strip()
+                        if content:
+                            parts.append(content)
+                    except Exception:
+                        pass
+                    break
+        if not parts:
+            return ""
+        return "\n\n---\n\n".join(parts)
 
 
 def load_agent_memory(agent_id: str) -> str:
