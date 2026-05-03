@@ -89,6 +89,12 @@ def _heartbeat_loop(agent_id: str, agent_name: str, interval: int):
         except Exception as e:
             print(f"[Heartbeat] Error: {e}")
 
+        try:
+            from auto_compact import run_auto_compact
+            run_auto_compact(agent_id)
+        except Exception:
+            pass
+
 
 def _execute_task(agent_id: str, agent_name: str, task: dict):
     from agent_loop import AgentLoop
