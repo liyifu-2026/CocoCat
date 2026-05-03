@@ -13,3 +13,5 @@ def test_agent_loop_accepts_user_id():
 def test_agent_loop_default_user_id():
     loop = AgentLoop(agent_id="test_agent")
     assert loop.user_id == ""
+
+
