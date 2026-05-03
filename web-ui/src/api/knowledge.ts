@@ -24,10 +24,20 @@ export interface WikiPageContent {
   body: string
 }
 
+export interface SearchResult {
+  name: string
+  title: string
+  type: string
+  path: string
+  snippet: string
+}
+
 export const knowledgeApi = {
   list: () => api.get<{ kbs: KnowledgeBase[] }>("/knowledge"),
   get: (kbId: string) => api.get<KBDetail>(`/knowledge/${kbId}`),
   listWiki: (kbId: string) => api.get<{ pages: WikiPage[] }>(`/knowledge/${kbId}/wiki`),
   getWikiPage: (kbId: string, type: string, name: string) =>
     api.get<WikiPageContent>(`/knowledge/${kbId}/wiki/${type}/${name}`),
+  search: (kbId: string, q: string) =>
+    api.get<{ results: SearchResult[] }>(`/knowledge/${kbId}/search?q=${encodeURIComponent(q)}`),
 }
