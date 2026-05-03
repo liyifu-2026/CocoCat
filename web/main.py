@@ -63,9 +63,7 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
 
     external_prefixes = ["/api/channels/", "/api/scenes/"]
-    is_external = any(path.startswith(p) for p in external_prefixes) and (
-        "/chat" in path or "/history" in path or "/channels/" in path
-    )
+    is_external = any(path.startswith(p) for p in external_prefixes)
 
     auth_header = request.headers.get("Authorization", "")
     api_key_header = request.headers.get("X-API-Key", "")
