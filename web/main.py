@@ -242,6 +242,20 @@ def _agent_process_message(scene_id: str, user_id: str, content: str, channel_ty
     store_message(scene_id, user_id, {
         "content": reply_text, "direction": "outgoing", "channel_type": channel_type,
     })
+    try:
+        sys.path.insert(0, str(BASE_DIR / "py-agent"))
+        from dream import append_user_history, _user_hash
+        roster_path = scene_dir / "roster.json"
+        if roster_path.exists():
+            roster = json.loads(roster_path.read_text(encoding="utf-8"))
+            agents = roster.get("agents", [])
+            if agents:
+                agent_id = agents[0]
+                uh = _user_hash(user_id)
+                append_user_history(agent_id, uh, {"role": "user", "content": content, "timestamp": __import__("datetime").datetime.now().isoformat()})
+                append_user_history(agent_id, uh, {"role": "assistant", "content": reply_text[:500], "timestamp": __import__("datetime").datetime.now().isoformat()})
+    except Exception:
+        pass
     return reply_text
 
 

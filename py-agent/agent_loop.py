@@ -352,6 +352,12 @@ class AgentLoop:
             break
 
         append_history(self.agent_id, prompt, final_content, iteration)
+        if uid:
+            from dream import append_user_history, _user_hash
+            append_user_history(self.agent_id, _user_hash(uid), {
+                "role": "assistant", "content": final_content[:500],
+                "timestamp": datetime.now().isoformat(),
+            })
         auto_dream(self.agent_id, self.agent_name, self.llm)
         if total_usage.get("input", 0) or total_usage.get("output", 0):
             _log_usage(self.agent_id, prompt, total_usage, iteration)
