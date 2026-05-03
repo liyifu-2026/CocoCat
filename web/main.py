@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 import asyncio
+from web.auth import verify_jwt_token, verify_api_key
 
 # Load .env file
 env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -53,8 +54,45 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    path = request.url.path
+
+    public_paths = ["/api/auth/login", "/api/auth/verify"]
+    if path in public_paths:
+        return await call_next(request)
+
+    external_prefixes = ["/api/channels/", "/api/scenes/"]
+    is_external = any(path.startswith(p) for p in external_prefixes) and (
+        "/chat" in path or "/history" in path or "/channels/" in path
+    )
+
+    auth_header = request.headers.get("Authorization", "")
+    api_key_header = request.headers.get("X-API-Key", "")
+
+    if is_external:
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            if verify_jwt_token(token):
+                return await call_next(request)
+        if api_key_header and verify_api_key(api_key_header):
+            return await call_next(request)
+        return JSONResponse({"error": "Authentication required"}, status_code=401)
+
+    if not auth_header.startswith("Bearer "):
+        return JSONResponse({"error": "Authentication required"}, status_code=401)
+    token = auth_header[7:]
+    if not verify_jwt_token(token):
+        return JSONResponse({"error": "Invalid or expired token"}, status_code=401)
+    return await call_next(request)
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
+    token = ws.query_params.get("token", "")
+    if not token or not verify_jwt_token(token):
+        await ws.close(code=4001)
+        return
     await manager.connect(ws)
     try:
         while True:

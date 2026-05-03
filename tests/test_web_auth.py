@@ -46,3 +46,27 @@ def test_login_failure():
     resp = client.post("/api/auth/login", json={"password": "wrong"})
     assert resp.status_code == 401
     assert "detail" in resp.json()
+
+
+def test_management_endpoint_requires_auth():
+    resp = client.get("/api/agents")
+    assert resp.status_code == 401
+
+
+def test_management_endpoint_with_valid_token():
+    login_resp = client.post("/api/auth/login", json={"password": "test-pass-123"})
+    token = login_resp.json()["access_token"]
+    resp = client.get("/api/agents", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+
+
+def test_external_endpoint_with_api_key():
+    resp = client.post("/api/channels/webhook/scene/test-scene",
+                       json={"content": "hello"},
+                       headers={"X-API-Key": "test-api-key"})
+    assert resp.status_code in (200, 404)
+
+
+def test_external_endpoint_without_auth():
+    resp = client.post("/api/scenes/test-scene/chat", json={"content": "hello"})
+    assert resp.status_code == 401
