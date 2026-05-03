@@ -283,9 +283,16 @@ def _update_index(kb_dir: str, wiki_dir: str, llm=None):
     write_text(os.path.join(kb_dir, "index.md"), content)
 
 
-def _append_log(kb_dir: str, title: str, slug: str, source: str):
+def _append_log(kb_dir: str, title: str, slug: str, source: str, op: str = "ingest"):
     today = datetime.now()
-    entry = f"## [{today.strftime('%Y-%m-%d %H:%M')}] ingest | {title}\n- Source: {source}\n- Created: [[{slug}]]\n\n"
+    entry = f"## [{today.strftime('%Y-%m-%d %H:%M')}] {op} | {title}\n"
+    if op == "ingest":
+        entry += f"- Source: {source}\n- Created: [[{slug}]]\n"
+    elif op == "query":
+        entry += f"- Result: [[{slug}]]\n"
+    elif op == "lint":
+        entry += "- Summary above\n"
+    entry += "\n"
     log_path = os.path.join(kb_dir, "log.md")
     with open(log_path, "a", encoding="utf-8") as f:
         f.write(entry)
@@ -330,6 +337,8 @@ def run_lint(kb_id: str) -> str:
                 for field in ("type:", "title:", "created:"):
                     if field not in front:
                         issues.append(f"Missing frontmatter '{field}' in '{slug}'")
+    kb_dir = os.path.join(_find_kb_dir(), kb_id)
+    _append_log(kb_dir, f"Lint: {len(issues)} issues", "", "", "lint")
     if not issues:
         return f"Wiki '{kb_id}' is healthy: {len(all_pages)} pages, {len(inbound_links)} cross-references."
     report = f"Wiki '{kb_id}' lint found {len(issues)} issues:\n\n"
@@ -368,5 +377,67 @@ Return ONLY the page with frontmatter."""
     page_path = os.path.join(page_dir, f"{slug}.md")
     write_text(page_path, page_content)
     _update_index(kb_dir, wiki_dir)
-    _append_log(kb_dir, title, slug, f"qa:{title}")
+    _append_log(kb_dir, title, slug, f"qa:{title}", "query")
     return f"Saved '{slug}.md' to {subdir}/"
+
+
+def run_generate_overview(kb_id: str, llm_client=None) -> str:
+    """Generate or update an overview page that synthesizes the entire wiki."""
+    llm = llm_client or LLMClient()
+    kb_dir = os.path.join(_find_kb_dir(), kb_id)
+    wiki_dir = os.path.join(kb_dir, "wiki")
+    all_content = ""
+    for root, dirs, files in os.walk(wiki_dir):
+        for f in sorted(files):
+            if not f.endswith(".md"):
+                continue
+            rel = os.path.relpath(os.path.join(root, f), wiki_dir)
+            all_content += f"\n\n--- {rel} ---\n{read_text(os.path.join(root, f))[:1000]}"
+    prompt = f"""You are generating an overview/synthesis page for a wiki.
+Read all pages below and produce a concise overview that:
+1. Summarizes what this wiki covers
+2. Lists the main entities and concepts with 1-line descriptions
+3. Shows how they connect
+4. Includes [[Wikilink]] references to all pages
+
+Use YAML frontmatter with type: overview.
+Keep it under 2000 words.
+
+## All Wiki Pages
+{all_content[:8000]}"""
+    try:
+        resp = llm.chat(messages=[{"role": "user", "content": prompt}], max_tokens=2048, temperature=0.3)
+        content = (resp.get("content") or "").strip()
+    except Exception as e:
+        return f"Error generating overview: {e}"
+    if content:
+        page_path = os.path.join(wiki_dir, "overview.md")
+        write_text(page_path, content)
+        _update_index(kb_dir, wiki_dir, llm)
+        _append_log(kb_dir, "Wiki overview generated", "overview", "", "ingest")
+        return "Overview page generated at wiki/overview.md"
+    return "Failed to generate overview"
+
+
+def run_clip_to_kb(kb_id: str, url: str, filename: str = "") -> str:
+    """Fetch a URL and save it as a raw source for later ingestion."""
+    import urllib.request
+    import re
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "CocoCat/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            content = resp.read().decode("utf-8", errors="replace")
+            text = re.sub(r'<[^>]+>', '', content)
+            text = re.sub(r'\s+', ' ', text).strip()
+    except Exception as e:
+        return f"Error fetching URL: {e}"
+    kb_dir = os.path.join(_find_kb_dir(), kb_id)
+    name = filename or url.split("/")[-1].split("?")[0][:60] or "clipped"
+    if not name.endswith(".md"):
+        name += ".md"
+    source_path = os.path.join(kb_dir, "raw", "sources", name)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    with open(source_path, "w", encoding="utf-8") as f:
+        f.write(f"# {name.replace('.md', '')}\n\nClipped from: {url}\n\n{text[:10000]}")
+    _append_log(kb_dir, f"Clipped: {url}", name, url, "ingest")
+    return f"Clipped '{url}' -> raw/sources/{name}. Use ingest_to_kb to process it."

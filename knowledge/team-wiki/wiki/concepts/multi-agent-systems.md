@@ -2,6 +2,8 @@
 type: concept
 title: Multi-Agent Systems
 created: 2026-05-02
+summary: "Patterns and principles for multi-agent coordination in CocoCat"
+related: ["cococat", "message-bus-architecture"]
 ---
 
 # Multi-Agent Systems
@@ -9,8 +11,8 @@ created: 2026-05-02
 ## Key Principles
 1. **Single Responsibility**: Each agent has a clear role and set of skills
 2. **Scene Isolation**: Agents work within scenes that provide relevant context
-3. **Message Passing**: Agents communicate through a central message bus
-4. **Human Oversight**: Team leader coordinates and assigns tasks
+3. **Message Passing**: Agents communicate through a central [[message-bus-architecture]]
+4. **Human Oversight**: Team leader coordinates and assigns tasks via the leader agent in [[cococat]]
 
 ## Communication Patterns
 - **Direct**: Agent A sends task to Agent B via dispatch_task tool
@@ -21,3 +23,7 @@ created: 2026-05-02
 - `public`: All agents must learn
 - `private`: Specific agent masters
 - `env`: Scene provides automatically
+
+## See Also
+- [[cococat]]
+- [[message-bus-architecture]]

@@ -800,6 +800,44 @@ class SaveToKbTool(Tool):
         return run_save_to_kb(kb_id, title, content, page_type)
 
 
+class ClipToKbTool(Tool):
+    """Fetch a webpage and save as raw source for KB ingestion."""
+    name = "clip_to_kb"
+    required_permission = PermissionMode.WORKSPACE_WRITE
+    description = "Fetch a URL, strip HTML, and save as a raw source file in the KB for later ingestion."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "kb_id": {"type": "string", "description": "Knowledge base ID"},
+            "url": {"type": "string", "description": "URL to clip"},
+            "filename": {"type": "string", "description": "Optional filename for the source"},
+        },
+        "required": ["kb_id", "url"],
+    }
+
+    def execute(self, kb_id="", url="", filename="", **kwargs) -> str:
+        from ingest import run_clip_to_kb
+        return run_clip_to_kb(kb_id, url, filename)
+
+
+class GenerateOverviewTool(Tool):
+    """Generate a synthesis overview page for a wiki."""
+    name = "generate_overview"
+    required_permission = PermissionMode.WORKSPACE_WRITE
+    description = "Generate or update the overview/synthesis page for a knowledge base wiki, summarizing all pages and their connections."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "kb_id": {"type": "string", "description": "Knowledge base ID"},
+        },
+        "required": ["kb_id"],
+    }
+
+    def execute(self, kb_id="", **kwargs) -> str:
+        from ingest import run_generate_overview
+        return run_generate_overview(kb_id)
+
+
 class WebFetchTool(Tool):
     """Fetch content from a URL and return as text."""
     name = "web_fetch"
@@ -1295,6 +1333,8 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(IngestToKbTool())
     registry.register(LintWikiTool())
     registry.register(SaveToKbTool())
+    registry.register(ClipToKbTool())
+    registry.register(GenerateOverviewTool())
     registry.register(WebFetchTool())
     registry.register(WebSearchTool())
     registry.register(EditFileTool())
