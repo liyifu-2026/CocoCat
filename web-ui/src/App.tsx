@@ -12,6 +12,7 @@ import Mailbox from "@/pages/Mailbox"
 import TokenUsage from "@/pages/TokenUsage"
 import Hiring from "@/pages/Hiring"
 import Chat from "@/pages/Chat"
+import Schedule from "@/pages/Schedule"
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/knowledge/:kbId" element={<KnowledgeDetail />} />
           <Route path="/hiring" element={<Hiring />} />
           <Route path="/chat" element={<Chat />} />
+          <Route path="/schedule" element={<Schedule />} />
           <Route path="/mailbox" element={<Mailbox />} />
           <Route path="/usage" element={<TokenUsage />} />
           <Route path="/settings" element={<Settings />} />
