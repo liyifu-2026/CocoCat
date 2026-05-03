@@ -85,7 +85,7 @@ def main():
             request = json.loads(line)
             req_id = request.get("id")
 
-            if request.get("method") == "task" and agent_loop is None:
+            if request.get("method") in ("task", "task_stream") and agent_loop is None:
                 from agent_loop import AgentLoop
                 from tools import create_default_registry
                 from context import load_scene_context, load_env_skills
