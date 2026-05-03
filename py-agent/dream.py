@@ -184,13 +184,13 @@ def run_dream(agent_id: str, agent_name: str, llm_client=None) -> str:
     if not content:
         return "Dream produced no output."
 
-    # Phase 2: Use AgentLoop to surgically edit MEMORY.md
+    # Phase 2: Use AgentLoop to surgically edit MEMORY.md (restricted to file tools only)
     from agent_loop import AgentLoop
-    from tools import create_default_registry
+    from tools import ToolRegistry, ReadFileTool, EditFileTool
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    agent_runtime_path = os.path.join(script_dir, "agent_runtime.py")
-    tools = create_default_registry(agent_runtime_path=agent_runtime_path)
+    tools = ToolRegistry()
+    tools.register(ReadFileTool())
+    tools.register(EditFileTool())
 
     mem_path = _agent_memory_dir(agent_id, "MEMORY.md")
     os.makedirs(os.path.dirname(mem_path), exist_ok=True)

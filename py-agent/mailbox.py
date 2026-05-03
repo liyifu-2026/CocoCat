@@ -1,6 +1,7 @@
 """Agent mailbox system — inbox/outbox for inter-agent messaging."""
 import os
 import json
+import tempfile
 from datetime import datetime
 
 
@@ -44,6 +45,15 @@ def mark_read(agent_id: str, idx: int):
     if 0 <= idx < len(messages):
         messages[idx]["status"] = "read"
     inbox_path = os.path.join(_mailbox_dir(agent_id), "inbox.jsonl")
-    with open(inbox_path, "w", encoding="utf-8") as f:
-        for m in messages:
-            f.write(json.dumps(m, ensure_ascii=False) + "\n")
+    fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(inbox_path), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            for m in messages:
+                f.write(json.dumps(m, ensure_ascii=False) + "\n")
+        os.replace(tmp_path, inbox_path)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise

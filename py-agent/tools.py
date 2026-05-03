@@ -688,6 +688,11 @@ class McpCallTool(Tool):
     }
 
     def execute(self, server_command="", tool_name="", arguments=None, **kwargs) -> str:
+        from sandbox import CommandValidator
+        validator = CommandValidator()
+        is_safe, reason = validator.validate(server_command, self.required_permission)
+        if not is_safe:
+            return f"Error: MCP server command rejected - {reason}"
         import subprocess, json
         try:
             proc = subprocess.Popen(
