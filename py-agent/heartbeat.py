@@ -97,9 +97,7 @@ def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = 
 
 
 def _execute_task(agent_id: str, agent_name: str, task: dict, scene: str = "default"):
-    from agent_loop import AgentLoop
-    from tools import create_default_registry
-    from context import load_agent_memory, load_scene_context, load_env_skills
+    from agent_runner import AgentRunner
 
     task_id = task.get("id")
     prompt = task.get("task", "")
@@ -107,16 +105,10 @@ def _execute_task(agent_id: str, agent_name: str, task: dict, scene: str = "defa
         update_task_status(task_id, "failed", "No task description")
         return
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    agent_runtime_path = os.path.join(script_dir, "agent_runtime.py")
-    tools = create_default_registry(agent_runtime_path=agent_runtime_path, agent_id=agent_id)
-    scene_name, scene_context = load_scene_context(scene)
-    scene_skills = load_env_skills(scene)
-    loop = AgentLoop(agent_id=agent_id, agent_name=agent_name, tools=tools,
-                     scene_name=scene_name, scene_context=scene_context, scene_skills=scene_skills)
+    runner = AgentRunner(agent_id, agent_name, scene)
 
     try:
-        result = loop.run(prompt)
+        result = runner.run(prompt)
         content = result.get("content", "")
         update_task_status(task_id, "completed", content[:500])
         print(f"[Heartbeat] Task {task_id} completed")
