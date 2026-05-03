@@ -694,6 +694,94 @@ class SendMessageTool(Tool):
         return send_message(to, self.from_agent, message)
 
 
+class LearnSkillTool(Tool):
+    """Learn a new skill."""
+    name = "learn_skill"
+    description = "Learn a new skill and add it to your permanent skill set."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "skill_name": {"type": "string", "description": "Name of the skill to learn (e.g. code_review)"},
+        },
+        "required": ["skill_name"],
+    }
+
+    def __init__(self, agent_id: str = ""):
+        super().__init__()
+        self.agent_id = agent_id
+
+    def execute(self, skill_name="", **kwargs) -> str:
+        import os, json
+        manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", self.agent_id, "skills", "manifest.json")
+        if not os.path.exists(manifest_path):
+            return "No manifest found"
+        with open(manifest_path, "r") as f:
+            manifest = json.load(f)
+        if skill_name in manifest.get("private", []):
+            return f"Already knows '{skill_name}'"
+        manifest.setdefault("private", []).append(skill_name)
+        with open(manifest_path, "w") as f:
+            json.dump(manifest, f, indent=2)
+        return f"Learned skill '{skill_name}'"
+
+
+class ForgetSkillTool(Tool):
+    """Forget a skill."""
+    name = "forget_skill"
+    description = "Forget a skill you no longer need."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "skill_name": {"type": "string", "description": "Name of the skill to forget"},
+        },
+        "required": ["skill_name"],
+    }
+
+    def __init__(self, agent_id: str = ""):
+        super().__init__()
+        self.agent_id = agent_id
+
+    def execute(self, skill_name="", **kwargs) -> str:
+        import os, json
+        manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", self.agent_id, "skills", "manifest.json")
+        if not os.path.exists(manifest_path):
+            return "No manifest found"
+        with open(manifest_path, "r") as f:
+            manifest = json.load(f)
+        if skill_name not in manifest.get("private", []):
+            return f"Does not know '{skill_name}'"
+        manifest["private"] = [s for s in manifest["private"] if s != skill_name]
+        with open(manifest_path, "w") as f:
+            json.dump(manifest, f, indent=2)
+        return f"Forgot skill '{skill_name}'"
+
+
+class ListSkillsTool(Tool):
+    """List all skills."""
+    name = "list_skills"
+    description = "List all skills you currently have (public + private)."
+    parameters = {"type": "object", "properties": {}}
+
+    def __init__(self, agent_id: str = ""):
+        super().__init__()
+        self.agent_id = agent_id
+
+    def execute(self, **kwargs) -> str:
+        import os, json
+        manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", self.agent_id, "skills", "manifest.json")
+        if not os.path.exists(manifest_path):
+            return "No manifest found"
+        with open(manifest_path, "r") as f:
+            manifest = json.load(f)
+        public = manifest.get("public", [])
+        private = manifest.get("private", [])
+        lines = ["## Public Skills"]
+        lines.extend(f"- {s}" for s in public)
+        lines.append("\n## Private Skills")
+        lines.extend(f"- {s}" for s in private) if private else lines.append("(none)")
+        return "\n".join(lines)
+
+
 class EditFileTool(Tool):
     """Replace text in a file using search/replace (claw-code pattern)."""
     name = "edit_file"
@@ -817,4 +905,7 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(AskUserTool())
     registry.register(McpCallTool())
     registry.register(SendMessageTool(from_agent=agent_id))
+    registry.register(LearnSkillTool(agent_id=agent_id))
+    registry.register(ForgetSkillTool(agent_id=agent_id))
+    registry.register(ListSkillsTool(agent_id=agent_id))
     return registry
