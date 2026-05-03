@@ -4,8 +4,12 @@ import subprocess
 import os
 import glob as glob_module
 import re
+import threading
 from pathlib import Path
 from enum import Enum
+
+_memory_lock = threading.Lock()
+_subagent_semaphore = threading.Semaphore(5)
 
 
 class PermissionMode(Enum):
@@ -255,6 +259,9 @@ class SubAgentTool(Tool):
 
     def execute(self, prompt="", name="subtask", **kwargs) -> str:
         """Spawn a new Python process running agent_runtime.py with the subtask."""
+        if not _subagent_semaphore.acquire(blocking=False):
+            return "Error: too many sub-agents running (max 5), try again later."
+        result = None
         try:
             input_json = json.dumps({
                 "jsonrpc": "2.0",
@@ -269,24 +276,26 @@ class SubAgentTool(Tool):
                 text=True,
                 timeout=120,
             )
-            for line in result.stdout.splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    resp = json.loads(line)
-                    if resp.get("result"):
-                        return json.dumps(resp["result"], indent=2, ensure_ascii=False)
-                    if resp.get("error"):
-                        err = resp["error"]
-                        return f"Sub-agent error [{err.get('code', '?')}]: {err.get('message', 'unknown')}"
-                except json.JSONDecodeError:
-                    continue
-            return result.stdout.strip() or "(no output)"
         except subprocess.TimeoutExpired:
             return "Error: sub-agent task timed out after 120s"
         except Exception as e:
             return f"Error spawning sub-agent: {e}"
+        finally:
+            _subagent_semaphore.release()
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                resp = json.loads(line)
+                if resp.get("result"):
+                    return json.dumps(resp["result"], indent=2, ensure_ascii=False)
+                if resp.get("error"):
+                    err = resp["error"]
+                    return f"Sub-agent error [{err.get('code', '?')}]: {err.get('message', 'unknown')}"
+            except json.JSONDecodeError:
+                continue
+        return result.stdout.strip() or "(no output)"
 
 
 class DispatchTaskTool(Tool):
@@ -477,19 +486,20 @@ class RememberTool(Tool):
 
     def execute(self, agent_id: str = "", content: str = "", user_id: str = "", **kwargs) -> dict:
         from dream import get_user_memory_dir, _user_hash, _agent_memory_dir
-        if user_id:
-            user_hash = _user_hash(user_id)
-            profile_path = os.path.join(get_user_memory_dir(agent_id, user_hash), "PROFILE.md")
-            os.makedirs(os.path.dirname(profile_path), exist_ok=True)
-            with open(profile_path, "a", encoding="utf-8") as f:
-                f.write(f"- {content}\n")
-            return {"success": True, "location": f"users/{user_hash}/PROFILE.md"}
-        else:
-            mem_path = os.path.join(_agent_memory_dir(agent_id), "MEMORY.md")
-            os.makedirs(os.path.dirname(mem_path), exist_ok=True)
-            with open(mem_path, "a", encoding="utf-8") as f:
-                f.write(f"- {content}\n")
-            return {"success": True, "location": "MEMORY.md"}
+        with _memory_lock:
+            if user_id:
+                user_hash = _user_hash(user_id)
+                profile_path = os.path.join(get_user_memory_dir(agent_id, user_hash), "PROFILE.md")
+                os.makedirs(os.path.dirname(profile_path), exist_ok=True)
+                with open(profile_path, "a", encoding="utf-8") as f:
+                    f.write(f"- {content}\n")
+                return {"success": True, "location": f"users/{user_hash}/PROFILE.md"}
+            else:
+                mem_path = os.path.join(_agent_memory_dir(agent_id), "MEMORY.md")
+                os.makedirs(os.path.dirname(mem_path), exist_ok=True)
+                with open(mem_path, "a", encoding="utf-8") as f:
+                    f.write(f"- {content}\n")
+                return {"success": True, "location": "MEMORY.md"}
 
 
 class RecallTool(Tool):
@@ -920,9 +930,10 @@ class AskUserTool(Tool):
         import os, json
         from datetime import datetime
         question_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", "_ask_user.json")
-        data = {"question": question, "options": options or [], "timestamp": datetime.now().isoformat(), "status": "pending"}
-        with open(question_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        with _memory_lock:
+            data = {"question": question, "options": options or [], "timestamp": datetime.now().isoformat(), "status": "pending"}
+            with open(question_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
         return f"Question saved: {question}\nWaiting for user response..."
 
 class ToolRegistry:

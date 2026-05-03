@@ -116,7 +116,7 @@ async def _heartbeat_loop():
 
 @app.get("/api/chat")
 def read_chat(limit: int = 50):
-    chat_path = BASE_DIR / "chat" / "group.jsonl"
+    chat_path = BASE_DIR / "chat" / "general" / "messages.jsonl"
     messages = []
     if chat_path.exists():
         with open(chat_path, "r", encoding="utf-8") as f:
