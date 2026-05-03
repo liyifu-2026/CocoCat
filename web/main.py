@@ -8,6 +8,16 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 import asyncio
 
+# Load .env file
+env_path = Path(__file__).resolve().parent.parent / ".env"
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
 app = FastAPI(title="CocoCat Panel")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -59,24 +69,6 @@ async def _heartbeat_loop():
     while True:
         await asyncio.sleep(10)
         await manager.broadcast("heartbeat", {"timestamp": __import__("datetime").datetime.now().isoformat()})
-
-
-@app.get("/api/agents")
-def list_agents():
-    config_path = BASE_DIR / "agents" / "config.toml"
-    agents = []
-    if config_path.exists():
-        import tomllib
-        with open(config_path, "rb") as f:
-            data = tomllib.load(f)
-        for a in data.get("agents", []):
-            agents.append({
-                "id": a["id"],
-                "name": a["name"],
-                "enabled": a.get("enabled", True),
-                "scene": a.get("scene", "default"),
-            })
-    return {"agents": agents}
 
 
 @app.get("/api/chat")
@@ -143,23 +135,6 @@ def list_skills():
                             "title": f.read_text(encoding="utf-8").split("\n")[0].replace("# Skill: ", ""),
                         })
     return skills
-
-
-@app.get("/api/usage")
-def get_usage(limit: int = 50):
-    """Read recent token usage."""
-    usage_path = BASE_DIR / "agents" / "_usage.jsonl"
-    entries = []
-    if usage_path.exists():
-        with open(usage_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
-                        entries.append(json.loads(line))
-                    except Exception:
-                        pass
-    return {"usage": entries[-limit:]}
 
 
 @app.get("/api/knowledge")
@@ -303,6 +278,10 @@ async def wechat_webhook(scene_id: str, request: Request):
     reply_text = _agent_process_message(scene_id, chat_msg.user_id, chat_msg.content, "wechat", api_key)
     xml_reply = ch.make_reply(chat_msg.user_id, "gh_xxx", reply_text)
     return HTMLResponse(xml_reply, media_type="application/xml")
+
+
+from web.routes.agents import router as agents_router
+app.include_router(agents_router)
 
 
 @app.get("/", response_class=HTMLResponse)
