@@ -457,7 +457,7 @@ class SearchKbTool(Tool):
     """Search the knowledge bases mounted to your current scene."""
     name = "search_kb"
     required_permission = PermissionMode.READONLY
-    description = "Search knowledge bases mounted to your current scene. Returns matching content from KB wiki pages."
+    description = "Search knowledge bases mounted to your current scene. Results are scored by relevance and limited to ~8000 chars total. Returns matching content from KB wiki pages with context snippets."
     parameters = {
         "type": "object",
         "properties": {
@@ -593,10 +593,33 @@ class SearchKbTool(Tool):
             return f"No matches found for '{query}' in mounted KBs."
 
         scored_pages.sort(key=lambda x: x[0], reverse=True)
-        top = scored_pages[:max_results]
 
-        output = f"Found {len(scored_pages)} matches (showing {len(top)}):\n\n"
-        for score, rel_path, snippets in top:
+        budget = 8000  # max chars for all results
+        meta_chars = len(f"Found X matches (showing Y):\n\n") + 200  # estimate for overhead
+        available = budget - meta_chars
+        used = 0
+        included = []
+        omitted = 0
+
+        for score, rel_path, snippets in scored_pages:
+            header = f"[{score}pts] {rel_path}\n"
+            body = "\n".join(snippets[:3]) if snippets else ""
+            entry = header + body + "\n\n---\n\n"
+            if used + len(entry) <= available and len(included) < max_results:
+                included.append((score, rel_path, snippets))
+                used += len(entry)
+            else:
+                omitted += 1
+
+        total = len(scored_pages)
+        output = f"Found {total} matches"
+        if omitted:
+            output += f" (showing {len(included)}, {omitted} omitted due to context budget)"
+        else:
+            output += f" (showing {len(included)})"
+        output += "\n\n"
+
+        for score, rel_path, snippets in included:
             output += f"[{score}pts] {rel_path}\n"
             if snippets:
                 output += "\n".join(snippets[:3]) + "\n"
