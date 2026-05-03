@@ -6,9 +6,11 @@ pub struct AgentProcess {
     child: Child,
     stdin_writer: Option<ChildStdin>,
     stdout_reader: BufReader<std::process::ChildStdout>,
+    #[allow(dead_code)]
     interpreter: String,
 }
 
+#[allow(dead_code)]
 impl AgentProcess {
     /// Spawn an agent subprocess. `interpreter` is the program to run (e.g. "python"),
     /// `python_script_path` is the path to the agent runtime script,

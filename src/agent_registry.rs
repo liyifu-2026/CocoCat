@@ -58,6 +58,16 @@ impl AgentRegistry {
         Ok(())
     }
 
+    pub fn start_one(&mut self, config: AgentConfig) -> Result<(), String> {
+        if !config.enabled {
+            return Ok(());
+        }
+        let extra = ["--id", &config.id, "--name", &config.name];
+        let agent = AgentProcess::spawn(&config.interpreter, &config.script, &extra)?;
+        self.processes.insert(config.id.clone(), agent);
+        Ok(())
+    }
+
     /// Get a mutable reference to an agent's process by id
     pub fn get(&mut self, id: &str) -> Option<&mut AgentProcess> {
         self.processes.get_mut(id)
@@ -77,6 +87,7 @@ impl AgentRegistry {
     }
 
     /// Stop all agents and clear the registry
+    #[allow(dead_code)]
     pub fn stop_all(&mut self) {
         self.processes.clear();
     }
@@ -118,6 +129,7 @@ impl AgentRegistry {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct AgentStatus {
     pub id: String,
