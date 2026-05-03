@@ -13,6 +13,9 @@ SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the Coco
 ## Scene Context
 {scene_context}
 
+## Knowledge Bases
+{knowledge_overview}
+
 ## Active Skills
 {agent_skills}
 
@@ -51,6 +54,7 @@ def build_system_prompt(
     profile: dict | None = None,
     user_profile: str = "",
     user_conversation: str = "",
+    knowledge_overview: str = "",
 ) -> str:
     profile_section = _build_profile_section(profile) if profile else ""
     if profile_section:
@@ -70,6 +74,7 @@ def build_system_prompt(
         profile_section=profile_section,
         user_profile_section=user_profile_section,
         user_conversation_section=user_conversation_section,
+        knowledge_overview=knowledge_overview or "(No knowledge bases mounted)",
     )
 
 
@@ -186,6 +191,40 @@ def load_mounted_kbs(scene_id: str) -> list[str]:
         return data.get("mounted", [])
     except Exception:
         return []
+
+
+def load_knowledge_overview(scene_id: str) -> str:
+    """Load purpose.md and a trimmed index.md from mounted KBs for system prompt injection."""
+    kbs = load_mounted_kbs(scene_id)
+    if not kbs:
+        return ""
+    parts = []
+    base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "knowledge")
+    for kb_id in kbs:
+        kb_path = os.path.join(base, kb_id)
+        purpose_path = os.path.join(kb_path, "purpose.md")
+        index_path = os.path.join(kb_path, "index.md")
+        kb_parts = [f"=== {kb_id} ==="]
+        if os.path.exists(purpose_path):
+            try:
+                with open(purpose_path, "r") as f:
+                    purpose = f.read().strip()
+                if purpose:
+                    kb_parts.append(f"Purpose: {purpose[:300]}")
+            except Exception:
+                pass
+        if os.path.exists(index_path):
+            try:
+                with open(index_path, "r") as f:
+                    index_content = f.read().strip()
+                lines = index_content.split("\n")
+                trimmed = "\n".join(lines[:30])
+                if trimmed:
+                    kb_parts.append(f"Pages:\n{trimmed}")
+            except Exception:
+                pass
+        parts.append("\n".join(kb_parts))
+    return "\n\n".join(parts)
 
 
 def load_agent_skills(agent_id: str) -> str:

@@ -220,7 +220,7 @@ class AgentLoop:
         self.user_id = user_id
 
     def _build_system_prompt(self, user_id: str = ""):
-        from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_profile, load_user_profile, load_mounted_kbs
+        from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_profile, load_user_profile, load_mounted_kbs, load_knowledge_overview
         tool_defs = self.tools.get_definitions()
         tool_desc = build_tool_descriptions(tool_defs)
         agent_memory = load_agent_memory(self.agent_id)
@@ -230,12 +230,14 @@ class AgentLoop:
         user_conversation = ""
         mounted_kbs = load_mounted_kbs(self.scene_name)
         scene_kb_note = f"\n## Available Knowledge Bases\nMounted KBs: {', '.join(mounted_kbs)}\nUse the search_kb tool to query them." if mounted_kbs else ""
+        knowledge_overview = load_knowledge_overview(self.scene_name)
         return build_system_prompt(
             agent_id=self.agent_id, agent_name=self.agent_name,
             tool_descriptions=tool_desc, workspace=self.workspace,
             scene_name=self.scene_name, scene_context=self.scene_context + scene_kb_note,
             agent_memory=agent_memory, agent_skills="", env_skills=self.scene_skills,
             profile=agent_profile, user_profile=user_profile, user_conversation=user_conversation,
+            knowledge_overview=knowledge_overview,
         )
 
     def run(self, prompt: str, user_id: str = "") -> dict:
@@ -247,11 +249,12 @@ class AgentLoop:
         agent_skills = load_agent_skills(self.agent_id)
         agent_profile = load_agent_profile(self.agent_id)
         user_profile = load_user_profile(self.agent_id, uid)
-        from context import load_mounted_kbs
+        from context import load_mounted_kbs, load_knowledge_overview
         mounted_kbs = load_mounted_kbs(self.scene_name)
         scene_context = self.scene_context
         if mounted_kbs:
             scene_context += f"\n## Available Knowledge Bases\nMounted KBs: {', '.join(mounted_kbs)}\nUse the search_kb tool to query them."
+        knowledge_overview = load_knowledge_overview(self.scene_name)
 
         system_prompt = build_system_prompt(
             agent_id=self.agent_id,
@@ -266,6 +269,7 @@ class AgentLoop:
             profile=agent_profile,
             user_profile=user_profile,
             user_conversation="",
+            knowledge_overview=knowledge_overview,
         )
 
         messages = [
