@@ -338,6 +338,9 @@ app.include_router(status_router)
 from web.routes.schedule import router as schedule_router
 app.include_router(schedule_router)
 
+from web.routes.auth import router as auth_router
+app.include_router(auth_router)
+
 
 @app.get("/api/hiring/pending")
 def list_pending_hires():

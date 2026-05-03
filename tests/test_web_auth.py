@@ -28,3 +28,21 @@ def test_jwt_expired():
 def test_verify_api_key():
     assert verify_api_key("test-api-key")
     assert not verify_api_key("wrong-key")
+
+
+from fastapi.testclient import TestClient
+from web.main import app
+
+client = TestClient(app)
+
+def test_login_success():
+    resp = client.post("/api/auth/login", json={"password": "test-pass-123"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+def test_login_failure():
+    resp = client.post("/api/auth/login", json={"password": "wrong"})
+    assert resp.status_code == 401
+    assert "detail" in resp.json()
