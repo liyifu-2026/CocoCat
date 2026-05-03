@@ -298,26 +298,41 @@ class HireAgentTool(Tool):
     """Request hiring a new agent. Creates a hire request file for the next restart."""
     name = "hire_agent"
     required_permission = PermissionMode.FULL_ACCESS
-    description = "Request hiring a new team member. Specify id, name, and optional personality description."
+    description = "Request hiring a new team member. Specify id, name, role, and optional profile fields."
     parameters = {
         "type": "object",
         "properties": {
             "id": {"type": "string", "description": "Unique ID for the new agent (e.g. employee_c)"},
             "name": {"type": "string", "description": "Display name for the new agent (e.g. 员工C)"},
-            "personality": {"type": "string", "description": "Brief personality and role description"},
+            "role": {"type": "string", "description": "Role title for the agent (e.g. 资深工程师)"},
+            "objective": {"type": "string", "description": "Primary objective for the agent"},
+            "traits": {"type": "array", "items": {"type": "string"}, "description": "Personality traits"},
+            "background": {"type": "string", "description": "Background description"},
+            "rules": {"type": "array", "items": {"type": "string"}, "description": "Behavior rules"},
         },
-        "required": ["id", "name"],
+        "required": ["id", "name", "role"],
     }
 
-    def execute(self, id="", name="", personality="", **kwargs) -> str:
+    def execute(self, id="", name="", role="", objective="", traits=None, background="", rules=None, **kwargs) -> str:
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        hire_dir = os.path.join(script_dir, "..", "agents", "hire_requests")
+        hire_dir = os.path.join(script_dir, "..", "agents", "hire_requests", "pending")
         os.makedirs(hire_dir, exist_ok=True)
+        if traits is None:
+            traits = []
+        if rules is None:
+            rules = []
         request = {
             "id": id,
             "name": name,
-            "personality": personality,
-            "requested_by": "leader",
+            "scene": "development",
+            "profile": {
+                "role": role,
+                "objective": objective,
+                "traits": traits,
+                "background": background,
+                "rules": rules,
+            },
+            "status": "pending",
         }
         filepath = os.path.join(hire_dir, f"{id}.json")
         with open(filepath, "w", encoding="utf-8") as f:
