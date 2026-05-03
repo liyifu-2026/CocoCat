@@ -1,6 +1,6 @@
 """Agent management routes."""
 from fastapi import APIRouter
-import json, os
+import json, os, sys
 from pathlib import Path
 
 router = APIRouter()
@@ -225,6 +225,48 @@ def get_agent_display(agent_id: str):
             pass
 
     return display
+
+
+@router.get("/api/agents/{agent_id}/memory/history")
+def get_memory_history(agent_id: str, limit: int = 10):
+    mem_dir = BASE_DIR / "agents" / agent_id / "memory"
+    if not mem_dir.exists():
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "agent not found"}, status_code=404)
+    sys.path.insert(0, str(BASE_DIR / "py-agent"))
+    from git_store import GitStore
+    store = GitStore(str(mem_dir))
+    log = store.log(max_count=limit)
+    return {"agent_id": agent_id, "history": log}
+
+
+@router.get("/api/agents/{agent_id}/memory/users/{user_id}")
+def get_user_memory(agent_id: str, user_id: str):
+    mem_dir = BASE_DIR / "agents" / agent_id / "memory"
+    if not mem_dir.exists():
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "agent not found"}, status_code=404)
+    sys.path.insert(0, str(BASE_DIR / "py-agent"))
+    from dream import get_user_memory_dir, _user_hash
+    user_hash = _user_hash(user_id)
+    user_dir = Path(get_user_memory_dir(agent_id, user_hash))
+    profile_path = user_dir / "PROFILE.md"
+    history_path = user_dir / "history.jsonl"
+    profile = profile_path.read_text(encoding="utf-8") if profile_path.exists() else ""
+    history = []
+    if history_path.exists():
+        for line in history_path.read_text(encoding="utf-8").strip().split("\n"):
+            line = line.strip()
+            if line:
+                try:
+                    history.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+    return {
+        "user_id": user_id, "user_hash": user_hash,
+        "profile": profile, "history_count": len(history),
+        "history": history[-20:],
+    }
 
 
 @router.put("/api/agents/{agent_id}/display")
