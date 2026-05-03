@@ -8,7 +8,7 @@ SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the Coco
 ## Identity
 - Name: {agent_name}
 - ID: {agent_id}
-- Current Scene: {scene_name}
+- Current Scene: {scene_name}{profile_section}
 
 ## Scene Context
 {scene_context}
@@ -47,7 +47,11 @@ def build_system_prompt(
     agent_memory: str = "",
     agent_skills: str = "",
     env_skills: str = "",
+    profile: dict | None = None,
 ) -> str:
+    profile_section = _build_profile_section(profile) if profile else ""
+    if profile_section:
+        profile_section = f"\n## Agent Profile\n{profile_section}"
     return SYSTEM_PROMPT_TEMPLATE.format(
         agent_id=agent_id,
         agent_name=agent_name,
@@ -58,7 +62,40 @@ def build_system_prompt(
         agent_memory=agent_memory or "(No long-term memories yet)",
         agent_skills=agent_skills or "(No specific skills assigned)",
         env_skills=env_skills or "(No special skills for this scene)",
+        profile_section=profile_section,
     )
+
+
+def load_agent_profile(agent_id: str, base_dir: str = "") -> dict | None:
+    """Load agent profile from agents/{agent_id}/profile.json."""
+    if not base_dir:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+    profile_path = os.path.join(base_dir, "..", "agents", agent_id, "profile.json")
+    if not os.path.exists(profile_path):
+        return None
+    try:
+        with open(profile_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _build_profile_section(profile: dict) -> str:
+    """Format a profile dict into a string section for the system prompt."""
+    lines = []
+    if "role" in profile:
+        lines.append(f"- Role: {profile['role']}")
+    if "objective" in profile:
+        lines.append(f"- Objective: {profile['objective']}")
+    if "traits" in profile and profile["traits"]:
+        lines.append(f"- Traits: {', '.join(profile['traits'])}")
+    if "background" in profile and profile["background"]:
+        lines.append(f"- Background: {profile['background']}")
+    if "rules" in profile and profile["rules"]:
+        lines.append("- Rules:")
+        for rule in profile["rules"]:
+            lines.append(f"  - {rule}")
+    return "\n".join(lines)
 
 
 def load_scene_context(scene_id: str) -> tuple[str, str]:
