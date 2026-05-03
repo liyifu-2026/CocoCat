@@ -12,7 +12,9 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowLeft } from "lucide-react"
+import type { AgentDisplay } from "@/api/agents"
+import { AvatarPicker } from "@/components/AvatarPicker"
+import { ArrowLeft, Pencil } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -57,12 +59,20 @@ export default function AgentDetail() {
     enabled: !!id,
   })
 
+  const { data: displayData } = useQuery({
+    queryKey: ["agent", id, "display"],
+    queryFn: () => agentsApi.display(id!),
+    enabled: !!id,
+  })
+
   const [editingSkills, setEditingSkills] = useState(false)
   const [publicSkills, setPublicSkills] = useState<string[]>([])
   const [privateSkills, setPrivateSkills] = useState<string[]>([])
   const [newPublicSkill, setNewPublicSkill] = useState("")
   const [newPrivateSkill, setNewPrivateSkill] = useState("")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [displayOpen, setDisplayOpen] = useState(false)
+  const [displayConfig, setDisplayConfig] = useState<AgentDisplay>({ nickname: "", avatar: "", color: "" })
   const queryClient = useQueryClient()
 
   const agent = agentsData?.agents?.find(a => a.id === id)
@@ -77,7 +87,14 @@ export default function AgentDetail() {
         <ArrowLeft className="size-4" /> Back to Agents
       </Link>
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-bold">{agent.name}</h1>
+        <div className="h-10 w-10 rounded-full flex items-center justify-center text-lg font-medium shrink-0"
+          style={{ backgroundColor: displayData?.color || "#e5e7eb" }}>
+          {displayData?.avatar || agent.name.charAt(0)}
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold">{displayData?.nickname || agent.name}</h1>
+          <p className="text-sm text-muted-foreground">{agent.id}</p>
+        </div>
         <Badge variant={agent.enabled ? "default" : "secondary"}>
           {agent.enabled ? "Online" : "Offline"}
         </Badge>
@@ -93,7 +110,50 @@ export default function AgentDetail() {
         >
           {agent.enabled ? "Disable" : "Enable"}
         </Button>
+        <Button size="sm" variant="outline" onClick={() => {
+          setDisplayConfig(displayData ?? { nickname: "", avatar: "", color: "" })
+          setDisplayOpen(true)
+        }}>
+          <Pencil className="size-3 mr-1" /> Edit Display
+        </Button>
       </div>
+
+      <Dialog open={displayOpen} onOpenChange={setDisplayOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Customize Display</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Nickname</label>
+              <Input value={displayConfig.nickname} onChange={e => setDisplayConfig(p => ({ ...p, nickname: e.target.value }))}
+                placeholder={agent.name} />
+            </div>
+            <AvatarPicker
+              currentAvatar={displayConfig.avatar}
+              currentColor={displayConfig.color}
+              onAvatarChange={a => setDisplayConfig(p => ({ ...p, avatar: a }))}
+              onColorChange={c => setDisplayConfig(p => ({ ...p, color: c }))}
+            />
+            <div className="flex items-center gap-3 pt-2">
+              <div className="text-sm text-muted-foreground">Preview:</div>
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full flex items-center justify-center text-sm"
+                  style={{ backgroundColor: displayConfig.color || "#e5e7eb" }}>
+                  {displayConfig.avatar || agent.name.charAt(0)}
+                </div>
+                <span className="text-sm font-medium">{displayConfig.nickname || agent.name}</span>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setDisplayOpen(false)}>Cancel</Button>
+              <Button size="sm" onClick={async () => {
+                await agentsApi.updateDisplay(agent.id, displayConfig)
+                queryClient.invalidateQueries({ queryKey: ["agent", id, "display"] })
+                setDisplayOpen(false)
+              }}>Save</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Tabs defaultValue="profile">
         <TabsList>

@@ -49,6 +49,12 @@ export interface HistoryEntry {
   iterations: number
 }
 
+export interface AgentDisplay {
+  nickname: string
+  avatar: string
+  color: string
+}
+
 export const agentsApi = {
   list: () => api.get<{ agents: Agent[] }>("/agents"),
   usage: (limit = 10) => api.get<{ usage: UsageEntry[] }>(`/usage?limit=${limit}`),
@@ -62,6 +68,9 @@ export const agentsApi = {
     api.patch<{ status: string }>(`/agents/${id}`, body),
   updateSkills: (id: string, skills: { public: string[]; private: string[] }) =>
     api.patch<{ status: string }>(`/agents/${id}/skills`, skills),
+  display: (id: string) => api.get<AgentDisplay>(`/agents/${id}/display`),
+  updateDisplay: (id: string, display: AgentDisplay) =>
+    api.put<{ display: AgentDisplay }>(`/agents/${id}/display`, display),
   delete: (id: string) =>
     api.delete<{ status: string }>(`/agents/${id}`),
 }
