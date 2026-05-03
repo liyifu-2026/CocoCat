@@ -199,7 +199,14 @@ fn process_pending_hires() {
             "options": ["Approve", "Modify and Approve", "Reject"],
             "status": "pending"
         });
-        if let Err(e) = fs::write(question_path, serde_json::to_string_pretty(&question).unwrap()) {
+        let question_str = match serde_json::to_string_pretty(&question) {
+            Ok(s) => s,
+            Err(e) => {
+                println!("  Failed to serialize question: {e}");
+                continue;
+            }
+        };
+        if let Err(e) = fs::write(question_path, question_str) {
             println!("  Failed to write question: {e}");
             continue;
         }

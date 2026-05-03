@@ -1,0 +1,1 @@
+C:\Users\12991\Desktop\CocoCat\.worktrees\feat-agent-personality\target\debug\libcococat.rlib: C:\Users\12991\Desktop\CocoCat\.worktrees\feat-agent-personality\src\lib.rs C:\Users\12991\Desktop\CocoCat\.worktrees\feat-agent-personality\src\message_bus.rs C:\Users\12991\Desktop\CocoCat\.worktrees\feat-agent-personality\src\transport.rs
