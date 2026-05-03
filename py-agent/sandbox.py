@@ -53,6 +53,7 @@ _DANGEROUS_PATTERNS = _DANGEROUS_PATTERNS_WIN if IS_WINDOWS else _DANGEROUS_PATT
 class CommandValidator:
     def validate(self, command: str, mode: str) -> tuple:
         command_lower = command.lower()
+        # mode is reserved for PermissionEnforcer (future use)
         for pat in _DANGEROUS_PATTERNS:
             if re.search(pat, command_lower):
                 return False, f"dangerous pattern detected: {pat}"
