@@ -337,7 +337,7 @@ class HireAgentTool(Tool):
         filepath = os.path.join(hire_dir, f"{id}.json")
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(request, f, ensure_ascii=False, indent=2)
-        return f"Hire request created for '{name}' ({id}). An admin needs to restart CocoCat to activate the new agent."
+        return f"Hire request created for '{name}' ({id}). Waiting for admin confirmation."
 
 
 class SearchKbTool(Tool):
