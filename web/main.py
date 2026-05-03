@@ -364,6 +364,9 @@ app.include_router(schedule_router)
 from web.routes.auth import router as auth_router
 app.include_router(auth_router)
 
+from web.routes.collaboration import router as collaboration_router
+app.include_router(collaboration_router)
+
 
 @app.get("/api/hiring/pending")
 def list_pending_hires():
