@@ -4,7 +4,7 @@ import { useSidebar } from "@/context/SidebarContext"
 import { useAuth } from "@/context/AuthContext"
 import {
     LayoutDashboard, Users, FolderKanban, Settings, BookOpen, Mail, BarChart3,
-   UserPlus, MessageSquare, Calendar,
+   UserPlus, MessageSquare, Calendar, GitBranch,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PanelLeftClose, PanelLeft, LogOut } from "lucide-react"
@@ -18,6 +18,7 @@ const navItems = [
   { to: "/mailbox", label: "Mailbox", icon: Mail },
   { to: "/usage", label: "Usage", icon: BarChart3 },
   { to: "/schedule", label: "Schedule", icon: Calendar },
+  { to: "/collaboration", label: "协作图", icon: GitBranch },
   { to: "/knowledge", label: "Knowledge", icon: BookOpen },
   { to: "/settings", label: "Settings", icon: Settings },
 ]
