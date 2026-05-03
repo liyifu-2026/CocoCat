@@ -221,6 +221,11 @@ Use read_file and edit_file tools to complete this task."""
     edit_loop.run(edit_prompt)
 
     set_cursor(agent_id, total_entries)
+    try:
+        from git_store import GitStore
+        GitStore(_agent_memory_dir(agent_id)).commit(f"dream: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    except Exception:
+        pass
     entry_count = len(unprocessed)
     return f"Dream processed {entry_count} history entries. Memory updated via surgical editing."
 
@@ -257,6 +262,12 @@ Write concise bullet points for their PROFILE.md file.
 
     with open(os.path.join(user_dir, ".dream_cursor"), "w") as f:
         f.write(str(total))
+
+    try:
+        from git_store import GitStore
+        GitStore(user_dir).commit(f"dream-user: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    except Exception:
+        pass
 
     return f"User dream processed {len(entries)} entries, updated PROFILE.md."
 
