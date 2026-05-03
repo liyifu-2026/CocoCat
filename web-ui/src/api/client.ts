@@ -16,13 +16,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!(init?.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json")
   }
+  const token = localStorage.getItem("cococat_token")
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`)
+  }
   const res = await fetch(`${BASE}${path}`, {
     headers, credentials: "include", ...init,
   })
+  if (res.status === 401) {
+    localStorage.removeItem("cococat_token")
+    window.location.href = "/login"
+    throw new ApiError("Unauthorized", 401, null)
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => null)
     throw new ApiError(
-      (body as { error?: string } | null)?.error ?? `Request failed: ${res.status}`,
+      (body as { error?: string; detail?: string } | null)?.error ??
+      (body as { detail?: string } | null)?.detail ??
+      `Request failed: ${res.status}`,
       res.status, body,
     )
   }

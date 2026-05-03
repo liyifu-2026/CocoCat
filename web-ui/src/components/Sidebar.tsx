@@ -1,12 +1,13 @@
 import { NavLink } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "@/context/SidebarContext"
+import { useAuth } from "@/context/AuthContext"
 import {
     LayoutDashboard, Users, FolderKanban, Settings, BookOpen, Mail, BarChart3,
    UserPlus, MessageSquare, Calendar,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { PanelLeftClose, PanelLeft } from "lucide-react"
+import { PanelLeftClose, PanelLeft, LogOut } from "lucide-react"
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -23,6 +24,7 @@ const navItems = [
 
 export function Sidebar() {
   const { collapsed, toggle } = useSidebar()
+  const { logout } = useAuth()
 
   return (
     <aside
@@ -63,6 +65,28 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      {!collapsed && (
+        <div className="border-t border-sidebar-border p-2">
+          <button
+            onClick={logout}
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
+          >
+            <LogOut className="size-4 shrink-0" />
+            <span>退出登录</span>
+          </button>
+        </div>
+      )}
+      {collapsed && (
+        <div className="border-t border-sidebar-border p-2">
+          <button
+            onClick={logout}
+            className="flex w-full items-center justify-center rounded-md px-2 py-2 text-red-500 hover:bg-red-50 transition-colors"
+            title="退出登录"
+          >
+            <LogOut className="size-4 shrink-0" />
+          </button>
+        </div>
+      )}
     </aside>
   )
 }

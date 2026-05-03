@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { Layout } from "@/components/Layout"
+import ProtectedRoute from "@/components/ProtectedRoute"
+import Login from "@/pages/Login"
 import Dashboard from "@/pages/Dashboard"
 import Agents from "@/pages/Agents"
 import AgentDetail from "@/pages/AgentDetail"
@@ -18,8 +20,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/login" element={<Login />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/agents/:id" element={<AgentDetail />} />
@@ -33,6 +37,7 @@ export default function App() {
           <Route path="/mailbox" element={<Mailbox />} />
           <Route path="/usage" element={<TokenUsage />} />
           <Route path="/settings" element={<Settings />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>
