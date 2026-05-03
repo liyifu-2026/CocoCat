@@ -294,6 +294,9 @@ app.include_router(scene_router)
 from web.routes.entries import router as entries_router
 app.include_router(entries_router)
 
+from web.routes.mailbox import router as mailbox_router
+app.include_router(mailbox_router)
+
 
 @app.get("/api/hiring/pending")
 def list_pending_hires():
