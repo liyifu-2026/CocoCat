@@ -111,3 +111,23 @@ class OutputTruncator:
         if len(output) <= max_chars:
             return output
         return output[:max_chars] + f"\n... (truncated, {len(output) - max_chars} more chars)"
+
+
+import shutil
+
+_UNSHARE_AVAILABLE = not IS_WINDOWS and shutil.which("unshare") is not None
+_NAMESPACE_SANDBOX_ENABLED = os.environ.get("LINUX_NAMESPACE_SANDBOX", "").lower() in ("1", "true", "yes")
+_NETWORK_ISOLATION = os.environ.get("LINUX_NETWORK_ISOLATION", "").lower() in ("1", "true", "yes")
+
+
+def wrap_with_namespace(command: str) -> str:
+    if IS_WINDOWS or not _UNSHARE_AVAILABLE or not _NAMESPACE_SANDBOX_ENABLED:
+        return command
+    args = [
+        "unshare", "--user", "--map-root-user",
+        "--mount", "--ipc", "--pid", "--uts", "--fork",
+    ]
+    if _NETWORK_ISOLATION:
+        args.append("--net")
+    args.extend(["sh", "-lc", command])
+    return " ".join(args)

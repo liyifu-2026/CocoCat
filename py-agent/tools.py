@@ -129,6 +129,9 @@ class ExecCommandTool(Tool):
         sanitizer = EnvironmentSanitizer()
         clean_env = sanitizer.sanitize(os.environ.copy())
 
+        from sandbox import wrap_with_namespace
+        command = wrap_with_namespace(command)
+
         PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
         try:
@@ -461,81 +464,86 @@ class SearchKbTool(Tool):
 
 
 class RememberTool(Tool):
-    """Store important information into your long-term memory (MEMORY.md)."""
+    """Store a fact into long-term memory."""
     name = "remember"
     required_permission = PermissionMode.WORKSPACE_WRITE
-    description = "Store important information into your long-term memory. Use this to remember facts, decisions, and learnings."
+    description = "Store a fact into long-term memory"
     parameters = {
         "type": "object",
         "properties": {
-            "fact": {"type": "string", "description": "The information to remember"},
-            "category": {"type": "string", "description": "Category: decision, fact, learning, preference"},
+            "content": {"type": "string", "description": "Fact to remember"},
+            "user_id": {"type": "string", "description": "Optional: associate with specific user (default: global memory)"},
         },
-        "required": ["fact"],
+        "required": ["content"],
     }
 
-    def __init__(self, agent_id: str = ""):
-        super().__init__()
-        self.agent_id = agent_id
-
-    def execute(self, fact="", category="note", **kwargs) -> str:
-        import os as _os
-        from datetime import datetime
-        mem_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "agents", self.agent_id, "memory")
-        mem_path = _os.path.join(mem_dir, "MEMORY.md")
-        _os.makedirs(mem_dir, exist_ok=True)
-
-        entry = f"\n### {datetime.now().strftime('%Y-%m-%d %H:%M')} [{category}]\n{fact}\n"
-        try:
+    def execute(self, agent_id: str = "", content: str = "", user_id: str = "", **kwargs) -> dict:
+        from dream import get_user_memory_dir, _user_hash, _agent_memory_dir
+        if user_id:
+            user_hash = _user_hash(user_id)
+            profile_path = os.path.join(get_user_memory_dir(agent_id, user_hash), "PROFILE.md")
+            os.makedirs(os.path.dirname(profile_path), exist_ok=True)
+            with open(profile_path, "a", encoding="utf-8") as f:
+                f.write(f"- {content}\n")
+            return {"success": True, "location": f"users/{user_hash}/PROFILE.md"}
+        else:
+            mem_path = os.path.join(_agent_memory_dir(agent_id), "MEMORY.md")
+            os.makedirs(os.path.dirname(mem_path), exist_ok=True)
             with open(mem_path, "a", encoding="utf-8") as f:
-                f.write(entry)
-            return f"Remembered: {fact[:80]}..."
-        except Exception as e:
-            return f"Failed to save memory: {e}"
+                f.write(f"- {content}\n")
+            return {"success": True, "location": "MEMORY.md"}
 
 
 class RecallTool(Tool):
-    """Read your long-term memory (MEMORY.md) to recall past facts and decisions."""
+    """Retrieve facts from long-term memory."""
     name = "recall"
     required_permission = PermissionMode.READONLY
-    description = "Read your long-term memory. Use this to recall past facts, decisions, and learnings."
+    description = "Retrieve facts from long-term memory"
     parameters = {
         "type": "object",
         "properties": {
-            "query": {"type": "string", "description": "Optional keyword to search for in memory"},
-            "max_lines": {"type": "integer", "description": "Max lines to return (default 50)"},
+            "keyword": {"type": "string", "description": "Optional keyword filter"},
+            "user_id": {"type": "string", "description": "Optional: search user-specific memory (default: global only)"},
         },
     }
 
-    def __init__(self, agent_id: str = ""):
-        super().__init__()
-        self.agent_id = agent_id
-
-    def execute(self, query="", max_lines=50, **kwargs) -> str:
-        import os as _os
-        mem_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "agents", self.agent_id, "memory")
-        mem_path = _os.path.join(mem_dir, "MEMORY.md")
-        if not _os.path.exists(mem_path):
-            return "No memories yet."
-
-        try:
-            with open(mem_path, "r", encoding="utf-8") as f:
+    def execute(self, agent_id: str = "", keyword: str = "", user_id: str = "", **kwargs) -> dict:
+        from dream import _user_hash, get_user_memory_dir, _agent_memory_dir
+        results = []
+        mem_path = os.path.join(_agent_memory_dir(agent_id), "MEMORY.md")
+        if os.path.exists(mem_path):
+            with open(mem_path) as f:
                 content = f.read()
-        except Exception as e:
-            return f"Failed to read memory: {e}"
+                if not keyword or keyword.lower() in content.lower():
+                    results.append({"source": "MEMORY.md", "content": content})
+        if user_id:
+            user_hash = _user_hash(user_id)
+            profile_path = os.path.join(get_user_memory_dir(agent_id, user_hash), "PROFILE.md")
+            if os.path.exists(profile_path):
+                with open(profile_path) as f:
+                    content = f.read()
+                    if not keyword or keyword.lower() in content.lower():
+                        results.append({"source": f"users/{user_hash}/PROFILE.md", "content": content})
+        return {"success": True, "results": results}
 
-        if query:
-            query_lower = query.lower()
-            lines = content.split("\n")
-            matched = [l for l in lines if query_lower in l.lower()]
-            if not matched:
-                return f"No memories found matching '{query}'."
-            result = "\n".join(matched[:max_lines])
-            return f"Memory matches for '{query}':\n{result}"
 
-        lines = content.strip().split("\n")
-        tail = lines[-max_lines:] if len(lines) > max_lines else lines
-        return "\n".join(tail)
+class RevertMemoryTool(Tool):
+    """Revert the last Dream commit to undo bad memory changes."""
+    name = "revert_memory"
+    required_permission = PermissionMode.WORKSPACE_WRITE
+    description = "Revert the last Dream commit to undo bad memory changes"
+    parameters = {"type": "object", "properties": {}}
+
+    def execute(self, agent_id: str = "", **kwargs) -> dict:
+        from git_store import GitStore
+        from dream import _agent_memory_dir
+        mem_dir = _agent_memory_dir(agent_id)
+        store = GitStore(mem_dir)
+        last_msg = store.last_commit_message()
+        ok = store.revert()
+        if ok:
+            return {"success": True, "reverted": last_msg}
+        return {"success": False, "error": "No previous commit to revert to"}
 
 
 class DreamTool(Tool):
@@ -922,6 +930,9 @@ class ToolRegistry:
     def get(self, name: str) -> Tool | None:
         return self._tools.get(name)
 
+    def list_tools(self) -> list[Tool]:
+        return list(self._tools.values())
+
     def get_definitions(self) -> list[dict]:
         return [t.to_openai_schema() for t in self._tools.values()]
 
@@ -949,8 +960,9 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(DispatchTaskTool())
     registry.register(HireAgentTool())
     registry.register(SearchKbTool(scene_id=scene_id))
-    registry.register(RememberTool(agent_id=agent_id))
-    registry.register(RecallTool(agent_id=agent_id))
+    registry.register(RememberTool())
+    registry.register(RecallTool())
+    registry.register(RevertMemoryTool())
     registry.register(DreamTool(agent_id=agent_id, agent_name=agent_name))
     registry.register(IngestToKbTool())
     registry.register(WebFetchTool())

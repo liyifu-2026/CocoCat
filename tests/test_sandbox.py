@@ -124,3 +124,9 @@ def test_file_tool_path_validation_blocks_outside():
     path = "C:\\Windows\\win.ini" if sys.platform == "win32" else "/etc/passwd"
     result = tool.execute(path=path)
     assert "outside workspace" in result.lower() or "rejected" in result.lower()
+
+
+def test_wrap_with_namespace_noop_on_windows():
+    from sandbox import wrap_with_namespace
+    result = wrap_with_namespace("echo hello")
+    assert "echo hello" in result
