@@ -470,18 +470,22 @@ class RememberTool(Tool):
         "required": ["content"],
     }
 
-    def execute(self, agent_id: str = "", content: str = "", user_id: str = "", **kwargs) -> str:
+    def __init__(self, agent_id: str = ""):
+        super().__init__()
+        self._agent_id = agent_id
+
+    def execute(self, content: str = "", user_id: str = "", **kwargs) -> str:
         from dream import get_user_memory_dir, _user_hash, _agent_memory_dir
         with _memory_lock:
             if user_id:
                 user_hash = _user_hash(user_id)
-                profile_path = os.path.join(get_user_memory_dir(agent_id, user_hash), "PROFILE.md")
+                profile_path = os.path.join(get_user_memory_dir(self._agent_id, user_hash), "PROFILE.md")
                 os.makedirs(os.path.dirname(profile_path), exist_ok=True)
                 with open(profile_path, "a", encoding="utf-8") as f:
                     f.write(f"- {content}\n")
                 return f"Remembered: {content} (user profile)"
             else:
-                mem_path = os.path.join(_agent_memory_dir(agent_id), "MEMORY.md")
+                mem_path = os.path.join(_agent_memory_dir(self._agent_id), "MEMORY.md")
                 os.makedirs(os.path.dirname(mem_path), exist_ok=True)
                 with open(mem_path, "a", encoding="utf-8") as f:
                     f.write(f"- {content}\n")
@@ -501,10 +505,14 @@ class RecallTool(Tool):
         },
     }
 
-    def execute(self, agent_id: str = "", keyword: str = "", user_id: str = "", **kwargs) -> str:
+    def __init__(self, agent_id: str = ""):
+        super().__init__()
+        self._agent_id = agent_id
+
+    def execute(self, keyword: str = "", user_id: str = "", **kwargs) -> str:
         from dream import _user_hash, get_user_memory_dir, _agent_memory_dir
         lines = []
-        mem_path = os.path.join(_agent_memory_dir(agent_id), "MEMORY.md")
+        mem_path = os.path.join(_agent_memory_dir(self._agent_id), "MEMORY.md")
         if os.path.exists(mem_path):
             with open(mem_path) as f:
                 content = f.read()
@@ -512,7 +520,7 @@ class RecallTool(Tool):
                     lines.append(f"[MEMORY.md]\n{content}")
         if user_id:
             user_hash = _user_hash(user_id)
-            profile_path = os.path.join(get_user_memory_dir(agent_id, user_hash), "PROFILE.md")
+            profile_path = os.path.join(get_user_memory_dir(self._agent_id, user_hash), "PROFILE.md")
             if os.path.exists(profile_path):
                 with open(profile_path) as f:
                     content = f.read()
@@ -930,8 +938,8 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(SubAgentTool(agent_runtime_path=agent_runtime_path))
     registry.register(DispatchTaskTool())
     registry.register(HireAgentTool())
-    registry.register(RememberTool())
-    registry.register(RecallTool())
+    registry.register(RememberTool(agent_id=agent_id))
+    registry.register(RecallTool(agent_id=agent_id))
     registry.register(DreamTool(agent_id=agent_id, agent_name=agent_name))
     registry.register(WebFetchTool())
     registry.register(WebSearchTool())
