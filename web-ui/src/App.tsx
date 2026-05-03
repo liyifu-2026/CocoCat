@@ -6,6 +6,8 @@ import AgentDetail from "@/pages/AgentDetail"
 import Scenes from "@/pages/Scenes"
 import SceneDetail from "@/pages/SceneDetail"
 import Settings from "@/pages/Settings"
+import Knowledge from "@/pages/Knowledge"
+import KnowledgeDetail from "@/pages/KnowledgeDetail"
 
 export default function App() {
   return (
@@ -18,6 +20,8 @@ export default function App() {
           <Route path="/agents/:id" element={<AgentDetail />} />
           <Route path="/scenes" element={<Scenes />} />
           <Route path="/scenes/:id" element={<SceneDetail />} />
+          <Route path="/knowledge" element={<Knowledge />} />
+          <Route path="/knowledge/:kbId" element={<KnowledgeDetail />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>

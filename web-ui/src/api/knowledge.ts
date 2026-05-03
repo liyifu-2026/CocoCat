@@ -2,9 +2,32 @@ import { api } from "./client"
 
 export interface KnowledgeBase {
   id: string
+}
+
+export interface KBDetail {
+  id: string
+  purpose?: string
+  schema?: string
+  index?: string
+}
+
+export interface WikiPage {
+  name: string
+  title: string
+  type: string
+  tags: string[]
   path: string
+}
+
+export interface WikiPageContent {
+  frontmatter: Record<string, string>
+  body: string
 }
 
 export const knowledgeApi = {
   list: () => api.get<{ kbs: KnowledgeBase[] }>("/knowledge"),
+  get: (kbId: string) => api.get<KBDetail>(`/knowledge/${kbId}`),
+  listWiki: (kbId: string) => api.get<{ pages: WikiPage[] }>(`/knowledge/${kbId}/wiki`),
+  getWikiPage: (kbId: string, type: string, name: string) =>
+    api.get<WikiPageContent>(`/knowledge/${kbId}/wiki/${type}/${name}`),
 }

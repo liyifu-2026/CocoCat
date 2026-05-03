@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "@/context/SidebarContext"
 import {
-  LayoutDashboard, Users, FolderKanban, Settings,
+  LayoutDashboard, Users, FolderKanban, Settings, BookOpen,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PanelLeftClose, PanelLeft } from "lucide-react"
@@ -11,6 +11,7 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/agents", label: "Agents", icon: Users },
   { to: "/scenes", label: "Scenes", icon: FolderKanban },
+  { to: "/knowledge", label: "Knowledge", icon: BookOpen },
   { to: "/settings", label: "Settings", icon: Settings },
 ]
 
