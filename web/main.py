@@ -269,34 +269,7 @@ async def scene_chat(scene_id: str, request: Request):
     if not content:
         return JSONResponse({"error": "content is required"}, status_code=400)
 
-    sys.path.insert(0, str(BASE_DIR / "py-agent"))
-    from scene_router import store_message, get_history
-
-    store_message(scene_id, user_id, {
-        "content": content, "direction": "incoming", "channel_type": "web_api",
-    })
-
-    scene_dir = BASE_DIR / "scenes" / scene_id
-    context = ""
-    ctx_path = scene_dir / "CONTEXT.md"
-    if ctx_path.exists():
-        context = ctx_path.read_text(encoding="utf-8")
-
-    history = get_history(scene_id, user_id, limit=10)
-    history_text = "\n".join([f"[{h['direction']}] {h['content']}" for h in history])
-
-    api_key = body.get('api_key', '') or os.environ.get('OPENAI_API_KEY', '')
-    base_url = os.environ.get('OPENAI_BASE_URL', 'https://api.deepseek.com')
-    model = os.environ.get('LLM_MODEL', 'deepseek-v4-flash')
-
-    agent_script = str(BASE_DIR / "py-agent" / "agent_runtime.py")
-    prompt = f"{context}\n\n## Conversation\n{history_text}\n\n[user] {content}\n\nRespond concisely."
-
-    reply_text = _agent_process_message(scene_id, user_id, content, "web_api", api_key)
-
-    store_message(scene_id, user_id, {
-        "content": reply_text, "direction": "outgoing", "channel_type": "web_api",
-    })
+    reply_text = _agent_process_message(scene_id, user_id, content, "web_api", body.get('api_key', ''))
     return JSONResponse({"reply": reply_text, "user_id": user_id})
 
 
