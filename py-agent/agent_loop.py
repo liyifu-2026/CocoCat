@@ -109,8 +109,8 @@ def _snip_history(messages: list[dict], budget: int = 8000) -> list[dict]:
     non_system = [m for m in messages if m.get("role") != "system"]
     if len(non_system) <= 2:
         return messages
-    keep = non_system[-2:]
-    to_snip = non_system[:-2]
+    keep = non_system[-4:]
+    to_snip = non_system[:-4]
     summary = {"role": "system", "content": f"[{len(to_snip)} previous messages snipped for token budget]"}
     result = system_msgs + [summary] + keep
     if estimate_messages_tokens(result) > budget:
@@ -308,11 +308,14 @@ class AgentLoop:
             if response and response.get("finish_reason") == "length" and content.strip():
                 messages.append({"role": "assistant", "content": content})
                 messages.append({"role": "user", "content": "Please continue from where you left off."})
-                response = self.llm.chat(
-                    messages=messages,
-                    tools=tool_defs if tool_defs else None,
-                )
-                content += (response.get("content", "") or "")
+                for _ in range(5):
+                    response = self.llm.chat(
+                        messages=messages,
+                        tools=tool_defs if tool_defs else None,
+                    )
+                    content += (response.get("content", "") or "")
+                    if response.get("finish_reason") != "length":
+                        break
 
             if tool_calls:
                 assistant_msg = {"role": "assistant", "content": content}

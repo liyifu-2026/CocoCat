@@ -273,10 +273,14 @@ def get_user_memory(agent_id: str, user_id: str):
 def update_agent_display(agent_id: str, body: dict):
     """Update agent's display config."""
     display_path = BASE_DIR / "agents" / agent_id / "display.json"
-    config = {
-        "nickname": body.get("nickname", ""),
-        "avatar": body.get("avatar", ""),
-        "color": body.get("color", ""),
-    }
-    display_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
-    return {"status": "updated", "display": config}
+    existing = {}
+    if display_path.exists():
+        try:
+            existing = json.loads(display_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    for key in ("nickname", "avatar", "color", "gender"):
+        if key in body:
+            existing[key] = body[key]
+    display_path.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"status": "updated", "display": existing}
