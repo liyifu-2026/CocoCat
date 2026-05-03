@@ -86,27 +86,66 @@ def set_cursor(agent_id: str, cursor: int):
         f.write(str(cursor))
 
 
-def get_unprocessed_history(agent_id: str) -> tuple[list[dict], int]:
-    """Read history entries after the cursor. Returns (entries, total_count)."""
+def get_user_memory_dir(agent_id: str, user_hash: str) -> str:
+    base = _agent_memory_dir(agent_id)
+    return os.path.join(base, "users", user_hash)
+
+
+def _user_hash(user_id: str) -> str:
+    import hashlib
+    return hashlib.sha256(user_id.encode()).hexdigest()[:16]
+
+
+def append_user_history(agent_id: str, user_hash: str, entry: dict):
+    user_dir = get_user_memory_dir(agent_id, user_hash)
+    os.makedirs(user_dir, exist_ok=True)
+    history_path = os.path.join(user_dir, "history.jsonl")
+    with open(history_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def get_unprocessed_history(agent_id: str, user_hash: str = "") -> tuple[list, int]:
+    if user_hash:
+        return _get_unprocessed_for_user(agent_id, user_hash)
+    return _get_unprocessed_global(agent_id)
+
+
+def _get_unprocessed_for_user(agent_id: str, user_hash: str) -> tuple[list, int]:
+    user_dir = get_user_memory_dir(agent_id, user_hash)
+    history_path = os.path.join(user_dir, "history.jsonl")
+    cursor_path = os.path.join(user_dir, ".dream_cursor")
+    cursor = _read_cursor(cursor_path)
+    entries = _read_entries(history_path)
+    unprocessed = entries[cursor:]
+    return unprocessed, len(entries)
+
+
+def _get_unprocessed_global(agent_id: str) -> tuple[list, int]:
     since = get_cursor(agent_id)
     history_path = _agent_memory_dir(agent_id, "history.jsonl")
-    if not os.path.exists(history_path):
-        return [], 0
-
-    entries = []
-    with open(history_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                entry = json.loads(line)
-                entries.append(entry)
-            except json.JSONDecodeError:
-                continue
-
+    entries = _read_entries(history_path)
     unprocessed = entries[since:]
     return unprocessed, len(entries)
+
+
+def _read_cursor(path: str) -> int:
+    try:
+        with open(path) as f:
+            return int(f.read().strip())
+    except (OSError, ValueError):
+        return 0
+
+
+def _read_entries(path: str) -> list:
+    if not os.path.exists(path):
+        return []
+    entries = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                entries.append(json.loads(line))
+    return entries
 
 
 def run_dream(agent_id: str, agent_name: str, llm_client=None) -> str:
@@ -184,6 +223,42 @@ Use read_file and edit_file tools to complete this task."""
     set_cursor(agent_id, total_entries)
     entry_count = len(unprocessed)
     return f"Dream processed {entry_count} history entries. Memory updated via surgical editing."
+
+
+def run_user_dream(agent_id: str, agent_name: str, user_hash: str, llm_client=None) -> str:
+    from llm import LLMClient
+    llm = llm_client or LLMClient()
+    user_dir = get_user_memory_dir(agent_id, user_hash)
+    history_path = os.path.join(user_dir, "history.jsonl")
+    profile_path = os.path.join(user_dir, "PROFILE.md")
+    entries, total = get_unprocessed_history(agent_id, user_hash=user_hash)
+    if not entries:
+        return "No new entries to process."
+
+    history_text = json.dumps(entries, ensure_ascii=False, indent=2)
+    analysis_prompt = f"""Analyze these conversation entries and extract user preferences, habits, important facts about this user.
+Write concise bullet points for their PROFILE.md file.
+
+{history_text}"""
+    try:
+        analysis = llm.chat(messages=[{"role": "user", "content": analysis_prompt}], max_tokens=512, temperature=0.3)
+        content = (analysis.get("content") or "").strip()
+    except Exception as e:
+        return f"User dream LLM call failed: {e}"
+
+    if not content:
+        return "User dream produced no output."
+
+    import time
+    os.makedirs(user_dir, exist_ok=True)
+    with open(profile_path, "a", encoding="utf-8") as f:
+        f.write(f"\n## Dream Consolidation ({time.strftime('%Y-%m-%d')})\n")
+        f.write(content + "\n")
+
+    with open(os.path.join(user_dir, ".dream_cursor"), "w") as f:
+        f.write(str(total))
+
+    return f"User dream processed {len(entries)} entries, updated PROFILE.md."
 
 
 def _agent_memory_dir(agent_id: str, filename: str = "") -> str:
