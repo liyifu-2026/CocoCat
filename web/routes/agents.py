@@ -181,3 +181,24 @@ def delete_agent(agent_id: str):
         shutil.rmtree(agent_dir)
 
     return {"status": "deleted", "agent_id": agent_id}
+
+
+@router.get("/api/agents/{agent_id}/entries")
+def get_agent_entries(agent_id: str):
+    """Get agent's personal entry configuration."""
+    entries_path = BASE_DIR / "agents" / agent_id / "entries.json"
+    if not entries_path.exists():
+        return {"entries": []}
+    try:
+        return json.loads(entries_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"entries": []}
+
+
+@router.put("/api/agents/{agent_id}/entries")
+def update_agent_entries(agent_id: str, body: dict):
+    """Update agent's personal entry configuration."""
+    entries_path = BASE_DIR / "agents" / agent_id / "entries.json"
+    entries = body.get("entries", [])
+    entries_path.write_text(json.dumps({"entries": entries}, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"status": "updated", "entries": entries}
