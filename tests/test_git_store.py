@@ -38,8 +38,23 @@ def test_git_store_revert():
         with open(test_file, "w") as f:
             f.write("version 2")
         store.commit("v2")
-        store.revert()
+        assert store.revert() is True
         with open(test_file) as f:
             assert f.read() == "version 1"
+        # revert when only 1 commit remains should return False
+        assert store.revert() is False
+    finally:
+        _rmtree_readonly(tmp)
+
+
+def test_git_store_last_commit_message():
+    tmp = tempfile.mkdtemp()
+    try:
+        store = GitStore(tmp)
+        assert store.last_commit_message() == ""
+        with open(os.path.join(tmp, "f.md"), "w") as f:
+            f.write("hello")
+        store.commit("feat: my message")
+        assert store.last_commit_message() == "feat: my message"
     finally:
         _rmtree_readonly(tmp)

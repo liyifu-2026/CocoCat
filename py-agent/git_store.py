@@ -25,16 +25,21 @@ class GitStore:
         )
         return [line.strip() for line in result.stdout.strip().split("\n") if line.strip()]
 
-    def revert(self):
+    def revert(self) -> bool:
         result = subprocess.run(
-            ["git", "log", "--oneline", "--max-count=2"],
+            ["git", "rev-list", "--count", "HEAD"],
             cwd=self.repo_path, capture_output=True, text=True
         )
-        lines = [l.strip() for l in result.stdout.strip().split("\n") if l.strip()]
-        if len(lines) >= 2:
-            parent_hash = lines[-1].split()[0]
-            subprocess.run(["git", "reset", "--hard", parent_hash],
-                           cwd=self.repo_path, capture_output=True)
+        if result.stdout.strip() == "0":
+            return False
+        count = int(result.stdout.strip())
+        if count < 2:
+            return False
+        result = subprocess.run(
+            ["git", "reset", "--hard", "HEAD~1"],
+            cwd=self.repo_path, capture_output=True, text=True
+        )
+        return result.returncode == 0
 
     def last_commit_message(self) -> str:
         result = subprocess.run(
