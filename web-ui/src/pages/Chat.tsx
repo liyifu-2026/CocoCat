@@ -1,16 +1,98 @@
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { chatApi } from "@/api/chat"
-import type { ChatGroup, ChatMessage, GroupMember } from "@/api/chat"
+import type { ChatGroup, ChatMessage, ReadByEntry } from "@/api/chat"
 import { agentsApi } from "@/api/agents"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { MessageSquare, Plus, Send, Hash, Users, Info, X, Check, Edit3 } from "lucide-react"
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  MessageSquare, Plus, Send, Hash, Users, X, Copy, Undo2, MoreHorizontal,
+} from "lucide-react"
+
+function formatTime(ts: string) {
+  const d = new Date(ts)
+  const now = new Date()
+  const sameDay = d.toDateString() === now.toDateString()
+  if (sameDay) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+function AgentAvatar({ agentId, name, size = "sm", glow }: { agentId: string; name: string; size?: "sm" | "xs"; glow?: "green" | "yellow" | "none" }) {
+  const sizeClass = size === "sm" ? "h-8 w-8 text-xs" : "h-5 w-5 text-[9px]"
+  const glowClass = glow === "green" ? "ring-2 ring-green-500 ring-offset-1 ring-offset-background" :
+    glow === "yellow" ? "ring-2 ring-yellow-500 ring-offset-1 ring-offset-background" : ""
+  return (
+    <div className={`${sizeClass} rounded-full bg-primary/10 flex items-center justify-center font-medium shrink-0 ${glowClass}`}>
+      {name?.charAt(0) ?? agentId.charAt(0).toUpperCase()}
+    </div>
+  )
+}
+
+function MessageBubble({ msg, isAdmin, msgIndex, groupId, agentNames, onRecall }: {
+  msg: ChatMessage; isAdmin: boolean; msgIndex: number; groupId: string
+  agentNames: Record<string, string>; onRecall: (idx: number) => void
+}) {
+  if (msg.recalled) {
+    return (
+      <div className="flex justify-center py-2">
+        <span className="text-xs text-muted-foreground italic">A message was recalled</span>
+      </div>
+    )
+  }
+
+  const readBy = (msg.read_by ?? []).sort((a, b) => a.read_at.localeCompare(b.read_at))
+
+  return (
+    <div className={`flex gap-2 ${isAdmin ? "flex-row-reverse" : ""}`}>
+      <AgentAvatar agentId={msg.from} name={agentNames[msg.from] ?? msg.from} />
+      <div className={`max-w-[70%] ${isAdmin ? "items-end" : ""}`}>
+        <div className={`text-xs text-muted-foreground mb-0.5 ${isAdmin ? "text-right" : ""}`}>
+          {agentNames[msg.from] ?? msg.from}
+          <span className="ml-2">{formatTime(msg.timestamp)}</span>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div className={`rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors ${
+              isAdmin ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted hover:bg-muted/80"
+            }`}>
+              {msg.content}
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align={isAdmin ? "end" : "start"}>
+            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(msg.content)}>
+              <Copy className="size-3 mr-2" /> Copy
+            </DropdownMenuItem>
+            {isAdmin && (
+              <DropdownMenuItem onClick={() => onRecall(msgIndex)}>
+                <Undo2 className="size-3 mr-2" /> Recall
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Read receipts */}
+        {readBy.length > 0 && (
+          <div className={`flex gap-0.5 mt-1 ${isAdmin ? "justify-end" : ""}`}>
+            {readBy.map(r => (
+              <AgentAvatar key={r.agent_id} agentId={r.agent_id}
+                name={agentNames[r.agent_id] ?? r.agent_id}
+                size="xs" glow={r.score >= 100 ? "green" : r.score >= 30 ? "yellow" : "none"} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function Chat() {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
@@ -27,18 +109,28 @@ export default function Chat() {
     queryKey: ["chat-messages", selectedGroup],
     queryFn: () => chatApi.getMessages(selectedGroup!),
     enabled: !!selectedGroup,
-    refetchInterval: 3000,
+    refetchInterval: 5000,
   })
 
   const groups = groupsData?.groups ?? []
   const currentGroup = groups.find(g => g.id === selectedGroup)
   const messages = messagesData?.messages ?? []
   const agents = agentsData?.agents ?? []
+  const agentNames: Record<string, string> = {}
+  agents.forEach(a => { agentNames[a.id] = a.name })
+  agentNames["admin"] = "Admin"
 
   async function sendMessage() {
     if (!selectedGroup || !message.trim()) return
     await chatApi.sendMessage(selectedGroup, message.trim())
     setMessage("")
+    queryClient.invalidateQueries({ queryKey: ["chat-messages", selectedGroup] })
+    queryClient.invalidateQueries({ queryKey: ["chat-groups"] })
+  }
+
+  async function recallMessage(msgIndex: number) {
+    if (!selectedGroup) return
+    await chatApi.recallMessage(selectedGroup, msgIndex)
     queryClient.invalidateQueries({ queryKey: ["chat-messages", selectedGroup] })
   }
 
@@ -50,82 +142,57 @@ export default function Chat() {
     })
     await chatApi.createGroup(newGroupName.trim(), members, newGroupAnnouncement)
     queryClient.invalidateQueries({ queryKey: ["chat-groups"] })
-    setCreateOpen(false)
-    setNewGroupName("")
-    setNewGroupAnnouncement("")
-    setSelectedMembers([])
+    setCreateOpen(false); setNewGroupName(""); setNewGroupAnnouncement(""); setSelectedMembers([])
   }
 
   function toggleMember(id: string) {
-    setSelectedMembers(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
-    )
+    setSelectedMembers(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])
   }
 
   return (
     <div className="flex h-full">
-      {/* Left: Groups list */}
-      <div className="w-64 border-r border-border flex flex-col shrink-0">
+      {/* Left sidebar: conversation list */}
+      <div className="w-72 border-r border-border flex flex-col shrink-0">
         <div className="p-4 border-b border-border flex items-center justify-between">
           <h2 className="font-semibold">Chat</h2>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button size="icon-xs" variant="ghost"><Plus className="size-4" /></Button>
-            </DialogTrigger>
+            <DialogTrigger asChild><Button size="icon-xs" variant="ghost"><Plus className="size-4" /></Button></DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader><DialogTitle>New Group</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Group Name</label>
-                  <Input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Group name..." />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Announcement (optional)</label>
-                  <Input value={newGroupAnnouncement} onChange={e => setNewGroupAnnouncement(e.target.value)} placeholder="Group announcement..." />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Members</label>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {agents.map(a => (
-                      <button key={a.id} onClick={() => toggleMember(a.id)}
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs border transition-colors ${
-                          selectedMembers.includes(a.id)
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "border-border hover:bg-accent"
-                        }`}>
-                        {a.name}
-                        {selectedMembers.includes(a.id) && <X className="size-3" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                  <Button size="sm" onClick={createGroup} disabled={!newGroupName.trim()}>Create</Button>
-                </div>
+                <div><label className="text-sm font-medium">Group Name</label><Input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Group name..." /></div>
+                <div><label className="text-sm font-medium">Announcement</label><Input value={newGroupAnnouncement} onChange={e => setNewGroupAnnouncement(e.target.value)} placeholder="Group announcement..." /></div>
+                <div><label className="text-sm font-medium">Members</label><div className="flex flex-wrap gap-1 mt-1">{agents.map(a => (<button key={a.id} onClick={() => toggleMember(a.id)} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs border transition-colors ${selectedMembers.includes(a.id) ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}>{a.name}{selectedMembers.includes(a.id) && <X className="size-3" />}</button>))}</div></div>
+                <div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>Cancel</Button><Button size="sm" onClick={createGroup} disabled={!newGroupName.trim()}>Create</Button></div>
               </div>
             </DialogContent>
           </Dialog>
         </div>
         <ScrollArea className="flex-1">
-          {groups.map(g => (
-            <button key={g.id} onClick={() => setSelectedGroup(g.id)}
-              className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-accent/50 transition-colors ${
-                selectedGroup === g.id ? "bg-accent" : ""
-              }`}>
-              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                g.is_default ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-              }`}>
-                <Hash className="size-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{g.name}</div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {g.members.length} members
+          {groups.map(g => {
+            const lastMsg = messagesData?.messages?.slice(-1)[0]
+            const unread = 0
+            return (
+              <button key={g.id} onClick={() => setSelectedGroup(g.id)}
+                className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-accent/50 transition-colors ${selectedGroup === g.id ? "bg-accent" : ""}`}>
+                <div className="relative shrink-0">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${g.is_default ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                    <Hash className="size-5" />
+                  </div>
+                  {unread > 0 && <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground px-1">{unread > 99 ? "99+" : unread}</span>}
                 </div>
-              </div>
-            </button>
-          ))}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium truncate">{g.name}</span>
+                    {lastMsg && <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatTime(lastMsg.timestamp)}</span>}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate mt-0.5">
+                    {lastMsg ? (lastMsg.recalled ? "[recalled]" : lastMsg.content) : `${g.members.length} members`}
+                  </div>
+                </div>
+              </button>
+            )
+          })}
         </ScrollArea>
       </div>
 
@@ -133,82 +200,32 @@ export default function Chat() {
       <div className="flex-1 flex flex-col">
         {!selectedGroup ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <div className="text-center">
-              <MessageSquare className="size-12 mx-auto mb-4 opacity-30" />
-              <p>Select a group to start chatting</p>
-            </div>
+            <div className="text-center"><MessageSquare className="size-12 mx-auto mb-4 opacity-30" /><p>Select a group to start chatting</p></div>
           </div>
         ) : (
           <>
-            {/* Group header */}
             <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
-              <div>
-                <h2 className="font-semibold flex items-center gap-2">
-                  <Hash className="size-4 text-muted-foreground" />
-                  {currentGroup?.name}
-                </h2>
-                {currentGroup?.announcement && (
-                  <p className="text-xs text-muted-foreground mt-0.5">{currentGroup.announcement}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs gap-1">
-                  <Users className="size-3" /> {currentGroup?.members.length}
-                </Badge>
-              </div>
+              <div><h2 className="font-semibold flex items-center gap-2"><Hash className="size-4 text-muted-foreground" />{currentGroup?.name}</h2>{currentGroup?.announcement && <p className="text-xs text-muted-foreground mt-0.5">{currentGroup.announcement}</p>}</div>
+              <Badge variant="outline" className="text-xs gap-1"><Users className="size-3" /> {currentGroup?.members.length}</Badge>
             </div>
 
-            {/* Messages */}
             <ScrollArea className="flex-1 p-4">
-              <div className="space-y-3">
-                {messages.length === 0 && (
-                  <p className="text-center text-sm text-muted-foreground py-10">
-                    No messages yet. Start the conversation!
-                  </p>
-                )}
-                {messages.map((msg, i) => {
-                  const isAdmin = msg.from === "admin"
-                  const member = currentGroup?.members.find(m => m.id === msg.from)
-                  const showAvatar = i === 0 || messages[i - 1]?.from !== msg.from
-                  return (
-                    <div key={i} className={`flex gap-3 ${isAdmin ? "flex-row-reverse" : ""}`}>
-                      {showAvatar && (
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
-                          isAdmin ? "bg-primary text-primary-foreground" : "bg-muted"
-                        }`}>
-                          {member?.name?.charAt(0) ?? msg.from.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      {!showAvatar && <div className="w-8 shrink-0" />}
-                      <div className={`max-w-[70%] ${isAdmin ? "items-end" : ""}`}>
-                        {showAvatar && (
-                          <div className={`text-xs text-muted-foreground mb-1 ${isAdmin ? "text-right" : ""}`}>
-                            {member?.name ?? msg.from}
-                            <span className="ml-2">{msg.timestamp?.slice(11, 19)}</span>
-                          </div>
-                        )}
-                        <div className={`rounded-lg px-3 py-2 text-sm ${
-                          isAdmin ? "bg-primary text-primary-foreground" : "bg-muted"
-                        }`}>
-                          <span className="whitespace-pre-wrap">{msg.content}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className="space-y-4">
+                {messages.length === 0 && <p className="text-center text-sm text-muted-foreground py-10">No messages yet</p>}
+                {messages.filter(m => !m.recalled || true).map((msg, i) => (
+                  <MessageBubble key={i} msg={msg} isAdmin={msg.from === "admin"}
+                    msgIndex={i} groupId={selectedGroup} agentNames={agentNames}
+                    onRecall={recallMessage} />
+                ))}
               </div>
             </ScrollArea>
 
-            {/* Input */}
             <div className="p-4 border-t border-border">
               <div className="flex gap-2">
                 <Textarea value={message} onChange={e => setMessage(e.target.value)}
                   placeholder="Type a message... (use @name to mention)"
                   className="min-h-[40px] max-h-[120px]"
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() }
-                  }}
-                />
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }} />
                 <Button onClick={sendMessage} disabled={!message.trim()} className="shrink-0 self-end">
                   <Send className="size-4" />
                 </Button>

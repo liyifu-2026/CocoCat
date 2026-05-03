@@ -15,6 +15,12 @@ export interface ChatGroup {
   members: GroupMember[]
 }
 
+export interface ReadByEntry {
+  agent_id: string
+  read_at: string
+  score: number
+}
+
 export interface ChatMessage {
   from: string
   content: string
@@ -22,6 +28,8 @@ export interface ChatMessage {
   priority_score?: number
   token_count?: number
   mentions: string[]
+  recalled?: boolean
+  read_by?: ReadByEntry[]
 }
 
 export interface AgentContext {
@@ -46,4 +54,8 @@ export const chatApi = {
     api.post<{ message: ChatMessage }>(`/chat/groups/${groupId}/messages`, { content, from }),
   getMessages: (groupId: string, limit = 100) =>
     api.get<{ messages: ChatMessage[] }>(`/chat/groups/${groupId}/messages?limit=${limit}`),
+  recallMessage: (groupId: string, msgIndex: number) =>
+    api.post<{ status: string }>(`/chat/groups/${groupId}/messages/${msgIndex}/recall`, {}),
+  markRead: (groupId: string, msgIndex: number, agentId: string, score: number) =>
+    api.post<{ read_by: ReadByEntry[] }>(`/chat/groups/${groupId}/messages/${msgIndex}/read`, { agent_id: agentId, score }),
 }
