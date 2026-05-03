@@ -72,6 +72,22 @@ def list_available_channels():
                     "app_id": {"type": "string", "description": "Feishu app ID", "default": ""},
                     "app_secret": {"type": "string", "description": "Feishu app secret", "default": ""}
                 }
+            },
+            {
+                "id": "telegram",
+                "name": "Telegram",
+                "description": "Telegram Bot via Bot API polling",
+                "config_schema": {
+                    "bot_token": {"type": "string", "description": "Telegram Bot Token from @BotFather"}
+                }
+            },
+            {
+                "id": "discord",
+                "name": "Discord",
+                "description": "Discord bot via discord.py",
+                "config_schema": {
+                    "bot_token": {"type": "string", "description": "Discord Bot Token"}
+                }
             }
         ]
     }

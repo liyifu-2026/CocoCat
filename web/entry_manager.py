@@ -53,6 +53,32 @@ def _start_feishu(scene_id: str, config: dict, target_id: str, target_type: str)
         print(f"[EntryManager] Failed to start Feishu channel: {e}")
 
 
+def _start_telegram(scene_id: str, config: dict, target_id: str, target_type: str):
+    try:
+        from channels.telegram import TelegramChannel
+        ch = TelegramChannel()
+        ch.on_message = lambda msg: _route_to_agent(
+            target_id, "telegram", msg.user_id, msg.content
+        )
+        ch.start(scene_id, config)
+        print(f"[EntryManager] Telegram channel started for {target_type} '{target_id}'")
+    except Exception as e:
+        print(f"[EntryManager] Failed to start Telegram channel: {e}")
+
+
+def _start_discord(scene_id: str, config: dict, target_id: str, target_type: str):
+    try:
+        from channels.discord import DiscordChannel
+        ch = DiscordChannel()
+        ch.on_message = lambda msg: _route_to_agent(
+            target_id, "discord", msg.user_id, msg.content
+        )
+        ch.start(scene_id, config)
+        print(f"[EntryManager] Discord channel started for {target_type} '{target_id}'")
+    except Exception as e:
+        print(f"[EntryManager] Failed to start Discord channel: {e}")
+
+
 def _start_weixin(scene_id: str, config: dict, target_id: str, target_type: str):
     """Start WeChat personal channel in background thread."""
     try:
@@ -83,6 +109,12 @@ def start_agent_entries(agent_id: str):
             t.start()
         elif channel == "weixin":
             t = threading.Thread(target=_start_weixin, args=(agent_id, config, agent_id, "agent"), daemon=True)
+            t.start()
+        elif channel == "telegram":
+            t = threading.Thread(target=_start_telegram, args=(agent_id, config, agent_id, "agent"), daemon=True)
+            t.start()
+        elif channel == "discord":
+            t = threading.Thread(target=_start_discord, args=(agent_id, config, agent_id, "agent"), daemon=True)
             t.start()
         elif channel == "web_api":
             print(f"[EntryManager] Web API entry for agent '{agent_id}' — handled by FastAPI routes")
@@ -121,6 +153,12 @@ def start_scene_entries(scene_id: str):
             t.start()
         elif channel == "weixin":
             t = threading.Thread(target=_start_weixin, args=(scene_id, config, target_agent, "scene"), daemon=True)
+            t.start()
+        elif channel == "telegram":
+            t = threading.Thread(target=_start_telegram, args=(scene_id, config, target_agent, "scene"), daemon=True)
+            t.start()
+        elif channel == "discord":
+            t = threading.Thread(target=_start_discord, args=(scene_id, config, target_agent, "scene"), daemon=True)
             t.start()
         elif channel == "web_api":
             print(f"[EntryManager] Web API entry for scene '{scene_id}' — handled by FastAPI routes")
