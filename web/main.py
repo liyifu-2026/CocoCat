@@ -285,6 +285,9 @@ async def wechat_webhook(scene_id: str, request: Request):
 from web.routes.agents import router as agents_router
 app.include_router(agents_router)
 
+from web.routes.knowledge import router as knowledge_router
+app.include_router(knowledge_router)
+
 
 @app.get("/api/hiring/pending")
 def list_pending_hires():
