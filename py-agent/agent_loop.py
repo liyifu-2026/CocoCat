@@ -241,7 +241,7 @@ class AgentLoop:
         mounted_kbs = load_mounted_kbs(self.scene_name)
         scene_context = self.scene_context
         if mounted_kbs:
-            scene_context += f"\n## Available Knowledge Bases\nMounted KBs: {', '.join(mounted_kbs)}\nUse search_kb to search, or read_file to browse wiki pages directly."
+            scene_context += f"\n## Available Knowledge Bases\nMounted KBs: {', '.join(mounted_kbs)}\nRead wiki pages via read_file — see knowledge_overview for the index."
         return build_system_prompt(
             agent_id=self.agent_id, agent_name=self.agent_name,
             tool_descriptions=tool_desc, workspace=self.workspace,
@@ -268,7 +268,7 @@ class AgentLoop:
         mounted_kbs = load_mounted_kbs(self.scene_name)
         scene_context = self.scene_context
         if mounted_kbs:
-            scene_context += f"\n## Available Knowledge Bases\nMounted KBs: {', '.join(mounted_kbs)}\nUse search_kb to search, or read_file to browse wiki pages directly."
+            scene_context += f"\n## Available Knowledge Bases\nMounted KBs: {', '.join(mounted_kbs)}\nRead wiki pages via read_file — see knowledge_overview for the index."
         knowledge_overview = load_knowledge_overview(self.scene_name)
 
         system_prompt = build_system_prompt(

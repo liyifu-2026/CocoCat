@@ -15,7 +15,7 @@ SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the Coco
 
 ## Your Wiki Knowledge
 {knowledge_overview}
-Use search_kb to quickly search, or read_file directly on wiki pages you find in the index above.
+Read wiki pages directly via read_file — the index above shows all available pages with paths.
 
 ## Active Skills
 {agent_skills}
@@ -244,7 +244,7 @@ def load_knowledge_overview(scene_id: str) -> str:
                 lines = index_content.split("\n")
                 trimmed = "\n".join(lines[:30])
                 if trimmed:
-                    kb_parts.append(f"Pages:\n{trimmed}")
+                    kb_parts.append(f"Pages (readable via read_file):\n{trimmed}")
             except Exception:
                 pass
         parts.append("\n".join(kb_parts))
