@@ -1012,6 +1012,51 @@ class ListSkillsTool(Tool):
         return "\n".join(lines)
 
 
+class InstallSkillTool(Tool):
+    """Install a skill from a URL or local path."""
+    name = "install_skill"
+    required_permission = PermissionMode.WORKSPACE_WRITE
+    description = "Install a new skill from a file path or URL (raw .md file)."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "source": {"type": "string", "description": "Local path or URL to the skill .md file"},
+            "name": {"type": "string", "description": "Optional skill name (defaults to filename)"},
+        },
+        "required": ["source"],
+    }
+
+    def execute(self, source="", name="", **kwargs) -> str:
+        from skill_hub import install_skill_from_path, install_skill_from_url
+        if source.startswith(("http://", "https://")):
+            return install_skill_from_url(source, name)
+        return install_skill_from_path(source, name)
+
+
+class SearchSkillTool(Tool):
+    """Search for available skills in the local registry."""
+    name = "search_skill"
+    required_permission = PermissionMode.READONLY
+    description = "Search for available skills by keyword."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "Search keyword"},
+        },
+        "required": ["query"],
+    }
+
+    def execute(self, query="", **kwargs) -> str:
+        from skill_hub import search_registry
+        results = search_registry(query)
+        if not results:
+            return f"No skills found for '{query}'."
+        lines = [f"Found {len(results)} skill(s):", ""]
+        for r in results:
+            lines.append(f"- {r['name']}  ({r.get('type', '?')})")
+        return "\n".join(lines)
+
+
 class EditFileTool(Tool):
     """Replace text in a file using search/replace (claw-code pattern)."""
     name = "edit_file"
@@ -1149,4 +1194,6 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(LearnSkillTool(agent_id=agent_id))
     registry.register(ForgetSkillTool(agent_id=agent_id))
     registry.register(ListSkillsTool(agent_id=agent_id))
+    registry.register(InstallSkillTool())
+    registry.register(SearchSkillTool())
     return registry
