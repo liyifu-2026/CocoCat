@@ -55,4 +55,10 @@ export const agentsApi = {
   memory: (id: string) => api.get<AgentMemory>(`/agents/${id}/memory`),
   history: (id: string, limit = 50) =>
     api.get<{ entries: HistoryEntry[] }>(`/agents/${id}/history?limit=${limit}`),
+  update: (id: string, body: Record<string, unknown>) =>
+    api.patch<{ status: string }>(`/agents/${id}`, body),
+  updateSkills: (id: string, skills: { public: string[]; private: string[] }) =>
+    api.patch<{ status: string }>(`/agents/${id}/skills`, skills),
+  delete: (id: string) =>
+    api.delete<{ status: string }>(`/agents/${id}`),
 }

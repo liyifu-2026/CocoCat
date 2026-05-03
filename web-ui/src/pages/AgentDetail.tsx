@@ -1,9 +1,13 @@
+import { useState } from "react"
 import { useParams, Link } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { agentsApi } from "@/api/agents"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft } from "lucide-react"
@@ -44,6 +48,14 @@ export default function AgentDetail() {
     enabled: !!id,
   })
 
+  const [editingSkills, setEditingSkills] = useState(false)
+  const [publicSkills, setPublicSkills] = useState<string[]>([])
+  const [privateSkills, setPrivateSkills] = useState<string[]>([])
+  const [newPublicSkill, setNewPublicSkill] = useState("")
+  const [newPrivateSkill, setNewPrivateSkill] = useState("")
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const queryClient = useQueryClient()
+
   const agent = agentsData?.agents?.find(a => a.id === id)
   if (!agent) return <div className="p-6 text-muted-foreground">Agent not found</div>
 
@@ -60,6 +72,18 @@ export default function AgentDetail() {
         <Badge variant={agent.enabled ? "default" : "secondary"}>
           {agent.enabled ? "Online" : "Offline"}
         </Badge>
+      </div>
+      <div className="flex items-center gap-4">
+        <Button
+          variant={agent.enabled ? "secondary" : "default"}
+          size="sm"
+          onClick={async () => {
+            await agentsApi.update(agent.id, { enabled: !agent.enabled })
+            queryClient.invalidateQueries({ queryKey: ["agents"] })
+          }}
+        >
+          {agent.enabled ? "Disable" : "Enable"}
+        </Button>
       </div>
 
       <Tabs defaultValue="profile">
@@ -130,44 +154,106 @@ export default function AgentDetail() {
         </TabsContent>
 
         <TabsContent value="skills" className="mt-4">
-          {skills.isLoading ? (
-            <TabSkeleton />
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Public Skills</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {skills.data?.public?.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {skills.data.public.map(s => (
-                        <Badge key={s}>{s}</Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">None</p>
-                  )}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Private Skills</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {skills.data?.private?.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {skills.data.private.map(s => (
-                        <Badge key={s} variant="secondary">
-                          {s}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">None</p>
-                  )}
-                </CardContent>
-              </Card>
+          {skills.isLoading ? <TabSkeleton /> : (
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                {editingSkills ? (
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setEditingSkills(false)}>Cancel</Button>
+                    <Button size="sm" onClick={async () => {
+                      await agentsApi.updateSkills(agent.id, { public: publicSkills, private: privateSkills })
+                      queryClient.invalidateQueries({ queryKey: ["agent", id, "skills"] })
+                      setEditingSkills(false)
+                    }}>Save</Button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setPublicSkills(skills.data?.public ?? [])
+                    setPrivateSkills(skills.data?.private ?? [])
+                    setEditingSkills(true)
+                  }}>Edit</Button>
+                )}
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader><CardTitle>Public Skills</CardTitle></CardHeader>
+                  <CardContent>
+                    {editingSkills ? (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          {publicSkills.map((s, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-sm">
+                              {s}
+                              <button onClick={() => setPublicSkills(prev => prev.filter((_, j) => j !== i))}
+                                className="text-destructive hover:text-destructive/80">×</button>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input size={1} placeholder="Add skill..."
+                            value={newPublicSkill} onChange={e => setNewPublicSkill(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && newPublicSkill.trim()) {
+                                setPublicSkills(prev => [...prev, newPublicSkill.trim()])
+                                setNewPublicSkill("")
+                              }
+                            }} />
+                          <Button size="sm" onClick={() => {
+                            if (newPublicSkill.trim()) {
+                              setPublicSkills(prev => [...prev, newPublicSkill.trim()])
+                              setNewPublicSkill("")
+                            }
+                          }}>+</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {skills.data?.public?.map(s => <Badge key={s}>{s}</Badge>)}
+                        {(!skills.data?.public?.length) && <p className="text-sm text-muted-foreground">None</p>}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader><CardTitle>Private Skills</CardTitle></CardHeader>
+                  <CardContent>
+                    {editingSkills ? (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          {privateSkills.map((s, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 rounded-md bg-secondary/20 px-2 py-1 text-sm">
+                              {s}
+                              <button onClick={() => setPrivateSkills(prev => prev.filter((_, j) => j !== i))}
+                                className="text-destructive hover:text-destructive/80">×</button>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input size={1} placeholder="Add skill..."
+                            value={newPrivateSkill} onChange={e => setNewPrivateSkill(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && newPrivateSkill.trim()) {
+                                setPrivateSkills(prev => [...prev, newPrivateSkill.trim()])
+                                setNewPrivateSkill("")
+                              }
+                            }} />
+                          <Button size="sm" onClick={() => {
+                            if (newPrivateSkill.trim()) {
+                              setPrivateSkills(prev => [...prev, newPrivateSkill.trim()])
+                              setNewPrivateSkill("")
+                            }
+                          }}>+</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {skills.data?.private?.map(s => <Badge key={s} variant="secondary">{s}</Badge>)}
+                        {(!skills.data?.private?.length) && <p className="text-sm text-muted-foreground">None</p>}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
         </TabsContent>
@@ -236,6 +322,26 @@ export default function AgentDetail() {
           )}
         </TabsContent>
       </Tabs>
+      <div className="pt-4 border-t border-border">
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="destructive" size="sm">Delete Agent</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Delete {agent.name}?</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">This will permanently remove the agent and all its data.</p>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" size="sm" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+              <Button variant="destructive" size="sm" onClick={async () => {
+                await agentsApi.delete(agent.id)
+                queryClient.invalidateQueries({ queryKey: ["agents"] })
+                setDeleteDialogOpen(false)
+                window.location.href = "/agents"
+              }}>Delete</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   )
 }
