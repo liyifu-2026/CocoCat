@@ -280,14 +280,72 @@ def send_message(group_id: str, body: dict):
         "from": from_id,
         "content": content,
         "timestamp": datetime.now().isoformat(),
-        "priority_score": 0,  # calculated per-agent at query time
+        "priority_score": 0,
         "token_count": _estimate_tokens(content),
         "mentions": mentions,
+        "recalled": False,
+        "read_by": [],
     }
     with open(msg_file, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     return {"status": "sent", "message": entry}
+
+
+@router.post("/api/chat/groups/{group_id}/messages/{msg_index}/recall")
+def recall_message(group_id: str, msg_index: int):
+    """Recall a message by marking it as recalled."""
+    msg_file = CHAT_DIR / group_id / "messages.jsonl"
+    if not msg_file.exists():
+        return JSONResponse({"error": "group not found"}, status_code=404)
+
+    try:
+        lines = msg_file.read_text(encoding="utf-8").strip().split("\n")
+        if msg_index < 0 or msg_index >= len(lines):
+            return JSONResponse({"error": "message not found"}, status_code=404)
+
+        msg = json.loads(lines[msg_index])
+        msg["recalled"] = True
+        lines[msg_index] = json.dumps(msg, ensure_ascii=False)
+        msg_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return {"status": "recalled"}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@router.post("/api/chat/groups/{group_id}/messages/{msg_index}/read")
+def mark_message_read(group_id: str, msg_index: int, body: dict):
+    """Mark a message as read by an agent, recording priority score."""
+    agent_id = body.get("agent_id", "")
+    score = body.get("score", 0)
+    if not agent_id:
+        return JSONResponse({"error": "agent_id is required"}, status_code=400)
+
+    msg_file = CHAT_DIR / group_id / "messages.jsonl"
+    if not msg_file.exists():
+        return JSONResponse({"error": "group not found"}, status_code=404)
+
+    try:
+        lines = msg_file.read_text(encoding="utf-8").strip().split("\n")
+        if msg_index < 0 or msg_index >= len(lines):
+            return JSONResponse({"error": "message not found"}, status_code=404)
+
+        msg = json.loads(lines[msg_index])
+        if "read_by" not in msg:
+            msg["read_by"] = []
+
+        if not any(r["agent_id"] == agent_id for r in msg["read_by"]):
+            msg["read_by"].append({
+                "agent_id": agent_id,
+                "read_at": datetime.now().isoformat(),
+                "score": score,
+            })
+
+        lines[msg_index] = json.dumps(msg, ensure_ascii=False)
+        msg_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return {"status": "read", "read_by": msg["read_by"]}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @router.get("/api/chat/groups/{group_id}/messages")
