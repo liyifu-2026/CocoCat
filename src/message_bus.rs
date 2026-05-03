@@ -18,6 +18,7 @@ fn save_counter(val: u64) {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatMessage {
     pub msg_id: String,
+    pub task_id: Option<u64>,
     pub timestamp: String,
     pub from: String,
     pub to: String,
@@ -67,6 +68,7 @@ pub fn new_message(from: String, to: String, content: String, message_type: Stri
     let counter = MSG_COUNTER.fetch_add(1, Ordering::Relaxed);
     ChatMessage {
         msg_id: format!("msg_{:06}", counter),
+        task_id: None,
         timestamp: chrono::Utc::now().to_rfc3339(),
         from,
         to,

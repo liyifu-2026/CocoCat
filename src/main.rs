@@ -7,7 +7,7 @@ use agent_registry::AgentRegistry;
 use serde_json::json;
 use std::fs;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Instant;
 
 fn process_hire_requests(registry: &mut AgentRegistry) {
@@ -453,6 +453,7 @@ fn check_and_process_dispatches(registry: &mut AgentRegistry) {
     };
 
     let mut processed = Vec::new();
+    static NEXT_TASK_ID: AtomicU64 = AtomicU64::new(1);
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -483,13 +484,18 @@ fn check_and_process_dispatches(registry: &mut AgentRegistry) {
             continue;
         }
 
+        let task_id = NEXT_TASK_ID.fetch_add(1, Ordering::Relaxed);
+
         // Log the dispatch
-        message_bus::log_message(&message_bus::new_message(
-            "leader".to_string(),
-            target_id.clone(),
-            format!("Dispatching task: {:.80}", prompt),
-            "task".to_string(),
-        )).ok();
+        message_bus::log_message(&message_bus::ChatMessage {
+            task_id: Some(task_id),
+            ..message_bus::new_message(
+                "leader".to_string(),
+                target_id.clone(),
+                format!("Dispatching task: {:.80}", prompt),
+                "task".to_string(),
+            )
+        }).ok();
 
         println!("  Routing dispatch to '{}'...", target_id);
         match registry.dispatch_message(&target_id, &method, params) {
@@ -498,31 +504,40 @@ fn check_and_process_dispatches(registry: &mut AgentRegistry) {
                 if let Some(ref result) = response.result {
                     if let Some(content) = result["content"].as_str() {
                         println!("  Response: {:.120}", content);
-                        message_bus::log_message(&message_bus::new_message(
-                            target_id.clone(),
-                            "leader".to_string(),
-                            content.to_string(),
-                            "reply".to_string(),
-                        )).ok();
+                        message_bus::log_message(&message_bus::ChatMessage {
+                            task_id: Some(task_id),
+                            ..message_bus::new_message(
+                                target_id.clone(),
+                                "leader".to_string(),
+                                content.to_string(),
+                                "reply".to_string(),
+                            )
+                        }).ok();
                     }
                 } else if let Some(ref err) = response.error {
                     println!("  \u{274C} Dispatch error [{}]: {}", err.code, err.message);
-                    message_bus::log_message(&message_bus::new_message(
-                        target_id.clone(),
-                        "leader".to_string(),
-                        format!("Error [{}]: {}", err.code, err.message),
-                        "reply".to_string(),
-                    )).ok();
+                    message_bus::log_message(&message_bus::ChatMessage {
+                        task_id: Some(task_id),
+                        ..message_bus::new_message(
+                            target_id.clone(),
+                            "leader".to_string(),
+                            format!("Error [{}]: {}", err.code, err.message),
+                            "reply".to_string(),
+                        )
+                    }).ok();
                 }
             }
             Err(e) => {
                 println!("  \u{274C} Dispatch to '{}' failed: {}", target_id, e);
-                message_bus::log_message(&message_bus::new_message(
-                    "system".to_string(),
-                    "leader".to_string(),
-                    format!("Dispatch to {} failed: {}", target_id, e),
-                    "system".to_string(),
-                )).ok();
+                message_bus::log_message(&message_bus::ChatMessage {
+                    task_id: Some(task_id),
+                    ..message_bus::new_message(
+                        "system".to_string(),
+                        "leader".to_string(),
+                        format!("Dispatch to {} failed: {}", target_id, e),
+                        "system".to_string(),
+                    )
+                }).ok();
             }
         }
 
