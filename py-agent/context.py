@@ -21,6 +21,7 @@ SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the Coco
 
 ## Your Long-Term Memory
 {agent_memory}
+{user_profile_section}{user_conversation_section}
 
 ## Capabilities
 You have access to the following tools:
@@ -48,10 +49,14 @@ def build_system_prompt(
     agent_skills: str = "",
     env_skills: str = "",
     profile: dict | None = None,
+    user_profile: str = "",
+    user_conversation: str = "",
 ) -> str:
     profile_section = _build_profile_section(profile) if profile else ""
     if profile_section:
         profile_section = f"\n## Agent Profile\n{profile_section}"
+    user_profile_section = f"\n## Current User\n{user_profile}" if user_profile else ""
+    user_conversation_section = f"\n## Conversation History\n{user_conversation}" if user_conversation else ""
     return SYSTEM_PROMPT_TEMPLATE.format(
         agent_id=agent_id,
         agent_name=agent_name,
@@ -63,7 +68,25 @@ def build_system_prompt(
         agent_skills=agent_skills or "(No specific skills assigned)",
         env_skills=env_skills or "(No special skills for this scene)",
         profile_section=profile_section,
+        user_profile_section=user_profile_section,
+        user_conversation_section=user_conversation_section,
     )
+
+
+def load_user_profile(agent_id: str, user_id: str, base_dir: str = "") -> str:
+    if not base_dir:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+    user_hash = _user_hash(user_id)
+    profile_path = os.path.join(base_dir, "..", "agents", agent_id, "memory", "users", user_hash, "PROFILE.md")
+    if not os.path.exists(profile_path):
+        return ""
+    with open(profile_path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def _user_hash(user_id: str) -> str:
+    import hashlib
+    return hashlib.sha256(user_id.encode()).hexdigest()[:16]
 
 
 def load_agent_profile(agent_id: str, base_dir: str = "") -> dict | None:
