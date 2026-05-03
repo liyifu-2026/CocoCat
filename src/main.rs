@@ -1,7 +1,7 @@
-mod transport;
+use cococat::transport;
+use cococat::message_bus;
 mod agent_manager;
 mod agent_registry;
-mod message_bus;
 
 use agent_registry::AgentRegistry;
 use message_bus::ChatMessage;
