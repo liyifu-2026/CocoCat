@@ -221,7 +221,7 @@ class AgentLoop:
         self.user_id = user_id
 
     def _build_system_prompt(self, user_id: str = ""):
-        from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_profile, load_user_profile, load_mounted_kbs, load_daily_log
+        from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_profile, load_user_profile, load_mounted_kbs
         tool_defs = self.tools.get_definitions()
         tool_desc = build_tool_descriptions(tool_defs)
         agent_memory = load_agent_memory(self.agent_id)
@@ -230,12 +230,9 @@ class AgentLoop:
         user_profile = load_user_profile(self.agent_id, uid)
         user_conversation = ""
         mounted_kbs = load_mounted_kbs(self.scene_name)
-        daily_log = load_daily_log(self.agent_id)
         scene_context = self.scene_context
         if mounted_kbs:
             scene_context += f"\n## Available Knowledge Bases\nMounted KBs: {', '.join(mounted_kbs)}\nUse the search_kb tool to query them."
-        if daily_log:
-            scene_context += f"\n## Today's Activity Log\n{daily_log}"
         return build_system_prompt(
             agent_id=self.agent_id, agent_name=self.agent_name,
             tool_descriptions=tool_desc, workspace=self.workspace,
@@ -253,14 +250,11 @@ class AgentLoop:
         agent_skills = load_agent_skills(self.agent_id)
         agent_profile = load_agent_profile(self.agent_id)
         user_profile = load_user_profile(self.agent_id, uid)
-        from context import load_mounted_kbs, load_knowledge_overview, load_daily_log
+        from context import load_mounted_kbs, load_knowledge_overview
         mounted_kbs = load_mounted_kbs(self.scene_name)
-        daily_log = load_daily_log(self.agent_id)
         scene_context = self.scene_context
         if mounted_kbs:
             scene_context += f"\n## Available Knowledge Bases\nMounted KBs: {', '.join(mounted_kbs)}\nUse the search_kb tool to query them."
-        if daily_log:
-            scene_context += f"\n## Today's Activity Log\n{daily_log}"
         knowledge_overview = load_knowledge_overview(self.scene_name)
 
         system_prompt = build_system_prompt(

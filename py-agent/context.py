@@ -78,8 +78,8 @@ def build_system_prompt(
     )
 
 
-def load_daily_log(agent_id: str) -> str:
-    """Load today's daily log from agents/{agent_id}/memory/daily/YYYY-MM-DD.md."""
+def load_daily_log(agent_id: str, max_chars: int = 2000, max_entries: int = 5) -> str:
+    """Load recent entries from today's daily log. Truncated to avoid context bloat."""
     base = os.path.dirname(os.path.abspath(__file__))
     today = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
     log_path = os.path.join(base, "..", "agents", agent_id, "memory", "daily", f"{today}.md")
@@ -87,9 +87,18 @@ def load_daily_log(agent_id: str) -> str:
         return ""
     try:
         with open(log_path, "r", encoding="utf-8") as f:
-            return f.read().strip()
+            content = f.read().strip()
     except Exception:
         return ""
+    if not content:
+        return ""
+    # Keep only last N entries
+    entries = [e.strip() for e in content.split("\n## ") if e.strip()]
+    entries = entries[-max_entries:]
+    result = "\n## ".join(entries)
+    if len(result) > max_chars:
+        result = result[:max_chars] + "\n...(truncated)"
+    return result
 
 
 def load_user_profile(agent_id: str, user_id: str, base_dir: str = "") -> str:
