@@ -53,6 +53,7 @@ export interface AgentDisplay {
   nickname: string
   avatar: string
   color: string
+  gender?: string
 }
 
 export const agentsApi = {

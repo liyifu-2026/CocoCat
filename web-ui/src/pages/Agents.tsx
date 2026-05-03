@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { agentsApi } from "@/api/agents"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { AgentAvatar } from "@/components/AgentAvatar"
 
 export default function Agents() {
   const { data, isLoading } = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
@@ -16,11 +17,14 @@ export default function Agents() {
           <Link key={a.id} to={`/agents/${a.id}`}>
             <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <AgentAvatar name={a.name} size="sm" />
                   <span>{a.name}</span>
-                  <Badge variant={a.enabled ? "default" : "secondary"}>
-                    {a.enabled ? "Online" : "Offline"}
-                  </Badge>
+                  <div className="ml-auto">
+                    <Badge variant={a.enabled ? "default" : "secondary"}>
+                      {a.enabled ? "Online" : "Offline"}
+                    </Badge>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-1">

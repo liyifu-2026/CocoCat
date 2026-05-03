@@ -17,6 +17,7 @@ import {
 import {
   MessageSquare, Plus, Send, Hash, Users, X, Copy, Undo2, MoreHorizontal,
 } from "lucide-react"
+import { AgentAvatar } from "@/components/AgentAvatar"
 
 function formatTime(ts: string) {
   const d = new Date(ts)
@@ -24,17 +25,6 @@ function formatTime(ts: string) {
   const sameDay = d.toDateString() === now.toDateString()
   if (sameDay) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   return `${d.getMonth() + 1}/${d.getDate()}`
-}
-
-function AgentAvatar({ agentId, name, size = "sm", glow }: { agentId: string; name: string; size?: "sm" | "xs"; glow?: "green" | "yellow" | "none" }) {
-  const sizeClass = size === "sm" ? "h-8 w-8 text-xs" : "h-5 w-5 text-[9px]"
-  const glowClass = glow === "green" ? "ring-2 ring-green-500 ring-offset-1 ring-offset-background" :
-    glow === "yellow" ? "ring-2 ring-yellow-500 ring-offset-1 ring-offset-background" : ""
-  return (
-    <div className={`${sizeClass} rounded-full bg-primary/10 flex items-center justify-center font-medium shrink-0 ${glowClass}`}>
-      {name?.charAt(0) ?? agentId.charAt(0).toUpperCase()}
-    </div>
-  )
 }
 
 function MessageBubble({ msg, isAdmin, msgIndex, groupId, agentNames, onRecall }: {
@@ -53,7 +43,7 @@ function MessageBubble({ msg, isAdmin, msgIndex, groupId, agentNames, onRecall }
 
   return (
     <div className={`flex gap-2 ${isAdmin ? "flex-row-reverse" : ""}`}>
-      <AgentAvatar agentId={msg.from} name={agentNames[msg.from] ?? msg.from} />
+      <AgentAvatar name={agentNames[msg.from] ?? msg.from} size="sm" />
       <div className={`max-w-[70%] ${isAdmin ? "items-end" : ""}`}>
         <div className={`text-xs text-muted-foreground mb-0.5 ${isAdmin ? "text-right" : ""}`}>
           {agentNames[msg.from] ?? msg.from}
@@ -83,9 +73,9 @@ function MessageBubble({ msg, isAdmin, msgIndex, groupId, agentNames, onRecall }
         {readBy.length > 0 && (
           <div className={`flex gap-0.5 mt-1 ${isAdmin ? "justify-end" : ""}`}>
             {readBy.map(r => (
-              <AgentAvatar key={r.agent_id} agentId={r.agent_id}
+              <AgentAvatar key={r.agent_id}
                 name={agentNames[r.agent_id] ?? r.agent_id}
-                size="xs" glow={r.score >= 100 ? "green" : r.score >= 30 ? "yellow" : "none"} />
+                size="xs" />
             ))}
           </div>
         )}

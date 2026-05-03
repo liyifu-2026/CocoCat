@@ -15,6 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { AgentDisplay } from "@/api/agents"
 import { AvatarPicker } from "@/components/AvatarPicker"
 import { ArrowLeft, Pencil } from "lucide-react"
+import { AgentAvatar } from "@/components/AgentAvatar"
+import { GENDER_COLORS } from "@/components/avatars"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -87,10 +89,13 @@ export default function AgentDetail() {
         <ArrowLeft className="size-4" /> Back to Agents
       </Link>
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-full flex items-center justify-center text-lg font-medium shrink-0"
-          style={{ backgroundColor: displayData?.color || "#e5e7eb" }}>
-          {displayData?.avatar || agent.name.charAt(0)}
-        </div>
+        <AgentAvatar
+          avatarId={displayData?.avatar}
+          gender={displayData?.gender}
+          color={displayData?.color}
+          name={agent.name}
+          size="md"
+        />
         <div>
           <h1 className="text-2xl font-bold">{displayData?.nickname || agent.name}</h1>
           <p className="text-sm text-muted-foreground">{agent.id}</p>
@@ -130,16 +135,15 @@ export default function AgentDetail() {
             <AvatarPicker
               currentAvatar={displayConfig.avatar}
               currentColor={displayConfig.color}
+              gender={displayConfig.gender}
               onAvatarChange={a => setDisplayConfig(p => ({ ...p, avatar: a }))}
               onColorChange={c => setDisplayConfig(p => ({ ...p, color: c }))}
             />
             <div className="flex items-center gap-3 pt-2">
               <div className="text-sm text-muted-foreground">Preview:</div>
               <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full flex items-center justify-center text-sm"
-                  style={{ backgroundColor: displayConfig.color || "#e5e7eb" }}>
-                  {displayConfig.avatar || agent.name.charAt(0)}
-                </div>
+                <AgentAvatar avatarId={displayConfig.avatar} color={displayConfig.color}
+                  gender={displayConfig.gender} name={agent.name} size="md" />
                 <span className="text-sm font-medium">{displayConfig.nickname || agent.name}</span>
               </div>
             </div>
