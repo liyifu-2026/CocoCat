@@ -300,6 +300,9 @@ app.include_router(mailbox_router)
 from web.routes.chat_groups import router as chat_router
 app.include_router(chat_router)
 
+from web.routes.status import router as status_router
+app.include_router(status_router)
+
 
 @app.get("/api/hiring/pending")
 def list_pending_hires():

@@ -206,14 +206,25 @@ def update_agent_entries(agent_id: str, body: dict):
 
 @router.get("/api/agents/{agent_id}/display")
 def get_agent_display(agent_id: str):
-    """Get agent's display config (nickname, avatar, color)."""
+    """Get agent's display config with gender from profile."""
     display_path = BASE_DIR / "agents" / agent_id / "display.json"
-    if not display_path.exists():
-        return {"nickname": "", "avatar": "", "color": ""}
-    try:
-        return json.loads(display_path.read_text(encoding="utf-8"))
-    except Exception:
-        return {"nickname": "", "avatar": "", "color": ""}
+    display = {"nickname": "", "avatar": "", "color": "", "gender": ""}
+    if display_path.exists():
+        try:
+            display.update(json.loads(display_path.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+
+    # Read gender from immutable profile.json
+    profile_path = BASE_DIR / "agents" / agent_id / "profile.json"
+    if profile_path.exists():
+        try:
+            profile = json.loads(profile_path.read_text(encoding="utf-8"))
+            display["gender"] = profile.get("gender", "")
+        except Exception:
+            pass
+
+    return display
 
 
 @router.put("/api/agents/{agent_id}/display")

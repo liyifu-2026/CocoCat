@@ -69,7 +69,12 @@ fn process_hire_requests(registry: &mut AgentRegistry) {
         let profile_path = format!("agents/{}/profile.json", new_id);
         if !std::path::Path::new(&profile_path).exists() {
             if let Some(p) = hire.get("profile") {
-                let _ = fs::write(&profile_path, serde_json::to_string_pretty(p).unwrap());
+                let mut profile = p.clone();
+                if profile.get("gender").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
+                    let gender = if new_id.as_bytes().iter().sum::<u8>() % 2 == 0 { "male" } else { "female" };
+                    profile["gender"] = serde_json::json!(gender);
+                }
+                let _ = fs::write(&profile_path, serde_json::to_string_pretty(&profile).unwrap());
             }
         }
 
