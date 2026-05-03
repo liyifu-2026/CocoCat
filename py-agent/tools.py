@@ -12,6 +12,21 @@ _memory_lock = threading.Lock()
 _subagent_semaphore = threading.Semaphore(5)
 
 
+def _tokenize(text: str) -> list[str]:
+    text = text.lower()
+    tokens = []
+    for word in re.findall(r"[a-z0-9]+", text):
+        tokens.append(word)
+    cjk = re.sub(r"[^\u4e00-\u9fff]", "", text)
+    for i in range(len(cjk) - 1):
+        tokens.append(cjk[i:i+2])
+    if len(cjk) <= 2:
+        for ch in cjk:
+            if ch not in tokens:
+                tokens.append(ch)
+    return tokens
+
+
 class PermissionMode(Enum):
     READONLY = "readonly"
     WORKSPACE_WRITE = "write"
@@ -403,7 +418,6 @@ class SearchKbTool(Tool):
 
     def execute(self, query="", max_results=5, **kwargs) -> str:
         import os as _os
-        import re as _re
 
         script_dir = _os.path.dirname(_os.path.abspath(__file__))
         mount_path = _os.path.join(script_dir, "..", "scenes", self.scene_id, "mounted_kbs.json")
@@ -421,8 +435,12 @@ class SearchKbTool(Tool):
         if not mounted:
             return "No knowledge bases mounted for this scene."
 
+        query_tokens = _tokenize(query)
+        if not query_tokens:
+            return "Please provide a meaningful search query."
+
         kb_base = _os.path.join(script_dir, "..", "knowledge")
-        results = []
+        scored_pages = []
 
         for kb_id in mounted:
             wiki_dir = _os.path.join(kb_base, kb_id, "wiki")
@@ -430,44 +448,68 @@ class SearchKbTool(Tool):
                 continue
 
             for root, dirs, files in _os.walk(wiki_dir):
-                for f in files:
-                    if not f.endswith(".md"):
+                for fname in files:
+                    if not fname.endswith(".md"):
                         continue
-                    fp = _os.path.join(root, f)
+                    fp = _os.path.join(root, fname)
                     try:
                         with open(fp, "r", encoding="utf-8", errors="replace") as fh:
                             content = fh.read()
                     except Exception:
                         continue
 
-                    query_lower = query.lower()
-                    if query_lower in content.lower():
-                        lines = content.split("\n")
-                        matched_lines = []
-                        for i, line in enumerate(lines):
-                            if query_lower in line.lower():
-                                start = max(0, i - 1)
-                                end = min(len(lines), i + 3)
-                                snippet = "\n".join(lines[start:end])
-                                rel_path = _os.path.relpath(fp, kb_base)
-                                matched_lines.append(f"[{rel_path}:{i+1}]\n{snippet}")
-                        if matched_lines:
-                            results.extend(matched_lines)
+                    score = 0
+                    matched_lines = []
+                    lines = content.split("\n")
 
-        if not results:
+                    name_without_ext = fname[:-3].lower()
+                    for tok in query_tokens:
+                        if tok in name_without_ext:
+                            score += 200
+
+                    title = ""
+                    for line in lines:
+                        if line.startswith("#"):
+                            title = line.lower()
+                            break
+                    if title:
+                        for tok in query_tokens:
+                            if tok in title:
+                                score += 50
+
+                    content_lower = content.lower()
+                    matched_count = 0
+                    for i, line in enumerate(lines):
+                        line_lower = line.lower()
+                        for tok in query_tokens:
+                            if tok in line_lower:
+                                if matched_count < 10:
+                                    start = max(0, i - 1)
+                                    end = min(len(lines), i + 3)
+                                    snippet = "\n".join(lines[start:end])
+                                    rel_path = _os.path.relpath(fp, kb_base)
+                                    matched_lines.append(f"[{rel_path}:{i+1}]\n{snippet}")
+                                    matched_count += 1
+                                score += 20
+                                break
+
+                    if score > 0:
+                        rel_path = _os.path.relpath(fp, kb_base)
+                        scored_pages.append((score, rel_path, matched_lines))
+
+        if not scored_pages:
             return f"No matches found for '{query}' in mounted KBs."
 
-        seen = set()
-        unique = []
-        for r in results:
-            if r not in seen:
-                seen.add(r)
-                unique.append(r)
+        scored_pages.sort(key=lambda x: x[0], reverse=True)
+        top = scored_pages[:max_results]
 
-        top = unique[:max_results]
-        output = f"Found {len(unique)} matches (showing {len(top)}):\n\n"
-        output += "\n\n---\n\n".join(top)
-        return output
+        output = f"Found {len(scored_pages)} matches (showing {len(top)}):\n\n"
+        for score, rel_path, snippets in top:
+            output += f"[{score}pts] {rel_path}\n"
+            if snippets:
+                output += "\n".join(snippets[:3]) + "\n"
+            output += "\n---\n\n"
+        return output.strip()
 
 
 class RememberTool(Tool):

@@ -2,7 +2,7 @@ import sys, os, json
 from unittest.mock import patch, mock_open
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "py-agent"))
 
-from tools import HireAgentTool
+from tools import HireAgentTool, _tokenize
 
 
 def test_hire_agent_tool_pending():
@@ -46,3 +46,12 @@ def test_hire_agent_tool_pending():
     assert "employee_new.json" in call_path
 
     assert result.startswith("Hire request created")
+
+
+def test_tokenize_query():
+    tokens = _tokenize("服务器部署配置")
+    assert "部署" in tokens
+    assert "配置" in tokens
+    tokens2 = _tokenize("How to deploy")
+    assert "how" in tokens2
+    assert "deploy" in tokens2
