@@ -1057,6 +1057,113 @@ class SearchSkillTool(Tool):
         return "\n".join(lines)
 
 
+class LspHoverTool(Tool):
+    """Get type info and documentation for a symbol in a file."""
+    name = "lsp_hover"
+    required_permission = PermissionMode.READONLY
+    description = "Get type information and documentation for a symbol at a file position using LSP."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "file_path": {"type": "string", "description": "File path"},
+            "line": {"type": "integer", "description": "Line number (0-based)"},
+            "col": {"type": "integer", "description": "Column number (0-based)"},
+            "language": {"type": "string", "description": "Language ID (e.g. python, typescript)"},
+            "server_command": {"type": "string", "description": "LSP server command (e.g. pyright-langserver --stdio)"},
+        },
+        "required": ["file_path", "line", "col"],
+    }
+
+    def execute(self, file_path="", line=0, col=0, language="python", server_command="", **kwargs) -> str:
+        from lsp_client import LSPClient
+        cmd = server_command or _default_lsp_command(language)
+        if not cmd:
+            return f"No LSP server configured for {language}"
+        try:
+            import os
+            client = LSPClient(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
+            result = client.hover(file_path, line, col, language)
+            client.close()
+            return result or "(no info)"
+        except Exception as e:
+            return f"LSP error: {e}"
+
+
+class LspDefinitionTool(Tool):
+    """Go to definition of a symbol in a file."""
+    name = "lsp_definition"
+    required_permission = PermissionMode.READONLY
+    description = "Find the definition location of a symbol at a file position using LSP."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "file_path": {"type": "string", "description": "File path"},
+            "line": {"type": "integer", "description": "Line number (0-based)"},
+            "col": {"type": "integer", "description": "Column number (0-based)"},
+            "language": {"type": "string", "description": "Language ID"},
+            "server_command": {"type": "string", "description": "LSP server command"},
+        },
+        "required": ["file_path", "line", "col"],
+    }
+
+    def execute(self, file_path="", line=0, col=0, language="python", server_command="", **kwargs) -> str:
+        from lsp_client import LSPClient
+        cmd = server_command or _default_lsp_command(language)
+        if not cmd:
+            return f"No LSP server configured for {language}"
+        try:
+            import os
+            client = LSPClient(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
+            result = client.definition(file_path, line, col, language)
+            client.close()
+            return result
+        except Exception as e:
+            return f"LSP error: {e}"
+
+
+class LspReferencesTool(Tool):
+    """Find all references to a symbol in a file."""
+    name = "lsp_references"
+    required_permission = PermissionMode.READONLY
+    description = "Find all references to a symbol at a file position using LSP."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "file_path": {"type": "string", "description": "File path"},
+            "line": {"type": "integer", "description": "Line number (0-based)"},
+            "col": {"type": "integer", "description": "Column number (0-based)"},
+            "language": {"type": "string", "description": "Language ID"},
+            "server_command": {"type": "string", "description": "LSP server command"},
+        },
+        "required": ["file_path", "line", "col"],
+    }
+
+    def execute(self, file_path="", line=0, col=0, language="python", server_command="", **kwargs) -> str:
+        from lsp_client import LSPClient
+        cmd = server_command or _default_lsp_command(language)
+        if not cmd:
+            return f"No LSP server configured for {language}"
+        try:
+            import os
+            client = LSPClient(cmd, f"file://{os.path.dirname(os.path.abspath(file_path))}")
+            result = client.references(file_path, line, col, language)
+            client.close()
+            return result
+        except Exception as e:
+            return f"LSP error: {e}"
+
+
+def _default_lsp_command(language: str) -> str:
+    lang_map = {
+        "python": "pyright-langserver --stdio",
+        "typescript": "typescript-language-server --stdio",
+        "javascript": "typescript-language-server --stdio",
+        "rust": "rust-analyzer",
+        "go": "gopls",
+    }
+    return lang_map.get(language, "")
+
+
 class EditFileTool(Tool):
     """Replace text in a file using search/replace (claw-code pattern)."""
     name = "edit_file"
@@ -1196,4 +1303,7 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(ListSkillsTool(agent_id=agent_id))
     registry.register(InstallSkillTool())
     registry.register(SearchSkillTool())
+    registry.register(LspHoverTool())
+    registry.register(LspDefinitionTool())
+    registry.register(LspReferencesTool())
     return registry
