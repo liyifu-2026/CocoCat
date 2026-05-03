@@ -103,10 +103,7 @@ class PathValidator:
 
 
 class OutputTruncator:
-    def __init__(self, max_chars: int = 10000):
-        self.max_chars = max_chars
-
-    def truncate(self, output: str) -> str:
-        if len(output) <= self.max_chars:
+    def truncate(self, output: str, max_chars: int = 10000) -> str:
+        if len(output) <= max_chars:
             return output
-        return output[:self.max_chars] + f"\n... (truncated, {len(output) - self.max_chars} more chars)"
+        return output[:max_chars] + f"\n... (truncated, {len(output) - max_chars} more chars)"
