@@ -71,22 +71,21 @@ class CommandValidator:
         return False
 
 
-if IS_WINDOWS:
-    _ALLOWED_ENV_KEYS = {"PATH", "SYSTEMROOT", "USERPROFILE", "APPDATA",
-                         "LOCALAPPDATA", "TEMP", "TMP", "COMSPEC"}
-else:
-    _ALLOWED_ENV_KEYS = {"PATH", "HOME", "USER", "LOGNAME", "TMPDIR", "TEMP", "SHELL"}
+_SECRET_ENV_PATTERNS = re.compile(
+    r"(key|secret|token|password|credential|auth|api_key|api_secret)",
+    re.IGNORECASE
+)
 
 
 class EnvironmentSanitizer:
     def sanitize(self, env: dict) -> dict:
-        clean = {}
-        for k in _ALLOWED_ENV_KEYS:
-            if k in env:
-                clean[k] = env[k]
-        for k, v in env.items():
-            if k.startswith("COCOCAT_"):
-                clean[k] = v
+        clean = env.copy()
+        keys_to_remove = []
+        for k in clean:
+            if _SECRET_ENV_PATTERNS.search(k):
+                keys_to_remove.append(k)
+        for k in keys_to_remove:
+            del clean[k]
         return clean
 
 
