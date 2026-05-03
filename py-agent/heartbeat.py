@@ -63,6 +63,22 @@ def _heartbeat_loop(agent_id: str, agent_name: str, interval: int):
         except Exception as e:
             print(f"[Mailbox] Error: {e}")
 
+        # === Chat group message reading ===
+        try:
+            from chat_reader import get_unread_messages, mark_as_read
+            unread_chat = get_unread_messages(agent_id)
+            if unread_chat:
+                print(f"[ChatReader] {agent_name} has {len(unread_chat)} unread chat message(s)")
+                for item in unread_chat:
+                    try:
+                        prompt = f"[Chat: {item['group_name']}] [from {item['from']}] (priority: {item['score']})\n{item['content']}"
+                        _execute_task(agent_id, agent_name, {"id": f"chat_{item['group_id']}_{item['msg_index']}", "task": prompt})
+                    except Exception as e:
+                        print(f"[ChatReader] Failed to process: {e}")
+                    mark_as_read(agent_id, item['group_id'], item['msg_index'], item['score'])
+        except Exception as e:
+            print(f"[ChatReader] Error: {e}")
+
         try:
             tasks = get_pending_tasks(agent_id)
             if not tasks:
