@@ -202,3 +202,28 @@ def update_agent_entries(agent_id: str, body: dict):
     entries = body.get("entries", [])
     entries_path.write_text(json.dumps({"entries": entries}, ensure_ascii=False, indent=2), encoding="utf-8")
     return {"status": "updated", "entries": entries}
+
+
+@router.get("/api/agents/{agent_id}/display")
+def get_agent_display(agent_id: str):
+    """Get agent's display config (nickname, avatar, color)."""
+    display_path = BASE_DIR / "agents" / agent_id / "display.json"
+    if not display_path.exists():
+        return {"nickname": "", "avatar": "", "color": ""}
+    try:
+        return json.loads(display_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"nickname": "", "avatar": "", "color": ""}
+
+
+@router.put("/api/agents/{agent_id}/display")
+def update_agent_display(agent_id: str, body: dict):
+    """Update agent's display config."""
+    display_path = BASE_DIR / "agents" / agent_id / "display.json"
+    config = {
+        "nickname": body.get("nickname", ""),
+        "avatar": body.get("avatar", ""),
+        "color": body.get("color", ""),
+    }
+    display_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"status": "updated", "display": config}
