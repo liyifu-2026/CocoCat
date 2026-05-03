@@ -100,3 +100,27 @@ def test_output_truncator_custom_max():
     truncated = truncator.truncate(text, max_chars=5)
     assert "truncated" in truncated
     assert len(truncated) < len(text)
+
+
+def test_exec_command_sandbox_blocks_dangerous():
+    from tools import ExecCommandTool
+    tool = ExecCommandTool()
+    is_win = sys.platform == "win32"
+    cmd = "del /f /s C:\\*" if is_win else "rm -rf /"
+    result = tool.execute(command=cmd)
+    assert "rejected" in result.lower()
+
+
+def test_exec_command_sandbox_allows_safe():
+    from tools import ExecCommandTool
+    tool = ExecCommandTool()
+    result = tool.execute(command="echo hello_cococat_sandbox_test")
+    assert "hello_cococat_sandbox_test" in result
+
+
+def test_file_tool_path_validation_blocks_outside():
+    from tools import ReadFileTool
+    tool = ReadFileTool()
+    path = "C:\\Windows\\win.ini" if sys.platform == "win32" else "/etc/passwd"
+    result = tool.execute(path=path)
+    assert "outside workspace" in result.lower() or "rejected" in result.lower()

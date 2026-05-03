@@ -54,6 +54,12 @@ class ReadFileTool(Tool):
     }
 
     def execute(self, path="", offset=1, limit=2000, **kwargs) -> str:
+        from sandbox import PathValidator
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        pv = PathValidator()
+        is_safe, reason = pv.validate(path, PROJECT_ROOT)
+        if not is_safe:
+            return f"Error: {reason}"
         try:
             with open(path, "r", encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
@@ -83,6 +89,12 @@ class WriteFileTool(Tool):
     }
 
     def execute(self, path="", content="", **kwargs) -> str:
+        from sandbox import PathValidator
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        pv = PathValidator()
+        is_safe, reason = pv.validate(path, PROJECT_ROOT)
+        if not is_safe:
+            return f"Error: {reason}"
         try:
             Path(path).parent.mkdir(parents=True, exist_ok=True)
             with open(path, "w", encoding="utf-8") as f:
@@ -107,19 +119,26 @@ class ExecCommandTool(Tool):
     }
 
     def execute(self, command="", timeout=60, description="", **kwargs) -> str:
+        from sandbox import CommandValidator, EnvironmentSanitizer, OutputTruncator
+
+        validator = CommandValidator()
+        is_safe, reason = validator.validate(command, self.required_permission)
+        if not is_safe:
+            return f"Error: Command rejected - {reason}"
+
+        sanitizer = EnvironmentSanitizer()
+        clean_env = sanitizer.sanitize(os.environ.copy())
+
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
         try:
             result = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
+                command, shell=True, capture_output=True, text=True,
+                timeout=timeout, env=clean_env, cwd=PROJECT_ROOT,
             )
-            output = ""
-            if result.stdout:
-                output += result.stdout
+            output = OutputTruncator().truncate(result.stdout or "")
             if result.stderr:
-                output += f"\n[stderr]\n{result.stderr}"
+                output += f"\n[stderr]\n{OutputTruncator().truncate(result.stderr)}"
             if result.returncode != 0:
                 output += f"\n[exit code: {result.returncode}]"
             return output.strip() or "(no output)"
@@ -143,6 +162,13 @@ class GlobSearchTool(Tool):
     }
 
     def execute(self, pattern="", path=".", **kwargs) -> str:
+        if path and path != ".":
+            from sandbox import PathValidator
+            PROJECT_ROOT = Path(__file__).resolve().parent.parent
+            pv = PathValidator()
+            is_safe, reason = pv.validate(path, PROJECT_ROOT)
+            if not is_safe:
+                return f"Error: {reason}"
         try:
             matches = glob_module.glob(pattern, root_dir=path, recursive=True)
             matches = [m for m in matches if not m.startswith(".git/") and m != ".git"]
@@ -172,6 +198,13 @@ class GrepSearchTool(Tool):
     }
 
     def execute(self, pattern="", include="*", path=".", **kwargs) -> str:
+        if path and path != ".":
+            from sandbox import PathValidator
+            PROJECT_ROOT = Path(__file__).resolve().parent.parent
+            pv = PathValidator()
+            is_safe, reason = pv.validate(path, PROJECT_ROOT)
+            if not is_safe:
+                return f"Error: {reason}"
         try:
             matches = []
             for root, dirs, files in os.walk(path):
@@ -814,6 +847,12 @@ class EditFileTool(Tool):
     }
 
     def execute(self, path="", old_string="", new_string="", replace_all=False, **kwargs) -> str:
+        from sandbox import PathValidator
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent
+        pv = PathValidator()
+        is_safe, reason = pv.validate(path, PROJECT_ROOT)
+        if not is_safe:
+            return f"Error: {reason}"
         import os
         path = os.path.abspath(path)
         try:
