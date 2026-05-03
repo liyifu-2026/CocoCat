@@ -104,3 +104,80 @@ def get_agent_history(agent_id: str, limit: int = 50):
                 except json.JSONDecodeError:
                     pass
     return {"entries": entries[-limit:]}
+
+
+@router.patch("/api/agents/{agent_id}")
+def update_agent(agent_id: str, body: dict):
+    """Update agent config (name, scene, enabled)."""
+    config_path = BASE_DIR / "agents" / "config.toml"
+    if not config_path.exists():
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "config not found"}, status_code=404)
+
+    import tomllib
+    with open(config_path, "rb") as f:
+        data = tomllib.load(f)
+
+    found = False
+    for a in data.get("agents", []):
+        if a["id"] == agent_id:
+            if "name" in body:
+                a["name"] = body["name"]
+            if "scene" in body:
+                a["scene"] = body["scene"]
+            if "enabled" in body:
+                a["enabled"] = body["enabled"]
+            found = True
+            break
+
+    if not found:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "agent not found"}, status_code=404)
+
+    import tomli_w
+    with open(config_path, "wb") as f:
+        tomli_w.dump(data, f)
+
+    return {"status": "updated", "agent_id": agent_id}
+
+
+@router.patch("/api/agents/{agent_id}/skills")
+def update_agent_skills(agent_id: str, body: dict):
+    """Replace agent's skill manifest."""
+    skills_dir = BASE_DIR / "agents" / agent_id / "skills"
+    skills_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = skills_dir / "manifest.json"
+
+    manifest = {
+        "public": body.get("public", []),
+        "private": body.get("private", []),
+    }
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"status": "updated", "agent_id": agent_id}
+
+
+@router.delete("/api/agents/{agent_id}")
+def delete_agent(agent_id: str):
+    """Remove an agent's config entry and directory."""
+    config_path = BASE_DIR / "agents" / "config.toml"
+    import tomllib
+    with open(config_path, "rb") as f:
+        data = tomllib.load(f)
+
+    agents = data.get("agents", [])
+    new_agents = [a for a in agents if a["id"] != agent_id]
+    if len(new_agents) == len(agents):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"error": "agent not found"}, status_code=404)
+
+    data["agents"] = new_agents
+    import tomli_w
+    with open(config_path, "wb") as f:
+        tomli_w.dump(data, f)
+
+    agent_dir = BASE_DIR / "agents" / agent_id
+    if agent_dir.exists():
+        import shutil
+        shutil.rmtree(agent_dir)
+
+    return {"status": "deleted", "agent_id": agent_id}
