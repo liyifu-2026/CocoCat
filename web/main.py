@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import subprocess
+import shutil
 from pathlib import Path
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -284,6 +285,62 @@ from web.routes.agents import router as agents_router
 app.include_router(agents_router)
 
 
+@app.get("/api/hiring/pending")
+def list_pending_hires():
+    pending_dir = BASE_DIR / "agents" / "hire_requests" / "pending"
+    if not pending_dir.exists():
+        return {"pending": []}
+    hires = []
+    for f in sorted(pending_dir.iterdir()):
+        if f.suffix == ".json" and ".processed" not in f.name:
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                hires.append(data)
+            except Exception:
+                pass
+    return {"pending": hires}
+
+
+@app.post("/api/hiring/pending/{hire_id}/approve")
+async def approve_hire(hire_id: str, request: Request):
+    pending_dir = BASE_DIR / "agents" / "hire_requests" / "pending"
+    approved_dir = BASE_DIR / "agents" / "hire_requests" / "approved"
+    approved_dir.mkdir(parents=True, exist_ok=True)
+    src = pending_dir / f"{hire_id}.json"
+    if not src.exists():
+        return JSONResponse({"error": "hire request not found"}, status_code=404)
+    dst = approved_dir / f"{hire_id}.json"
+    try:
+        body = await request.json()
+        profile = body.get("profile")
+    except Exception:
+        profile = None
+    if profile:
+        try:
+            data = json.loads(src.read_text(encoding="utf-8"))
+            data["profile"] = {**data.get("profile", {}), **profile}
+            dst.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            src.unlink()
+        except Exception:
+            return JSONResponse({"error": "failed to update profile"}, status_code=500)
+    else:
+        shutil.move(str(src), str(dst))
+    return {"status": "approved", "hire_id": hire_id}
+
+
+@app.post("/api/hiring/pending/{hire_id}/reject")
+def reject_hire(hire_id: str):
+    pending_dir = BASE_DIR / "agents" / "hire_requests" / "pending"
+    rejected_dir = BASE_DIR / "agents" / "hire_requests" / "rejected"
+    rejected_dir.mkdir(parents=True, exist_ok=True)
+    src = pending_dir / f"{hire_id}.json"
+    if not src.exists():
+        return JSONResponse({"error": "hire request not found"}, status_code=404)
+    dst = rejected_dir / f"{hire_id}.json"
+    shutil.move(str(src), str(dst))
+    return {"status": "rejected", "hire_id": hire_id}
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard():
     return """<!DOCTYPE html>
@@ -311,6 +368,10 @@ def dashboard():
     <h2 class="font-semibold mb-3">Skills</h2>
     <div id="skills" class="text-sm">Loading...</div>
   </div>
+  <div class="bg-white p-4 rounded shadow">
+    <h2 class="font-semibold mb-3">Pending Hires</h2>
+    <div id="pending-hires" class="text-sm">Loading...</div>
+  </div>
 </div>
 </div>
 <script>
@@ -331,8 +392,38 @@ async function load() {
   document.getElementById('skills').innerHTML =
     '<div class="font-medium">Public:</div> ' + (skills.public.map(s=>s.title).join(', ')||'none') +
     '<br><div class="font-medium mt-2">Private:</div> ' + (skills.private.map(s=>s.title).join(', ')||'none');
+  loadPendingHires();
 }
 load();
+async function loadPendingHires() {
+  const el = document.getElementById('pending-hires');
+  const resp = await fetch('/api/hiring/pending');
+  const data = await resp.json();
+  if (!data.pending || data.pending.length === 0) {
+    el.innerHTML = '<div class="text-gray-400">No pending hires</div>';
+    return;
+  }
+  el.innerHTML = data.pending.map(h => `
+    <div class="border-b border-gray-100 py-2">
+      <strong>${h.name}</strong> (${h.id})<br>
+      <span class="text-gray-500">Role: ${h.profile?.role || '?'}</span><br>
+      <span class="text-gray-500">Scene: ${h.scene}</span>
+      <div class="mt-2 flex gap-2">
+        <button onclick="approveHire('${h.id}')" class="bg-green-500 text-white px-3 py-1 text-xs rounded">Approve</button>
+        <button onclick="rejectHire('${h.id}')" class="bg-red-500 text-white px-3 py-1 text-xs rounded">Reject</button>
+      </div>
+    </div>
+  `).join('');
+}
+async function approveHire(id) {
+  await fetch('/api/hiring/pending/' + id + '/approve', {method: 'POST'});
+  loadPendingHires();
+}
+async function rejectHire(id) {
+  await fetch('/api/hiring/pending/' + id + '/reject', {method: 'POST'});
+  loadPendingHires();
+}
+loadPendingHires();
 </script>
 <div class="mt-6 bg-white p-4 rounded shadow">
   <h2 class="font-semibold mb-3">Real-Time Events</h2>
