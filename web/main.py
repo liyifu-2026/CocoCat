@@ -65,6 +65,9 @@ async def websocket_endpoint(ws: WebSocket):
 
 @app.on_event("startup")
 async def start_heartbeat():
+    # Start entry manager channels
+    from web.entry_manager import start_all_entries
+    start_all_entries()
     asyncio.create_task(_heartbeat_loop())
 
 async def _heartbeat_loop():
@@ -280,6 +283,35 @@ async def wechat_webhook(scene_id: str, request: Request):
     reply_text = _agent_process_message(scene_id, chat_msg.user_id, chat_msg.content, "wechat", api_key)
     xml_reply = ch.make_reply(chat_msg.user_id, "gh_xxx", reply_text)
     return HTMLResponse(xml_reply, media_type="application/xml")
+
+
+@app.post("/api/channels/webhook/{target_type}/{target_id}")
+async def channel_webhook(target_type: str, target_id: str, request: Request):
+    """Generic webhook for channel entries."""
+    body = await request.json()
+    content = body.get("content", "")
+    user_id = body.get("user_id", "external")
+    channel_type = body.get("channel", "web_api")
+
+    if target_type == "agent":
+        from web.entry_manager import _route_to_agent as route
+        route(target_id, channel_type, user_id, content)
+        return {"status": "routed", "to": target_id}
+    elif target_type == "scene":
+        import json as _json
+        base = Path(__file__).resolve().parent.parent
+        roster_path = base / "scenes" / target_id / "roster.json"
+        if roster_path.exists():
+            try:
+                roster = _json.loads(roster_path.read_text(encoding="utf-8"))
+                agents = roster.get("agents", [])
+                if agents:
+                    route(agents[0], channel_type, user_id, content)
+                    return {"status": "routed", "to": agents[0], "scene": target_id}
+            except Exception:
+                pass
+        return JSONResponse({"error": "no agent available in scene"}, status_code=404)
+    return JSONResponse({"error": "invalid target_type"}, status_code=400)
 
 
 from web.routes.agents import router as agents_router
