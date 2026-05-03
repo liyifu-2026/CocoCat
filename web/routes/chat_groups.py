@@ -160,10 +160,12 @@ def create_group(body: dict):
 
     data = _load_groups()
     group_id = name.lower().replace(" ", "-")
-    # Ensure unique id
     existing = {g["id"] for g in data["groups"]}
     if group_id in existing:
-        group_id = f"{group_id}-{len(existing)}"
+        suffix = 1
+        while f"{group_id}-{suffix}" in existing:
+            suffix += 1
+        group_id = f"{group_id}-{suffix}"
 
     members = body.get("members", [])
     announcement = body.get("announcement", "")

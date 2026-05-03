@@ -88,6 +88,7 @@ def load_user_profile(agent_id: str, user_id: str, base_dir: str = "") -> str:
 
 
 def _user_hash(user_id: str) -> str:
+    """Duplicate of dream._user_hash to avoid circular import."""
     import hashlib
     return hashlib.sha256(user_id.encode()).hexdigest()[:16]
 

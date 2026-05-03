@@ -33,6 +33,7 @@ class PermissionMode(Enum):
     FULL_ACCESS = "full"
 
     def __le__(self, other):
+        """Used as: tool.required_permission <= current_mode → is the tool allowed in current mode?"""
         order = [PermissionMode.READONLY, PermissionMode.WORKSPACE_WRITE, PermissionMode.FULL_ACCESS]
         return order.index(self) <= order.index(other)
 
@@ -190,7 +191,15 @@ class GlobSearchTool(Tool):
             if not is_safe:
                 return f"Error: {reason}"
         try:
-            matches = glob_module.glob(pattern, root_dir=path, recursive=True)
+            if sys.version_info >= (3, 10):
+                matches = glob_module.glob(pattern, root_dir=path, recursive=True)
+            else:
+                old_cwd = os.getcwd()
+                os.chdir(path)
+                try:
+                    matches = glob_module.glob(pattern, recursive=True)
+                finally:
+                    os.chdir(old_cwd)
             matches = [m for m in matches if not m.startswith(".git/") and m != ".git"]
             if not matches:
                 return "No files found."
@@ -227,7 +236,7 @@ class GrepSearchTool(Tool):
                 return f"Error: {reason}"
         try:
             matches = []
-            for root, dirs, files in os.walk(path):
+            for root, dirs, files in os.walk(path, topdown=True):
                 dirs[:] = [d for d in dirs if d != ".git"]
                 for f in files:
                     if not glob_module.fnmatch.fnmatch(f, include):
@@ -526,7 +535,7 @@ class RememberTool(Tool):
         "required": ["content"],
     }
 
-    def execute(self, agent_id: str = "", content: str = "", user_id: str = "", **kwargs) -> dict:
+    def execute(self, agent_id: str = "", content: str = "", user_id: str = "", **kwargs) -> str:
         from dream import get_user_memory_dir, _user_hash, _agent_memory_dir
         with _memory_lock:
             if user_id:
@@ -535,13 +544,13 @@ class RememberTool(Tool):
                 os.makedirs(os.path.dirname(profile_path), exist_ok=True)
                 with open(profile_path, "a", encoding="utf-8") as f:
                     f.write(f"- {content}\n")
-                return {"success": True, "location": f"users/{user_hash}/PROFILE.md"}
+                return f"Remembered: {content} (user profile)"
             else:
                 mem_path = os.path.join(_agent_memory_dir(agent_id), "MEMORY.md")
                 os.makedirs(os.path.dirname(mem_path), exist_ok=True)
                 with open(mem_path, "a", encoding="utf-8") as f:
                     f.write(f"- {content}\n")
-                return {"success": True, "location": "MEMORY.md"}
+                return f"Remembered: {content}"
 
 
 class RecallTool(Tool):
@@ -557,15 +566,15 @@ class RecallTool(Tool):
         },
     }
 
-    def execute(self, agent_id: str = "", keyword: str = "", user_id: str = "", **kwargs) -> dict:
+    def execute(self, agent_id: str = "", keyword: str = "", user_id: str = "", **kwargs) -> str:
         from dream import _user_hash, get_user_memory_dir, _agent_memory_dir
-        results = []
+        lines = []
         mem_path = os.path.join(_agent_memory_dir(agent_id), "MEMORY.md")
         if os.path.exists(mem_path):
             with open(mem_path) as f:
                 content = f.read()
                 if not keyword or keyword.lower() in content.lower():
-                    results.append({"source": "MEMORY.md", "content": content})
+                    lines.append(f"[MEMORY.md]\n{content}")
         if user_id:
             user_hash = _user_hash(user_id)
             profile_path = os.path.join(get_user_memory_dir(agent_id, user_hash), "PROFILE.md")
@@ -573,8 +582,8 @@ class RecallTool(Tool):
                 with open(profile_path) as f:
                     content = f.read()
                     if not keyword or keyword.lower() in content.lower():
-                        results.append({"source": f"users/{user_hash}/PROFILE.md", "content": content})
-        return {"success": True, "results": results}
+                        lines.append(f"[users/{user_hash}/PROFILE.md]\n{content}")
+        return "\n\n---\n\n".join(lines) if lines else "(no matching memories)"
 
 
 class RevertMemoryTool(Tool):
@@ -584,7 +593,7 @@ class RevertMemoryTool(Tool):
     description = "Revert the last Dream commit to undo bad memory changes"
     parameters = {"type": "object", "properties": {}}
 
-    def execute(self, agent_id: str = "", **kwargs) -> dict:
+    def execute(self, agent_id: str = "", **kwargs) -> str:
         from git_store import GitStore
         from dream import _agent_memory_dir
         mem_dir = _agent_memory_dir(agent_id)
@@ -592,8 +601,8 @@ class RevertMemoryTool(Tool):
         last_msg = store.last_commit_message()
         ok = store.revert()
         if ok:
-            return {"success": True, "reverted": last_msg}
-        return {"success": False, "error": "No previous commit to revert to"}
+            return f"Reverted: {last_msg}"
+        return "No previous commit to revert to"
 
 
 class DreamTool(Tool):
