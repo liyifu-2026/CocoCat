@@ -103,3 +103,19 @@ def mark_as_read(agent_id: str, group_id: str, msg_index: int, score: int):
         })
         messages[msg_index] = msg
         _save_messages(group_id, messages)
+
+
+def get_agent_cursor(agent_id: str) -> str:
+    """Get the last msg_id this agent has processed."""
+    path = os.path.join("chat", "cursors", f"{agent_id}.txt")
+    if os.path.exists(path):
+        return open(path).read().strip()
+    return ""
+
+
+def set_agent_cursor(agent_id: str, msg_id: str):
+    """Set the last msg_id this agent has processed."""
+    path = os.path.join("chat", "cursors", f"{agent_id}.txt")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(msg_id)

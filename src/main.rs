@@ -4,7 +4,6 @@ mod agent_manager;
 mod agent_registry;
 
 use agent_registry::AgentRegistry;
-use message_bus::ChatMessage;
 use serde_json::json;
 use std::fs;
 use std::time::Instant;
@@ -94,13 +93,12 @@ fn process_hire_requests(registry: &mut AgentRegistry) {
         }
 
         // 4. Log to chat
-        let _ = message_bus::log_message(&message_bus::ChatMessage {
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            from: "system".to_string(),
-            to: "*".to_string(),
-            content: format!("New team member: {} ({})", new_name, new_id),
-            message_type: "system".to_string(),
-        });
+        let _ = message_bus::log_message(&message_bus::new_message(
+            "system".to_string(),
+            "*".to_string(),
+            format!("New team member: {} ({})", new_name, new_id),
+            "system".to_string(),
+        ));
 
         // 5. Clean up
         let _ = fs::remove_file(&path);
@@ -265,6 +263,8 @@ fn main() {
     let _ = std::fs::create_dir_all("agents/dispatch_queue");
     let _ = std::fs::create_dir_all("agents/dispatch_messages");
 
+    message_bus::init_counter();
+
     let configs = AgentRegistry::load_config("agents/config.toml")
         .expect("failed to load agent config");
     println!("Loaded {} agent definitions\n", configs.len());
@@ -317,13 +317,12 @@ fn main() {
     println!("--- Message Bus Demo ---");
 
     // System: team online
-    message_bus::log_message(&ChatMessage {
-        timestamp: chrono::Utc::now().to_rfc3339(),
-        from: "system".to_string(),
-        to: "*".to_string(),
-        content: "Team online. Message bus active.".to_string(),
-        message_type: "system".to_string(),
-    }).ok();
+    message_bus::log_message(&message_bus::new_message(
+        "system".to_string(),
+        "*".to_string(),
+        "Team online. Message bus active.".to_string(),
+        "system".to_string(),
+    )).ok();
 
     // Send a task to leader that uses dispatch_task tool
     if let Some(agent) = registry.get("leader") {
@@ -338,13 +337,12 @@ fn main() {
         match agent.call("task", Some(params), 1) {
             Ok(resp) => {
                 let elapsed = start.elapsed();
-                message_bus::log_message(&ChatMessage {
-                    timestamp: chrono::Utc::now().to_rfc3339(),
-                    from: "leader".to_string(),
-                    to: "*".to_string(),
-                    content: format!("Task completed in {:.1}s", elapsed.as_secs_f64()),
-                    message_type: "system".to_string(),
-                }).ok();
+                message_bus::log_message(&message_bus::new_message(
+                    "leader".to_string(),
+                    "*".to_string(),
+                    format!("Task completed in {:.1}s", elapsed.as_secs_f64()),
+                    "system".to_string(),
+                )).ok();
 
                 if let Some(ref result) = resp.result {
                     let content = result["content"].as_str().unwrap_or("(no content)");
@@ -385,6 +383,7 @@ fn main() {
     }
     println!();
 
+    message_bus::get_and_persist_counter();
     println!("CocoCat Core exiting.");
 }
 
@@ -432,13 +431,12 @@ fn check_and_process_dispatches(registry: &mut AgentRegistry) {
         }
 
         // Log the dispatch
-        message_bus::log_message(&ChatMessage {
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            from: "leader".to_string(),
-            to: target_id.clone(),
-            content: format!("Dispatching task: {:.80}", prompt),
-            message_type: "task".to_string(),
-        }).ok();
+        message_bus::log_message(&message_bus::new_message(
+            "leader".to_string(),
+            target_id.clone(),
+            format!("Dispatching task: {:.80}", prompt),
+            "task".to_string(),
+        )).ok();
 
         println!("  Routing dispatch to '{}'...", target_id);
         match registry.dispatch_message(&target_id, &method, params) {
@@ -447,34 +445,31 @@ fn check_and_process_dispatches(registry: &mut AgentRegistry) {
                 if let Some(ref result) = response.result {
                     if let Some(content) = result["content"].as_str() {
                         println!("  Response: {:.120}", content);
-                        message_bus::log_message(&ChatMessage {
-                            timestamp: chrono::Utc::now().to_rfc3339(),
-                            from: target_id.clone(),
-                            to: "leader".to_string(),
-                            content: content.to_string(),
-                            message_type: "reply".to_string(),
-                        }).ok();
+                        message_bus::log_message(&message_bus::new_message(
+                            target_id.clone(),
+                            "leader".to_string(),
+                            content.to_string(),
+                            "reply".to_string(),
+                        )).ok();
                     }
                 } else if let Some(ref err) = response.error {
                     println!("  \u{274C} Dispatch error [{}]: {}", err.code, err.message);
-                    message_bus::log_message(&ChatMessage {
-                        timestamp: chrono::Utc::now().to_rfc3339(),
-                        from: target_id.clone(),
-                        to: "leader".to_string(),
-                        content: format!("Error [{}]: {}", err.code, err.message),
-                        message_type: "reply".to_string(),
-                    }).ok();
+                    message_bus::log_message(&message_bus::new_message(
+                        target_id.clone(),
+                        "leader".to_string(),
+                        format!("Error [{}]: {}", err.code, err.message),
+                        "reply".to_string(),
+                    )).ok();
                 }
             }
             Err(e) => {
                 println!("  \u{274C} Dispatch to '{}' failed: {}", target_id, e);
-                message_bus::log_message(&ChatMessage {
-                    timestamp: chrono::Utc::now().to_rfc3339(),
-                    from: "system".to_string(),
-                    to: "leader".to_string(),
-                    content: format!("Dispatch to {} failed: {}", target_id, e),
-                    message_type: "system".to_string(),
-                }).ok();
+                message_bus::log_message(&message_bus::new_message(
+                    "system".to_string(),
+                    "leader".to_string(),
+                    format!("Dispatch to {} failed: {}", target_id, e),
+                    "system".to_string(),
+                )).ok();
             }
         }
 
