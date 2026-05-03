@@ -64,7 +64,7 @@ def auto_dream(agent_id: str, agent_name: str, llm) -> None:
 import re
 
 
-def _microcompact_tool_results(messages: list[dict], max_tool_chars: int = 2000) -> list[dict]:
+def _microcompact_tool_results(messages: list[dict], max_tool_chars: int = 16000) -> list[dict]:
     """Truncate verbose tool results to prevent context bloat (nanobot pattern)."""
     result = []
     for msg in messages:
@@ -102,7 +102,7 @@ def estimate_messages_tokens(messages: list[dict]) -> int:
     return total
 
 
-def _snip_history(messages: list[dict], budget: int = 8000) -> list[dict]:
+def _snip_history(messages: list[dict], budget: int = 131072) -> list[dict]:
     current = estimate_messages_tokens(messages)
     if current <= budget:
         return messages
@@ -128,7 +128,7 @@ CONSOLIDATION_PROMPT = """Summarize the following conversation turn in 1-2 sente
 """
 
 
-def consolidate(messages: list[dict], llm, budget: int = 8000) -> list[dict]:
+def consolidate(messages: list[dict], llm, budget: int = 131072) -> list[dict]:
     """Upgraded consolidator: boundary-aware, multi-round, fallback."""
     current = estimate_messages_tokens(messages)
     if current <= budget:
@@ -300,8 +300,8 @@ class AgentLoop:
             iteration += 1
 
             if iteration > 1:
-                messages = consolidate(messages, self.llm, budget=8000)
-                messages = _snip_history(messages, budget=8000)
+                messages = consolidate(messages, self.llm, budget=131072)
+                messages = _snip_history(messages, budget=131072)
                 messages = _microcompact_tool_results(messages)
 
             content = ""
