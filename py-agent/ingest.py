@@ -61,6 +61,26 @@ Return ONLY the page content with frontmatter, no additional text.
 """
 
 
+UPDATE_PROMPT = """You are updating an existing wiki page with new information from a recently ingested source.
+
+## Existing Page Content
+{page_content}
+
+## New Source Information
+{source_content}
+
+## Task
+Update the existing page to incorporate relevant information from the new source:
+1. Add new facts or insights where appropriate
+2. Update the `related` frontmatter to include: {new_related}
+3. Add `[[wikilink]]` in the "See Also" section
+4. Keep existing content intact — only add or revise
+5. Do not remove anything unless it's clearly contradicted
+
+Return the FULL updated page with YAML frontmatter.
+"""
+
+
 def slugify(text: str) -> str:
     text = text.lower().strip()
     text = re.sub(r'[^a-z0-9\s-]', '', text)
@@ -83,39 +103,31 @@ def write_text(path: str, content: str):
         f.write(content)
 
 
-def _update_related_pages(kb_dir: str, wiki_dir: str, new_slug: str, related: list):
-    """After creating a new page, update ALL related pages to cross-reference back."""
-    if not related:
+def _update_related_pages(kb_dir: str, wiki_dir: str, new_slug: str, related: list, source_content: str = "", llm=None):
+    """After creating a new page, update RELATED pages' content using LLM."""
+    if not related or not llm:
         return
     for root, dirs, files in os.walk(wiki_dir):
         for f in files:
             if not f.endswith(".md"):
                 continue
-            rel = os.path.relpath(os.path.join(root, f), wiki_dir)
             slug = f.replace(".md", "")
-            if slug == new_slug:
+            if slug == new_slug or slug not in related:
                 continue
-            content = read_text(os.path.join(root, f))
-            # Check if this page should link back
-            for related_slug in related:
-                if slug == related_slug and f"[[{new_slug}" not in content:
-                    # Add cross-reference
-                    if "related:" in content.split("---")[1] if content.startswith("---") else False:
-                        # Update YAML frontmatter
-                        parts = content.split("---")
-                        if len(parts) >= 3:
-                            front = parts[1]
-                            if f"- {new_slug}" not in front:
-                                front = front.rstrip() + f"\n  - {new_slug}\n"
-                                parts[1] = front
-                                write_text(os.path.join(root, f), "---".join(parts))
-                    # Also add a [[wikilink]] in the body
-                    body_start = content.find("---", content.find("---") + 1) + 3 if content.startswith("---") else 0
-                    body = content[body_start:]
-                    # Add link in "See also" section
-                    if "## See Also" not in body and "## Related" not in body:
-                        body += f"\n## See Also\n- [[{new_slug}]]\n"
-                        write_text(os.path.join(root, f), content[:body_start] + body)
+            page_path = os.path.join(root, f)
+            page_content = read_text(page_path)
+            prompt = UPDATE_PROMPT.format(
+                page_content=page_content,
+                source_content=source_content[:2000],
+                new_related=new_slug,
+            )
+            try:
+                resp = llm.chat(messages=[{"role": "user", "content": prompt}], max_tokens=1536, temperature=0.3)
+                updated = (resp.get("content") or "").strip()
+                if updated:
+                    write_text(page_path, updated)
+            except Exception:
+                pass
 
 
 def run_ingest(kb_id: str, source_filename: str, llm_client=None) -> str:
@@ -223,41 +235,57 @@ def run_ingest(kb_id: str, source_filename: str, llm_client=None) -> str:
     page_dir = os.path.join(wiki_dir, subdir)
     page_path = os.path.join(page_dir, f"{slug}.md")
     write_text(page_path, page_content)
-    _update_index(kb_dir, wiki_dir)
-    _update_related_pages(kb_dir, wiki_dir, slug, related)
+    _update_index(kb_dir, wiki_dir, llm)
+    _update_related_pages(kb_dir, wiki_dir, slug, related, source_content, llm)
     _append_log(kb_dir, title, slug, source_filename)
 
-    return f"Ingested '{source_filename}' -> created '{subdir}/{slug}.md' ({page_type}), updated {len(related)} related pages"
+    updated_count = sum(1 for r in related if r != slug)
+    return f"Ingested '{source_filename}' -> created '{subdir}/{slug}.md', updated {updated_count} related pages"
 
 
-def _update_index(kb_dir: str, wiki_dir: str):
-    entities = []
-    concepts = []
+def _frontmatter_field(content: str, field: str) -> str:
+    """Extract a YAML frontmatter field value."""
+    if not content.startswith("---"):
+        return ""
+    end = content.find("---", 3)
+    if end == -1:
+        return ""
+    front = content[3:end]
+    for line in front.split("\n"):
+        if line.strip().startswith(field + ":"):
+            val = line.split(":", 1)[1].strip().strip('"').strip("'")
+            return val
+    return ""
+
+
+def _update_index(kb_dir: str, wiki_dir: str, llm=None):
+    entries = []
     if os.path.isdir(wiki_dir):
         for root, dirs, files in os.walk(wiki_dir):
             for f in files:
-                if f.endswith(".md"):
-                    rel = os.path.relpath(os.path.join(root, f), wiki_dir)
-                    if rel.startswith("entities"):
-                        entities.append(f.replace(".md", ""))
-                    elif rel.startswith("concepts"):
-                        concepts.append(f.replace(".md", ""))
+                if not f.endswith(".md"):
+                    continue
+                rel = os.path.relpath(os.path.join(root, f), wiki_dir)
+                slug = f.replace(".md", "")
+                content = read_text(os.path.join(root, f))
+                summary = _frontmatter_field(content, "summary") or _frontmatter_field(content, "title") or slug
+                entries.append((rel, slug, summary))
     content = "# Team Wiki Index\n\n"
     content += f"Auto-generated. Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
-    if entities:
-        content += "## Entities\n"
-        for e in sorted(entities):
-            content += f"- {e}\n"
-        content += "\n"
-    if concepts:
-        content += "## Concepts\n"
-        for c in sorted(concepts):
-            content += f"- {c}\n"
+    categories = {"entities": "Entities", "concepts": "Concepts"}
+    for prefix, heading in categories.items():
+        items = [(s, m) for r, s, m in entries if r.startswith(prefix)]
+        if items:
+            content += f"## {heading}\n"
+            for slug, summary in sorted(items):
+                content += f"- [[{slug}]] — {summary}\n"
+            content += "\n"
     write_text(os.path.join(kb_dir, "index.md"), content)
 
 
 def _append_log(kb_dir: str, title: str, slug: str, source: str):
-    entry = f"- {datetime.now().strftime('%Y-%m-%d %H:%M')} | Ingested '{source}' -> {slug}.md | {title}\n"
+    today = datetime.now()
+    entry = f"## [{today.strftime('%Y-%m-%d %H:%M')}] ingest | {title}\n- Source: {source}\n- Created: [[{slug}]]\n\n"
     log_path = os.path.join(kb_dir, "log.md")
     with open(log_path, "a", encoding="utf-8") as f:
         f.write(entry)

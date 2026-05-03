@@ -13,7 +13,7 @@ SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the Coco
 ## Scene Context
 {scene_context}
 
-## Knowledge Bases
+## Your Wiki Knowledge
 {knowledge_overview}
 
 ## Active Skills
