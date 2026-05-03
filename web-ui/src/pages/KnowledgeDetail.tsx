@@ -9,6 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, ChevronRight, ChevronDown, Users, Lightbulb, BookOpen } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { transformWikilinks } from "@/lib/wikilink-transform"
+import { resolveWikiPage } from "@/lib/wiki-resolver"
+import type { WikiPageInfo } from "@/lib/wiki-resolver"
+import { FrontmatterPanel } from "@/components/FrontmatterPanel"
 
 const TYPE_CONFIG: Record<string, { icon: typeof Users; label: string; color: string }> = {
   entity:  { icon: Users,     label: "Entities", color: "text-blue-500" },
@@ -27,6 +31,14 @@ export default function KnowledgeDetail() {
     queryKey: ["knowledge", kbId, "wiki"],
     queryFn: () => knowledgeApi.listWiki(kbId!),
     enabled: !!kbId,
+  })
+
+  const [searchQuery, setSearchQuery] = useState("")
+
+  const search = useQuery({
+    queryKey: ["knowledge", kbId, "search", searchQuery],
+    queryFn: () => knowledgeApi.search(kbId!, searchQuery),
+    enabled: !!kbId && searchQuery.length >= 2,
   })
 
   const [selectedPage, setSelectedPage] = useState<string | null>(null)
@@ -55,6 +67,12 @@ export default function KnowledgeDetail() {
     a.localeCompare(b)
   )
 
+  const allPages: WikiPageInfo[] = (wiki?.pages ?? []).map(p => ({
+    name: p.name,
+    title: p.title,
+    path: p.path,
+  }))
+
   function toggleType(type: string) {
     setExpandedTypes(prev => {
       const next = new Set(prev)
@@ -65,6 +83,14 @@ export default function KnowledgeDetail() {
   }
 
   const pageContentData = pageContent.data
+
+  function handleWikilinkClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
+    if (!href.startsWith("#")) return
+    e.preventDefault()
+    const slug = decodeURIComponent(href.slice(1))
+    const resolved = resolveWikiPage(slug, allPages)
+    if (resolved) setSelectedPage(resolved.path)
+  }
 
   return (
     <div className="flex h-full">
@@ -79,52 +105,80 @@ export default function KnowledgeDetail() {
           </Link>
           <h2 className="font-semibold truncate">{kbId}</h2>
         </div>
-        <ScrollArea className="flex-1 p-2">
-          {kb?.purpose && (
-            <div className="px-2 pb-3 text-xs text-muted-foreground border-b border-border mb-2">
-              {kb.purpose.slice(0, 200)}
+        <div className="p-2">
+          <input
+            type="text"
+            placeholder="Search wiki..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-ring"
+          />
+        </div>
+        {searchQuery.length >= 2 && search.data ? (
+          <ScrollArea className="flex-1 p-2">
+            <div className="text-xs font-medium text-muted-foreground px-2 pb-1">
+              Search results ({search.data.results.length})
             </div>
-          )}
-          {sortedTypes.map(([type, pages]) => {
-            const config = TYPE_CONFIG[type] ?? { icon: BookOpen, label: type, color: "text-muted-foreground" }
-            const Icon = config.icon
-            const isExpanded = expandedTypes.has(type)
-            return (
-              <div key={type} className="mb-1">
-                <button
-                  onClick={() => toggleType(type)}
-                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent/50"
-                >
-                  {isExpanded ? (
-                    <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-                  )}
-                  <Icon className={`size-3.5 shrink-0 ${config.color}`} />
-                  <span className="flex-1 text-left font-medium">{config.label}</span>
-                  <span className="text-xs text-muted-foreground">{pages.length}</span>
-                </button>
-                {isExpanded && (
-                  <div className="ml-3">
-                    {pages.map(page => (
-                      <button
-                        key={page.name}
-                        onClick={() => setSelectedPage(page.path)}
-                        className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm ${
-                          selectedPage === page.path
-                            ? "bg-accent text-accent-foreground"
-                            : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
-                        }`}
-                      >
-                        <span className="truncate">{page.title || page.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+            {search.data.results.length === 0 && (
+              <div className="px-2 text-xs text-muted-foreground">No results</div>
+            )}
+            {search.data.results.map(r => (
+              <button key={r.path}
+                onClick={() => { setSelectedPage(r.path); setSearchQuery("") }}
+                className="flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent/50">
+                <span className="font-medium truncate">{r.title}</span>
+                <span className="text-xs text-muted-foreground truncate">{r.snippet}</span>
+              </button>
+            ))}
+          </ScrollArea>
+        ) : (
+          <ScrollArea className="flex-1 p-2">
+            {kb?.purpose && (
+              <div className="px-2 pb-3 text-xs text-muted-foreground border-b border-border mb-2">
+                {kb.purpose.slice(0, 200)}
               </div>
-            )
-          })}
-        </ScrollArea>
+            )}
+            {sortedTypes.map(([type, pages]) => {
+              const config = TYPE_CONFIG[type] ?? { icon: BookOpen, label: type, color: "text-muted-foreground" }
+              const Icon = config.icon
+              const isExpanded = expandedTypes.has(type)
+              return (
+                <div key={type} className="mb-1">
+                  <button
+                    onClick={() => toggleType(type)}
+                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent/50"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                    <Icon className={`size-3.5 shrink-0 ${config.color}`} />
+                    <span className="flex-1 text-left font-medium">{config.label}</span>
+                    <span className="text-xs text-muted-foreground">{pages.length}</span>
+                  </button>
+                  {isExpanded && (
+                    <div className="ml-3">
+                      {pages.map(page => (
+                        <button
+                          key={page.name}
+                          onClick={() => setSelectedPage(page.path)}
+                          className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm ${
+                            selectedPage === page.path
+                              ? "bg-accent text-accent-foreground"
+                              : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+                          }`}
+                        >
+                          <span className="truncate">{page.title || page.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </ScrollArea>
+        )}
       </div>
 
       {/* Right: Wiki reader */}
@@ -142,24 +196,28 @@ export default function KnowledgeDetail() {
         )}
         {pageContentData && (
           <div className="max-w-3xl mx-auto">
-            {pageContentData.frontmatter?.title && (
-              <h1 className="text-2xl font-bold mb-4">{pageContentData.frontmatter.title}</h1>
+            {pageContentData.frontmatter && Object.keys(pageContentData.frontmatter).length > 0 && (
+              <FrontmatterPanel frontmatter={pageContentData.frontmatter} />
             )}
-            <div className="flex flex-wrap gap-1 mb-4">
-              {pageContentData.frontmatter?.type && (
-                <Badge variant="outline">{pageContentData.frontmatter.type}</Badge>
-              )}
-              {pageContentData.frontmatter?.tags
-                ?.split(",")
-                .map((t: string, i: number) => (
-                  <Badge key={i} variant="secondary" className="text-xs">
-                    {t.trim()}
-                  </Badge>
-                ))}
-            </div>
             <div className="prose prose-sm dark:prose-invert max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {pageContentData.body}
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  a: ({ href, children, ...props }) => {
+                    const h = typeof href === "string" ? href : ""
+                    const isWikilink = h.startsWith("#")
+                    return (
+                      <a href={h || undefined}
+                        onClick={(e) => isWikilink && handleWikilinkClick(e, h)}
+                        className={isWikilink ? "cursor-pointer text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary" : "text-primary underline underline-offset-2"}
+                        {...props}>
+                        {children}
+                      </a>
+                    )
+                  },
+                }}
+              >
+                {transformWikilinks(pageContentData.body)}
               </ReactMarkdown>
             </div>
           </div>
