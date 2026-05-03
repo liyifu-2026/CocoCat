@@ -248,7 +248,6 @@ class AgentLoop:
             scene_name=self.scene_name, scene_context=scene_context,
             agent_memory=agent_memory, agent_skills="", env_skills=self.scene_skills,
             profile=agent_profile, user_profile=user_profile, user_conversation=user_conversation,
-            mounted_kbs=mounted_kbs,
         )
 
     def run(self, prompt: str, user_id: str = "") -> dict:
@@ -286,7 +285,6 @@ class AgentLoop:
             user_profile=user_profile,
             user_conversation="",
             knowledge_overview=knowledge_overview,
-            mounted_kbs=mounted_kbs,
         )
 
         messages = [

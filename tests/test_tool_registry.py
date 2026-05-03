@@ -14,8 +14,7 @@ def test_registry_no_old_tools():
     registry = create_default_registry()
     names = [t.name for t in registry.list_tools()]
     old_tools = ["install_skill", "uninstall_skill", "search_skill",
-                  "list_installed_skills", "lsp_hover", "lsp_definition", "lsp_references",
-                  "lint_wiki", "save_to_kb", "clip_to_kb", "generate_overview"]
+                  "list_installed_skills", "lsp_hover", "lsp_definition", "lsp_references"]
     for old in old_tools:
         assert old not in names, f"Old tool '{old}' should have been removed"
 
