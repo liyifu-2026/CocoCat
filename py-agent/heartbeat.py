@@ -52,6 +52,11 @@ def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = 
     while True:
         time.sleep(interval)
         try:
+            from agent_status import report as _sreport
+            _sreport(agent_id, "alive", f"heartbeat {agent_name}")
+        except Exception:
+            pass
+        try:
             from mailbox import read_inbox, mark_read
             messages = read_inbox(agent_id)
             unread = [m for m in messages if m.get("status") == "unread"]

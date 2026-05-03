@@ -244,6 +244,11 @@ class AgentLoop:
     def run(self, prompt: str, user_id: str = "") -> dict:
         """Execute a task prompt and return the result."""
         uid = user_id or self.user_id
+        try:
+            from agent_status import report as _report_status
+            _report_status(self.agent_id, "busy", prompt[:100])
+        except Exception:
+            pass
         tool_defs = self.tools.get_definitions()
         tool_desc = build_tool_descriptions(tool_defs)
         agent_memory = load_agent_memory(self.agent_id)
@@ -366,6 +371,11 @@ class AgentLoop:
             messages.append(assistant_msg)
             break
 
+        try:
+            from agent_status import report as _report_status
+            _report_status(self.agent_id, "idle", f"done in {iteration} iters")
+        except Exception:
+            pass
         append_history(self.agent_id, prompt, final_content, iteration)
         if uid:
             from dream import append_user_history, _user_hash
