@@ -9,6 +9,8 @@ import Settings from "@/pages/Settings"
 import Knowledge from "@/pages/Knowledge"
 import KnowledgeDetail from "@/pages/KnowledgeDetail"
 import Mailbox from "@/pages/Mailbox"
+import TokenUsage from "@/pages/TokenUsage"
+import Hiring from "@/pages/Hiring"
 
 export default function App() {
   return (
@@ -23,7 +25,9 @@ export default function App() {
           <Route path="/scenes/:id" element={<SceneDetail />} />
           <Route path="/knowledge" element={<Knowledge />} />
           <Route path="/knowledge/:kbId" element={<KnowledgeDetail />} />
+          <Route path="/hiring" element={<Hiring />} />
           <Route path="/mailbox" element={<Mailbox />} />
+          <Route path="/usage" element={<TokenUsage />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>

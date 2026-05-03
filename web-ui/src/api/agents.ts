@@ -9,6 +9,9 @@ export interface Agent {
 
 export interface UsageEntry {
   agent_id: string
+  timestamp?: string
+  input_tokens?: number
+  output_tokens?: number
   total_tokens: number
   iterations: number
 }
