@@ -837,6 +837,47 @@ class WebSearchTool(Tool):
             return f"Search failed: {e}"
 
 
+class BrowserTool(Tool):
+    """Control a headless browser: navigate, click, fill, extract, screenshot, scroll, links."""
+    name = "browser"
+    required_permission = PermissionMode.FULL_ACCESS
+    description = "Control a headless browser. Actions: navigate (load URL), click, fill, extract, screenshot, scroll, links."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "action": {"type": "string", "enum": ["navigate", "click", "fill", "extract", "screenshot", "scroll", "links"], "description": "Action to perform"},
+            "url": {"type": "string", "description": "URL for navigate action"},
+            "selector": {"type": "string", "description": "CSS selector for click/fill/extract"},
+            "value": {"type": "string", "description": "Value for fill action"},
+            "path": {"type": "string", "description": "File path for screenshot action"},
+            "direction": {"type": "string", "enum": ["down", "up"], "description": "Scroll direction"},
+        },
+        "required": ["action"],
+    }
+
+    def execute(self, action="", url="", selector="", value="", path="", direction="down", **kwargs) -> str:
+        from browser import BrowserSession
+        session = BrowserSession()
+        try:
+            if action == "navigate":
+                return session.navigate(url)
+            elif action == "click":
+                return session.click(selector)
+            elif action == "fill":
+                return session.fill(selector, value)
+            elif action == "extract":
+                return session.extract(selector)
+            elif action == "screenshot":
+                return session.screenshot(path)
+            elif action == "scroll":
+                return session.scroll(direction)
+            elif action == "links":
+                return session.get_links()
+            return f"Unknown action: {action}"
+        finally:
+            session.close()
+
+
 class McpCallTool(Tool):
     """Call a tool from an MCP server."""
     name = "mcp_call"
@@ -1274,6 +1315,7 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(ListSkillsTool(agent_id=agent_id))
     registry.register(SkillManageTool())
     registry.register(LspQueryTool())
+    registry.register(BrowserTool())
 
     try:
         from plugin_manager import discover_plugins, load_plugin_tools
