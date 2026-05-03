@@ -22,19 +22,21 @@ def handle_request(request: dict, agent_loop=None) -> dict:
         if agent_loop is None:
             return {"error": "agent loop not initialized"}
         prompt = params.get("prompt", "")
+        user_id = params.get("user_id", "")
         if not prompt:
             return {"error": "no prompt provided"}
-        result = agent_loop.run(prompt)
+        result = agent_loop.run(prompt, user_id=user_id)
         return result
     elif method == "task_stream":
         if agent_loop is None:
             return {"error": "agent loop not initialized"}
         prompt = params.get("prompt", "")
+        user_id = params.get("user_id", "")
         if not prompt:
             return {"error": "no prompt provided"}
         result = agent_loop.llm.chat_stream(
             messages=[
-                {"role": "system", "content": agent_loop._build_system_prompt()},
+                {"role": "system", "content": agent_loop._build_system_prompt(user_id=user_id)},
                 {"role": "user", "content": prompt},
             ],
         )

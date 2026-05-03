@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from llm import LLMClient
 from tools import ToolRegistry, create_default_registry, PermissionMode
-from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_skills, load_agent_profile
+from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_skills, load_agent_profile, load_user_profile
 import tiktoken
 
 
@@ -204,6 +204,7 @@ class AgentLoop:
         scene_context: str = "",
         scene_skills: str = "",
         permission_mode: PermissionMode = PermissionMode.FULL_ACCESS,
+        user_id: str = "",
     ):
         self.agent_id = agent_id
         self.agent_name = agent_name
@@ -215,28 +216,34 @@ class AgentLoop:
         self.scene_context = scene_context
         self.scene_skills = scene_skills
         self.permission_mode = permission_mode
+        self.user_id = user_id
 
-    def _build_system_prompt(self):
-        from context import build_system_prompt, build_tool_descriptions, load_agent_memory
+    def _build_system_prompt(self, user_id: str = ""):
+        from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_profile, load_user_profile
         tool_defs = self.tools.get_definitions()
         tool_desc = build_tool_descriptions(tool_defs)
         agent_memory = load_agent_memory(self.agent_id)
         agent_profile = load_agent_profile(self.agent_id)
+        uid = user_id or self.user_id
+        user_profile = load_user_profile(self.agent_id, uid)
+        user_conversation = ""
         return build_system_prompt(
             agent_id=self.agent_id, agent_name=self.agent_name,
             tool_descriptions=tool_desc, workspace=self.workspace,
             scene_name=self.scene_name, scene_context=self.scene_context,
             agent_memory=agent_memory, agent_skills="", env_skills=self.scene_skills,
-            profile=agent_profile,
+            profile=agent_profile, user_profile=user_profile, user_conversation=user_conversation,
         )
 
-    def run(self, prompt: str) -> dict:
+    def run(self, prompt: str, user_id: str = "") -> dict:
         """Execute a task prompt and return the result."""
+        uid = user_id or self.user_id
         tool_defs = self.tools.get_definitions()
         tool_desc = build_tool_descriptions(tool_defs)
         agent_memory = load_agent_memory(self.agent_id)
         agent_skills = load_agent_skills(self.agent_id)
         agent_profile = load_agent_profile(self.agent_id)
+        user_profile = load_user_profile(self.agent_id, uid)
 
         system_prompt = build_system_prompt(
             agent_id=self.agent_id,
@@ -249,6 +256,8 @@ class AgentLoop:
             agent_skills=agent_skills,
             env_skills=self.scene_skills,
             profile=agent_profile,
+            user_profile=user_profile,
+            user_conversation="",
         )
 
         messages = [

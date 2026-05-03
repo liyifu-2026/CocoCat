@@ -177,7 +177,7 @@ def _agent_process_message(scene_id: str, user_id: str, content: str, channel_ty
 
     agent_script = str(BASE_DIR / "py-agent" / "agent_runtime.py")
     prompt = f"{context}\n\n## Conversation\n{history_text}\n\n[user] {content}\n\nRespond concisely."
-    task = json.dumps({"jsonrpc": "2.0", "method": "task", "params": {"prompt": prompt}, "id": 1})
+    task = json.dumps({"jsonrpc": "2.0", "method": "task", "params": {"prompt": prompt, "user_id": user_id}, "id": 1})
 
     reply_text = "(processing)"
     try:
