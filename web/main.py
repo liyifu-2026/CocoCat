@@ -1,9 +1,9 @@
 """CocoCat Web Management Panel — FastAPI backend."""
 import json
 import os
+import re
 import sys
 import subprocess
-import shutil
 from pathlib import Path
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -301,8 +301,16 @@ def list_pending_hires():
     return {"pending": hires}
 
 
+_VALID_ID = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+def _validate_hire_id(hire_id: str) -> bool:
+    return bool(_VALID_ID.match(hire_id))
+
+
 @app.post("/api/hiring/pending/{hire_id}/approve")
 async def approve_hire(hire_id: str, request: Request):
+    if not _validate_hire_id(hire_id):
+        return JSONResponse({"error": "invalid hire_id"}, status_code=400)
     pending_dir = BASE_DIR / "agents" / "hire_requests" / "pending"
     approved_dir = BASE_DIR / "agents" / "hire_requests" / "approved"
     approved_dir.mkdir(parents=True, exist_ok=True)
@@ -330,6 +338,8 @@ async def approve_hire(hire_id: str, request: Request):
 
 @app.post("/api/hiring/pending/{hire_id}/reject")
 def reject_hire(hire_id: str):
+    if not _validate_hire_id(hire_id):
+        return JSONResponse({"error": "invalid hire_id"}, status_code=400)
     pending_dir = BASE_DIR / "agents" / "hire_requests" / "pending"
     rejected_dir = BASE_DIR / "agents" / "hire_requests" / "rejected"
     rejected_dir.mkdir(parents=True, exist_ok=True)
