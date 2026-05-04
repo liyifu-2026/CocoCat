@@ -4,24 +4,37 @@ use ratatui::{
     Terminal,
 };
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{self, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
+struct Cleanup;
+
+impl Drop for Cleanup {
+    fn drop(&mut self) {
+        let _ = disable_raw_mode();
+        let _ = execute!(io::stdout(), LeaveAlternateScreen);
+    }
+}
+
 fn main() -> io::Result<()> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-    terminal.clear()?;
+    terminal.hide_cursor()?;
+
+    let _guard = Cleanup;
 
     let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
     let r = running.clone();
-    ctrlc::set_handler(move || {
+    if let Err(e) = ctrlc::set_handler(move || {
         r.store(false, std::sync::atomic::Ordering::Relaxed);
-    }).ok();
+    }) {
+        eprintln!("Warning: could not set Ctrl+C handler: {e}");
+    }
 
     while running.load(std::sync::atomic::Ordering::Relaxed) {
         terminal.draw(|f| {
@@ -39,8 +52,7 @@ fn main() -> io::Result<()> {
         }
     }
 
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    drop(_guard);
     terminal.show_cursor()?;
     Ok(())
 }
