@@ -73,7 +73,52 @@ pub fn run_migrations(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
 
         CREATE INDEX IF NOT EXISTS idx_tasks_status_target
             ON tasks(status, target_agent)
-            WHERE status IN ('pending','running');"
+            WHERE status IN ('pending','running');
+
+        CREATE TABLE IF NOT EXISTS mailbox (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            msg_uuid TEXT UNIQUE NOT NULL,
+            from_agent TEXT NOT NULL REFERENCES agents(id),
+            to_agent TEXT NOT NULL REFERENCES agents(id),
+            subject TEXT NOT NULL DEFAULT '',
+            body TEXT NOT NULL DEFAULT '',
+            read INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS hire_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            request_uuid TEXT UNIQUE NOT NULL,
+            requester_agent TEXT NOT NULL REFERENCES agents(id),
+            new_agent_id TEXT NOT NULL,
+            new_agent_name TEXT NOT NULL,
+            new_agent_role TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending','approved','rejected')),
+            reviewer TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            decided_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS scenes (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            roster TEXT NOT NULL DEFAULT '[]',
+            metadata TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS skills (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            scope TEXT NOT NULL CHECK (scope IN ('public','private','scene')),
+            content TEXT NOT NULL,
+            scene_id TEXT REFERENCES scenes(id),
+            agent_id TEXT REFERENCES agents(id),
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );"
     )?;
     Ok(())
 }
