@@ -54,6 +54,7 @@ pub struct App {
     pub input: String,
     pub input_mode: InputMode,
     pub show_sidebar: bool,
+    pub sidebar_auto: bool,
     pub sidebar_tab: SidebarTab,
     pub theme_registry: ThemeRegistry,
     pub scroll_offset: usize,
@@ -70,6 +71,7 @@ impl App {
             input: String::new(),
             input_mode: InputMode::Normal,
             show_sidebar: false,
+            sidebar_auto: true,
             sidebar_tab: SidebarTab::Sessions,
             theme_registry: ThemeRegistry::new(),
             scroll_offset: 0,
@@ -115,7 +117,15 @@ impl App {
     }
 
     pub fn toggle_sidebar(&mut self) {
-        self.show_sidebar = !self.show_sidebar;
+        if self.sidebar_auto {
+            self.sidebar_auto = false;
+            self.show_sidebar = false;
+        } else if !self.show_sidebar {
+            self.show_sidebar = true;
+        } else {
+            self.sidebar_auto = true;
+            self.show_sidebar = false;
+        }
     }
 
     pub fn quit(&mut self) {

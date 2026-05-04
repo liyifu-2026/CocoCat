@@ -6,6 +6,8 @@ use std::time::Duration;
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
+    style::{Color, Style},
+    widgets::{Block, Clear},
     Terminal,
 };
 use crossterm::{
@@ -190,28 +192,48 @@ fn main() -> io::Result<()> {
     while running.load(Ordering::Relaxed) && !app.should_quit {
         terminal.draw(|f| {
             let area = f.area();
-            let chunks = if app.show_sidebar {
-                Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
+            let term_width = area.width;
+            let sidebar_visible = app.show_sidebar || (app.sidebar_auto && term_width > 120);
+
+            let chunks = if sidebar_visible && term_width > 120 {
+                Layout::default().direction(Direction::Horizontal)
+                    .constraints([Constraint::Min(0), Constraint::Length(42)])
                     .split(area)
             } else {
-                Layout::default()
-                    .direction(Direction::Horizontal)
+                Layout::default().direction(Direction::Horizontal)
                     .constraints([Constraint::Percentage(100), Constraint::Length(0)])
                     .split(area)
             };
-            let vertical = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Min(3), Constraint::Length(3), Constraint::Length(1)])
+
+            let vertical = Layout::default().direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(1),   // header
+                    Constraint::Min(3),      // chat
+                    Constraint::Length(3),   // input
+                    Constraint::Length(1),   // status bar
+                ])
                 .split(chunks[0]);
 
-            chat_panel::render_chat_panel(f, vertical[0], &app.messages, app.scroll_offset, app.theme_registry.current_theme());
-            input_bar::render_input_bar(f, vertical[1], &input, app.theme_registry.current_theme(), !is_streaming);
-            status_bar::render_status_bar(f, vertical[2], &app.agent_id, "default", app.theme_registry.current_theme());
+            chat_panel::render_chat_panel(f, vertical[1], &app.messages, app.scroll_offset, app.theme_registry.current_theme());
+            input_bar::render_input_bar(f, vertical[2], &input, app.theme_registry.current_theme(), !is_streaming);
+            status_bar::render_status_bar(f, vertical[3], &app.agent_id, "default", app.theme_registry.current_theme());
 
-            if app.show_sidebar {
+            if sidebar_visible && term_width > 120 {
                 sidebar::render_sidebar(f, chunks[1], &app.sidebar_tab, app.theme_registry.current_theme());
+            }
+
+            if app.show_sidebar && term_width <= 120 {
+                let overlay = Layout::default().direction(Direction::Horizontal)
+                    .constraints([Constraint::Min(0), Constraint::Length(42)])
+                    .split(area);
+
+                f.render_widget(Clear, area);
+
+                let backdrop = Block::default()
+                    .style(Style::default().bg(Color::Rgb(0, 0, 0)).fg(Color::Rgb(0, 0, 0)));
+                f.render_widget(backdrop, area);
+
+                sidebar::render_sidebar(f, overlay[1], &app.sidebar_tab, app.theme_registry.current_theme());
             }
 
             if let Some(ref dialog) = app.dialog {
