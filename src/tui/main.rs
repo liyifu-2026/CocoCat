@@ -19,12 +19,13 @@ mod components;
 mod config;
 mod event;
 mod protocol;
+mod session;
 mod theme;
 
 use app::{App, Dialog};
 use event::TuiEvent;
 use protocol::client::AgentClient;
-use components::{chat_panel, input_bar, sidebar, status_bar};
+use components::{chat_panel, dialogs, input_bar, sidebar, status_bar};
 use components::input_bar::{InputBuffer, InputHistory};
 
 struct Cleanup;
@@ -210,6 +211,10 @@ fn main() -> io::Result<()> {
 
             if app.show_sidebar {
                 sidebar::render_sidebar(f, chunks[1], &app.sidebar_tab, app.theme_registry.current_theme());
+            }
+
+            if let Some(ref dialog) = app.dialog {
+                dialogs::render_dialog(f, area, dialog, &app);
             }
         })?;
 
