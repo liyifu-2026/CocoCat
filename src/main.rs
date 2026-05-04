@@ -174,6 +174,9 @@ fn setup_shutdown_handler(running: Arc<AtomicBool>) {
         while r.load(Ordering::Relaxed) {
             input.clear();
             match std::io::stdin().read_line(&mut input) {
+                Ok(n) if n == 0 => {
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
                 Ok(_) => {
                     let trimmed = input.trim();
                     if trimmed.eq_ignore_ascii_case("quit") || trimmed.eq_ignore_ascii_case("exit") {
