@@ -6,6 +6,17 @@ use syntect::highlighting::ThemeSet;
 use syntect::easy::HighlightLines;
 use crate::theme::theme::Theme;
 
+fn syntect_theme_name(app_theme_name: &str) -> &str {
+    match app_theme_name {
+        "catppuccin-mocha" => "base16-mocha.dark",
+        "nord" => "base16-nord",
+        "dracula" => "base16-dracula",
+        "tokyonight" => "base16-tokyo-night",
+        "gruvbox" => "base16-gruvbox.dark",
+        _ => "base16-ocean.dark",
+    }
+}
+
 fn get_syntax_set() -> &'static SyntaxSet {
     static SS: OnceLock<SyntaxSet> = OnceLock::new();
     SS.get_or_init(|| SyntaxSet::load_defaults_newlines())
@@ -16,7 +27,7 @@ fn get_theme_set() -> &'static ThemeSet {
     TS.get_or_init(|| ThemeSet::load_defaults())
 }
 
-pub fn render_markdown(text: &str, theme: &Theme) -> Vec<Span<'static>> {
+pub fn render_markdown(text: &str, theme: &Theme, theme_name: &str) -> Vec<Span<'static>> {
     let mut spans = Vec::new();
     let mut buf = String::new();
     let mut bold = false;
@@ -38,7 +49,7 @@ pub fn render_markdown(text: &str, theme: &Theme) -> Vec<Span<'static>> {
             if code_block {
                 let lang = if code_block_lang.is_empty() { "text" } else { &code_block_lang };
                 let syntax = ss.find_syntax_by_token(lang).unwrap_or_else(|| ss.find_syntax_plain_text());
-                let mut highlighter = HighlightLines::new(syntax, &syn_ts.themes["base16-ocean.dark"]);
+                let mut highlighter = HighlightLines::new(syntax, &syn_ts.themes[syntect_theme_name(theme_name)]);
                 for line in buf.lines() {
                     if let Ok(ranges) = highlighter.highlight_line(line, ss) {
                         for (syn_style, text) in ranges {
@@ -101,7 +112,7 @@ pub fn render_markdown(text: &str, theme: &Theme) -> Vec<Span<'static>> {
     if code_block {
         let lang = if code_block_lang.is_empty() { "text" } else { &code_block_lang };
         let syntax = ss.find_syntax_by_token(lang).unwrap_or_else(|| ss.find_syntax_plain_text());
-        let mut highlighter = HighlightLines::new(syntax, &syn_ts.themes["base16-ocean.dark"]);
+        let mut highlighter = HighlightLines::new(syntax, &syn_ts.themes[syntect_theme_name(theme_name)]);
         for line in buf.lines() {
             if let Ok(ranges) = highlighter.highlight_line(line, ss) {
                 for (syn_style, text) in ranges {

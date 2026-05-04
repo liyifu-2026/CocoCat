@@ -71,7 +71,7 @@ fn build_message_lines(messages: &[ChatMessage], width: usize, theme: &Theme, ar
             for event in &msg.events {
                 match event {
                     TuiEvent::Delta(s) => {
-                        let spans = crate::components::markdown::render_markdown(s, theme);
+                        let spans = crate::components::markdown::render_markdown(s, theme, &theme.name);
                         if spans.is_empty() {
                             for line in s.split('\n') {
                                 let mut l = Line::from(Span::raw(line.to_string()));
