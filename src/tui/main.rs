@@ -168,6 +168,12 @@ fn handle_key(
             if let Some(s) = history.navigate_next() { input.set_text(s); }
             else { input.clear(); }
         }
+        (KeyCode::PageUp, _) => {
+            app.scroll_up(10);
+        }
+        (KeyCode::PageDown, _) => {
+            app.scroll_down(10);
+        }
         _ => {}
     }
 }

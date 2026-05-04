@@ -147,6 +147,7 @@ pub struct App {
     pub sidebar_sections: Vec<SidebarSection>,
     pub theme_registry: ThemeRegistry,
     pub scroll_offset: usize,
+    pub scroll_locked: bool,
     pub should_quit: bool,
     pub status_message: String,
     pub dialog: Option<Dialog>,
@@ -173,6 +174,7 @@ impl App {
             ],
             theme_registry: ThemeRegistry::new(),
             scroll_offset: 0,
+            scroll_locked: true,
             should_quit: false,
             status_message: String::new(),
             dialog: None,
@@ -239,8 +241,28 @@ impl App {
         self.theme_registry.switch(name)
     }
 
+    pub fn scroll_up(&mut self, lines: usize) {
+        self.scroll_locked = false;
+        if self.scroll_offset == usize::MAX {
+            self.scroll_offset = lines;
+        } else {
+            self.scroll_offset = self.scroll_offset.saturating_add(lines);
+        }
+    }
+
+    pub fn scroll_down(&mut self, lines: usize) {
+        if self.scroll_offset == usize::MAX { return; }
+        if lines >= self.scroll_offset {
+            self.scroll_offset = usize::MAX;
+            self.scroll_locked = true;
+        } else {
+            self.scroll_offset = self.scroll_offset.saturating_sub(lines);
+        }
+    }
+
     pub fn scroll_to_bottom(&mut self) {
         self.scroll_offset = usize::MAX;
+        self.scroll_locked = true;
     }
 
     pub fn toggle_sidebar(&mut self) {
