@@ -10,6 +10,7 @@ pub struct AgentProcess {
     pub agent_id: String,
     child: Child,
     stdin_writer: Option<std::process::ChildStdin>,
+    stdout_receiver: mpsc::Receiver<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -73,7 +74,29 @@ impl AgentProcess {
         let stderr = child.stderr.take()
             .ok_or_else(|| "Failed to take stderr".to_string())?;
 
+        let stdout = child.stdout.take()
+            .ok_or_else(|| "Failed to take stdout".to_string())?;
+
         let agent_id = config.id.clone();
+
+        // Background thread: continuously reads stdout and sends lines through channel.
+        // Created once at spawn, reused for all call() invocations.
+        let (tx, stdout_receiver) = mpsc::channel::<String>();
+        thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                match line {
+                    Ok(l) => {
+                        if tx.send(l).is_err() {
+                            break; // receiver dropped
+                        }
+                    }
+                    Err(_) => break, // EOF or error
+                }
+            }
+        });
+
+        // Stderr forwarder
         thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines() {
@@ -87,6 +110,7 @@ impl AgentProcess {
             agent_id: config.id.clone(),
             child,
             stdin_writer: Some(stdin_writer),
+            stdout_receiver,
         })
     }
 
@@ -114,24 +138,10 @@ impl AgentProcess {
             return Err("stdin closed".to_string());
         }
 
-        let stdout = self.child.stdout.take()
-            .ok_or_else(|| "stdout already taken".to_string())?;
-
-        let (tx, rx) = mpsc::channel();
-        thread::spawn(move || {
-            let mut reader = BufReader::new(stdout);
-            let mut line = String::new();
-            let result = reader.read_line(&mut line);
-            let _ = tx.send((
-                reader.into_inner(),
-                line,
-                result.map_err(|e| e.to_string()),
-            ));
-        });
-
-        let (stdout, line, read_result) = if timeout_secs > 0 {
-            match rx.recv_timeout(Duration::from_secs(timeout_secs)) {
-                Ok(v) => v,
+        // Read one response line from the persistent background reader
+        let line = if timeout_secs > 0 {
+            match self.stdout_receiver.recv_timeout(Duration::from_secs(timeout_secs)) {
+                Ok(l) => l,
                 Err(mpsc::RecvTimeoutError::Timeout) => {
                     return Err(format!(
                         "Agent {} call timed out after {}s",
@@ -143,12 +153,9 @@ impl AgentProcess {
                 }
             }
         } else {
-            rx.recv().map_err(|_| "Agent stdout channel disconnected".to_string())?
+            self.stdout_receiver.recv()
+                .map_err(|_| "Agent stdout channel disconnected".to_string())?
         };
-
-        self.child.stdout = Some(stdout);
-
-        read_result?;
 
         let response: JsonRpcResponse = serde_json::from_str(&line)
             .map_err(|e| format!("parse JSON-RPC response: {} (raw: {})", e, line))?;
