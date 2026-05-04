@@ -4,12 +4,14 @@ use ratatui::{
     Terminal,
 };
 use crossterm::{
-    event::{self, Event, KeyCode},
+    event::{self as crossterm_event, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
 mod config;
+mod event;
+mod protocol;
 mod theme;
 
 struct Cleanup;
@@ -46,8 +48,8 @@ fn main() -> io::Result<()> {
             f.render_widget(text, area);
         })?;
 
-        if event::poll(std::time::Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
+        if crossterm_event::poll(std::time::Duration::from_millis(100))? {
+            if let Event::Key(key) = crossterm_event::read()? {
                 if key.code == KeyCode::Char('q') {
                     break;
                 }
