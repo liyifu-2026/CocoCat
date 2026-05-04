@@ -1,23 +1,25 @@
 """CocoCat CLI commands — merged from agents.py, chat.py, daemon.py, mailbox.py, hire.py, status.py."""
-import asyncio
 import json
 import os
+import select
 import signal
 import subprocess
 import sys
 import time
 import typer
+from contextlib import suppress
 from pathlib import Path
 
-from .config import load_config, save_config, CONFIG_PATH
+from .config import load_config, save_config, CONFIG_PATH as _CONFIG_PATH
 from .render import (
     console, print_agent_response, print_success, print_error,
-    print_warning, print_info, print_table, print_panel,
+    print_warning, print_info, print_table, print_panel, print_progress,
 )
 from .stream import StreamRenderer, ThinkingSpinner
-from .session import Session
+from .session import Session, SessionManager
 
 app = typer.Typer(help="CocoCat CLI commands")
+_SAVED_TERM_ATTRS = None
 
 # ===========================================================================
 # Config commands
@@ -55,9 +57,14 @@ def config_set(key: str = typer.Argument(...), value: str = typer.Argument(...))
 # ===========================================================================
 
 @app.command()
-def status():
+def status(
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
+):
     """Show overall system status."""
-    cfg = load_config()
+    cfg, _ = _load_runtime_config(config)
+    if workspace:
+        cfg.workspace = workspace
     agents_dir = Path(__file__).resolve().parent.parent.parent / "agents"
     config_path = agents_dir / "config.toml"
 
@@ -139,6 +146,73 @@ app.add_typer(agent_app, name="agent")
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 AGENTS_DIR = BASE_DIR / "agents"
+
+
+# ---------------------------------------------------------------------------
+# Signal handling + terminal management (nanobot pattern)
+# ---------------------------------------------------------------------------
+
+def _save_terminal():
+    global _SAVED_TERM_ATTRS
+    with suppress(Exception):
+        import termios
+        _SAVED_TERM_ATTRS = termios.tcgetattr(sys.stdin.fileno())
+
+
+def _restore_terminal():
+    if _SAVED_TERM_ATTRS is None:
+        return
+    with suppress(Exception):
+        import termios
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, _SAVED_TERM_ATTRS)
+
+
+def _setup_signal_handlers():
+    """Register signal handlers for clean shutdown."""
+    def _handler(signum, frame):
+        _restore_terminal()
+        sig_name = signal.Signals(signum).name
+        console.print(f"\n[yellow]Received {sig_name}, goodbye![/yellow]")
+        sys.exit(0)
+    signal.signal(signal.SIGINT, _handler)
+    signal.signal(signal.SIGTERM, _handler)
+    if hasattr(signal, 'SIGHUP'):
+        signal.signal(signal.SIGHUP, _handler)
+    if hasattr(signal, 'SIGPIPE'):
+        signal.signal(signal.SIGPIPE, signal.SIG_IGN)
+
+
+def _flush_pending_tty_input():
+    """Drop unread keypresses typed while the agent was generating output."""
+    try:
+        fd = sys.stdin.fileno()
+        if not os.isatty(fd):
+            return
+    except Exception:
+        return
+    with suppress(Exception):
+        import termios
+        termios.tcflush(fd, termios.TCIFLUSH)
+        return
+    with suppress(Exception):
+        while True:
+            ready, _, _ = select.select([fd], [], [], 0)
+            if not ready:
+                break
+            if not os.read(fd, 4096):
+                break
+
+
+def _load_runtime_config(config_path: str | None = None) -> tuple:
+    """Load config with optional override path (nanobot _load_runtime_config pattern)."""
+    if config_path:
+        from .config import CONFIG_DIR
+        cfg_path = Path(config_path).expanduser().resolve()
+        if not cfg_path.exists():
+            print_error(f"Config not found: {cfg_path}")
+            raise typer.Exit(1)
+    cfg = load_config()
+    return cfg, config_path
 
 
 def _load_agent_config():
@@ -264,11 +338,18 @@ app.add_typer(chat_app, name="chat")
 AGENT_RUNTIME = BASE_DIR / "agent_runtime.py"
 
 
-def _send_to_agent(agent_id: str, prompt: str, timeout: int = 60) -> dict:
-    """Send a task to an agent via subprocess and return the result."""
+def _send_to_agent(agent_id: str, prompt: str, timeout: int = 60, on_progress=None) -> dict:
+    """Send a task to an agent via subprocess and return the result.
+    
+    If on_progress is provided, it's called with progress messages.
+    """
+    if on_progress:
+        on_progress("Connecting to agent...")
+    
+    runtime = Path(__file__).resolve().parent.parent / "agent_runtime.py"
     try:
         proc = subprocess.Popen(
-            ["python3", "-u", str(AGENT_RUNTIME), "--id", agent_id, "--name", agent_id],
+            ["python3", "-u", str(runtime), "--id", agent_id, "--name", agent_id],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -278,7 +359,14 @@ def _send_to_agent(agent_id: str, prompt: str, timeout: int = 60) -> dict:
             "jsonrpc": "2.0", "method": "task",
             "params": {"prompt": prompt}, "id": 1,
         })
+        
+        if on_progress:
+            on_progress("Agent processing...")
+        
         stdout, _ = proc.communicate(input=request + "\n", timeout=timeout)
+
+        if on_progress:
+            on_progress("Parsing response...")
 
         for line in stdout.splitlines():
             line = line.strip()
@@ -302,11 +390,22 @@ def chat_send(
     agent_id: str = typer.Argument(..., help="Agent ID to message"),
     message: str = typer.Argument(..., help="Message content"),
     timeout: int = typer.Option(60, "--timeout", "-t", help="Response timeout in seconds"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
 ):
     """Send a single message to an agent and get response."""
-    cfg = load_config()
-    print_info(f"Sending to {agent_id}...")
-    result = _send_to_agent(agent_id, message, timeout)
+    cfg, _ = _load_runtime_config(config)
+    if workspace:
+        cfg.workspace = workspace
+
+    spinner = ThinkingSpinner()
+    with spinner:
+        if cfg.display.show_progress:
+            spinner.update(f"Sending to {agent_id}...")
+        result = _send_to_agent(
+            agent_id, message, timeout,
+            on_progress=lambda msg: spinner.update(msg) if cfg.display.show_progress else None,
+        )
 
     if "error" in result:
         print_error(result["error"])
@@ -320,19 +419,49 @@ def chat_send(
 def chat_interactive(
     agent_id: str = typer.Argument("leader", help="Agent ID to chat with"),
     timeout: int = typer.Option(120, "--timeout", "-t", help="Response timeout per message"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
 ):
     """Start an interactive chat session with an agent."""
-    cfg = load_config()
+    cfg, _ = _load_runtime_config(config)
+    if workspace:
+        cfg.workspace = workspace
     agent_id = agent_id or cfg.chat.default_agent
 
-    session = Session(agent_id)
+    _save_terminal()
+    _setup_signal_handlers()
+
+    try:
+        import prompt_toolkit
+        from prompt_toolkit.history import FileHistory
+    except ImportError:
+        prompt_toolkit = None
+
+    session_mgr = SessionManager()
+    session = session_mgr.get_or_create(agent_id)
+    history_path = Path.home() / ".cococat" / "history" / f"{agent_id}.txt"
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    history = FileHistory(str(history_path))
+    psession = prompt_toolkit.PromptSession(history=history) if prompt_toolkit else None
 
     console.print(f"[bold cyan]Interactive chat with {agent_id}[/bold cyan]")
+    if session.messages:
+        console.print(f"[dim]Resuming session {session.key} ({len(session.messages)} previous messages)[/dim]")
     console.print("[dim]Type 'exit' or 'quit' to end. Ctrl+C to interrupt.[/dim]\n")
 
+    renderer = None
+
     while True:
+        _flush_pending_tty_input()
+
+        if renderer:
+            renderer.stop_for_input()
+
         try:
-            user_input = input("You: ").strip()
+            if psession:
+                user_input = psession.prompt("You: ").strip()
+            else:
+                user_input = input("You: ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
             break
@@ -344,19 +473,31 @@ def chat_interactive(
 
         session.add_message("user", user_input)
 
-        console.print(f"[dim]{agent_id} is thinking...[/dim]")
-        result = _send_to_agent(agent_id, user_input, timeout)
+        renderer = StreamRenderer(render_markdown=cfg.display.render_markdown)
+        spinner = ThinkingSpinner(f"{agent_id} is thinking...")
+
+        with spinner:
+            result = _send_to_agent(
+                agent_id, user_input, timeout,
+                on_progress=lambda msg: print_progress(msg) if cfg.display.show_progress else None,
+            )
 
         if "error" in result:
             print_error(result["error"])
+            renderer = None
             continue
 
         content = result.get("content", str(result))
-        print_agent_response(content, render_markdown=cfg.display.render_markdown, agent_name=agent_id)
+
+        for chunk in [content[i:i+50] for i in range(0, len(content), 50)]:
+            renderer.on_delta(chunk)
+
+        renderer.on_end()
         session.add_message("assistant", content)
 
+    _restore_terminal()
     if cfg.chat.session_persistence:
-        session.save()
+        session_mgr.save(session)
         print_info(f"Session saved: {session.key}")
 
 
@@ -375,9 +516,13 @@ PROJECT_DIR = BASE_DIR.parent
 @daemon_app.command("start")
 def daemon_start(
     foreground: bool = typer.Option(False, "--foreground", "-f", help="Run in foreground"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
 ):
     """Start the CocoCat Rust daemon."""
-    cfg = load_config()
+    cfg, _ = _load_runtime_config(config)
+    if workspace:
+        cfg.workspace = workspace
 
     if PID_FILE.exists():
         try:

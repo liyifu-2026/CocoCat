@@ -1,17 +1,18 @@
-"""Chat session persistence (JSONL history)."""
+"""Chat session persistence (JSONL history) — nanobot SessionManager pattern."""
 import json
 import time
 from pathlib import Path
 
 SESSIONS_DIR = Path.home() / ".cococat" / "sessions"
+SESSION_TTL_DAYS = 7
 
 
 class Session:
-    """A chat session with message history persisted to JSONL."""
+    """A single chat session with message history."""
 
-    def __init__(self, agent_id: str):
+    def __init__(self, agent_id: str, key: str = ""):
         self.agent_id = agent_id
-        self.key = f"{agent_id}_{int(time.time())}"
+        self.key = key or f"{agent_id}_{int(time.time())}"
         self.messages: list[dict] = []
         self._path = SESSIONS_DIR / f"{self.key}.jsonl"
         self._loaded = False
@@ -39,10 +40,8 @@ class Session:
         if not path.exists():
             return None
         agent_id = key.split("_")[0] if "_" in key else key
-        session = cls(agent_id)
-        session.key = key
+        session = cls(agent_id, key=key)
         session._path = path
-        session.messages = []
         for line in path.read_text().splitlines():
             if line.strip():
                 try:
@@ -52,11 +51,65 @@ class Session:
         session._loaded = True
         return session
 
-    @classmethod
-    def list_sessions(cls) -> list[str]:
+
+class SessionManager:
+    """Manages multiple sessions with lifecycle (nanobot SessionManager pattern)."""
+
+    def __init__(self):
+        self._sessions: dict[str, Session] = {}
+
+    def get_or_create(self, agent_id: str, key: str = "") -> Session:
+        if not key:
+            recent = self.list_sessions(agent_id)
+            if recent:
+                loaded = Session.load(recent[0])
+                if loaded:
+                    self._sessions[loaded.key] = loaded
+                    return loaded
+        if key and key in self._sessions:
+            return self._sessions[key]
+        if key:
+            loaded = Session.load(key)
+            if loaded:
+                self._sessions[key] = loaded
+                return loaded
+        session = Session(agent_id, key=key)
+        if key:
+            self._sessions[key] = session
+        return session
+
+    def save(self, session: Session):
+        session.save()
+
+    def flush_all(self) -> int:
+        count = 0
+        for session in self._sessions.values():
+            if session.messages:
+                session.save()
+                count += 1
+        return count
+
+    @staticmethod
+    def list_sessions(agent_id: str | None = None) -> list[str]:
         if not SESSIONS_DIR.exists():
             return []
-        return sorted(
+        sessions = sorted(
             [f.stem for f in SESSIONS_DIR.glob("*.jsonl")],
             reverse=True,
         )
+        if agent_id:
+            return [s for s in sessions if s.startswith(agent_id)]
+        return sessions
+
+    @staticmethod
+    def clean_expired(ttl_days: int = SESSION_TTL_DAYS) -> int:
+        """Remove sessions older than ttl_days. Returns count removed."""
+        if not SESSIONS_DIR.exists():
+            return 0
+        cutoff = time.time() - ttl_days * 86400
+        removed = 0
+        for f in SESSIONS_DIR.glob("*.jsonl"):
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+                removed += 1
+        return removed

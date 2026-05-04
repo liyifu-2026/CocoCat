@@ -1,4 +1,4 @@
-"""CocoCat CLI configuration — Pydantic schema + JSON persistence."""
+"""CocoCat CLI configuration — Pydantic schema + persistence + migration."""
 from pydantic import BaseModel
 import json
 import os
@@ -7,6 +7,13 @@ from pathlib import Path
 
 CONFIG_DIR = Path.home() / ".cococat"
 CONFIG_PATH = CONFIG_DIR / "config.json"
+
+_CONFIG_MIGRATIONS = []
+
+
+def _register_migration(version_tag: str, fn):
+    """Register a config migration function."""
+    _CONFIG_MIGRATIONS.append((version_tag, fn))
 
 
 class DaemonConfig(BaseModel):
@@ -27,6 +34,7 @@ class DisplayConfig(BaseModel):
 
 
 class Config(BaseModel):
+    config_version: str = "1"
     workspace: str = str(Path.home() / ".cococat" / "workspace")
     daemon: DaemonConfig = DaemonConfig()
     chat: ChatConfig = ChatConfig()
@@ -47,12 +55,51 @@ def _resolve_env_vars(obj):
     return obj
 
 
-def load_config() -> Config:
-    """Load config from ~/.cococat/config.json, or return defaults."""
-    if not CONFIG_PATH.exists():
+def _merge_missing_defaults(existing: dict, defaults: dict) -> dict:
+    """Recursively fill missing keys from defaults without overwriting user values."""
+    merged = dict(existing)
+    for key, value in defaults.items():
+        if key not in merged:
+            merged[key] = value
+        elif isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge_missing_defaults(merged[key], value)
+    return merged
+
+
+def _migrate_config(raw: dict) -> dict:
+    """Run registered migrations in order (nanobot _migrate_config pattern)."""
+    for version_tag, fn in _CONFIG_MIGRATIONS:
+        if raw.get("config_version", "0") < version_tag:
+            try:
+                fn(raw)
+                raw["config_version"] = version_tag
+            except Exception:
+                break
+    return raw
+
+
+def _warn_deprecated(raw: dict):
+    """Print warnings for deprecated config keys."""
+    deprecated = {
+        "memoryWindow": "`memoryWindow` is no longer used and can be safely removed.",
+    }
+    for key, msg in deprecated.items():
+        if key in raw:
+            import warnings
+            warnings.warn(f"Config: {msg}")
+
+
+def load_config(config_path: str | None = None) -> Config:
+    """Load config, run migrations, return Config."""
+    path = Path(config_path).expanduser().resolve() if config_path else CONFIG_PATH
+
+    if not path.exists():
         return Config()
+
     try:
-        raw = json.loads(CONFIG_PATH.read_text())
+        raw = json.loads(path.read_text())
+        raw = _migrate_config(raw)
+        _warn_deprecated(raw)
         resolved = _resolve_env_vars(raw)
         return Config.model_validate(resolved)
     except Exception:
@@ -60,7 +107,7 @@ def load_config() -> Config:
 
 
 def save_config(config: Config):
-    """Persist config to ~/.cococat/config.json."""
+    """Persist config to JSON."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     data = config.model_dump(mode="json")
     CONFIG_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False))
