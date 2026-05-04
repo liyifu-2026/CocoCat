@@ -34,6 +34,8 @@ def handle_request(request: dict, agent_loop=None) -> dict:
         user_id = params.get("user_id", "")
         if not prompt:
             return {"error": "no prompt provided"}
+        sys.stdout.write(json.dumps({"event": "progress", "content": "Calling LLM..."}) + "\n")
+        sys.stdout.flush()
         result = agent_loop.llm.chat_stream(
             messages=[
                 {"role": "system", "content": agent_loop._build_system_prompt(user_id=user_id)},
@@ -49,6 +51,7 @@ def handle_request(request: dict, agent_loop=None) -> dict:
                 sys.stdout.flush()
             elif token["type"] == "done":
                 full_content = token.get("content", full_content)
+                sys.stdout.write(json.dumps({"event": "progress", "content": "Response complete"}) + "\n")
                 line = json.dumps({"event": "done", "content": full_content}, ensure_ascii=False)
                 sys.stdout.write(line + "\n")
                 sys.stdout.flush()

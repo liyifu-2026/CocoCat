@@ -339,10 +339,7 @@ AGENT_RUNTIME = BASE_DIR / "agent_runtime.py"
 
 
 def _send_to_agent(agent_id: str, prompt: str, timeout: int = 60, on_progress=None) -> dict:
-    """Send a task to an agent via subprocess and return the result.
-    
-    If on_progress is provided, it's called with progress messages.
-    """
+    """Send a task to an agent (non-streaming)."""
     if on_progress:
         on_progress("Connecting to agent...")
     
@@ -365,9 +362,6 @@ def _send_to_agent(agent_id: str, prompt: str, timeout: int = 60, on_progress=No
         
         stdout, _ = proc.communicate(input=request + "\n", timeout=timeout)
 
-        if on_progress:
-            on_progress("Parsing response...")
-
         for line in stdout.splitlines():
             line = line.strip()
             if not line:
@@ -385,34 +379,139 @@ def _send_to_agent(agent_id: str, prompt: str, timeout: int = 60, on_progress=No
         return {"error": str(e)}
 
 
+def _stream_from_agent(agent_id: str, prompt: str, timeout: int = 120, on_delta=None, on_progress=None, on_done=None):
+    """Send a task_stream request and yield events as they arrive (nanobot streaming pattern).
+    
+    Reads stdout line-by-line, parsing each as a JSON event:
+      {"event": "delta", "content": "..."}  → on_delta()
+      {"event": "done", "content": "..."}   → on_done()
+    """
+    if on_progress:
+        on_progress("Connecting to agent...")
+
+    runtime = Path(__file__).resolve().parent.parent / "agent_runtime.py"
+    proc = subprocess.Popen(
+        ["python3", "-u", str(runtime), "--id", agent_id, "--name", agent_id],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,  # line-buffered
+    )
+
+    request = json.dumps({
+        "jsonrpc": "2.0", "method": "task_stream",
+        "params": {"prompt": prompt}, "id": 1,
+    })
+    proc.stdin.write(request + "\n")
+    proc.stdin.flush()
+
+    if on_progress:
+        on_progress("Agent processing...")
+
+    full_content = ""
+    start_time = time.monotonic()
+
+    while True:
+        if time.monotonic() - start_time > timeout:
+            proc.kill()
+            if on_done:
+                on_done(full_content or "(timeout)")
+            return full_content or "(timeout)"
+
+        line = proc.stdout.readline()
+        if not line:
+            break
+
+        line = line.strip()
+        if not line:
+            continue
+
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        if not isinstance(data, dict):
+            continue
+
+        event = data.get("event")
+        if event == "delta":
+            chunk = data.get("content", "")
+            full_content += chunk
+            if on_delta:
+                on_delta(chunk)
+
+        elif event == "done":
+            content = data.get("content", full_content)
+            full_content = content
+            if on_done:
+                on_done(content)
+            break
+
+        elif event == "progress":
+            if on_progress:
+                on_progress(data.get("content", ""))
+
+        elif data.get("jsonrpc") == "2.0":
+            result = data.get("result", {})
+            if result.get("streamed"):
+                if not full_content:
+                    content = result.get("content", "")
+                    if on_done:
+                        on_done(content)
+                    full_content = content
+                break
+            error = data.get("error")
+            if error:
+                full_content = f"Error: {error.get('message', 'unknown')}"
+                if on_done:
+                    on_done(full_content)
+                break
+
+    proc.stdin.close()
+    proc.wait(timeout=5)
+    return full_content
+
+
 @chat_app.command("send")
 def chat_send(
     agent_id: str = typer.Argument(..., help="Agent ID to message"),
     message: str = typer.Argument(..., help="Message content"),
-    timeout: int = typer.Option(60, "--timeout", "-t", help="Response timeout in seconds"),
+    timeout: int = typer.Option(120, "--timeout", "-t", help="Response timeout in seconds"),
     config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
+    no_stream: bool = typer.Option(False, "--no-stream", help="Disable streaming"),
 ):
     """Send a single message to an agent and get response."""
     cfg, _ = _load_runtime_config(config)
     if workspace:
         cfg.workspace = workspace
 
+    if no_stream:
+        spinner = ThinkingSpinner()
+        with spinner:
+            result = _send_to_agent(agent_id, message, timeout)
+        if "error" in result:
+            print_error(result["error"])
+            raise typer.Exit(1)
+        content = result.get("content", str(result))
+        print_agent_response(content, render_markdown=cfg.display.render_markdown, agent_name=agent_id)
+        return
+
+    renderer = StreamRenderer(render_markdown=cfg.display.render_markdown)
     spinner = ThinkingSpinner()
+    show_progress = cfg.display.show_progress
+
     with spinner:
-        if cfg.display.show_progress:
-            spinner.update(f"Sending to {agent_id}...")
-        result = _send_to_agent(
+        _stream_from_agent(
             agent_id, message, timeout,
-            on_progress=lambda msg: spinner.update(msg) if cfg.display.show_progress else None,
+            on_delta=lambda chunk: renderer.on_delta(chunk),
+            on_progress=lambda msg: spinner.update(msg) if show_progress else None,
+            on_done=lambda _: None,
         )
 
-    if "error" in result:
-        print_error(result["error"])
-        raise typer.Exit(1)
-
-    content = result.get("content", str(result))
-    print_agent_response(content, render_markdown=cfg.display.render_markdown, agent_name=agent_id)
+    renderer.on_end()
 
 
 @chat_app.command("interactive")
@@ -475,25 +574,26 @@ def chat_interactive(
 
         renderer = StreamRenderer(render_markdown=cfg.display.render_markdown)
         spinner = ThinkingSpinner(f"{agent_id} is thinking...")
+        show_progress = cfg.display.show_progress
+        full_content = ""
+
+        def on_delta(chunk):
+            nonlocal full_content
+            full_content += chunk
+            with spinner.pause():
+                renderer.on_delta(chunk)
 
         with spinner:
-            result = _send_to_agent(
+            _stream_from_agent(
                 agent_id, user_input, timeout,
-                on_progress=lambda msg: print_progress(msg) if cfg.display.show_progress else None,
+                on_delta=on_delta,
+                on_progress=lambda msg: spinner.update(msg) if show_progress else None,
+                on_done=lambda content: None,
             )
 
-        if "error" in result:
-            print_error(result["error"])
-            renderer = None
-            continue
-
-        content = result.get("content", str(result))
-
-        for chunk in [content[i:i+50] for i in range(0, len(content), 50)]:
-            renderer.on_delta(chunk)
-
         renderer.on_end()
-        session.add_message("assistant", content)
+        if full_content:
+            session.add_message("assistant", full_content)
 
     _restore_terminal()
     if cfg.chat.session_persistence:
