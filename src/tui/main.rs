@@ -207,16 +207,15 @@ fn main() -> io::Result<()> {
 
             let vertical = Layout::default().direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(1),   // header
                     Constraint::Min(3),      // chat
                     Constraint::Length(3),   // input
                     Constraint::Length(1),   // status bar
                 ])
                 .split(chunks[0]);
 
-            chat_panel::render_chat_panel(f, vertical[1], &app.messages, app.scroll_offset, app.theme_registry.current_theme());
-            input_bar::render_input_bar(f, vertical[2], &input, app.theme_registry.current_theme(), !is_streaming);
-            status_bar::render_status_bar(f, vertical[3], &app.agent_id, "default", app.theme_registry.current_theme());
+            chat_panel::render_chat_panel(f, vertical[0], &app.messages, app.scroll_offset, app.theme_registry.current_theme());
+            input_bar::render_input_bar(f, vertical[1], &input, app.theme_registry.current_theme(), !is_streaming);
+            status_bar::render_status_bar(f, vertical[2], &app.agent_id, "default", app.theme_registry.current_theme());
 
             if sidebar_visible && term_width > 120 {
                 sidebar::render_sidebar(f, chunks[1], &app.sidebar_tab, app.theme_registry.current_theme());
