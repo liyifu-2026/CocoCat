@@ -6,9 +6,13 @@ pub type DbPool = Pool<SqliteConnectionManager>;
 pub fn create_pool() -> Result<DbPool, Box<dyn std::error::Error>> {
     let db_path = std::env::var("COCOCAT_DB").unwrap_or_else(|_| "cococat.db".to_string());
     let manager = SqliteConnectionManager::file(&db_path);
+    let pool_size = std::thread::available_parallelism()
+        .map(|n| (n.get() * 2).max(4).min(32))
+        .unwrap_or(8);
     let pool = Pool::builder()
-        .max_size(8)
+        .max_size(pool_size as u32)
         .build(manager)?;
+    tracing::info!("SQLite pool size: {}", pool_size);
 
     let conn = pool.get()?;
     conn.execute_batch(

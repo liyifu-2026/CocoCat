@@ -1,5 +1,6 @@
 use crate::auth;
 use crate::db::pool::DbPool;
+use axum::extract::DefaultBodyLimit;
 use axum::{routing::get, Router};
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::Sender;
@@ -42,6 +43,7 @@ pub fn build(state: AppState) -> Router {
         .route("/api/skills/:id", axum::routing::get(skills::get_handler))
         .route("/api/tasks/:task_uuid", axum::routing::get(tasks::get_task_handler))
         .route("/ws", get(ws::ws_handler))
+        .layer(DefaultBodyLimit::max(10 * 1024 * 1024)) // 10MB
         .layer(CompressionLayer::new())
         .layer(cors)
         .with_state(state)

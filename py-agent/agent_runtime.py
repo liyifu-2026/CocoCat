@@ -35,6 +35,11 @@ def handle_request(request: dict, agent_loop=None) -> dict:
 
 def main():
     import argparse
+    import compileall
+
+    # Pre-compile Python files for faster cold start
+    compileall.compile_dir(os.path.dirname(os.path.abspath(__file__)),
+                           force=False, quiet=1)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--agent-id", default=None)
