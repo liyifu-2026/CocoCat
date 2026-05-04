@@ -31,30 +31,53 @@ impl InputBuffer {
     }
 
     pub fn insert_char(&mut self, c: char) {
-        self.text.insert(self.cursor, c);
-        self.cursor += 1;
+        if self.text.is_char_boundary(self.cursor) || self.cursor >= self.text.len() {
+            self.text.insert(self.cursor, c);
+            self.cursor += c.len_utf8();
+        } else {
+            self.text.push(c);
+            self.cursor = self.text.len();
+        }
     }
 
     pub fn backspace(&mut self) {
         if self.cursor > 0 {
-            self.cursor -= 1;
-            self.text.remove(self.cursor);
+            let mut prev = self.cursor - 1;
+            while prev > 0 && !self.text.is_char_boundary(prev) {
+                prev -= 1;
+            }
+            self.text.replace_range(prev..self.cursor, "");
+            self.cursor = prev;
         }
     }
 
     pub fn delete(&mut self) {
         if self.cursor < self.text.len() {
-            self.text.remove(self.cursor);
+            let mut next = self.cursor + 1;
+            while next < self.text.len() && !self.text.is_char_boundary(next) {
+                next += 1;
+            }
+            self.text.replace_range(self.cursor..next, "");
         }
     }
 
     pub fn cursor_left(&mut self) {
-        self.cursor = self.cursor.saturating_sub(1);
+        if self.cursor > 0 {
+            let mut new = self.cursor - 1;
+            while new > 0 && !self.text.is_char_boundary(new) {
+                new -= 1;
+            }
+            self.cursor = new;
+        }
     }
 
     pub fn cursor_right(&mut self) {
         if self.cursor < self.text.len() {
-            self.cursor += 1;
+            let mut new = self.cursor + 1;
+            while new < self.text.len() && !self.text.is_char_boundary(new) {
+                new += 1;
+            }
+            self.cursor = new;
         }
     }
 
