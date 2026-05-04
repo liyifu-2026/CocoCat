@@ -14,7 +14,7 @@ chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tokio = { version = "1", features = ["full"] }
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
 r2d2 = "0.8"
 r2d2_sqlite = "0.24"
@@ -22,3 +22,4 @@ uuid = { version = "1", features = ["v4"] }
 toml = "0.8"
 jsonwebtoken = "9"
 tower-http = { version = "0.5", features = ["cors"] }
+futures-util = "0.3"

@@ -2,6 +2,7 @@ use tracing_subscriber::EnvFilter;
 
 mod agent;
 mod api;
+mod auth;
 mod config;
 mod db;
 mod dispatch;
@@ -33,15 +34,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let (task_tx, task_rx) = tokio::sync::mpsc::channel::<dispatch::engine::TaskEvent>(256);
+    let (event_tx, _) = tokio::sync::broadcast::channel::<dispatch::engine::WsEvent>(100);
+
     let mut dispatch_engine = dispatch::engine::DispatchEngine::new(
         db_pool.clone(),
         agent_manager.clone(),
         task_rx,
+        event_tx.clone(),
     );
 
     let app_state = api::router::AppState {
         db_pool: db_pool.clone(),
         task_tx: task_tx.clone(),
+        jwt: auth::JwtState::from_env(),
+        event_tx: event_tx.clone(),
     };
     let router = api::router::build(app_state);
 
