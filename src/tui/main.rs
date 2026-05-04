@@ -279,8 +279,6 @@ fn run_tui() -> io::Result<()> {
     let mut autocomplete = AutocompleteState::new();
     let mut reply_dialog = ReplyDialog::new();
     let mut pending_click: Option<(i32, i32)> = None;
-    let mut hovered_row: Option<u16> = None;
-
     while running.load(Ordering::Relaxed) && !app.should_quit {
         terminal.draw(|f| {
             let area = f.area();
@@ -304,7 +302,7 @@ fn run_tui() -> io::Result<()> {
                 ]).split(chunks[0]);
 
             header::render_header(f, vertical[0], &app.agent_id, app.theme_registry.current_theme());
-            chat_panel::render_chat_panel(f, vertical[2], &app.messages, app.scroll_offset, app.theme_registry.current_theme(), true, hovered_row, vertical[2].y);
+            chat_panel::render_chat_panel(f, vertical[2], &app.messages, app.scroll_offset, app.theme_registry.current_theme(), true, vertical[2].y);
             input_bar::render_input_bar(f, vertical[4], &input, app.theme_registry.current_theme(), !is_streaming, is_streaming, &app.agent_id, "gpt-4", app.session_stats.token_count);
             status_bar::render_status_bar(f, vertical[6], &app.agent_id, "default", app.theme_registry.current_theme());
 
