@@ -70,8 +70,24 @@ fn build_message_lines(messages: &[ChatMessage], width: usize, theme: &Theme) ->
             for event in &msg.events {
                 match event {
                     TuiEvent::Delta(s) => {
-                        for line in s.split('\n') {
-                            lines.push(Line::from(Span::raw(line.to_string())));
+                        let spans = crate::components::markdown::render_markdown(s, theme);
+                        if spans.is_empty() {
+                            for line in s.split('\n') {
+                                lines.push(Line::from(Span::raw(line.to_string())));
+                            }
+                        } else {
+                            let mut current_line = Vec::new();
+                            for span in spans {
+                                let text = span.content.to_string();
+                                if text == "\n" {
+                                    lines.push(Line::from(std::mem::take(&mut current_line)));
+                                } else {
+                                    current_line.push(span.clone());
+                                }
+                            }
+                            if !current_line.is_empty() {
+                                lines.push(Line::from(current_line));
+                            }
                         }
                     }
                     TuiEvent::Reasoning(s) => {
