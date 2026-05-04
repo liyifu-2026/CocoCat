@@ -62,19 +62,18 @@ pub fn render_sidebar(f: &mut Frame, area: Rect, tab: &SidebarTab, theme: &Theme
         }
         SidebarTab::Help => {
             let help_lines = vec![
-                ListItem::new("Tab / Shift+Tab - Next/Prev pane"),
-                ListItem::new("Ctrl+S - Toggle sidebar"),
-                ListItem::new("/ - Focus input"),
-                ListItem::new("Escape - Normal mode"),
-                ListItem::new("Ctrl+Q / Ctrl+C - Quit"),
-                ListItem::new("Ctrl+T - Theme selector"),
-                ListItem::new("Ctrl+P - Session switcher"),
-                ListItem::new("i - Toggle input focus"),
-                ListItem::new("Enter - Send message"),
-                ListItem::new("Up/Down - Scroll / Navigate"),
-                ListItem::new("PageUp/PageDown - Scroll chat"),
-                ListItem::new("Home/End - Scroll to top/bottom"),
-                ListItem::new("Ctrl+W - Clear input"),
+                ListItem::new("Ctrl+Q / Ctrl+C  Quit"),
+                ListItem::new("Ctrl+B           Toggle sidebar"),
+                ListItem::new("Tab              Cycle sidebar tab"),
+                ListItem::new("Ctrl+P           Session switcher"),
+                ListItem::new("Esc              Close dialog"),
+                ListItem::new("Enter            Send message"),
+                ListItem::new("↑↓               History navigation"),
+                ListItem::new("←→               Cursor move"),
+                ListItem::new("/theme [name]    Switch theme"),
+                ListItem::new("/help            Show help"),
+                ListItem::new("/clear           Clear chat"),
+                ListItem::new("/quit            Exit"),
             ];
             let list = List::new(help_lines).block(content_block);
             f.render_widget(list, chunks[1]);

@@ -97,17 +97,4 @@ pub fn render_chat_panel(
     f.render_widget(paragraph, area);
 }
 
-pub fn calculate_message_height(width: u16, content: &str, is_user: bool, _theme: &Theme) -> u16 {
-    let effective = width.saturating_sub(4).max(1) as usize;
-    let mut lines = 0u16;
-    if is_user {
-        lines += 1;
-    }
-    if content.is_empty() {
-        return lines.max(1);
-    }
-    for line in content.lines() {
-        lines += ((line.chars().count() + effective - 1) / effective) as u16;
-    }
-    lines.max(1)
-}
+

@@ -178,7 +178,8 @@ fn main() -> io::Result<()> {
         eprintln!("Warning: could not set Ctrl+C handler: {e}");
     }
 
-    let agent_id = std::env::args().nth(1).unwrap_or_else(|| "leader".to_string());
+    let cfg = config::Config::load_or_default(config::Config::config_path()).unwrap_or_default();
+    let agent_id = std::env::args().nth(1).unwrap_or_else(|| cfg.chat.default_agent.clone());
     let mut app = App::new(&agent_id);
     let mut input = InputBuffer::new();
     let mut history = InputHistory::new(200);

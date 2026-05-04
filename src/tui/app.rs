@@ -111,7 +111,7 @@ impl App {
     }
 
     pub fn scroll_to_bottom(&mut self) {
-        self.scroll_offset = 0;
+        self.scroll_offset = usize::MAX;
     }
 
     pub fn toggle_sidebar(&mut self) {
