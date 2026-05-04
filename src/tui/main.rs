@@ -9,6 +9,8 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
+mod config;
+
 struct Cleanup;
 
 impl Drop for Cleanup {
