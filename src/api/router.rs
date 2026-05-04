@@ -7,7 +7,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::dispatch::engine::{TaskEvent, WsEvent};
 
-use super::{chat, hire, mailbox, scenes, skills, ws};
+use super::{chat, hire, mailbox, scenes, skills, tasks, ws};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -39,6 +39,7 @@ pub fn build(state: AppState) -> Router {
         .route("/api/scenes/{id}", axum::routing::get(scenes::get_handler).delete(scenes::delete_handler))
         .route("/api/skills", axum::routing::get(skills::list_handler).post(skills::create_handler))
         .route("/api/skills/{id}", axum::routing::get(skills::get_handler))
+        .route("/api/tasks/{task_uuid}", axum::routing::get(tasks::get_task_handler))
         .route("/ws", get(ws::ws_handler))
         .layer(cors)
         .with_state(state)

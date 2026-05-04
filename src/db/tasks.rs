@@ -88,6 +88,37 @@ pub fn claim_pending_task(
     }
 }
 
+pub fn get_task_by_uuid(
+    pool: &DbPool,
+    task_uuid: &str,
+) -> Result<Option<Task>, Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT id, task_uuid, target_agent, source, method, params, status,
+                result, error, retry_count, max_retries, created_at, started_at, completed_at
+         FROM tasks WHERE task_uuid = ?1"
+    )?;
+    let mut rows = stmt.query_map(params![task_uuid], |row| {
+        Ok(Task {
+            id: row.get(0)?,
+            task_uuid: row.get(1)?,
+            target_agent: row.get(2)?,
+            source: row.get(3)?,
+            method: row.get(4)?,
+            params: row.get(5)?,
+            status: row.get(6)?,
+            result: row.get(7)?,
+            error: row.get(8)?,
+            retry_count: row.get(9)?,
+            max_retries: row.get(10)?,
+            created_at: row.get(11)?,
+            started_at: row.get(12)?,
+            completed_at: row.get(13)?,
+        })
+    })?;
+    Ok(rows.next().and_then(|r| r.ok()))
+}
+
 pub fn complete_task(
     pool: &DbPool,
     task_uuid: &str,
