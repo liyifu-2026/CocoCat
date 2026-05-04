@@ -319,7 +319,7 @@ fn main() -> io::Result<()> {
 
             header::render_header(f, vertical[0], &app.agent_id, app.theme_registry.current_theme());
             chat_panel::render_chat_panel(f, vertical[2], &app.messages, app.scroll_offset, app.theme_registry.current_theme(), true);
-            input_bar::render_input_bar(f, vertical[4], &input, app.theme_registry.current_theme(), !is_streaming, &app.agent_id, "gpt-4", app.session_stats.token_count);
+            input_bar::render_input_bar(f, vertical[4], &input, app.theme_registry.current_theme(), !is_streaming, is_streaming, &app.agent_id, "gpt-4", app.session_stats.token_count);
             status_bar::render_status_bar(f, vertical[6], &app.agent_id, "default", app.theme_registry.current_theme());
 
             if sidebar_visible && term_width > 120 {

@@ -147,7 +147,7 @@ impl InputHistory {
 
 pub fn render_input_bar(
     f: &mut Frame, area: Rect, input: &InputBuffer,
-    theme: &Theme, is_focused: bool,
+    theme: &Theme, is_focused: bool, is_streaming: bool,
     agent_name: &str, model: &str, token_count: u32,
 ) {
     let block = Block::default()
@@ -165,7 +165,15 @@ pub fn render_input_bar(
         .style(Style::default().fg(theme.text_color()));
     f.render_widget(text, chunks[0]);
 
-    let meta = format!(" {} · {} · {} · {}K", agent_name, model, theme.name, token_count / 1000);
+    let mut meta = format!(" {} · {} · {} · {}K", agent_name, model, theme.name, token_count / 1000);
+    if is_streaming {
+        let spinner_chars = ['◌', '◯', '●', '○'];
+        let frame = (std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap_or_default()
+            .as_millis() as usize / 150) % 4;
+        meta.push(' ');
+        meta.push(spinner_chars[frame]);
+    }
     let meta = Paragraph::new(Text::from(Line::from(Span::styled(meta, Style::default().fg(theme.text_dim_color())))));
     f.render_widget(meta, chunks[1]);
 
