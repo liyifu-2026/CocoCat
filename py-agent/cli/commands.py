@@ -962,3 +962,88 @@ def tui(
     from .tui.app import ChatApp
     chat_app = ChatApp(agent_id=agent_id)
     chat_app.run()
+
+
+# ===========================================================================
+# Doctor & Upgrade commands
+# ===========================================================================
+
+
+@app.command()
+def doctor():
+    """Diagnose system health."""
+    from .render import console, print_success, print_error, print_warning, print_info
+    import subprocess
+    from rich.table import Table
+
+    table = Table(title="CocoCat Doctor")
+    table.add_column("Check", style="cyan")
+    table.add_column("Status")
+
+    import sys
+    py_ok = sys.version_info >= (3, 10)
+    table.add_row("Python", f"[{'green' if py_ok else 'red'}]{sys.version}[/]")
+
+    from .config import CONFIG_PATH
+    config_ok = CONFIG_PATH.exists()
+    table.add_row("Config", "[green]✓[/green]" if config_ok else "[yellow]not found (defaults)[/yellow]")
+
+    agents_dir = Path(__file__).resolve().parent.parent.parent / "agents"
+    agent_config = agents_dir / "config.toml"
+    table.add_row("Agent config", "[green]✓[/green]" if agent_config.exists() else "[red]✗ missing[/red]")
+
+    try:
+        result = subprocess.run(["cargo", "--version"], capture_output=True, text=True, timeout=5)
+        table.add_row("Cargo", f"[green]{result.stdout.strip()}[/green]" if result.returncode == 0 else "[red]not found[/red]")
+    except Exception:
+        table.add_row("Cargo", "[red]not found[/red]")
+
+    tui_debug = Path("target/debug/cococat-tui")
+    tui_release = Path("target/release/cococat-tui")
+    tui_exists = tui_debug.exists() or tui_release.exists()
+    table.add_row("TUI binary", "[green]built[/green]" if tui_exists else "[yellow]not built (run cargo build)[/yellow]")
+
+    pid_file = Path.home() / ".cococat" / "cococat.pid"
+    if pid_file.exists():
+        try:
+            pid = int(pid_file.read_text().strip())
+            os.kill(pid, 0)
+            table.add_row("Daemon", f"[green]Running (PID: {pid})[/green]")
+        except (ProcessLookupError, ValueError, OSError):
+            table.add_row("Daemon", "[yellow]Stale PID[/yellow]")
+    else:
+        table.add_row("Daemon", "[yellow]Not running[/yellow]")
+
+    console.print(table)
+    print_info("Run 'cococat doctor --fix' to attempt auto-fixes.")
+
+
+@app.command()
+def upgrade():
+    """Upgrade CocoCat to the latest version."""
+    from .render import console, print_info, print_success, print_error
+    import subprocess
+
+    print_info("Checking for updates...")
+    try:
+        result = subprocess.run(
+            ["git", "pull", "--ff-only"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode == 0:
+            if "Already up to date" in result.stdout:
+                print_success("Already up to date.")
+            else:
+                print_success("Updated. Rebuilding...")
+                build = subprocess.run(
+                    ["cargo", "build", "--bin", "cococat-tui", "--release"],
+                    capture_output=True, text=True, timeout=300,
+                )
+                if build.returncode == 0:
+                    print_success("Rebuild complete.")
+                else:
+                    print_error(f"Build failed:\n{build.stderr}")
+        else:
+            print_error(f"Git pull failed:\n{result.stderr}")
+    except Exception as e:
+        print_error(f"Upgrade failed: {e}")
