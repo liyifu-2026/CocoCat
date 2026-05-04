@@ -1,19 +1,19 @@
-"""Streaming renderer and thinking spinner (nanobot stream.py pattern)."""
+"""Streaming renderer — opencode-inspired, Panel-wrapped Markdown."""
 import sys
 import time
 from contextlib import contextmanager
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
+from rich.panel import Panel
 from rich.status import Status
 from rich.text import Text
-
 
 console = Console()
 
 
 class ThinkingSpinner:
-    """Rich status spinner for 'thinking' state."""
+    """Animated spinner with pause/resume."""
 
     def __init__(self, text: str = "Thinking..."):
         self._status = Status(text, spinner="dots")
@@ -50,20 +50,15 @@ class ThinkingSpinner:
 
 
 class StreamRenderer:
-    """Render streaming agent responses as live Markdown with debounced refresh.
+    """Live streaming Markdown renderer wrapped in a Panel.
 
-    Usage:
-        renderer = StreamRenderer()
-        for delta in stream:
-            renderer.on_delta(delta)
-        renderer.on_end()
+    Renders agent responses in a styled Panel that updates in real-time.
     """
 
-    def __init__(self, render_markdown: bool = True, debounce_s: float = 0.15):
+    def __init__(self, agent_name: str = "Assistant", debounce_s: float = 0.08):
+        self._agent_name = agent_name
         self._buffer = ""
-        self._render_markdown = render_markdown
         self._live: Live | None = None
-        self._spinner: ThinkingSpinner | None = None
         self.streamed = False
         self._debounce_s = debounce_s
         self._last_refresh = 0.0
@@ -71,9 +66,13 @@ class StreamRenderer:
     def _make_renderable(self):
         if not self._buffer.strip():
             return Text("")
-        if self._render_markdown:
-            return Markdown(self._buffer)
-        return Text(self._buffer)
+        md = Markdown(self._buffer)
+        return Panel(
+            md,
+            title=f"[bold green]{self._agent_name}[/bold green]",
+            border_style="green",
+            padding=(1, 2),
+        )
 
     def _should_refresh(self) -> bool:
         return (time.monotonic() - self._last_refresh) >= self._debounce_s
@@ -84,7 +83,7 @@ class StreamRenderer:
         if not self._live and sys.stdout.isatty():
             self._live = Live(
                 self._make_renderable(),
-                refresh_per_second=8,
+                refresh_per_second=12,
                 vertical_overflow="visible",
             )
             self._live.start()
@@ -105,7 +104,6 @@ class StreamRenderer:
             console.print(renderable)
 
     def stop_for_input(self):
-        """Stop live render before user input to avoid prompt_toolkit conflicts."""
         if self._live:
             self._live.stop()
             self._live = None

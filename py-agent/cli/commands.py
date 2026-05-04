@@ -14,8 +14,9 @@ from .config import load_config, save_config, CONFIG_PATH as _CONFIG_PATH
 from .render import (
     console, print_agent_response, print_success, print_error,
     print_warning, print_info, print_table, print_panel, print_progress,
+    print_user_input, print_thinking, print_tool_start, print_tool_done, print_tool_error,
 )
-from .stream import StreamRenderer, ThinkingSpinner
+from .stream import StreamRenderer
 from .session import Session, SessionManager
 
 app = typer.Typer(help="CocoCat CLI commands")
@@ -453,6 +454,29 @@ def _stream_from_agent(agent_id: str, prompt: str, timeout: int = 120, on_delta=
             if on_progress:
                 on_progress(data.get("content", ""))
 
+        elif event == "reasoning":
+            if on_progress:
+                on_progress(f"[thinking] {data.get('content', '')[:80]}...")
+
+        elif event == "tool_start":
+            tool = data.get("tool", "?")
+            args = data.get("args", "")
+            if on_progress:
+                on_progress(f"◈ {tool} ({args})")
+
+        elif event == "tool_done":
+            tool = data.get("tool", "?")
+            result = data.get("result", "")
+            if on_progress:
+                preview = result.strip()[:60].replace("\n", " ")
+                on_progress(f"✓ {tool}" + (f" — {preview}" if preview else ""))
+
+        elif event == "tool_error":
+            tool = data.get("tool", "?")
+            err = data.get("result", "")
+            if on_progress:
+                on_progress(f"✗ {tool}: {err[:60]}")
+
         elif data.get("jsonrpc") == "2.0":
             result = data.get("result", {})
             if result.get("streamed"):
@@ -488,6 +512,8 @@ def chat_send(
     if workspace:
         cfg.workspace = workspace
 
+    print_user_input(message)
+
     if no_stream:
         spinner = ThinkingSpinner()
         with spinner:
@@ -499,17 +525,18 @@ def chat_send(
         print_agent_response(content, render_markdown=cfg.display.render_markdown, agent_name=agent_id)
         return
 
-    renderer = StreamRenderer(render_markdown=cfg.display.render_markdown)
-    spinner = ThinkingSpinner()
+    renderer = StreamRenderer(agent_name=agent_id)
     show_progress = cfg.display.show_progress
 
-    with spinner:
-        _stream_from_agent(
-            agent_id, message, timeout,
-            on_delta=lambda chunk: renderer.on_delta(chunk),
-            on_progress=lambda msg: spinner.update(msg) if show_progress else None,
-            on_done=lambda _: None,
-        )
+    _stream_from_agent(
+        agent_id, message, timeout,
+        on_delta=lambda chunk: renderer.on_delta(chunk),
+        on_progress=lambda msg: (
+            print_progress(msg) if "◈" in msg or "✓" in msg or "✗" in msg or "[thinking]" in msg
+            else None
+        ),
+        on_done=lambda _: None,
+    )
 
     renderer.on_end()
 
@@ -570,26 +597,27 @@ def chat_interactive(
         if user_input.lower() in ("exit", "quit"):
             break
 
-        session.add_message("user", user_input)
+        print_user_input(user_input)
 
-        renderer = StreamRenderer(render_markdown=cfg.display.render_markdown)
-        spinner = ThinkingSpinner(f"{agent_id} is thinking...")
+        renderer = StreamRenderer(agent_name=agent_id)
         show_progress = cfg.display.show_progress
         full_content = ""
 
         def on_delta(chunk):
             nonlocal full_content
             full_content += chunk
-            with spinner.pause():
-                renderer.on_delta(chunk)
+            renderer.on_delta(chunk)
 
-        with spinner:
-            _stream_from_agent(
-                agent_id, user_input, timeout,
-                on_delta=on_delta,
-                on_progress=lambda msg: spinner.update(msg) if show_progress else None,
-                on_done=lambda content: None,
-            )
+        def on_progress(msg):
+            if msg and ("◈" in msg or "✓" in msg or "✗" in msg or "[thinking]" in msg):
+                print_progress(msg)
+
+        _stream_from_agent(
+            agent_id, user_input, timeout,
+            on_delta=on_delta,
+            on_progress=on_progress,
+            on_done=lambda content: None,
+        )
 
         renderer.on_end()
         if full_content:

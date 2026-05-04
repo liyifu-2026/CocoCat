@@ -259,11 +259,13 @@ class AgentLoop:
             knowledge_overview=knowledge_overview,
         )
 
-    def run(self, prompt: str, user_id: str = "", on_progress=None) -> dict:
+    def run(self, prompt: str, user_id: str = "", on_progress=None, on_tool=None, on_reasoning=None) -> dict:
         """Execute a task prompt and return the result.
-        
-        If on_progress is provided, it's called with status strings at key points
-        (nanobot on_progress callback pattern).
+
+        Callbacks (nanobot pattern):
+          on_progress(msg): status string updates
+          on_tool(name, args, status, result): tool lifecycle events
+          on_reasoning(content): LLM reasoning/thinking tokens
         """
         uid = user_id or self.user_id
         try:
@@ -309,6 +311,8 @@ class AgentLoop:
                 content = response.get("content", "") or ""
                 tool_calls = response.get("tool_calls", []) or []
                 reasoning = response.get("reasoning_content")
+                if reasoning and on_reasoning:
+                    on_reasoning(reasoning)
                 if content.strip() or tool_calls:
                     break
 
@@ -348,8 +352,9 @@ class AgentLoop:
 
                 from concurrent.futures import ThreadPoolExecutor, as_completed
                 tool_names = [tc["name"] for tc in tool_calls]
-                if on_progress:
-                    on_progress(f"Executing tools: {', '.join(tool_names)}...")
+                if on_tool:
+                    for tc in tool_calls:
+                        on_tool(tc["name"], tc.get("arguments", {}), "start", "")
                 with ThreadPoolExecutor(max_workers=len(tool_calls)) as executor:
                     futures = {}
                     for tc in tool_calls:
@@ -368,12 +373,14 @@ class AgentLoop:
                         futures[f] = (tc, tool_name, modified_args)
                     for f in as_completed(futures):
                         tc, tool_name, modified_args = futures[f]
-                        if on_progress:
-                            on_progress(f"Tool result: {tool_name}")
                         try:
                             result = f.result(timeout=60)
+                            if on_tool:
+                                on_tool(tool_name, modified_args, "done", result[:200])
                         except Exception as e:
                             result = f"Tool error: {e}"
+                            if on_tool:
+                                on_tool(tool_name, modified_args, "error", str(e)[:200])
                         result = self.hook_registry.run_post_tool_call(tool_name, modified_args, result)
                         messages.append({
                             "role": "tool",

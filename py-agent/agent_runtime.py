@@ -42,14 +42,28 @@ def handle_request(request: dict, agent_loop=None) -> dict:
         if not prompt:
             return {"error": "no prompt provided"}
 
-        def _progress(msg):
-            line = json.dumps({"event": "progress", "content": msg}, ensure_ascii=False)
+        def _emit(event_type, **data):
+            line = json.dumps({"event": event_type, **data}, ensure_ascii=False)
             sys.stdout.write(line + "\n")
             sys.stdout.flush()
 
-        _progress("Running full ReAct loop with tools...")
+        def _progress(msg):
+            _emit("progress", content=msg)
 
-        result = agent_loop.run(prompt, user_id=user_id, on_progress=_progress)
+        def _on_tool(name, args, status, result):
+            _emit("tool_" + status, tool=name, args=str(args)[:100], result=str(result)[:200])
+
+        def _on_reasoning(content):
+            _emit("reasoning", content=content[:500])
+
+        _emit("progress", content="Running full ReAct loop with tools...")
+
+        result = agent_loop.run(
+            prompt, user_id=user_id,
+            on_progress=_progress,
+            on_tool=_on_tool,
+            on_reasoning=_on_reasoning,
+        )
         content = result.get("content", str(result))
 
         sys.stdout.write(json.dumps({"event": "progress", "content": "Streaming response..."}) + "\n")
