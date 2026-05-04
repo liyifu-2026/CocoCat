@@ -223,3 +223,130 @@ pub struct AgentStatus {
     pub enabled: bool,
     pub running: bool,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_config_file_not_found() {
+        let result = AgentRegistry::load_config("/nonexistent/config.toml");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("failed to read config"));
+    }
+
+    #[test]
+    fn test_new_registry_empty() {
+        let registry = AgentRegistry::new(vec![]);
+        assert!(registry.configs.is_empty());
+        assert!(registry.processes.is_empty());
+    }
+
+    #[test]
+    fn test_new_registry_with_configs() {
+        let configs = vec![
+            AgentConfig {
+                id: "agent_1".to_string(),
+                name: "Agent 1".to_string(),
+                interpreter: "python".to_string(),
+                script: "script.py".to_string(),
+                enabled: true,
+                scene: None,
+            },
+        ];
+        let registry = AgentRegistry::new(configs);
+        assert_eq!(registry.configs.len(), 1);
+        assert_eq!(registry.configs[0].id, "agent_1");
+    }
+
+    #[test]
+    fn test_status_reflects_config() {
+        let configs = vec![
+            AgentConfig {
+                id: "alpha".to_string(), name: "Alpha".to_string(),
+                interpreter: "python".to_string(), script: "run.py".to_string(),
+                enabled: true, scene: None,
+            },
+            AgentConfig {
+                id: "beta".to_string(), name: "Beta".to_string(),
+                interpreter: "python".to_string(), script: "run.py".to_string(),
+                enabled: false, scene: None,
+            },
+        ];
+        let registry = AgentRegistry::new(configs);
+        let statuses = registry.status();
+        assert_eq!(statuses.len(), 2);
+        assert!(statuses[0].enabled);
+        assert!(!statuses[1].enabled);
+        assert!(!statuses[0].running);
+        assert!(!statuses[1].running);
+    }
+
+    #[test]
+    fn test_get_unknown_agent() {
+        let mut registry = AgentRegistry::new(vec![]);
+        assert!(registry.get("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_remove_dead_nonexistent() {
+        let mut registry = AgentRegistry::new(vec![]);
+        registry.remove_dead("ghost");
+    }
+
+    #[test]
+    fn test_restart_one_no_config() {
+        let mut registry = AgentRegistry::new(vec![]);
+        let result = registry.restart_one("nonexistent");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("config not found"));
+    }
+
+    #[test]
+    fn test_restart_one_disabled() {
+        let configs = vec![
+            AgentConfig {
+                id: "idle".to_string(), name: "Idle".to_string(),
+                interpreter: "python".to_string(), script: "run.py".to_string(),
+                enabled: false, scene: None,
+            },
+        ];
+        let mut registry = AgentRegistry::new(configs);
+        let result = registry.restart_one("idle");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("disabled"));
+    }
+
+    #[test]
+    fn test_dispatch_message_unknown_agent() {
+        let mut registry = AgentRegistry::new(vec![]);
+        let result = registry.dispatch_message("ghost", "task", None);
+        assert!(result.is_err());
+        match result {
+            Err(AgentError::ConfigError(msg)) => assert!(msg.contains("ghost")),
+            _ => panic!("expected ConfigError"),
+        }
+    }
+
+    #[test]
+    fn test_health_check_empty_registry() {
+        let mut registry = AgentRegistry::new(vec![]);
+        let restarted = registry.health_check();
+        assert!(restarted.is_empty());
+    }
+
+    #[test]
+    fn test_health_check_no_running_agents() {
+        let configs = vec![
+            AgentConfig {
+                id: "offline".to_string(), name: "Offline".to_string(),
+                interpreter: "python".to_string(), script: "run.py".to_string(),
+                enabled: true, scene: None,
+            },
+        ];
+        let mut registry = AgentRegistry::new(configs);
+        let restarted = registry.health_check();
+        // No processes started, so health check has nothing to check
+        assert!(restarted.is_empty());
+    }
+}
