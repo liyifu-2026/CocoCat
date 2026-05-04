@@ -946,3 +946,19 @@ def onboard():
     """Run the interactive setup wizard."""
     from .wizard import run_wizard
     run_wizard()
+
+
+# ===========================================================================
+# TUI command
+# ===========================================================================
+
+@app.command()
+def tui(
+    agent_id: str = typer.Argument("leader", help="Agent ID to chat with"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
+):
+    """Open full-screen TUI (Textual) chat interface."""
+    from .tui.app import ChatApp
+    chat_app = ChatApp(agent_id=agent_id)
+    chat_app.run()
