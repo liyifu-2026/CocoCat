@@ -1,3 +1,1 @@
-pub mod transport;
-pub mod message_bus;
-pub mod errors;
+// Module re-exports. Each module is documented in its own file.

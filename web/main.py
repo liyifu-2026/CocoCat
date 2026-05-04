@@ -1,4 +1,4 @@
-"""CocoCat Web Management Panel — FastAPI backend."""
+"""CocoCat Web Management Panel — FastAPI backend proxying through Rust HTTP API."""
 import json
 import os
 import re
@@ -9,6 +9,13 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 import asyncio
 from web.auth import verify_jwt_token, verify_api_key
+
+# Python 3.10 compatibility: tomllib is 3.11+
+if sys.version_info < (3, 11):
+    import tomli as tomllib
+    import tomli_w as tomli_w
+    sys.modules['tomllib'] = tomllib
+    sys.modules['tomli_w'] = tomli_w
 
 # Load .env file
 env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -116,12 +123,12 @@ async def start_heartbeat():
         validate_web_auth()
     except ImportError:
         pass
-    # Start entry manager channels
     from web.entry_manager import start_all_entries
     start_all_entries()
     from web.services.scheduler import start_scheduler
     start_scheduler()
     asyncio.create_task(_heartbeat_loop())
+
 
 async def _heartbeat_loop():
     while True:
@@ -129,6 +136,7 @@ async def _heartbeat_loop():
         await manager.broadcast("heartbeat", {"timestamp": __import__("datetime").datetime.now().isoformat()})
 
 
+# TODO: Migrate to Rust API — reads chat/general/messages.jsonl directly
 @app.get("/api/chat")
 def read_chat(limit: int = 50):
     chat_path = BASE_DIR / "chat" / "general" / "messages.jsonl"
@@ -145,6 +153,7 @@ def read_chat(limit: int = 50):
     return {"messages": messages[-limit:]}
 
 
+# TODO: Migrate to Rust API — reads scenes/ directory directly
 @app.get("/api/scenes")
 def list_scenes():
     scenes_dir = BASE_DIR / "scenes"
@@ -178,6 +187,7 @@ def list_scenes():
     return {"scenes": scenes}
 
 
+# TODO: Migrate to Rust API — reads skills/ directory directly
 @app.get("/api/skills")
 def list_skills():
     skills_dir = BASE_DIR / "skills"
@@ -195,6 +205,7 @@ def list_skills():
     return skills
 
 
+# TODO: Migrate to Rust API — reads knowledge/ directory directly
 @app.get("/api/knowledge")
 def list_knowledge():
     kb_dir = BASE_DIR / "knowledge"
@@ -206,47 +217,30 @@ def list_knowledge():
     return kbs
 
 
-def _agent_process_message(scene_id: str, user_id: str, content: str, channel_type: str, api_key: str = ""):
-    """Shared agent invocation logic for all channels."""
-    from scene_router import store_message, get_history
+def _read_roster_agents(scene_id: str) -> list[str]:
+    """Read agent roster from scene directory."""
+    roster_path = BASE_DIR / "scenes" / scene_id / "roster.json"
+    if roster_path.exists():
+        try:
+            roster = json.loads(roster_path.read_text(encoding="utf-8"))
+            return roster.get("agents", [])
+        except Exception:
+            pass
+    return []
 
-    store_message(scene_id, user_id, {
-        "content": content, "direction": "incoming", "channel_type": channel_type,
-    })
 
-    scene_dir = BASE_DIR / "scenes" / scene_id
-    context = ""
-    ctx_path = scene_dir / "CONTEXT.md"
-    if ctx_path.exists():
-        context = ctx_path.read_text(encoding="utf-8")
+async def _agent_process_message(scene_id: str, user_id: str, content: str, channel_type: str, api_key: str = ""):
+    """Route message to Rust core via POST /api/chat."""
+    agents = _read_roster_agents(scene_id)
+    if not agents:
+        return "No agents available in scene."
 
-    history = get_history(scene_id, user_id, limit=10)
-    history_text = "\n".join([f"[{h['direction']}] {h['content']}" for h in history])
-
-    agent_script = str(BASE_DIR / "py-agent" / "agent_runtime.py")
-    prompt = f"{context}\n\n## Conversation\n{history_text}\n\n[user] {content}\n\nRespond concisely."
+    agent_id = agents[0]
 
     from web.services.agent_executor import execute_agent
-    result = asyncio.run(execute_agent(agent_script, prompt, timeout=60))
+    result = await execute_agent(agent_id, scene_id, user_id, content, timeout=60)
     reply_text = result.get("content", "") or result.get("error", "System error.")
 
-    store_message(scene_id, user_id, {
-        "content": reply_text, "direction": "outgoing", "channel_type": channel_type,
-    })
-    try:
-        sys.path.insert(0, str(BASE_DIR / "py-agent"))
-        from dream import append_user_history, _user_hash
-        roster_path = scene_dir / "roster.json"
-        if roster_path.exists():
-            roster = json.loads(roster_path.read_text(encoding="utf-8"))
-            agents = roster.get("agents", [])
-            if agents:
-                agent_id = agents[0]
-                uh = _user_hash(user_id)
-                append_user_history(agent_id, uh, {"role": "user", "content": content, "timestamp": __import__("datetime").datetime.now().isoformat()})
-                append_user_history(agent_id, uh, {"role": "assistant", "content": reply_text[:500], "timestamp": __import__("datetime").datetime.now().isoformat()})
-    except Exception:
-        pass
     return reply_text
 
 
@@ -260,13 +254,13 @@ async def scene_chat(scene_id: str, request: Request):
     if not content:
         return JSONResponse({"error": "content is required"}, status_code=400)
 
-    reply_text = _agent_process_message(scene_id, user_id, content, "web_api", body.get('api_key', ''))
+    reply_text = await _agent_process_message(scene_id, user_id, content, "web_api", body.get('api_key', ''))
     return JSONResponse({"reply": reply_text, "user_id": user_id})
 
 
+# TODO: Migrate to Rust API — reads scene_router file-based storage
 @app.get("/api/scenes/{scene_id}/users/{user_id}/history")
 def get_user_history(scene_id: str, user_id: str, limit: int = 20):
-    """Read a user's conversation history in a scene."""
     sys.path.insert(0, str(BASE_DIR / "py-agent"))
     from scene_router import get_history
     history = get_history(scene_id, user_id, limit=limit)
@@ -275,7 +269,6 @@ def get_user_history(scene_id: str, user_id: str, limit: int = 20):
 
 @app.api_route("/api/channels/wechat/{scene_id}", methods=["GET", "POST"])
 async def wechat_webhook(scene_id: str, request: Request):
-    """WeChat webhook: receive messages from WeChat Official Account."""
     import sys as _sys
     _sys.path.insert(0, str(BASE_DIR / "py-agent"))
     from channels.wechat import WeChatChannel
@@ -296,14 +289,14 @@ async def wechat_webhook(scene_id: str, request: Request):
     if not chat_msg:
         return HTMLResponse("success")
 
-    reply_text = _agent_process_message(scene_id, chat_msg.user_id, chat_msg.content, "wechat", api_key)
+    reply_text = await _agent_process_message(scene_id, chat_msg.user_id, chat_msg.content, "wechat", api_key)
     xml_reply = ch.make_reply(chat_msg.user_id, "gh_xxx", reply_text)
     return HTMLResponse(xml_reply, media_type="application/xml")
 
 
+# TODO: Migrate to Rust API — reads roster.json from filesystem
 @app.post("/api/channels/webhook/{target_type}/{target_id}")
 async def channel_webhook(target_type: str, target_id: str, request: Request):
-    """Generic webhook for channel entries."""
     body = await request.json()
     content = body.get("content", "")
     user_id = body.get("user_id", "external")
@@ -361,6 +354,7 @@ from web.routes.collaboration import router as collaboration_router
 app.include_router(collaboration_router)
 
 
+# TODO: Migrate to Rust API — reads hire_requests/ directory directly
 @app.get("/api/hiring/pending")
 def list_pending_hires():
     pending_dir = BASE_DIR / "agents" / "hire_requests" / "pending"
@@ -389,7 +383,6 @@ def _create_agent_from_hire(hire_data: dict) -> dict:
     new_name = hire_data.get("name", "")
     if not new_id or not new_name:
         return {"error": "missing id or name"}
-    # Update config.toml
     config_path = BASE_DIR / "agents" / "config.toml"
     if config_path.exists():
         import tomllib, tomli_w
@@ -406,17 +399,14 @@ def _create_agent_from_hire(hire_data: dict) -> dict:
         config["agents"] = agents
         with open(config_path, "wb") as f:
             tomli_w.dump(config, f)
-    # Create memory directory
     mem_dir = BASE_DIR / "agents" / new_id / "memory"
     mem_dir.mkdir(parents=True, exist_ok=True)
     (mem_dir / "MEMORY.md").write_text(f"# {new_name} Memory\n\nPersonal memories and learnings.\n", encoding="utf-8")
     (mem_dir / "history.jsonl").write_text("", encoding="utf-8")
     (mem_dir / ".dream_cursor").write_text("0")
-    # Create skills manifest
     skills_dir = BASE_DIR / "agents" / new_id / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
     (skills_dir / "manifest.json").write_text(json.dumps({"public": [], "private": []}))
-    # Write profile.json
     profile_path = BASE_DIR / "agents" / new_id / "profile.json"
     if not profile_path.exists():
         profile = hire_data.get("profile", {})
@@ -426,6 +416,7 @@ def _create_agent_from_hire(hire_data: dict) -> dict:
     return {"status": "created", "agent_id": new_id}
 
 
+# TODO: Migrate to Rust API — moves files and creates agents directly
 @app.post("/api/hiring/pending/{hire_id}/approve")
 async def approve_hire(hire_id: str, request: Request):
     if not _validate_hire_id(hire_id):
@@ -452,7 +443,6 @@ async def approve_hire(hire_id: str, request: Request):
             return JSONResponse({"error": "failed to update profile"}, status_code=500)
     else:
         shutil.move(str(src), str(dst))
-    # Create agent (Python fallback, Rust also does this)
     try:
         hire_data = json.loads(dst.read_text(encoding="utf-8"))
         _create_agent_from_hire(hire_data)

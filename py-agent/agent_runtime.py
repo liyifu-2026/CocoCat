@@ -1,11 +1,9 @@
-"""CocoCat Agent Runtime — capable agent with LLM + tools + sub-agents."""
+"""CocoCat Agent Runtime v2 — stateless stdio JSON-RPC server."""
 import sys
 import json
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-IDENTITY = {"id": None, "name": "unknown", "scene": "default"}
 
 
 def handle_request(request: dict, agent_loop=None) -> dict:
@@ -13,96 +11,35 @@ def handle_request(request: dict, agent_loop=None) -> dict:
     params = request.get("params", {})
 
     if method == "ping":
-        return {"pong": True, "agent": "cococat-capable"}
-    elif method == "echo":
-        return params
+        return {"pong": True, "agent_id": params.get("agent_id", "unknown")}
+
     elif method == "identify":
-        return dict(IDENTITY)
-    elif method == "task":
+        return {"agent_id": params.get("agent_id")}
+
+    elif method == "chat":
         if agent_loop is None:
             return {"error": "agent loop not initialized"}
-        prompt = params.get("prompt", "")
-        user_id = params.get("user_id", "")
-        if not prompt:
-            return {"error": "no prompt provided"}
-        if params.get("stream_progress"):
-            def _p(msg):
-                line = json.dumps({"event": "progress", "content": msg}, ensure_ascii=False)
-                sys.stdout.write(line + "\n")
-                sys.stdout.flush()
-            result = agent_loop.run(prompt, user_id=user_id, on_progress=_p)
-        else:
-            result = agent_loop.run(prompt, user_id=user_id)
-        return result
-    elif method == "task_stream":
-        if agent_loop is None:
-            return {"error": "agent loop not initialized"}
-        prompt = params.get("prompt", "")
-        user_id = params.get("user_id", "")
-        if not prompt:
-            return {"error": "no prompt provided"}
+        content = params.get("content", "")
+        messages = params.get("messages", [])
+        result = agent_loop.run(content, user_id=params.get("user_id", ""))
+        if isinstance(result, dict):
+            return result
+        return {"response": str(result)}
 
-        def _emit(event_type, **data):
-            line = json.dumps({"event": event_type, **data}, ensure_ascii=False)
-            sys.stdout.write(line + "\n")
-            sys.stdout.flush()
+    elif method == "shutdown":
+        return {"shutdown": True}
 
-        def _progress(msg):
-            _emit("progress", content=msg)
-
-        def _on_tool(name, args, status, result):
-            _emit("tool_" + status, tool=name, args=str(args)[:100], result=str(result)[:200])
-
-        def _on_reasoning(content):
-            _emit("reasoning", content=content[:500])
-
-        _emit("progress", content="Running full ReAct loop with tools...")
-
-        result = agent_loop.run(
-            prompt, user_id=user_id,
-            on_progress=_progress,
-            on_tool=_on_tool,
-            on_reasoning=_on_reasoning,
-        )
-        content = result.get("content", str(result))
-
-        sys.stdout.write(json.dumps({"event": "progress", "content": "Streaming response..."}) + "\n")
-        sys.stdout.flush()
-
-        words = content.split(" ")
-        for word in words:
-            chunk = word + " "
-            line = json.dumps({"event": "delta", "content": chunk}, ensure_ascii=False)
-            sys.stdout.write(line + "\n")
-            sys.stdout.flush()
-
-        sys.stdout.write(json.dumps({"event": "progress", "content": "Response complete"}) + "\n")
-        line = json.dumps({"event": "done", "content": content}, ensure_ascii=False)
-        sys.stdout.write(line + "\n")
-        sys.stdout.flush()
-        return {"content": content, "streamed": True}
     else:
-        raise ValueError(f"Method not found: {method}")
+        return {"error": f"unknown method: {method}"}
 
 
 def main():
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--id", default=None)
-    parser.add_argument("--name", default="unknown")
-    parser.add_argument("--scene", default="default")
+    parser.add_argument("--agent-id", default=None)
+    parser.add_argument("--model", default="gpt-4")
     args, _ = parser.parse_known_args()
-    if args.id:
-        IDENTITY["id"] = args.id
-        IDENTITY["name"] = args.name
-        IDENTITY["scene"] = args.scene
-
-    # Start heartbeat for schedule-based execution
-    if IDENTITY.get("id"):
-        from heartbeat import start_heartbeat
-        start_heartbeat(IDENTITY["id"], IDENTITY.get("name", "Agent"), interval=300,
-                        scene=IDENTITY.get("scene", "default"))
 
     agent_loop = None
 
@@ -111,19 +48,18 @@ def main():
         if not line:
             continue
 
+        request = None
         req_id = None
         try:
             request = json.loads(line)
             req_id = request.get("id")
 
-            if request.get("method") in ("task", "task_stream") and agent_loop is None:
+            if request.get("method") == "chat" and agent_loop is None:
                 from agent_runner import AgentRunner
-
-                agent_id = IDENTITY.get("id") or "unknown"
                 runner = AgentRunner(
-                    agent_id=agent_id,
-                    agent_name=IDENTITY.get("name") or "Agent",
-                    scene=IDENTITY.get("scene", "default"),
+                    agent_id=args.agent_id or "unknown",
+                    agent_name=args.agent_id or "Agent",
+                    scene=request.get("params", {}).get("scene_id", "default"),
                 )
                 runner._ensure_loop()
                 agent_loop = runner._loop
@@ -137,6 +73,8 @@ def main():
                 "id": None,
             }
         except Exception as e:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
             response = {
                 "jsonrpc": "2.0",
                 "error": {"code": -32603, "message": str(e)},
@@ -145,6 +83,9 @@ def main():
 
         sys.stdout.write(json.dumps(response) + "\n")
         sys.stdout.flush()
+
+        if request and request.get("method") == "shutdown":
+            break
 
 
 if __name__ == "__main__":

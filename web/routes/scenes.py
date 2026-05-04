@@ -1,4 +1,13 @@
-"""Scene management routes."""
+"""Scene management routes.
+
+TODO: Migrate all endpoints to proxy through Rust HTTP API:
+  - POST /api/scenes → Rust POST /api/scenes
+  - DELETE /api/scenes/{id} → Rust DELETE /api/scenes/{id}
+  - PATCH /api/scenes/{id}/context → Rust PATCH /api/scenes/{id}/context
+  - PATCH /api/scenes/{id}/kbs → Rust PATCH /api/scenes/{id}/kbs
+  - PATCH /api/scenes/{id}/roster → Rust PATCH /api/scenes/{id}/roster
+  - PATCH /api/scenes/{id}/skills → Rust PATCH /api/scenes/{id}/skills
+"""
 import json
 import shutil
 from pathlib import Path

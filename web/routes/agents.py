@@ -1,4 +1,12 @@
-"""Agent management routes."""
+"""Agent management routes.
+
+TODO: Migrate all endpoints to proxy through Rust HTTP API:
+  - GET /api/agents → Rust GET /api/agents
+  - GET /api/agents/{id} → Rust GET /api/agents/{id}
+  - PATCH /api/agents/{id} → Rust PATCH /api/agents/{id}
+  - DELETE /api/agents/{id} → Rust DELETE /api/agents/{id}
+  - Profile, skills, memory, display, entries → Rust equivalents
+"""
 from fastapi import APIRouter
 import json, os, sys
 from pathlib import Path
@@ -108,7 +116,6 @@ def get_agent_history(agent_id: str, limit: int = 50):
 
 @router.patch("/api/agents/{agent_id}")
 def update_agent(agent_id: str, body: dict):
-    """Update agent config (name, scene, enabled)."""
     config_path = BASE_DIR / "agents" / "config.toml"
     if not config_path.exists():
         from fastapi.responses import JSONResponse
@@ -143,7 +150,6 @@ def update_agent(agent_id: str, body: dict):
 
 @router.patch("/api/agents/{agent_id}/skills")
 def update_agent_skills(agent_id: str, body: dict):
-    """Replace agent's skill manifest."""
     skills_dir = BASE_DIR / "agents" / agent_id / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = skills_dir / "manifest.json"
@@ -158,7 +164,6 @@ def update_agent_skills(agent_id: str, body: dict):
 
 @router.delete("/api/agents/{agent_id}")
 def delete_agent(agent_id: str):
-    """Remove an agent's config entry and directory."""
     config_path = BASE_DIR / "agents" / "config.toml"
     import tomllib
     with open(config_path, "rb") as f:
@@ -185,7 +190,6 @@ def delete_agent(agent_id: str):
 
 @router.get("/api/agents/{agent_id}/entries")
 def get_agent_entries(agent_id: str):
-    """Get agent's personal entry configuration."""
     entries_path = BASE_DIR / "agents" / agent_id / "entries.json"
     if not entries_path.exists():
         return {"entries": []}
@@ -197,7 +201,6 @@ def get_agent_entries(agent_id: str):
 
 @router.put("/api/agents/{agent_id}/entries")
 def update_agent_entries(agent_id: str, body: dict):
-    """Update agent's personal entry configuration."""
     entries_path = BASE_DIR / "agents" / agent_id / "entries.json"
     entries = body.get("entries", [])
     entries_path.write_text(json.dumps({"entries": entries}, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -206,7 +209,6 @@ def update_agent_entries(agent_id: str, body: dict):
 
 @router.get("/api/agents/{agent_id}/display")
 def get_agent_display(agent_id: str):
-    """Get agent's display config with gender from profile."""
     display_path = BASE_DIR / "agents" / agent_id / "display.json"
     display = {"nickname": "", "avatar": "", "color": "", "gender": ""}
     if display_path.exists():
@@ -215,7 +217,6 @@ def get_agent_display(agent_id: str):
         except Exception:
             pass
 
-    # Read gender from immutable profile.json
     profile_path = BASE_DIR / "agents" / agent_id / "profile.json"
     if profile_path.exists():
         try:
@@ -271,7 +272,6 @@ def get_user_memory(agent_id: str, user_id: str):
 
 @router.put("/api/agents/{agent_id}/display")
 def update_agent_display(agent_id: str, body: dict):
-    """Update agent's display config."""
     display_path = BASE_DIR / "agents" / agent_id / "display.json"
     existing = {}
     if display_path.exists():

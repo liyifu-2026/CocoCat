@@ -1,4 +1,10 @@
-"""Entry configuration routes for scenes."""
+"""Entry configuration routes for scenes.
+
+TODO: Migrate all endpoints to proxy through Rust HTTP API:
+  - GET /api/scenes/{scene_id}/entries → Rust equivalent
+  - PUT /api/scenes/{scene_id}/entries → Rust equivalent
+  - GET /api/channels → Rust equivalent (or keep static)
+"""
 import json
 from pathlib import Path
 from fastapi import APIRouter
