@@ -31,53 +31,38 @@ impl InputBuffer {
     }
 
     pub fn insert_char(&mut self, c: char) {
-        if self.text.is_char_boundary(self.cursor) || self.cursor >= self.text.len() {
-            self.text.insert(self.cursor, c);
-            self.cursor += c.len_utf8();
+        if let Some((byte_idx, _)) = self.text.char_indices().nth(self.cursor) {
+            self.text.insert(byte_idx, c);
         } else {
             self.text.push(c);
-            self.cursor = self.text.len();
         }
+        self.cursor += 1;
     }
 
     pub fn backspace(&mut self) {
-        if self.cursor > 0 {
-            let mut prev = self.cursor - 1;
-            while prev > 0 && !self.text.is_char_boundary(prev) {
-                prev -= 1;
-            }
-            self.text.replace_range(prev..self.cursor, "");
-            self.cursor = prev;
+        if self.cursor == 0 { return; }
+        self.cursor -= 1;
+        if let Some((byte_idx, _)) = self.text.char_indices().nth(self.cursor) {
+            self.text.remove(byte_idx);
         }
     }
 
     pub fn delete(&mut self) {
-        if self.cursor < self.text.len() {
-            let mut next = self.cursor + 1;
-            while next < self.text.len() && !self.text.is_char_boundary(next) {
-                next += 1;
-            }
-            self.text.replace_range(self.cursor..next, "");
+        if let Some((byte_idx, _)) = self.text.char_indices().nth(self.cursor) {
+            self.text.remove(byte_idx);
         }
     }
 
     pub fn cursor_left(&mut self) {
         if self.cursor > 0 {
-            let mut new = self.cursor - 1;
-            while new > 0 && !self.text.is_char_boundary(new) {
-                new -= 1;
-            }
-            self.cursor = new;
+            self.cursor -= 1;
         }
     }
 
     pub fn cursor_right(&mut self) {
-        if self.cursor < self.text.len() {
-            let mut new = self.cursor + 1;
-            while new < self.text.len() && !self.text.is_char_boundary(new) {
-                new += 1;
-            }
-            self.cursor = new;
+        let char_count = self.text.chars().count();
+        if self.cursor < char_count {
+            self.cursor += 1;
         }
     }
 
