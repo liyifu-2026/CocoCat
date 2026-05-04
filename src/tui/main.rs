@@ -9,6 +9,8 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
+mod app;
+mod components;
 mod config;
 mod event;
 mod protocol;
