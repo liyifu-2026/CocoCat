@@ -39,9 +39,20 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--agent-id", default=None)
     parser.add_argument("--model", default="gpt-4")
+    parser.add_argument("--scene-id", default="default")
     args, _ = parser.parse_known_args()
 
-    agent_loop = None
+    # Eagerly initialize agent loop on startup, not on first request.
+    # This loads tools, plugins, scene context before accepting any RPC.
+    from agent_runner import AgentRunner
+    runner = AgentRunner(
+        agent_id=args.agent_id or "unknown",
+        agent_name=args.agent_id or "Agent",
+        scene=args.scene_id,
+    )
+    runner._ensure_loop()
+    agent_loop = runner._loop
+    del runner
 
     for line in sys.stdin:
         line = line.strip()
@@ -53,16 +64,6 @@ def main():
         try:
             request = json.loads(line)
             req_id = request.get("id")
-
-            if request.get("method") == "chat" and agent_loop is None:
-                from agent_runner import AgentRunner
-                runner = AgentRunner(
-                    agent_id=args.agent_id or "unknown",
-                    agent_name=args.agent_id or "Agent",
-                    scene=request.get("params", {}).get("scene_id", "default"),
-                )
-                runner._ensure_loop()
-                agent_loop = runner._loop
 
             result = handle_request(request, agent_loop=agent_loop)
             response = {"jsonrpc": "2.0", "result": result, "id": req_id}

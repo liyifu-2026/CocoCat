@@ -59,6 +59,8 @@ impl AgentProcess {
             .arg(&config.id)
             .arg("--model")
             .arg(&config.model)
+            .arg("--scene-id")
+            .arg(&config.scene_id)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
