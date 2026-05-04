@@ -1,6 +1,5 @@
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::params;
 
 pub type DbPool = Pool<SqliteConnectionManager>;
 
@@ -10,7 +9,6 @@ pub fn create_pool() -> Result<DbPool, Box<dyn std::error::Error>> {
         .max_size(8)
         .build(manager)?;
 
-    // Enable WAL mode
     let conn = pool.get()?;
     conn.execute_batch(
         "PRAGMA journal_mode=WAL;
