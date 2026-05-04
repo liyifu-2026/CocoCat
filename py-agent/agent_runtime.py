@@ -25,7 +25,14 @@ def handle_request(request: dict, agent_loop=None) -> dict:
         user_id = params.get("user_id", "")
         if not prompt:
             return {"error": "no prompt provided"}
-        result = agent_loop.run(prompt, user_id=user_id)
+        if params.get("stream_progress"):
+            def _p(msg):
+                line = json.dumps({"event": "progress", "content": msg}, ensure_ascii=False)
+                sys.stdout.write(line + "\n")
+                sys.stdout.flush()
+            result = agent_loop.run(prompt, user_id=user_id, on_progress=_p)
+        else:
+            result = agent_loop.run(prompt, user_id=user_id)
         return result
     elif method == "task_stream":
         if agent_loop is None:
@@ -35,10 +42,14 @@ def handle_request(request: dict, agent_loop=None) -> dict:
         if not prompt:
             return {"error": "no prompt provided"}
 
-        sys.stdout.write(json.dumps({"event": "progress", "content": "Running full ReAct loop with tools..."}) + "\n")
-        sys.stdout.flush()
+        def _progress(msg):
+            line = json.dumps({"event": "progress", "content": msg}, ensure_ascii=False)
+            sys.stdout.write(line + "\n")
+            sys.stdout.flush()
 
-        result = agent_loop.run(prompt, user_id=user_id)
+        _progress("Running full ReAct loop with tools...")
+
+        result = agent_loop.run(prompt, user_id=user_id, on_progress=_progress)
         content = result.get("content", str(result))
 
         sys.stdout.write(json.dumps({"event": "progress", "content": "Streaming response..."}) + "\n")

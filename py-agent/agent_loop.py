@@ -259,14 +259,20 @@ class AgentLoop:
             knowledge_overview=knowledge_overview,
         )
 
-    def run(self, prompt: str, user_id: str = "") -> dict:
-        """Execute a task prompt and return the result."""
+    def run(self, prompt: str, user_id: str = "", on_progress=None) -> dict:
+        """Execute a task prompt and return the result.
+        
+        If on_progress is provided, it's called with status strings at key points
+        (nanobot on_progress callback pattern).
+        """
         uid = user_id or self.user_id
         try:
             from agent_status import report as _report_status
             _report_status(self.agent_id, "busy", prompt[:100])
         except Exception:
             pass
+        if on_progress:
+            on_progress("Building system prompt...")
         system_prompt = self._build_system_prompt(user_id=uid)
         tool_defs = self.tools.get_definitions()
 
@@ -281,12 +287,16 @@ class AgentLoop:
 
         while iteration < self.max_iterations:
             iteration += 1
+            if on_progress:
+                on_progress(f"Iteration {iteration}/{self.max_iterations}")
 
             if iteration > 1:
                 messages = consolidate(messages, self.llm, budget=131072)
                 messages = _snip_history(messages, budget=131072)
                 messages = _microcompact_tool_results(messages)
 
+            if on_progress:
+                on_progress(f"Calling LLM (iteration {iteration})...")
             content = ""
             tool_calls = []
             reasoning = None
@@ -337,6 +347,9 @@ class AgentLoop:
                 messages.append(assistant_msg)
 
                 from concurrent.futures import ThreadPoolExecutor, as_completed
+                tool_names = [tc["name"] for tc in tool_calls]
+                if on_progress:
+                    on_progress(f"Executing tools: {', '.join(tool_names)}...")
                 with ThreadPoolExecutor(max_workers=len(tool_calls)) as executor:
                     futures = {}
                     for tc in tool_calls:
@@ -355,6 +368,8 @@ class AgentLoop:
                         futures[f] = (tc, tool_name, modified_args)
                     for f in as_completed(futures):
                         tc, tool_name, modified_args = futures[f]
+                        if on_progress:
+                            on_progress(f"Tool result: {tool_name}")
                         try:
                             result = f.result(timeout=60)
                         except Exception as e:
