@@ -68,7 +68,7 @@ impl InputBuffer {
 
     pub fn set_text(&mut self, s: &str) {
         self.text = s.to_string();
-        self.cursor = self.text.len();
+        self.cursor = self.text.chars().count();
     }
 
     pub fn clear(&mut self) {
@@ -77,10 +77,8 @@ impl InputBuffer {
     }
 
     pub fn take(&mut self) -> String {
-        let s = self.text.clone();
-        self.text.clear();
         self.cursor = 0;
-        s
+        std::mem::take(&mut self.text)
     }
 }
 
