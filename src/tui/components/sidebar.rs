@@ -2,7 +2,7 @@ use ratatui::{
     layout::Rect,
     style::Style,
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Paragraph, Wrap},
     Frame,
 };
 use crate::app::SidebarSection;
@@ -15,8 +15,7 @@ pub fn render_sidebar(
     theme: &Theme,
 ) {
     let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme.border_color()))
+        .style(Style::default().bg(theme.surface()))
         .title(Span::styled(" Sidebar ", Style::default().fg(theme.accent_color())));
 
     let mut lines: Vec<Line> = Vec::new();

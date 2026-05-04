@@ -150,16 +150,10 @@ pub fn render_input_bar(
     theme: &Theme, is_focused: bool,
     agent_name: &str, model: &str, token_count: u32,
 ) {
-    let border_style = if is_focused {
-        theme.accent_color()
-    } else {
-        theme.border_color()
-    };
-
     let block = Block::default()
-        .title(" Message ")
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_style));
+        .borders(Borders::LEFT)
+        .border_style(Style::default().fg(theme.accent_color()))
+        .style(Style::default().bg(theme.surface()));
 
     let inner = block.inner(area);
 
