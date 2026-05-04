@@ -1,6 +1,6 @@
 use ratatui::{
     layout::Rect,
-    style::Style,
+    style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, Paragraph, Wrap},
     Frame,
@@ -9,13 +9,15 @@ use crate::app::SidebarSection;
 use crate::theme::theme::Theme;
 use crate::types::stats::{ToolStats, SessionStats, SystemStats};
 
+const BLOCK_BG: Color = Color::Rgb(0x2a, 0x2a, 0x2a);
+
 pub fn render_sidebar(
     f: &mut Frame, area: Rect, sections: &mut [SidebarSection],
     tool_stats: &ToolStats, session_stats: &SessionStats, system_stats: &SystemStats,
     theme: &Theme,
 ) {
     let block = Block::default()
-        .style(Style::default().bg(theme.surface()));
+        .style(Style::default().bg(BLOCK_BG));
 
     let mut lines: Vec<Line> = Vec::new();
 

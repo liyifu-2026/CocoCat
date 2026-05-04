@@ -1,11 +1,13 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::Style,
+    style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
 use crate::theme::theme::Theme;
+
+const BLOCK_BG: Color = Color::Rgb(0x2a, 0x2a, 0x2a);
 
 pub struct InputBuffer {
     text: String,
@@ -153,7 +155,7 @@ pub fn render_input_bar(
     let block = Block::default()
         .borders(Borders::LEFT)
         .border_style(Style::default().fg(theme.accent_color()))
-        .style(Style::default().bg(theme.surface()));
+        .style(Style::default().bg(BLOCK_BG));
 
     let inner = block.inner(area);
 
@@ -183,7 +185,7 @@ pub fn render_input_bar(
         let cursor_x = chunks[0].x + 2 + input.cursor() as u16;
         let cursor_y = chunks[0].y;
         if cursor_x < chunks[0].right() && cursor_y < chunks[0].bottom() {
-            f.set_cursor_position((cursor_x, cursor_y));
+            f.set_cursor(cursor_x, cursor_y);
         }
     }
 }

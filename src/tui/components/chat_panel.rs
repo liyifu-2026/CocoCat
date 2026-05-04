@@ -1,6 +1,6 @@
 use ratatui::{
     layout::Rect,
-    style::Style,
+    style::{Color, Style},
     text::{Line, Span},
     widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Frame,
@@ -8,6 +8,8 @@ use ratatui::{
 use crate::app::ChatMessage;
 use crate::event::TuiEvent;
 use crate::theme::theme::Theme;
+
+const HOVER_BG: Color = Color::Rgb(0x35, 0x35, 0x35);
 
 pub fn render_chat_panel(
     f: &mut Frame,
@@ -60,7 +62,7 @@ fn build_message_lines(messages: &[ChatMessage], width: usize, theme: &Theme, ho
         }
     }
 
-    let surface = theme.surface();
+    let surface = HOVER_BG;
 
     for msg in messages {
         if msg.role == "user" {
