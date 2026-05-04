@@ -371,14 +371,8 @@ fn main() -> io::Result<()> {
                     }
                 }
                 Event::Mouse(mouse) => {
-                    match mouse.kind {
-                        MouseEventKind::Moved => {
-                            hovered_row = Some(mouse.row);
-                        }
-                        MouseEventKind::Down(MouseButton::Left) => {
-                            pending_click = Some((mouse.column as i32, mouse.row as i32));
-                        }
-                        _ => {}
+                    if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
+                        pending_click = Some((mouse.column as i32, mouse.row as i32));
                     }
                 }
                 _ => {}
