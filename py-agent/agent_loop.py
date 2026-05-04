@@ -6,82 +6,16 @@ import time as _time
 from llm import LLMClient
 from tools import ToolRegistry, create_default_registry, PermissionMode
 from plugin_hooks import HookRegistry
-from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_skills, load_agent_profile, load_user_profile
-import tiktoken
-
-
-def append_history(agent_id: str, prompt: str, response: str, iterations: int):
-    """Append a task result to the agent's history.jsonl (nanobot pattern)."""
-    if not agent_id or agent_id == "unknown":
-        return
-    history_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", agent_id, "memory")
-    history_path = os.path.join(history_dir, "history.jsonl")
-    os.makedirs(history_dir, exist_ok=True)
-
-    entry = {
-        "timestamp": datetime.now().isoformat(),
-        "prompt": prompt[:200],
-        "response_summary": response[:200],
-        "iterations": iterations,
-    }
-    try:
-        with open(history_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
-
-
-def _log_usage(agent_id: str, prompt: str, usage: dict, iterations: int):
-    """Append token usage to agents/_usage.jsonl (nanobot pattern)."""
-    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", "_usage.jsonl")
-    entry = {
-        "timestamp": datetime.now().isoformat(),
-        "agent_id": agent_id,
-        "prompt_preview": prompt[:100],
-        "input_tokens": usage.get("input", 0),
-        "output_tokens": usage.get("output", 0),
-        "total_tokens": usage.get("input", 0) + usage.get("output", 0),
-        "iterations": iterations,
-    }
-    try:
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
-
-
-def auto_dream(agent_id: str, agent_name: str, llm) -> None:
-    from dream import get_unprocessed_history, run_dream, should_trigger_dream, read_last_dream_time
-    try:
-        unprocessed, _ = get_unprocessed_history(agent_id)
-        last_time = read_last_dream_time(agent_id)
-        if should_trigger_dream(unprocessed, last_time, _time.time()):
-            run_dream(agent_id, agent_name, llm_client=llm)
-    except Exception as e:
-        print(f"[auto_dream] Error for {agent_id}: {e}", file=__import__('sys').stderr)
-
-
-import re
-
-
-def _microcompact_tool_results(messages: list[dict], max_tool_chars: int = 16000) -> list[dict]:
-    """Truncate verbose tool results to prevent context bloat (nanobot pattern)."""
-    result = []
-    for msg in messages:
-        if msg.get("role") == "tool" and isinstance(msg.get("content"), str):
-            content = msg["content"]
-            if len(content) > max_tool_chars:
-                msg = dict(msg)
-                msg["content"] = content[:max_tool_chars] + f"\n...[truncated {len(content) - max_tool_chars} chars]"
-        result.append(msg)
-    return result
-
+from context import build_system_prompt, build_tool_descriptions, load_agent_skills, load_agent_profile, load_user_profile
 
 _enc = None
+
+
 def _get_encoder():
     global _enc
     if _enc is None:
         try:
+            import tiktoken
             _enc = tiktoken.get_encoding("cl100k_base")
         except Exception:
             _enc = None
@@ -233,23 +167,43 @@ class AgentLoop:
         except Exception:
             pass
 
+        # Cache for context that doesn't change between requests
+        self._profile_cache = None
+        self._skills_cache = None
+        self._kbs_cache = None
+        self._knowledge_cache = None
+
+    def _invalidate_cache(self):
+        self._profile_cache = None
+        self._skills_cache = None
+        self._kbs_cache = None
+        self._knowledge_cache = None
+
     def _build_system_prompt(self, user_id: str = "", knowledge_overview: str = None, agent_skills: str = None):
         from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_profile, load_user_profile, load_mounted_kbs, load_knowledge_overview, load_agent_skills
         tool_defs = self.tools.get_definitions()
         tool_desc = build_tool_descriptions(tool_defs)
         agent_memory = load_agent_memory(self.agent_id)
-        agent_profile = load_agent_profile(self.agent_id)
+        if self._profile_cache is None:
+            self._profile_cache = load_agent_profile(self.agent_id)
+        agent_profile = self._profile_cache
         uid = user_id or self.user_id
         user_profile = load_user_profile(self.agent_id, uid)
         user_conversation = ""
-        mounted_kbs = load_mounted_kbs(self.scene_name)
+        if self._kbs_cache is None:
+            self._kbs_cache = load_mounted_kbs(self.scene_name)
+        mounted_kbs = self._kbs_cache
         scene_context = self.scene_context
         if mounted_kbs:
             scene_context += f"\n## Available Knowledge Bases\nMounted KBs: {', '.join(mounted_kbs)}\nRead wiki pages via read_file — see knowledge_overview for the index."
         if knowledge_overview is None:
-            knowledge_overview = load_knowledge_overview(self.scene_name)
+            if self._knowledge_cache is None:
+                self._knowledge_cache = load_knowledge_overview(self.scene_name)
+            knowledge_overview = self._knowledge_cache
         if agent_skills is None:
-            agent_skills = load_agent_skills(self.agent_id)
+            if self._skills_cache is None:
+                self._skills_cache = load_agent_skills(self.agent_id)
+            agent_skills = self._skills_cache
         return build_system_prompt(
             agent_id=self.agent_id, agent_name=self.agent_name,
             tool_descriptions=tool_desc, workspace=self.workspace,
