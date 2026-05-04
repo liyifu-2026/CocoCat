@@ -16,8 +16,10 @@ pub fn render_chat_panel(
     scroll_offset: usize,
     theme: &Theme,
     show_scrollbar: bool,
+    hovered_row: Option<u16>,
+    area_y: u16,
 ) {
-    let lines = build_message_lines(messages, area.width as usize, theme);
+    let lines = build_message_lines(messages, area.width as usize, theme, hovered_row, area_y);
 
     let available_height = area.height.max(1) as usize;
     let max_scroll = lines.len().saturating_sub(available_height);
@@ -46,25 +48,38 @@ pub fn render_chat_panel(
     }
 }
 
-fn build_message_lines(messages: &[ChatMessage], width: usize, theme: &Theme) -> Vec<Line<'static>> {
+fn build_message_lines(messages: &[ChatMessage], width: usize, theme: &Theme, hovered_row: Option<u16>, area_y: u16) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
     let sep = "─".repeat(width.min(80));
 
+    fn apply_hover(line: &mut Line, line_index: usize, hovered_row: Option<u16>, area_y: u16, surface: ratatui::style::Color) {
+        if let Some(hrow) = hovered_row {
+            if area_y + line_index as u16 == hrow {
+                line.style = Style::default().bg(surface);
+            }
+        }
+    }
+
+    let surface = theme.surface();
+
     for msg in messages {
         if msg.role == "user" {
-            lines.push(Line::from(Span::styled(
-                sep.clone(),
-                Style::default().fg(theme.text_dim_color()),
-            )));
-            lines.push(Line::from(vec![
+            let mut l = Line::from(Span::styled(sep.clone(), Style::default().fg(theme.text_dim_color())));
+            apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+            lines.push(l);
+            let mut l = Line::from(vec![
                 Span::styled("┃ ", Style::default().fg(theme.accent_color())),
                 Span::styled(msg.timestamp.clone(), Style::default().fg(theme.text_dim_color())),
-            ]));
+            ]);
+            apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+            lines.push(l);
             for content_line in msg.content.lines() {
-                lines.push(Line::from(vec![
+                let mut l = Line::from(vec![
                     Span::styled("┃ ", Style::default().fg(theme.accent_color())),
                     Span::styled(content_line.to_string(), Style::default().fg(theme.text_color())),
-                ]));
+                ]);
+                apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+                lines.push(l);
             }
         } else {
             for event in &msg.events {
@@ -73,65 +88,65 @@ fn build_message_lines(messages: &[ChatMessage], width: usize, theme: &Theme) ->
                         let spans = crate::components::markdown::render_markdown(s, theme);
                         if spans.is_empty() {
                             for line in s.split('\n') {
-                                lines.push(Line::from(Span::raw(line.to_string())));
+                                let mut l = Line::from(Span::raw(line.to_string()));
+                                apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+                                lines.push(l);
                             }
                         } else {
                             let mut current_line = Vec::new();
                             for span in spans {
                                 let text = span.content.to_string();
                                 if text == "\n" {
-                                    lines.push(Line::from(std::mem::take(&mut current_line)));
+                                    let mut l = Line::from(std::mem::take(&mut current_line));
+                                    apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+                                    lines.push(l);
                                 } else {
                                     current_line.push(span.clone());
                                 }
                             }
                             if !current_line.is_empty() {
-                                lines.push(Line::from(current_line));
+                                let mut l = Line::from(current_line);
+                                apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+                                lines.push(l);
                             }
                         }
                     }
                     TuiEvent::Reasoning(s) => {
-                        lines.push(Line::from(Span::styled(
-                            format!(" _Thinking... {}", s),
-                            theme.style_think(),
-                        )));
+                        let mut l = Line::from(Span::styled(format!(" _Thinking... {}", s), theme.style_think()));
+                        apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+                        lines.push(l);
                     }
                     TuiEvent::ToolStart { tool, args } => {
-                        let label = if args.is_empty() {
-                            format!("  ◈ {tool}")
-                        } else {
-                            format!("  ◈ {tool} ({args})")
-                        };
-                        lines.push(Line::from(Span::styled(label, theme.style_tool())));
+                        let label = if args.is_empty() { format!("  ◈ {tool}") } else { format!("  ◈ {tool} ({args})") };
+                        let mut l = Line::from(Span::styled(label, theme.style_tool()));
+                        apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+                        lines.push(l);
                     }
                     TuiEvent::ToolDone { tool, result } => {
-                        let preview = if result.is_empty() {
-                            String::new()
-                        } else {
+                        let preview = if result.is_empty() { String::new() } else {
                             format!(" — {}", result.chars().take(60).collect::<String>().replace('\n', " "))
                         };
-                        lines.push(Line::from(Span::styled(
-                            format!("  ✓ {tool}{preview}"),
-                            theme.style_success(),
-                        )));
+                        let mut l = Line::from(Span::styled(format!("  ✓ {tool}{preview}"), theme.style_success()));
+                        apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+                        lines.push(l);
                     }
                     TuiEvent::ToolError { tool, error } => {
-                        lines.push(Line::from(Span::styled(
-                            format!("  ✗ {tool}: {error}"),
-                            theme.style_error(),
-                        )));
+                        let mut l = Line::from(Span::styled(format!("  ✗ {tool}: {error}"), theme.style_error()));
+                        apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+                        lines.push(l);
                     }
                     _ => {}
                 }
             }
             if !msg.is_streaming && msg.role == "assistant" {
-                lines.push(Line::from(Span::styled(
-                    format!("  ▣ Build · {} · {:.1}s", "gpt-4", 0.0),
-                    Style::default().fg(theme.text_dim_color()),
-                )));
+                let mut l = Line::from(Span::styled(format!("  ▣ Build · {} · {:.1}s", "gpt-4", 0.0), Style::default().fg(theme.text_dim_color())));
+                apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+                lines.push(l);
             }
         }
-        lines.push(Line::from(""));
+        let mut l = Line::from("");
+        apply_hover(&mut l, lines.len(), hovered_row, area_y, surface);
+        lines.push(l);
     }
     lines
 }
