@@ -2,7 +2,7 @@ use ratatui::{
     layout::Rect,
     style::Style,
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
+    widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Frame,
 };
 use crate::app::ChatMessage;
@@ -17,16 +17,9 @@ pub fn render_chat_panel(
     theme: &Theme,
     show_scrollbar: bool,
 ) {
-    let block = Block::default()
-        .title(" Chat ")
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme.border_color()));
+    let lines = build_message_lines(messages, area.width as usize, theme);
 
-    let inner = block.inner(area);
-
-    let lines = build_message_lines(messages, inner.width as usize, theme);
-
-    let available_height = inner.height.max(1) as usize;
+    let available_height = area.height.max(1) as usize;
     let max_scroll = lines.len().saturating_sub(available_height);
     let scroll = if max_scroll == 0 { 0 } else { scroll_offset.min(max_scroll) };
     let start = scroll;
@@ -38,10 +31,7 @@ pub fn render_chat_panel(
         vec![]
     };
 
-    let paragraph = Paragraph::new(visible)
-        .block(block)
-        .wrap(Wrap { trim: false });
-
+    let paragraph = Paragraph::new(visible).wrap(Wrap { trim: false });
     f.render_widget(paragraph, area);
 
     if show_scrollbar && max_scroll > 0 {
@@ -56,15 +46,26 @@ pub fn render_chat_panel(
     }
 }
 
-fn build_message_lines(messages: &[ChatMessage], _width: usize, theme: &Theme) -> Vec<Line<'static>> {
+fn build_message_lines(messages: &[ChatMessage], width: usize, theme: &Theme) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
+    let sep = "─".repeat(width.min(80));
+
     for msg in messages {
         if msg.role == "user" {
             lines.push(Line::from(Span::styled(
-                format!(" {} ", msg.timestamp),
+                sep.clone(),
                 Style::default().fg(theme.text_dim_color()),
             )));
-            lines.push(Line::from(Span::styled(msg.content.clone(), theme.style_accent())));
+            lines.push(Line::from(vec![
+                Span::styled("┃ ", Style::default().fg(theme.accent_color())),
+                Span::styled(msg.timestamp.clone(), Style::default().fg(theme.text_dim_color())),
+            ]));
+            for content_line in msg.content.lines() {
+                lines.push(Line::from(vec![
+                    Span::styled("┃ ", Style::default().fg(theme.accent_color())),
+                    Span::styled(content_line.to_string(), Style::default().fg(theme.text_color())),
+                ]));
+            }
         } else {
             for event in &msg.events {
                 match event {
@@ -75,7 +76,7 @@ fn build_message_lines(messages: &[ChatMessage], _width: usize, theme: &Theme) -
                     }
                     TuiEvent::Reasoning(s) => {
                         lines.push(Line::from(Span::styled(
-                            format!("  {}", s),
+                            format!(" _Thinking... {}", s),
                             theme.style_think(),
                         )));
                     }
@@ -106,6 +107,12 @@ fn build_message_lines(messages: &[ChatMessage], _width: usize, theme: &Theme) -
                     }
                     _ => {}
                 }
+            }
+            if !msg.is_streaming && msg.role == "assistant" {
+                lines.push(Line::from(Span::styled(
+                    format!("  ▣ Build · {} · {:.1}s", "gpt-4", 0.0),
+                    Style::default().fg(theme.text_dim_color()),
+                )));
             }
         }
         lines.push(Line::from(""));
