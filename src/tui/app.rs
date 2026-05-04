@@ -44,11 +44,84 @@ pub enum InputMode {
     Normal,
 }
 
+#[derive(Debug, Clone)]
 pub enum Dialog {
-    ThemeSelector,
+    ThemeSelector { items: Vec<String>, selected: usize },
     Help,
-    SessionSwitcher,
-    ModelSelector,
+    SessionSwitcher { items: Vec<String>, selected: usize },
+    ModelSelector { items: Vec<String>, selected: usize },
+}
+
+impl Dialog {
+    pub fn selected(&self) -> usize {
+        match self {
+            Dialog::ThemeSelector { selected, .. } => *selected,
+            Dialog::SessionSwitcher { selected, .. } => *selected,
+            Dialog::ModelSelector { selected, .. } => *selected,
+            Dialog::Help => 0,
+        }
+    }
+
+    pub fn select(&mut self, index: usize) {
+        match self {
+            Dialog::ThemeSelector { selected, items }
+            | Dialog::SessionSwitcher { selected, items }
+            | Dialog::ModelSelector { selected, items } => {
+                if !items.is_empty() {
+                    *selected = index % items.len();
+                }
+            }
+            Dialog::Help => {}
+        }
+    }
+
+    pub fn items(&self) -> &[String] {
+        match self {
+            Dialog::ThemeSelector { items, .. }
+            | Dialog::SessionSwitcher { items, .. }
+            | Dialog::ModelSelector { items, .. } => items,
+            Dialog::Help => &[],
+        }
+    }
+
+    pub fn confirm(&self, app: &mut App) {
+        match self {
+            Dialog::ThemeSelector { items, selected } => {
+                if *selected < items.len() {
+                    let name = &items[*selected];
+                    if app.switch_theme(name) {
+                        app.status_message = format!("Switched to theme: {}", name);
+                    }
+                }
+            }
+            Dialog::ModelSelector { items, selected } => {
+                if *selected < items.len() {
+                    app.status_message = format!("Selected model: {}", items[*selected]);
+                }
+            }
+            Dialog::SessionSwitcher { items, selected } => {
+                if *selected < items.len() {
+                    let mgr = crate::session::manager::SessionManager::new();
+                    match mgr.load(&items[*selected]) {
+                        Ok(session) => {
+                            app.messages = session.messages.into_iter().map(|m| ChatMessage {
+                                role: m.role,
+                                content: m.content,
+                                events: vec![],
+                                is_streaming: false,
+                                timestamp: m.timestamp,
+                            }).collect();
+                            app.status_message = format!("Loaded session: {}", items[*selected]);
+                        }
+                        Err(e) => {
+                            app.status_message = format!("Failed to load session: {}", e);
+                        }
+                    }
+                }
+            }
+            Dialog::Help => {}
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -29,26 +29,27 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 
 pub fn render_dialog(f: &mut Frame, area: Rect, dialog: &Dialog, app: &App) {
     match dialog {
-        Dialog::ThemeSelector => render_theme_selector(f, area, app),
+        Dialog::ThemeSelector { .. } => render_theme_selector(f, area, dialog, app),
         Dialog::Help => render_help(f, area, app),
-        Dialog::SessionSwitcher => render_session_switcher(f, area, app),
-        Dialog::ModelSelector => render_model_selector(f, area, app),
+        Dialog::SessionSwitcher { .. } => render_session_switcher(f, area, dialog, app),
+        Dialog::ModelSelector { .. } => render_model_selector(f, area, dialog, app),
     }
 }
 
-fn render_theme_selector(f: &mut Frame, area: Rect, app: &App) {
+fn render_theme_selector(f: &mut Frame, area: Rect, dialog: &Dialog, app: &App) {
+    let Dialog::ThemeSelector { items, selected } = dialog else { return; };
     let theme = app.theme_registry.current_theme();
     let dialog_area = centered_rect(50, 50, area);
 
-    let items: Vec<ListItem> = app.theme_registry.all().iter().map(|t| {
-        let selected = t.name == app.theme_registry.current();
-        let style = if selected {
+    let list_items: Vec<ListItem> = items.iter().enumerate().map(|(i, name)| {
+        let is_selected = i == *selected;
+        let style = if is_selected {
             Style::default().fg(theme.accent_color())
         } else {
             Style::default().fg(theme.text_color())
         };
-        let prefix = if selected { "▶ " } else { "  " };
-        ListItem::new(Line::from(Span::styled(format!("{prefix}{}", t.name), style)))
+        let prefix = if is_selected { "▶ " } else { "  " };
+        ListItem::new(Line::from(Span::styled(format!("{prefix}{name}"), style)))
     }).collect();
 
     let block = Block::default()
@@ -57,7 +58,7 @@ fn render_theme_selector(f: &mut Frame, area: Rect, app: &App) {
         .title(Span::styled(" Select Theme ", Style::default().fg(theme.accent_color())))
         .style(Style::default().bg(theme.bg()));
 
-    let list = List::new(items).block(block);
+    let list = List::new(list_items).block(block);
     f.render_widget(Clear, dialog_area);
     f.render_widget(list, dialog_area);
 }
@@ -99,18 +100,23 @@ fn render_help(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(paragraph, dialog_area);
 }
 
-fn render_session_switcher(f: &mut Frame, area: Rect, app: &App) {
+fn render_session_switcher(f: &mut Frame, area: Rect, dialog: &Dialog, app: &App) {
+    let Dialog::SessionSwitcher { items, selected } = dialog else { return; };
     let theme = app.theme_registry.current_theme();
     let dialog_area = centered_rect(50, 50, area);
 
-    let mgr = crate::session::manager::SessionManager::new();
-    let sessions = mgr.list();
-
-    let items: Vec<ListItem> = if sessions.is_empty() {
+    let list_items: Vec<ListItem> = if items.is_empty() {
         vec![ListItem::new(Line::from(Span::styled("  No saved sessions", Style::default().fg(theme.text_dim_color()))))]
     } else {
-        sessions.iter().map(|s| {
-            ListItem::new(Line::from(Span::styled(format!("  {}", s), Style::default().fg(theme.text_color()))))
+        items.iter().enumerate().map(|(i, name)| {
+            let is_selected = i == *selected;
+            let style = if is_selected {
+                Style::default().fg(theme.accent_color())
+            } else {
+                Style::default().fg(theme.text_color())
+            };
+            let prefix = if is_selected { "▶ " } else { "  " };
+            ListItem::new(Line::from(Span::styled(format!("{prefix}{name}"), style)))
         }).collect()
     };
 
@@ -120,18 +126,25 @@ fn render_session_switcher(f: &mut Frame, area: Rect, app: &App) {
         .title(Span::styled(" Sessions ", Style::default().fg(theme.accent_color())))
         .style(Style::default().bg(theme.bg()));
 
-    let list = List::new(items).block(block);
+    let list = List::new(list_items).block(block);
     f.render_widget(Clear, dialog_area);
     f.render_widget(list, dialog_area);
 }
 
-fn render_model_selector(f: &mut Frame, area: Rect, app: &App) {
+fn render_model_selector(f: &mut Frame, area: Rect, dialog: &Dialog, app: &App) {
+    let Dialog::ModelSelector { items, selected } = dialog else { return; };
     let theme = app.theme_registry.current_theme();
     let dialog_area = centered_rect(50, 50, area);
 
-    let models = ["gpt-4", "gpt-3.5-turbo", "claude-3"];
-    let items: Vec<ListItem> = models.iter().map(|m| {
-        ListItem::new(Line::from(Span::styled(format!("  {}", m), Style::default().fg(theme.text_color()))))
+    let list_items: Vec<ListItem> = items.iter().enumerate().map(|(i, name)| {
+        let is_selected = i == *selected;
+        let style = if is_selected {
+            Style::default().fg(theme.accent_color())
+        } else {
+            Style::default().fg(theme.text_color())
+        };
+        let prefix = if is_selected { "▶ " } else { "  " };
+        ListItem::new(Line::from(Span::styled(format!("{prefix}{name}"), style)))
     }).collect();
 
     let block = Block::default()
@@ -140,7 +153,7 @@ fn render_model_selector(f: &mut Frame, area: Rect, app: &App) {
         .title(Span::styled(" Select Model ", Style::default().fg(theme.accent_color())))
         .style(Style::default().bg(theme.bg()));
 
-    let list = List::new(items).block(block);
+    let list = List::new(list_items).block(block);
     f.render_widget(Clear, dialog_area);
     f.render_widget(list, dialog_area);
 }

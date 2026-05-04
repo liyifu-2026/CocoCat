@@ -95,10 +95,26 @@ fn handle_key(
         }
     }
 
-    if app.dialog.is_some() {
-        match key {
-            KeyCode::Esc => app.dialog = None,
-            KeyCode::Enter => app.dialog = None,
+    if let Some(ref mut dialog) = app.dialog {
+        match (key, modifiers) {
+            (KeyCode::Up, _) => {
+                let sel = dialog.selected();
+                dialog.select(sel.saturating_sub(1));
+            }
+            (KeyCode::Down, _) => {
+                let sel = dialog.selected();
+                let items = dialog.items().len();
+                let next = if items > 0 { (sel + 1) % items } else { 0 };
+                dialog.select(next);
+            }
+            (KeyCode::Enter, _) => {
+                let d = dialog.clone();
+                d.confirm(app);
+                app.dialog = None;
+            }
+            (KeyCode::Esc, _) => {
+                app.dialog = None;
+            }
             _ => {}
         }
         return;
@@ -113,7 +129,11 @@ fn handle_key(
         (KeyCode::Tab, _) => {
             if let Some(section) = app.sidebar_sections.get_mut(0) { section.toggle(); }
         }
-        (KeyCode::Char('p'), KeyModifiers::CONTROL) => { app.dialog = Some(Dialog::SessionSwitcher); }
+        (KeyCode::Char('p'), KeyModifiers::CONTROL) => {
+            let mgr = crate::session::manager::SessionManager::new();
+            let items: Vec<String> = mgr.list();
+            app.dialog = Some(Dialog::SessionSwitcher { items, selected: 0 });
+        }
         (KeyCode::Esc, _) => { app.dialog = None; }
         (KeyCode::Enter, _) => {
             if *is_streaming { return; }
@@ -161,12 +181,22 @@ fn handle_slash_command(text: &str, app: &mut App, input: &mut InputBuffer, hist
                 let name = name.trim();
                 if app.switch_theme(name) { app.status_message = format!("Switched to theme: {}", name); }
                 else { app.status_message = format!("Unknown theme: {}", name); }
-            } else { app.dialog = Some(Dialog::ThemeSelector); }
+            } else {
+                let items: Vec<String> = app.theme_registry.all().iter().map(|t| t.name.clone()).collect();
+                app.dialog = Some(Dialog::ThemeSelector { items, selected: 0 });
+            }
         }
         "/help" | "/?" => { app.dialog = Some(Dialog::Help); }
         "/clear" => { app.messages.clear(); app.scroll_to_bottom(); }
-        "/model" => { app.dialog = Some(Dialog::ModelSelector); }
-        "/session" => { app.dialog = Some(Dialog::SessionSwitcher); }
+        "/model" => {
+            let items = vec!["gpt-4".into(), "gpt-3.5-turbo".into(), "claude-3".into()];
+            app.dialog = Some(Dialog::ModelSelector { items, selected: 0 });
+        }
+        "/session" => {
+            let mgr = crate::session::manager::SessionManager::new();
+            let items: Vec<String> = mgr.list();
+            app.dialog = Some(Dialog::SessionSwitcher { items, selected: 0 });
+        }
         "/quit" => { app.quit(); }
         _ => { app.status_message = format!("Unknown command: {}", cmd); }
     }
