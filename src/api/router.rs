@@ -1,8 +1,10 @@
 use crate::db::pool::DbPool;
-use axum::Router;
+use axum::{routing::get, Router};
 use tokio::sync::mpsc::Sender;
 
 use crate::dispatch::engine::TaskEvent;
+
+use super::chat;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -10,7 +12,13 @@ pub struct AppState {
     pub task_tx: Sender<TaskEvent>,
 }
 
-pub fn build(_state: AppState) -> Router {
+pub fn build(state: AppState) -> Router {
     Router::new()
-        .route("/api/health", axum::routing::get(|| async { "OK" }))
+        .route("/api/health", get(health))
+        .route("/api/chat", axum::routing::post(chat::chat_handler))
+        .with_state(state)
+}
+
+async fn health() -> &'static str {
+    "OK"
 }
