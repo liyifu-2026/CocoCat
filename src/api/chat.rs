@@ -1,6 +1,11 @@
-use axum::{extract::State, Json};
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    Json,
+};
 use serde::{Deserialize, Serialize};
 
+use crate::auth;
 use crate::db::models::NewMessage;
 use crate::db::{messages, tasks};
 use crate::dispatch::engine::TaskEvent;
@@ -24,8 +29,12 @@ pub struct ChatResponse {
 
 pub async fn chat_handler(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(req): Json<ChatRequest>,
-) -> Result<Json<ChatResponse>, axum::http::StatusCode> {
+) -> Result<Json<ChatResponse>, StatusCode> {
+    // Auth check
+    auth::verify_token(&headers, &state.jwt)?;
+
     let scene_id = req.scene_id.unwrap_or_else(|| "default".to_string());
 
     let user_msg_uuid = uuid::Uuid::new_v4().to_string();
@@ -42,7 +51,7 @@ pub async fn chat_handler(
 
     messages::insert_message(&state.db_pool, &user_msg).map_err(|e| {
         tracing::error!("Failed to save user message: {}", e);
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+        StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
     let task_uuid = uuid::Uuid::new_v4().to_string();
@@ -63,14 +72,14 @@ pub async fn chat_handler(
     )
     .map_err(|e| {
         tracing::error!("Failed to create task: {}", e);
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+        StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
     state.task_tx.send(TaskEvent::NewTask {
         task_uuid: task_uuid.clone(),
     }).await.map_err(|e| {
         tracing::error!("Failed to notify dispatch engine: {}", e);
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+        StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
     Ok(Json(ChatResponse {
