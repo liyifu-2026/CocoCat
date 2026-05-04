@@ -180,12 +180,4 @@ pub fn render_input_bar(
     f.render_widget(meta, chunks[1]);
 
     f.render_widget(block, area);
-
-    if is_focused {
-        let cursor_x = chunks[0].x + 2 + input.cursor() as u16;
-        let cursor_y = chunks[0].y;
-        if cursor_x < chunks[0].right() && cursor_y < chunks[0].bottom() {
-            f.set_cursor(cursor_x, cursor_y);
-        }
-    }
 }
