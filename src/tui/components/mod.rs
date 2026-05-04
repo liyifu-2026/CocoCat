@@ -1,4 +1,5 @@
 pub mod chat_panel;
+pub mod header;
 pub mod input_bar;
 pub mod sidebar;
 pub mod status_bar;

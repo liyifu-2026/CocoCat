@@ -28,7 +28,7 @@ mod types;
 use app::{App, Dialog};
 use event::TuiEvent;
 use protocol::client::AgentClient;
-use components::{chat_panel, dialogs, input_bar, sidebar, status_bar};
+use components::{chat_panel, dialogs, header, input_bar, sidebar, status_bar};
 use components::input_bar::{InputBuffer, InputHistory};
 
 struct Cleanup;
@@ -186,6 +186,12 @@ fn main() -> io::Result<()> {
     let cfg = config::Config::load_or_default(config::Config::config_path()).unwrap_or_default();
     let agent_id = std::env::args().nth(1).unwrap_or_else(|| cfg.chat.default_agent.clone());
     let mut app = App::new(&agent_id);
+    app.agent_statuses = vec![
+        app::AgentStatus { id: "leader".into(), name: "Leader".into(), running: true },
+        app::AgentStatus { id: "emp_a".into(), name: "Emp A".into(), running: true },
+        app::AgentStatus { id: "emp_b".into(), name: "Emp B".into(), running: false },
+        app::AgentStatus { id: "emp_c".into(), name: "Emp C".into(), running: false },
+    ];
     let mut input = InputBuffer::new();
     let mut history = InputHistory::new(200);
     let mut agent_client = AgentClient::new(".");
@@ -210,15 +216,17 @@ fn main() -> io::Result<()> {
 
             let vertical = Layout::default().direction(Direction::Vertical)
                 .constraints([
+                    Constraint::Length(1),   // header
                     Constraint::Min(3),      // chat
-                    Constraint::Length(3),   // input
+                    Constraint::Length(4),   // input (2 lines + borders)
                     Constraint::Length(1),   // status bar
                 ])
                 .split(chunks[0]);
 
-            chat_panel::render_chat_panel(f, vertical[0], &app.messages, app.scroll_offset, app.theme_registry.current_theme(), true);
-            input_bar::render_input_bar(f, vertical[1], &input, app.theme_registry.current_theme(), !is_streaming);
-            status_bar::render_status_bar(f, vertical[2], &app.agent_id, "default", app.theme_registry.current_theme());
+            header::render_header(f, vertical[0], &app.agent_id, app.theme_registry.current_theme());
+            chat_panel::render_chat_panel(f, vertical[1], &app.messages, app.scroll_offset, app.theme_registry.current_theme(), true);
+            input_bar::render_input_bar(f, vertical[2], &input, app.theme_registry.current_theme(), !is_streaming, &app.agent_id, "gpt-4", app.session_stats.token_count);
+            status_bar::render_status_bar(f, vertical[3], &app.agent_id, "default", app.theme_registry.current_theme());
 
             if sidebar_visible && term_width > 120 {
                 sidebar::render_sidebar(
@@ -263,17 +271,28 @@ fn main() -> io::Result<()> {
 
         if is_streaming {
             while let Ok(event) = rx.try_recv() {
-                match &event {
+                match event {
+                    TuiEvent::ToolStart { tool, .. } => {
+                        app.track_tool_start(&tool);
+                    }
+                    TuiEvent::ToolDone { tool, .. } => {
+                        app.track_tool_done(&tool);
+                    }
+                    TuiEvent::ToolError { tool, .. } => {
+                        app.track_tool_error(&tool);
+                    }
                     TuiEvent::Done(_) | TuiEvent::JsonRpcDone(_) => {
                         app.finalize_last_message();
+                        app.session_stats.message_count = app.messages.len();
+                        app.session_stats.agent_name = app.agent_id.clone();
                         is_streaming = false;
                     }
                     TuiEvent::JsonRpcError(_) => {
                         app.finalize_last_message();
                         is_streaming = false;
                     }
-                    _ => {
-                        app.append_to_last(event);
+                    e => {
+                        app.append_to_last(e);
                         if app.scroll_offset == usize::MAX {
                             // stays at MAX which means "follow bottom"
                         }

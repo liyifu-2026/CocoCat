@@ -1,6 +1,6 @@
 use crate::event::TuiEvent;
 use crate::theme::theme::ThemeRegistry;
-use crate::types::stats::{ToolStats, SessionStats, SystemStats};
+use crate::types::stats::{ToolStats, SessionStats, SystemStats, ToolCallInfo};
 
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
@@ -31,6 +31,13 @@ impl ChatMessage {
             timestamp: chrono::Local::now().format("%H:%M:%S").to_string(),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct AgentStatus {
+    pub id: String,
+    pub name: String,
+    pub running: bool,
 }
 
 pub enum InputMode {
@@ -72,6 +79,7 @@ pub struct App {
     pub tool_stats: ToolStats,
     pub session_stats: SessionStats,
     pub system_stats: SystemStats,
+    pub agent_statuses: Vec<AgentStatus>,
 }
 
 impl App {
@@ -97,6 +105,32 @@ impl App {
             tool_stats: ToolStats::default(),
             session_stats: SessionStats::default(),
             system_stats: SystemStats::default(),
+            agent_statuses: vec![],
+        }
+    }
+
+    pub fn track_tool_start(&mut self, tool_name: &str) {
+        if let Some(tc) = self.tool_stats.tool_calls.iter_mut().find(|t| t.name == tool_name) {
+            tc.status = "running".to_string();
+            tc.count += 1;
+        } else {
+            self.tool_stats.tool_calls.push(ToolCallInfo {
+                name: tool_name.to_string(),
+                status: "running".to_string(),
+                count: 1,
+            });
+        }
+    }
+
+    pub fn track_tool_done(&mut self, tool_name: &str) {
+        if let Some(tc) = self.tool_stats.tool_calls.iter_mut().find(|t| t.name == tool_name) {
+            tc.status = "done".to_string();
+        }
+    }
+
+    pub fn track_tool_error(&mut self, tool_name: &str) {
+        if let Some(tc) = self.tool_stats.tool_calls.iter_mut().find(|t| t.name == tool_name) {
+            tc.status = "error".to_string();
         }
     }
 

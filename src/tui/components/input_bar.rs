@@ -1,5 +1,5 @@
 use ratatui::{
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::Style,
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph},
@@ -145,8 +145,12 @@ impl InputHistory {
     }
 }
 
-pub fn render_input_bar(f: &mut Frame, area: Rect, input: &InputBuffer, theme: &Theme, is_focused: bool) {
-    let border_color = if is_focused {
+pub fn render_input_bar(
+    f: &mut Frame, area: Rect, input: &InputBuffer,
+    theme: &Theme, is_focused: bool,
+    agent_name: &str, model: &str, token_count: u32,
+) {
+    let border_style = if is_focused {
         theme.accent_color()
     } else {
         theme.border_color()
@@ -155,18 +159,29 @@ pub fn render_input_bar(f: &mut Frame, area: Rect, input: &InputBuffer, theme: &
     let block = Block::default()
         .title(" Message ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
+        .border_style(Style::default().fg(border_style));
 
     let inner = block.inner(area);
 
-    let paragraph = Paragraph::new(Text::from(Line::from(Span::raw(input.text()))))
-        .block(block);
+    let chunks = Layout::default().direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Length(1)])
+        .split(inner);
 
-    f.render_widget(paragraph, area);
+    let text = Paragraph::new(Text::from(Line::from(Span::raw(format!("> {}", input.text())))))
+        .style(Style::default().fg(theme.text_color()));
+    f.render_widget(text, chunks[0]);
+
+    let meta = format!(" {} · {} · {} · {}K", agent_name, model, theme.name, token_count / 1000);
+    let meta = Paragraph::new(Text::from(Line::from(Span::styled(meta, Style::default().fg(theme.text_dim_color())))));
+    f.render_widget(meta, chunks[1]);
+
+    f.render_widget(block, area);
 
     if is_focused {
-        let cursor_x = inner.x.saturating_add(input.cursor() as u16);
-        let cursor_y = inner.y;
-        f.set_cursor_position((cursor_x, cursor_y));
+        let cursor_x = chunks[0].x + 2 + input.cursor() as u16;
+        let cursor_y = chunks[0].y;
+        if cursor_x < chunks[0].right() && cursor_y < chunks[0].bottom() {
+            f.set_cursor_position((cursor_x, cursor_y));
+        }
     }
 }
