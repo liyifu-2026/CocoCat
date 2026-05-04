@@ -11,7 +11,7 @@ use ratatui::{
     Terminal,
 };
 use crossterm::{
-    event::{self as crossterm_event, Event, KeyCode, KeyEventKind, KeyModifiers},
+    event::{self as crossterm_event, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -28,15 +28,17 @@ mod types;
 use app::{App, Dialog};
 use event::TuiEvent;
 use protocol::client::AgentClient;
-use components::{chat_panel, dialogs, header, input_bar, sidebar, status_bar};
+use components::{autocomplete, chat_panel, dialogs, header, input_bar, reply_dialog, sidebar, status_bar};
+use components::autocomplete::AutocompleteState;
 use components::input_bar::{InputBuffer, InputHistory};
+use components::reply_dialog::ReplyDialog;
 
 struct Cleanup;
 
 impl Drop for Cleanup {
     fn drop(&mut self) {
         let _ = disable_raw_mode();
-        let _ = execute!(io::stdout(), LeaveAlternateScreen);
+        let _ = execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
     }
 }
 
@@ -44,12 +46,43 @@ fn handle_key(
     key: KeyCode,
     modifiers: KeyModifiers,
     app: &mut App,
+    autocomplete: &mut AutocompleteState,
+    reply_dialog: &mut ReplyDialog,
     input: &mut InputBuffer,
     history: &mut InputHistory,
     agent_client: &mut AgentClient,
     tx: &mpsc::Sender<TuiEvent>,
     is_streaming: &mut bool,
 ) {
+    if autocomplete.visible {
+        match (key, modifiers) {
+            (KeyCode::Up, _) => { autocomplete.previous(); return; }
+            (KeyCode::Down, _) => { autocomplete.next(); return; }
+            (KeyCode::Enter, _) => {
+                if let Some(cmd) = autocomplete.selected_command() {
+                    input.set_text(&cmd);
+                    input.insert_char(' ');
+                }
+                autocomplete.reset();
+                return;
+            }
+            (KeyCode::Esc, _) => { autocomplete.reset(); return; }
+            (KeyCode::Backspace, _) => { input.backspace(); if input.text().starts_with('/') { autocomplete.filter(input.text()); } else { autocomplete.reset(); } return; }
+            (KeyCode::Char(c), _) => { input.insert_char(c); autocomplete.filter(input.text()); return; }
+            _ => {}
+        }
+    }
+
+    if reply_dialog.visible {
+        match (key, modifiers) {
+            (KeyCode::Esc, _) => { reply_dialog.close(); return; }
+            (KeyCode::Enter, _) => { reply_dialog.close(); return; }
+            (KeyCode::Char(c), _) => { reply_dialog.insert_char(c); return; }
+            (KeyCode::Backspace, _) => { reply_dialog.backspace(); return; }
+            _ => return,
+        }
+    }
+
     if app.dialog.is_some() {
         match key {
             KeyCode::Esc => app.dialog = None,
@@ -101,6 +134,9 @@ fn handle_key(
             }
         }
         (KeyCode::Char(c), _) => {
+            if c == '/' && input.cursor() == 0 {
+                autocomplete.trigger();
+            }
             input.insert_char(c);
         }
         (KeyCode::Backspace, _) => {
@@ -165,10 +201,56 @@ fn handle_slash_command(text: &str, app: &mut App, input: &mut InputBuffer, hist
     history.push(text.to_string());
 }
 
+fn process_sidebar_click(app: &mut App, col: i32, row: i32, term_width: u16) {
+    let sidebar_visible = app.show_sidebar || (app.sidebar_auto && term_width > 120);
+    let sidebar_x = (term_width as i32).saturating_sub(42);
+
+    if !sidebar_visible || col < sidebar_x || col >= term_width as i32 { return; }
+
+    let content_row = row.saturating_sub(1);
+
+    let mut current_row = 0i32;
+    for section in app.sidebar_sections.iter_mut() {
+        let header_row = current_row;
+        if content_row == header_row {
+            section.collapsed = !section.collapsed;
+            return;
+        }
+        current_row += 1;
+        if !section.collapsed {
+            match section.name.as_str() {
+                "Team" => {
+                    for _ in 0..4 {
+                        if content_row == current_row {
+                            return;
+                        }
+                        current_row += 1;
+                    }
+                }
+                "Session" => { current_row += 3; }
+                "Tools" => {
+                    let count = app.tool_stats.tool_calls.len() as i32;
+                    current_row += count.max(1);
+                }
+                "Mail" => {
+                    for _ in 0..2 {
+                        if content_row == current_row {
+                            return;
+                        }
+                        current_row += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+        current_row += 1;
+    }
+}
+
 fn main() -> io::Result<()> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.hide_cursor()?;
@@ -197,6 +279,9 @@ fn main() -> io::Result<()> {
     let mut agent_client = AgentClient::new(".");
     let (tx, rx) = mpsc::channel::<TuiEvent>();
     let mut is_streaming = false;
+    let mut autocomplete = AutocompleteState::new();
+    let mut reply_dialog = ReplyDialog::new();
+    let mut pending_click: Option<(i32, i32)> = None;
 
     while running.load(Ordering::Relaxed) && !app.should_quit {
         terminal.draw(|f| {
@@ -259,13 +344,34 @@ fn main() -> io::Result<()> {
             if let Some(ref dialog) = app.dialog {
                 dialogs::render_dialog(f, area, dialog, &app);
             }
+
+            if autocomplete.visible {
+                autocomplete::render_autocomplete(f, vertical[1], &autocomplete, app.theme_registry.current_theme());
+            }
+            if reply_dialog.visible {
+                reply_dialog::render_reply_dialog(f, area, &reply_dialog, app.theme_registry.current_theme());
+            }
         })?;
 
         if crossterm_event::poll(Duration::from_millis(100))? {
-            if let Event::Key(key) = crossterm_event::read()? {
-                if key.kind == KeyEventKind::Press {
-                    handle_key(key.code, key.modifiers, &mut app, &mut input, &mut history, &mut agent_client, &tx, &mut is_streaming);
+            match crossterm_event::read()? {
+                Event::Key(key) => {
+                    if key.kind == KeyEventKind::Press {
+                        handle_key(key.code, key.modifiers, &mut app, &mut autocomplete, &mut reply_dialog, &mut input, &mut history, &mut agent_client, &tx, &mut is_streaming);
+                    }
                 }
+                Event::Mouse(mouse) => {
+                    if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
+                        pending_click = Some((mouse.column as i32, mouse.row as i32));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if let Some((col, row)) = pending_click.take() {
+            if let Ok(size) = terminal.size() {
+                process_sidebar_click(&mut app, col, row, size.width);
             }
         }
 
