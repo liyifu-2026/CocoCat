@@ -1,4 +1,11 @@
-"""Agent status tracking + health monitoring."""
+"""Agent status tracking + health monitoring.
+
+TODO: Migrate to proxy through Rust HTTP API:
+  - GET /api/health → also check Rust GET /api/health
+  - GET /api/agents/{id}/status → Rust equivalent
+  - POST /api/agents/{id}/status → Rust equivalent
+  - GET /api/agents/status → Rust equivalent
+"""
 import os
 import sys
 from pathlib import Path

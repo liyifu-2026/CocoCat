@@ -1,4 +1,11 @@
-"""Mailbox API routes — admin can view and send to agent mailboxes."""
+"""Mailbox API routes — admin can view and send to agent mailboxes.
+
+TODO: Migrate all endpoints to proxy through Rust HTTP API:
+  - GET /api/mailbox → Rust GET /api/mailbox
+  - GET /api/mailbox/{agent_id} → Rust GET /api/mailbox/{agent_id}
+  - POST /api/mailbox/{agent_id} → Rust POST /api/mailbox/{agent_id}
+  - POST /api/mailbox/{agent_id}/read → Rust POST /api/mailbox/{agent_id}/read
+"""
 import json
 from datetime import datetime
 from pathlib import Path

@@ -1,4 +1,11 @@
-"""Schedule management routes."""
+"""Schedule management routes.
+
+TODO: Migrate all endpoints to proxy through Rust HTTP API:
+  - GET /api/schedule → Rust GET /api/schedule
+  - POST /api/schedule/tasks → Rust POST /api/schedule/tasks
+  - PATCH /api/schedule/tasks/{id} → Rust PATCH /api/schedule/tasks/{id}
+  - DELETE /api/schedule/tasks/{id} → Rust DELETE /api/schedule/tasks/{id}
+"""
 import json
 from datetime import datetime
 from pathlib import Path

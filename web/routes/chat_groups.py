@@ -1,4 +1,9 @@
-"""Chat group management with priority-scored messaging and token-budgeted context."""
+"""Chat group management with priority-scored messaging and token-budgeted context.
+
+TODO: Migrate all endpoints to proxy through Rust HTTP API:
+  - All /api/chat/groups endpoints → Rust /api/chat/groups equivalents
+  - File-based storage (groups.json, messages.jsonl) → Rust SQLite
+"""
 import json
 import re
 from datetime import datetime

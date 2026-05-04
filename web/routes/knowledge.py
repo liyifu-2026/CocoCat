@@ -1,4 +1,11 @@
-"""Knowledge base routes."""
+"""Knowledge base routes.
+
+TODO: Migrate all endpoints to proxy through Rust HTTP API:
+  - GET /api/knowledge/{kb_id} → Rust GET /api/knowledge/{kb_id}
+  - GET /api/knowledge/{kb_id}/wiki → Rust GET /api/knowledge/{kb_id}/wiki
+  - GET /api/knowledge/{kb_id}/wiki/{type}/{name} → Rust equivalent
+  - GET /api/knowledge/{kb_id}/search → Rust GET /api/knowledge/{kb_id}/search
+"""
 import json
 import re
 from pathlib import Path

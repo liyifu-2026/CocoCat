@@ -1,4 +1,10 @@
-"""Collaboration graph API — reads Rust message bus data and returns DAG structure."""
+"""Collaboration graph API — reads Rust message bus data and returns DAG structure.
+
+TODO: Migrate to proxy through Rust HTTP API:
+  - GET /api/collaboration/graph → Rust GET /api/collaboration/graph
+  - GET /api/collaboration/graph/events → Rust GET /api/collaboration/graph/events
+  - File reads (chat/group.jsonl, config.toml) → Rust SQLite
+"""
 import json
 from pathlib import Path
 from fastapi import APIRouter, Request
