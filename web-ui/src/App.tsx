@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { Layout } from "@/components/Layout"
 import ProtectedRoute from "@/components/ProtectedRoute"
+import ErrorBoundary from "@/components/ErrorBoundary"
 import Login from "@/pages/Login"
 import Dashboard from "@/pages/Dashboard"
 import Agents from "@/pages/Agents"
@@ -25,20 +26,20 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/agents" element={<Agents />} />
-          <Route path="/agents/:id" element={<AgentDetail />} />
-          <Route path="/scenes" element={<Scenes />} />
-          <Route path="/scenes/:id" element={<SceneDetail />} />
-          <Route path="/knowledge" element={<Knowledge />} />
-          <Route path="/knowledge/:kbId" element={<KnowledgeDetail />} />
-          <Route path="/hiring" element={<Hiring />} />
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/schedule" element={<Schedule />} />
-          <Route path="/collaboration" element={<Collaboration />} />
-          <Route path="/mailbox" element={<Mailbox />} />
-          <Route path="/usage" element={<TokenUsage />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+          <Route path="/agents" element={<ErrorBoundary><Agents /></ErrorBoundary>} />
+          <Route path="/agents/:id" element={<ErrorBoundary><AgentDetail /></ErrorBoundary>} />
+          <Route path="/scenes" element={<ErrorBoundary><Scenes /></ErrorBoundary>} />
+          <Route path="/scenes/:id" element={<ErrorBoundary><SceneDetail /></ErrorBoundary>} />
+          <Route path="/knowledge" element={<ErrorBoundary><Knowledge /></ErrorBoundary>} />
+          <Route path="/knowledge/:kbId" element={<ErrorBoundary><KnowledgeDetail /></ErrorBoundary>} />
+          <Route path="/hiring" element={<ErrorBoundary><Hiring /></ErrorBoundary>} />
+          <Route path="/chat" element={<ErrorBoundary><Chat /></ErrorBoundary>} />
+          <Route path="/schedule" element={<ErrorBoundary><Schedule /></ErrorBoundary>} />
+          <Route path="/collaboration" element={<ErrorBoundary><Collaboration /></ErrorBoundary>} />
+          <Route path="/mailbox" element={<ErrorBoundary><Mailbox /></ErrorBoundary>} />
+          <Route path="/usage" element={<ErrorBoundary><TokenUsage /></ErrorBoundary>} />
+          <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
           </Route>
         </Route>
       </Routes>

@@ -5,10 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { BarChart3, Cpu } from "lucide-react"
+import { TableSkeleton } from "@/components/LoadingSkeleton"
+import ErrorState from "@/components/ErrorState"
 
 export default function TokenUsage() {
-  const { data, isLoading } = useQuery({ queryKey: ["usage"], queryFn: () => agentsApi.usage(100) })
+  const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ["usage"], queryFn: () => agentsApi.usage(100) })
   const { data: agentsData } = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
+
+  if (isError) return <ErrorState message={error?.message} onRetry={refetch} />
 
   const usage = data?.usage ?? []
   const totalTokens = usage.reduce((sum, u) => sum + u.total_tokens, 0)
@@ -58,7 +62,7 @@ export default function TokenUsage() {
           <CardTitle>Usage History</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading && <p className="text-muted-foreground">Loading...</p>}
+          {isLoading && <TableSkeleton rows={5} cols={6} />}
           {!isLoading && usage.length === 0 && (
             <div className="text-center py-10 text-muted-foreground">
               <Cpu className="size-12 mx-auto mb-4 opacity-30" />

@@ -6,6 +6,8 @@ import { chatApi } from "@/api/chat"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users, FolderKanban, UserPlus, MessageSquare } from "lucide-react"
+import ErrorState from "@/components/ErrorState"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Dashboard() {
   const agents = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
@@ -24,16 +26,24 @@ export default function Dashboard() {
   const pendingHires = hires.data?.pending?.length ?? 0
   const recentMessages = chatMessages.data?.messages?.length ?? 0
 
+  const isAnyError = agents.isError || scenes.isError || hires.isError || chatMessages.isError
+
   const metrics = [
-    { label: "Online Agents", value: onlineAgents, icon: Users },
-    { label: "Scenes", value: sceneCount, icon: FolderKanban },
-    { label: "Pending Hires", value: pendingHires, icon: UserPlus },
-    { label: "Recent Messages", value: recentMessages, icon: MessageSquare },
+    { label: "Online Agents", value: onlineAgents, icon: Users, loading: agents.isLoading },
+    { label: "Scenes", value: sceneCount, icon: FolderKanban, loading: scenes.isLoading },
+    { label: "Pending Hires", value: pendingHires, icon: UserPlus, loading: hires.isLoading },
+    { label: "Recent Messages", value: recentMessages, icon: MessageSquare, loading: chatMessages.isLoading },
   ]
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Dashboard</h1>
+      {isAnyError && (
+        <ErrorState
+          message={agents.error?.message ?? scenes.error?.message ?? hires.error?.message ?? chatMessages.error?.message}
+          onRetry={() => { agents.refetch(); scenes.refetch(); hires.refetch(); chatMessages.refetch() }}
+        />
+      )}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {metrics.map(m => (
           <Card key={m.label}>
@@ -42,7 +52,9 @@ export default function Dashboard() {
               <m.icon className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{m.value}</div>
+              <div className="text-2xl font-bold">
+                {m.loading ? <Skeleton className="h-8 w-16" /> : m.value}
+              </div>
             </CardContent>
           </Card>
         ))}

@@ -8,12 +8,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Plus } from "lucide-react"
+import ErrorState from "@/components/ErrorState"
+import { CardGridSkeleton } from "@/components/LoadingSkeleton"
 
 export default function Scenes() {
-  const { data, isLoading } = useQuery({ queryKey: ["scenes"], queryFn: () => scenesApi.list() })
+  const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ["scenes"], queryFn: () => scenesApi.list() })
   const [createOpen, setCreateOpen] = useState(false)
   const [newSceneId, setNewSceneId] = useState("")
   const queryClient = useQueryClient()
+
+  if (isLoading) return <CardGridSkeleton count={4} />
+  if (isError) return <ErrorState message={error?.message} onRetry={refetch} />
 
   return (
     <div className="p-6 space-y-6">
@@ -44,29 +49,32 @@ export default function Scenes() {
           </DialogContent>
         </Dialog>
       </div>
-      {isLoading && <p className="text-muted-foreground">Loading...</p>}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {data?.scenes?.map(s => (
-          <Link key={s.id} to={`/scenes/${s.id}`}>
-            <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
-              <CardHeader>
-                <CardTitle>{s.id}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-2">
-                <p className="line-clamp-2">{s.context}</p>
-                <div className="flex flex-wrap gap-1">
-                  {s.env_skills.map(sk => (
-                    <Badge key={sk} variant="outline">{sk}</Badge>
-                  ))}
-                </div>
-                <div className="text-xs">
-                  KBs: {s.mounted_kbs.length} | Agents: {s.roster.length}
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      {!data?.scenes?.length ? (
+        <p className="text-muted-foreground">No scenes found.</p>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {data.scenes.map(s => (
+            <Link key={s.id} to={`/scenes/${s.id}`}>
+              <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <CardTitle>{s.id}</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground space-y-2">
+                  <p className="line-clamp-2">{s.context}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {s.env_skills.map(sk => (
+                      <Badge key={sk} variant="outline">{sk}</Badge>
+                    ))}
+                  </div>
+                  <div className="text-xs">
+                    KBs: {s.mounted_kbs.length} | Agents: {s.roster.length}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Plus, Trash2, Calendar, CheckCircle, Clock } from "lucide-react"
+import ErrorState from "@/components/ErrorState"
+import { toast } from "sonner"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-500/10 text-yellow-600 border-yellow-200",
@@ -23,7 +26,7 @@ export default function Schedule() {
   const [newAssignee, setNewAssignee] = useState("")
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery({ queryKey: ["schedule"], queryFn: () => scheduleApi.get() })
+  const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ["schedule"], queryFn: () => scheduleApi.get() })
   const { data: agentsData } = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
 
   const tasks = data?.tasks ?? []
@@ -36,6 +39,7 @@ export default function Schedule() {
   async function createTask() {
     if (!newTask.trim() || !newAssignee) return
     await scheduleApi.create(newTask.trim(), newAssignee)
+    toast.success("Task created")
     queryClient.invalidateQueries({ queryKey: ["schedule"] })
     setCreateOpen(false)
     setNewTask("")
@@ -44,11 +48,13 @@ export default function Schedule() {
 
   async function markDone(taskId: number) {
     await scheduleApi.update(taskId, { status: "completed" })
+    toast.success("Task marked as completed")
     queryClient.invalidateQueries({ queryKey: ["schedule"] })
   }
 
   async function deleteTask(taskId: number) {
     await scheduleApi.delete(taskId)
+    toast.success("Task deleted")
     queryClient.invalidateQueries({ queryKey: ["schedule"] })
   }
 
@@ -123,9 +129,20 @@ export default function Schedule() {
         </Dialog>
       </div>
 
-      {isLoading && <p className="text-muted-foreground">Loading...</p>}
+      {isLoading && (
+        <div className="space-y-3">
+          {[1,2,3].map(i => (
+            <div key={i} className="rounded-lg border border-border p-4 space-y-2">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          ))}
+        </div>
+      )}
 
-      {!isLoading && tasks.length === 0 && (
+      {isError && <ErrorState message={error?.message} onRetry={refetch} />}
+
+      {!isLoading && !isError && tasks.length === 0 && (
         <div className="text-center py-20 text-muted-foreground">
           <Calendar className="size-12 mx-auto mb-4 opacity-30" />
           <p>No scheduled tasks yet</p>

@@ -6,23 +6,31 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserPlus, Check, X, Clock } from "lucide-react"
+import { CardGridSkeleton } from "@/components/LoadingSkeleton"
+import ErrorState from "@/components/ErrorState"
+import { toast } from "sonner"
 
 export default function Hiring() {
   const queryClient = useQueryClient()
 
-  const { data: pending, isLoading } = useQuery({
+  const { data: pending, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["hiring"],
     queryFn: () => hiringApi.listPending(),
     refetchInterval: 5000,
   })
 
+  if (isLoading) return <CardGridSkeleton count={3} />
+  if (isError) return <ErrorState message={error?.message} onRetry={refetch} />
+
   async function approve(hire: PendingHire) {
     await hiringApi.approve(hire.id)
+    toast.success("Hire request approved")
     queryClient.invalidateQueries({ queryKey: ["hiring"] })
   }
 
   async function reject(hire: PendingHire) {
     await hiringApi.reject(hire.id)
+    toast.success("Hire request rejected")
     queryClient.invalidateQueries({ queryKey: ["hiring"] })
   }
 
@@ -35,9 +43,7 @@ export default function Hiring() {
         </Badge>
       </div>
 
-      {isLoading && <p className="text-muted-foreground">Loading...</p>}
-
-      {!isLoading && (!pending?.pending || pending.pending.length === 0) && (
+      {(!pending?.pending || pending.pending.length === 0) && (
         <div className="text-center py-20 text-muted-foreground">
           <UserPlus className="size-12 mx-auto mb-4 opacity-30" />
           <p>No pending hire requests</p>
