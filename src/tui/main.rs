@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self, Write};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use std::sync::mpsc;
 use std::time::Duration;
@@ -40,6 +40,18 @@ impl Drop for Cleanup {
         let _ = disable_raw_mode();
         let _ = execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
     }
+}
+
+fn report_error(msg: &str) {
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true).append(true).open(
+            dirs::home_dir().unwrap_or_default().join(".cococat/crash.log")
+        ) {
+        let _ = writeln!(f, "CocoCat TUI crash: {}", msg);
+    }
+    let _ = writeln!(io::stderr(), "\nCocoCat TUI crash: {}\n", msg);
+    let _ = write!(io::stderr(), "Press Enter to exit...");
+    let _ = io::stdin().read_line(&mut String::new());
 }
 
 fn handle_key(
@@ -97,28 +109,16 @@ fn handle_key(
             agent_client.close();
             app.quit();
         }
-        (KeyCode::Char('b'), KeyModifiers::CONTROL) => {
-            app.toggle_sidebar();
-        }
+        (KeyCode::Char('b'), KeyModifiers::CONTROL) => { app.toggle_sidebar(); }
         (KeyCode::Tab, _) => {
-            if let Some(section) = app.sidebar_sections.get_mut(0) {
-                section.toggle();
-            }
+            if let Some(section) = app.sidebar_sections.get_mut(0) { section.toggle(); }
         }
-        (KeyCode::Char('p'), KeyModifiers::CONTROL) => {
-            app.dialog = Some(Dialog::SessionSwitcher);
-        }
-        (KeyCode::Esc, _) => {
-            app.dialog = None;
-        }
+        (KeyCode::Char('p'), KeyModifiers::CONTROL) => { app.dialog = Some(Dialog::SessionSwitcher); }
+        (KeyCode::Esc, _) => { app.dialog = None; }
         (KeyCode::Enter, _) => {
-            if *is_streaming {
-                return;
-            }
+            if *is_streaming { return; }
             let text = input.take();
-            if text.is_empty() {
-                return;
-            }
+            if text.is_empty() { return; }
             if text.starts_with('/') {
                 handle_slash_command(&text, app, input, history);
                 return;
@@ -134,34 +134,19 @@ fn handle_key(
             }
         }
         (KeyCode::Char(c), _) => {
-            if c == '/' && input.cursor() == 0 {
-                autocomplete.trigger();
-            }
+            if c == '/' && input.cursor() == 0 { autocomplete.trigger(); }
             input.insert_char(c);
         }
-        (KeyCode::Backspace, _) => {
-            input.backspace();
-        }
-        (KeyCode::Delete, _) => {
-            input.delete();
-        }
-        (KeyCode::Left, _) => {
-            input.cursor_left();
-        }
-        (KeyCode::Right, _) => {
-            input.cursor_right();
-        }
+        (KeyCode::Backspace, _) => { input.backspace(); }
+        (KeyCode::Delete, _) => { input.delete(); }
+        (KeyCode::Left, _) => { input.cursor_left(); }
+        (KeyCode::Right, _) => { input.cursor_right(); }
         (KeyCode::Up, _) => {
-            if let Some(s) = history.navigate_prev() {
-                input.set_text(s);
-            }
+            if let Some(s) = history.navigate_prev() { input.set_text(s); }
         }
         (KeyCode::Down, _) => {
-            if let Some(s) = history.navigate_next() {
-                input.set_text(s);
-            } else {
-                input.clear();
-            }
+            if let Some(s) = history.navigate_next() { input.set_text(s); }
+            else { input.clear(); }
         }
         _ => {}
     }
@@ -174,34 +159,16 @@ fn handle_slash_command(text: &str, app: &mut App, input: &mut InputBuffer, hist
         "/theme" => {
             if let Some(name) = parts.get(1) {
                 let name = name.trim();
-                if app.switch_theme(name) {
-                    app.status_message = format!("Switched to theme: {}", name);
-                } else {
-                    app.status_message = format!("Unknown theme: {}", name);
-                }
-            } else {
-                app.dialog = Some(Dialog::ThemeSelector);
-            }
+                if app.switch_theme(name) { app.status_message = format!("Switched to theme: {}", name); }
+                else { app.status_message = format!("Unknown theme: {}", name); }
+            } else { app.dialog = Some(Dialog::ThemeSelector); }
         }
-        "/help" | "/?" => {
-            app.dialog = Some(Dialog::Help);
-        }
-        "/model" => {
-            app.dialog = Some(Dialog::ModelSelector);
-        }
-        "/session" => {
-            app.dialog = Some(Dialog::SessionSwitcher);
-        }
-        "/clear" => {
-            app.messages.clear();
-            app.scroll_to_bottom();
-        }
-        "/quit" => {
-            app.quit();
-        }
-        _ => {
-            app.status_message = format!("Unknown command: {}", cmd);
-        }
+        "/help" | "/?" => { app.dialog = Some(Dialog::Help); }
+        "/clear" => { app.messages.clear(); app.scroll_to_bottom(); }
+        "/model" => { app.dialog = Some(Dialog::ModelSelector); }
+        "/session" => { app.dialog = Some(Dialog::SessionSwitcher); }
+        "/quit" => { app.quit(); }
+        _ => { app.status_message = format!("Unknown command: {}", cmd); }
     }
     input.clear();
     history.push(text.to_string());
@@ -210,42 +177,18 @@ fn handle_slash_command(text: &str, app: &mut App, input: &mut InputBuffer, hist
 fn process_sidebar_click(app: &mut App, col: i32, row: i32, term_width: u16) {
     let sidebar_visible = app.show_sidebar || (app.sidebar_auto && term_width > 120);
     let sidebar_x = (term_width as i32).saturating_sub(42);
-
     if !sidebar_visible || col < sidebar_x || col >= term_width as i32 { return; }
-
     let content_row = row.saturating_sub(1);
-
     let mut current_row = 0i32;
     for section in app.sidebar_sections.iter_mut() {
-        let header_row = current_row;
-        if content_row == header_row {
-            section.collapsed = !section.collapsed;
-            return;
-        }
+        if content_row == current_row { section.collapsed = !section.collapsed; return; }
         current_row += 1;
         if !section.collapsed {
             match section.name.as_str() {
-                "Team" => {
-                    for _ in 0..4 {
-                        if content_row == current_row {
-                            return;
-                        }
-                        current_row += 1;
-                    }
-                }
+                "Team" => { current_row += 4; }
                 "Session" => { current_row += 3; }
-                "Tools" => {
-                    let count = app.tool_stats.tool_calls.len() as i32;
-                    current_row += count.max(1);
-                }
-                "Mail" => {
-                    for _ in 0..2 {
-                        if content_row == current_row {
-                            return;
-                        }
-                        current_row += 1;
-                    }
-                }
+                "Tools" => { current_row += app.tool_stats.tool_calls.len().max(1) as i32; }
+                "Mail" => { current_row += 2; }
                 _ => {}
             }
         }
@@ -253,7 +196,7 @@ fn process_sidebar_click(app: &mut App, col: i32, row: i32, term_width: u16) {
     }
 }
 
-fn main() -> io::Result<()> {
+fn run_tui() -> io::Result<()> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -265,9 +208,7 @@ fn main() -> io::Result<()> {
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
-    if let Err(e) = ctrlc::set_handler(move || {
-        r.store(false, Ordering::Relaxed);
-    }) {
+    if let Err(e) = ctrlc::set_handler(move || { r.store(false, Ordering::Relaxed); }) {
         eprintln!("Warning: could not set Ctrl+C handler: {e}");
     }
 
@@ -298,25 +239,19 @@ fn main() -> io::Result<()> {
 
             let chunks = if sidebar_visible && term_width > 120 {
                 Layout::default().direction(Direction::Horizontal)
-                    .constraints([Constraint::Min(0), Constraint::Length(42)])
-                    .split(area)
+                    .constraints([Constraint::Min(0), Constraint::Length(42)]).split(area)
             } else {
                 Layout::default().direction(Direction::Horizontal)
-                    .constraints([Constraint::Percentage(100), Constraint::Length(0)])
-                    .split(area)
+                    .constraints([Constraint::Percentage(100), Constraint::Length(0)]).split(area)
             };
 
             let vertical = Layout::default().direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(1),   // 0: header bg=surface
-                    Constraint::Length(1),   // 1: GAP (transparent)
-                    Constraint::Min(3),      // 2: chat (transparent)
-                    Constraint::Length(1),   // 3: GAP (transparent)
-                    Constraint::Length(3),   // 4: input bg=surface
-                    Constraint::Length(1),   // 5: GAP (transparent)
-                    Constraint::Length(1),   // 6: status bg=surface
-                ])
-                .split(chunks[0]);
+                    Constraint::Length(1), Constraint::Length(1),
+                    Constraint::Min(3), Constraint::Length(1),
+                    Constraint::Length(3), Constraint::Length(1),
+                    Constraint::Length(1),
+                ]).split(chunks[0]);
 
             header::render_header(f, vertical[0], &app.agent_id, app.theme_registry.current_theme());
             chat_panel::render_chat_panel(f, vertical[2], &app.messages, app.scroll_offset, app.theme_registry.current_theme(), true, hovered_row, vertical[2].y);
@@ -324,43 +259,20 @@ fn main() -> io::Result<()> {
             status_bar::render_status_bar(f, vertical[6], &app.agent_id, "default", app.theme_registry.current_theme());
 
             if sidebar_visible && term_width > 120 {
-                sidebar::render_sidebar(
-                    f, chunks[1],
-                    &mut app.sidebar_sections,
-                    &app.tool_stats, &app.session_stats, &app.system_stats,
-                    app.theme_registry.current_theme(),
-                );
+                sidebar::render_sidebar(f, chunks[1], &mut app.sidebar_sections, &app.tool_stats, &app.session_stats, &app.system_stats, app.theme_registry.current_theme());
             }
 
             if app.show_sidebar && term_width <= 120 {
                 let overlay = Layout::default().direction(Direction::Horizontal)
-                    .constraints([Constraint::Min(0), Constraint::Length(42)])
-                    .split(area);
-
+                    .constraints([Constraint::Min(0), Constraint::Length(42)]).split(area);
                 f.render_widget(Clear, area);
-
-                let backdrop = Block::default()
-                    .style(Style::default().bg(Color::Rgb(0, 0, 0)).fg(Color::Rgb(0, 0, 0)));
-                f.render_widget(backdrop, area);
-
-                sidebar::render_sidebar(
-                    f, overlay[1],
-                    &mut app.sidebar_sections,
-                    &app.tool_stats, &app.session_stats, &app.system_stats,
-                    app.theme_registry.current_theme(),
-                );
+                f.render_widget(Block::default().style(Style::default().bg(Color::Rgb(0, 0, 0)).fg(Color::Rgb(0, 0, 0))), area);
+                sidebar::render_sidebar(f, overlay[1], &mut app.sidebar_sections, &app.tool_stats, &app.session_stats, &app.system_stats, app.theme_registry.current_theme());
             }
 
-            if let Some(ref dialog) = app.dialog {
-                dialogs::render_dialog(f, area, dialog, &app);
-            }
-
-            if autocomplete.visible {
-                autocomplete::render_autocomplete(f, vertical[4], &autocomplete, app.theme_registry.current_theme());
-            }
-            if reply_dialog.visible {
-                reply_dialog::render_reply_dialog(f, area, &reply_dialog, app.theme_registry.current_theme());
-            }
+            if let Some(ref dialog) = app.dialog { dialogs::render_dialog(f, area, dialog, &app); }
+            if autocomplete.visible { autocomplete::render_autocomplete(f, vertical[4], &autocomplete, app.theme_registry.current_theme()); }
+            if reply_dialog.visible { reply_dialog::render_reply_dialog(f, area, &reply_dialog, app.theme_registry.current_theme()); }
         })?;
 
         if crossterm_event::poll(Duration::from_millis(100))? {
@@ -380,46 +292,48 @@ fn main() -> io::Result<()> {
         }
 
         if let Some((col, row)) = pending_click.take() {
-            if let Ok(size) = terminal.size() {
-                process_sidebar_click(&mut app, col, row, size.width);
-            }
+            if let Ok(size) = terminal.size() { process_sidebar_click(&mut app, col, row, size.width); }
         }
 
         if is_streaming {
             while let Ok(event) = rx.try_recv() {
                 match event {
-                    TuiEvent::ToolStart { tool, .. } => {
-                        app.track_tool_start(&tool);
-                    }
-                    TuiEvent::ToolDone { tool, .. } => {
-                        app.track_tool_done(&tool);
-                    }
-                    TuiEvent::ToolError { tool, .. } => {
-                        app.track_tool_error(&tool);
-                    }
+                    TuiEvent::ToolStart { tool, .. } => app.track_tool_start(&tool),
+                    TuiEvent::ToolDone { tool, .. } => app.track_tool_done(&tool),
+                    TuiEvent::ToolError { tool, .. } => app.track_tool_error(&tool),
                     TuiEvent::Done(_) | TuiEvent::JsonRpcDone(_) => {
                         app.finalize_last_message();
                         app.session_stats.message_count = app.messages.len();
                         app.session_stats.agent_name = app.agent_id.clone();
                         is_streaming = false;
                     }
-                    TuiEvent::JsonRpcError(_) => {
-                        app.finalize_last_message();
-                        is_streaming = false;
-                    }
-                    e => {
-                        app.append_to_last(e);
-                        if app.scroll_offset == usize::MAX {
-                            // stays at MAX which means "follow bottom"
-                        }
-                    }
+                    TuiEvent::JsonRpcError(_) => { app.finalize_last_message(); is_streaming = false; }
+                    e => { app.append_to_last(e); }
                 }
             }
         }
     }
 
     agent_client.close();
-    drop(_guard);
-    terminal.show_cursor()?;
     Ok(())
+}
+
+fn main() {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> io::Result<()> {
+        let result = run_tui();
+        if let Err(ref e) = result {
+            // Print error BEFORE Cleanup restores terminal
+            report_error(&format!("TUI error: {}", e));
+        }
+        result
+    })) {
+        Ok(Ok(())) => {}
+        Ok(Err(_)) => {} // error already reported above
+        Err(panic) => {
+            let msg = if let Some(s) = panic.downcast_ref::<&str>() { s.to_string() }
+                      else if let Some(s) = panic.downcast_ref::<String>() { s.clone() }
+                      else { "unknown panic".to_string() };
+            report_error(&format!("PANIC: {}", msg));
+        }
+    }
 }
