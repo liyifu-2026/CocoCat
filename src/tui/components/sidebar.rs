@@ -15,8 +15,7 @@ pub fn render_sidebar(
     theme: &Theme,
 ) {
     let block = Block::default()
-        .style(Style::default().bg(theme.surface()))
-        .title(Span::styled(" Sidebar ", Style::default().fg(theme.accent_color())));
+        .style(Style::default().bg(theme.surface()));
 
     let mut lines: Vec<Line> = Vec::new();
 

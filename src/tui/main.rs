@@ -307,17 +307,20 @@ fn main() -> io::Result<()> {
 
             let vertical = Layout::default().direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(1),   // header
-                    Constraint::Min(3),      // chat
-                    Constraint::Length(4),   // input (2 lines + borders)
-                    Constraint::Length(1),   // status bar
+                    Constraint::Length(1),   // 0: header bg=surface
+                    Constraint::Length(1),   // 1: GAP (transparent)
+                    Constraint::Min(3),      // 2: chat (transparent)
+                    Constraint::Length(1),   // 3: GAP (transparent)
+                    Constraint::Length(3),   // 4: input bg=surface
+                    Constraint::Length(1),   // 5: GAP (transparent)
+                    Constraint::Length(1),   // 6: status bg=surface
                 ])
                 .split(chunks[0]);
 
             header::render_header(f, vertical[0], &app.agent_id, app.theme_registry.current_theme());
-            chat_panel::render_chat_panel(f, vertical[1], &app.messages, app.scroll_offset, app.theme_registry.current_theme(), true);
-            input_bar::render_input_bar(f, vertical[2], &input, app.theme_registry.current_theme(), !is_streaming, &app.agent_id, "gpt-4", app.session_stats.token_count);
-            status_bar::render_status_bar(f, vertical[3], &app.agent_id, "default", app.theme_registry.current_theme());
+            chat_panel::render_chat_panel(f, vertical[2], &app.messages, app.scroll_offset, app.theme_registry.current_theme(), true);
+            input_bar::render_input_bar(f, vertical[4], &input, app.theme_registry.current_theme(), !is_streaming, &app.agent_id, "gpt-4", app.session_stats.token_count);
+            status_bar::render_status_bar(f, vertical[6], &app.agent_id, "default", app.theme_registry.current_theme());
 
             if sidebar_visible && term_width > 120 {
                 sidebar::render_sidebar(
@@ -352,7 +355,7 @@ fn main() -> io::Result<()> {
             }
 
             if autocomplete.visible {
-                autocomplete::render_autocomplete(f, vertical[1], &autocomplete, app.theme_registry.current_theme());
+                autocomplete::render_autocomplete(f, vertical[4], &autocomplete, app.theme_registry.current_theme());
             }
             if reply_dialog.visible {
                 reply_dialog::render_reply_dialog(f, area, &reply_dialog, app.theme_registry.current_theme());
