@@ -1,46 +1,43 @@
-"""Channel base class and unified message format (CowAgent pattern)."""
-from datetime import datetime
-import json
+"""Channel base class and ChatMessage format."""
 
 
 class ChatMessage:
-    """Unified message format across all channels."""
-    def __init__(self, channel_type="", scene_id="", user_id="",
-                 content="", msg_type="text", msg_id="", timestamp=None):
-        self.channel_type = channel_type
-        self.scene_id = scene_id
-        self.user_id = user_id
+    """Unified chat message format across all channels."""
+    def __init__(self, content: str, user_id: str = "", user_name: str = "", msg_type: str = "text", **kwargs):
         self.content = content
+        self.user_id = user_id
+        self.user_name = user_name
         self.msg_type = msg_type
-        self.msg_id = msg_id or str(datetime.now().timestamp())
-        self.timestamp = timestamp or datetime.now().isoformat()
+        self.extra = kwargs
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
-            "channel_type": self.channel_type,
-            "scene_id": self.scene_id,
-            "user_id": self.user_id,
             "content": self.content,
+            "user_id": self.user_id,
+            "user_name": self.user_name,
             "msg_type": self.msg_type,
-            "msg_id": self.msg_id,
-            "timestamp": self.timestamp,
+            **self.extra,
         }
 
 
 class Channel:
-    """Base class for scene entry channels.
-
-    Subclasses must set channel_type and implement start() and send().
-    """
-    channel_type = ""
-
+    """Base class for external communication channels."""
     def __init__(self):
-        self.scene_id = ""
+        self._connected = False
         self.on_message = None
 
+    @property
+    def connected(self) -> bool:
+        return self._connected
+
     def start(self, scene_id: str, config: dict):
-        self.scene_id = scene_id
         raise NotImplementedError
+
+    def stop(self):
+        raise NotImplementedError
+
+    def is_running(self) -> bool:
+        return self._connected
 
     def send(self, reply: str, user_id: str):
         raise NotImplementedError

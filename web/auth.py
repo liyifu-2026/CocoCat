@@ -41,3 +41,10 @@ def verify_api_key(token: str) -> bool:
     if not API_KEY or not token:
         return False
     return token == API_KEY
+
+
+def validate_config():
+    if not JWT_SECRET:
+        raise RuntimeError("JWT_SECRET environment variable is not set")
+    if not API_KEY:
+        raise RuntimeError("API_KEY environment variable is not set")

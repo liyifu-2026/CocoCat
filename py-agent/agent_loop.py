@@ -128,8 +128,12 @@ CONSOLIDATION_PROMPT = """Summarize the following conversation turn in 1-2 sente
 """
 
 
-def consolidate(messages: list[dict], llm, budget: int = 131072) -> list[dict]:
+MAX_DEPTH = 3
+
+def consolidate(messages: list[dict], llm, budget: int = 131072, depth: int = 0) -> list[dict]:
     """Upgraded consolidator: boundary-aware, multi-round, fallback."""
+    if depth >= MAX_DEPTH:
+        return messages
     current = estimate_messages_tokens(messages)
     if current <= budget:
         return messages
@@ -183,7 +187,7 @@ def consolidate(messages: list[dict], llm, budget: int = 131072) -> list[dict]:
     result = system_msgs + [summary_msg] + keep
 
     if estimate_messages_tokens(result) > budget:
-        return consolidate(result, llm, budget)
+        return consolidate(result, llm, budget, depth + 1)
 
     return result
 
@@ -229,8 +233,8 @@ class AgentLoop:
         except Exception:
             pass
 
-    def _build_system_prompt(self, user_id: str = ""):
-        from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_profile, load_user_profile, load_mounted_kbs
+    def _build_system_prompt(self, user_id: str = "", knowledge_overview: str = None, agent_skills: str = None):
+        from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_profile, load_user_profile, load_mounted_kbs, load_knowledge_overview, load_agent_skills
         tool_defs = self.tools.get_definitions()
         tool_desc = build_tool_descriptions(tool_defs)
         agent_memory = load_agent_memory(self.agent_id)
@@ -242,12 +246,17 @@ class AgentLoop:
         scene_context = self.scene_context
         if mounted_kbs:
             scene_context += f"\n## Available Knowledge Bases\nMounted KBs: {', '.join(mounted_kbs)}\nRead wiki pages via read_file — see knowledge_overview for the index."
+        if knowledge_overview is None:
+            knowledge_overview = load_knowledge_overview(self.scene_name)
+        if agent_skills is None:
+            agent_skills = load_agent_skills(self.agent_id)
         return build_system_prompt(
             agent_id=self.agent_id, agent_name=self.agent_name,
             tool_descriptions=tool_desc, workspace=self.workspace,
             scene_name=self.scene_name, scene_context=scene_context,
-            agent_memory=agent_memory, agent_skills="", env_skills=self.scene_skills,
+            agent_memory=agent_memory, agent_skills=agent_skills, env_skills=self.scene_skills,
             profile=agent_profile, user_profile=user_profile, user_conversation=user_conversation,
+            knowledge_overview=knowledge_overview,
         )
 
     def run(self, prompt: str, user_id: str = "") -> dict:
@@ -258,34 +267,8 @@ class AgentLoop:
             _report_status(self.agent_id, "busy", prompt[:100])
         except Exception:
             pass
+        system_prompt = self._build_system_prompt(user_id=uid)
         tool_defs = self.tools.get_definitions()
-        tool_desc = build_tool_descriptions(tool_defs)
-        agent_memory = load_agent_memory(self.agent_id)
-        agent_skills = load_agent_skills(self.agent_id)
-        agent_profile = load_agent_profile(self.agent_id)
-        user_profile = load_user_profile(self.agent_id, uid)
-        from context import load_mounted_kbs, load_knowledge_overview
-        mounted_kbs = load_mounted_kbs(self.scene_name)
-        scene_context = self.scene_context
-        if mounted_kbs:
-            scene_context += f"\n## Available Knowledge Bases\nMounted KBs: {', '.join(mounted_kbs)}\nRead wiki pages via read_file — see knowledge_overview for the index."
-        knowledge_overview = load_knowledge_overview(self.scene_name)
-
-        system_prompt = build_system_prompt(
-            agent_id=self.agent_id,
-            agent_name=self.agent_name,
-            tool_descriptions=tool_desc,
-            workspace=self.workspace,
-            scene_name=self.scene_name,
-            scene_context=scene_context,
-            agent_memory=agent_memory,
-            agent_skills=agent_skills,
-            env_skills=self.scene_skills,
-            profile=agent_profile,
-            user_profile=user_profile,
-            user_conversation="",
-            knowledge_overview=knowledge_overview,
-        )
 
         messages = [
             {"role": "system", "content": system_prompt},

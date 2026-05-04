@@ -12,12 +12,15 @@ fn load_counter() -> u64 {
 }
 
 fn save_counter(val: u64) {
-    let _ = std::fs::write("chat/.counter", val.to_string());
+    if let Err(e) = std::fs::write("chat/.counter", val.to_string()) {
+        tracing::warn!("Failed to write counter: {e}");
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatMessage {
     pub msg_id: String,
+    #[serde(default)]
     pub task_id: Option<u64>,
     pub timestamp: String,
     pub from: String,

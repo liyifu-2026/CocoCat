@@ -3,6 +3,8 @@ use cococat::message_bus::ChatMessage;
 #[test]
 fn test_chat_message_creation() {
     let msg = ChatMessage {
+        msg_id: "msg_000001".to_string(),
+        task_id: None,
         timestamp: "2026-01-01T00:00:00Z".to_string(),
         from: "leader".to_string(),
         to: "*".to_string(),
@@ -15,6 +17,8 @@ fn test_chat_message_creation() {
 #[test]
 fn test_chat_message_serialization() {
     let msg = ChatMessage {
+        msg_id: "msg_000002".to_string(),
+        task_id: None,
         timestamp: "2026-01-01T00:00:00Z".to_string(),
         from: "a".to_string(), to: "b".to_string(),
         content: "hi".to_string(), message_type: "text".to_string(),
@@ -25,7 +29,7 @@ fn test_chat_message_serialization() {
 
 #[test]
 fn test_chat_message_deserialization() {
-    let json = r#"{"timestamp":"2026-01-01T00:00:00Z","from":"leader","to":"*","content":"hi","message_type":"text"}"#;
+    let json = r#"{"msg_id":"msg_000003","timestamp":"2026-01-01T00:00:00Z","from":"leader","to":"*","content":"hi","message_type":"text"}"#;
     let msg: ChatMessage = serde_json::from_str(json).unwrap();
     assert_eq!(msg.from, "leader");
 }

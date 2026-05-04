@@ -331,7 +331,7 @@ class SubAgentTool(Tool):
         """Spawn a new Python process running agent_runtime.py with the subtask."""
         if not _subagent_semaphore.acquire(blocking=False):
             return "Error: too many sub-agents running (max 5), try again later."
-        result = None
+        process = None
         try:
             input_json = json.dumps({
                 "jsonrpc": "2.0",
@@ -339,20 +339,28 @@ class SubAgentTool(Tool):
                 "params": {"prompt": prompt},
                 "id": 1,
             })
-            result = subprocess.run(
+            process = subprocess.Popen(
                 ["python", "-u", self.agent_runtime_path, "--id", name, "--name", name],
-                input=input_json,
-                capture_output=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=120,
             )
+            stdout, stderr = process.communicate(input=input_json, timeout=120)
         except subprocess.TimeoutExpired:
+            if process:
+                process.kill()
+                process.wait()
             return "Error: sub-agent task timed out after 120s"
         except Exception as e:
             return f"Error spawning sub-agent: {e}"
         finally:
             _subagent_semaphore.release()
-        for line in result.stdout.splitlines():
+
+        if not stdout:
+            return "(no output)"
+
+        for line in stdout.splitlines():
             line = line.strip()
             if not line:
                 continue
@@ -365,7 +373,7 @@ class SubAgentTool(Tool):
                     return f"Sub-agent error [{err.get('code', '?')}]: {err.get('message', 'unknown')}"
             except json.JSONDecodeError:
                 continue
-        return result.stdout.strip() or "(no output)"
+        return stdout.strip() or "(no output)"
 
 
 class DispatchTaskTool(Tool):

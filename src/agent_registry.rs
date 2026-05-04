@@ -1,7 +1,9 @@
 use crate::agent_manager::AgentProcess;
-use crate::transport;
+use crate::errors::AgentError;
+use cococat::transport;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::time::Instant;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AgentConfig {
@@ -18,9 +20,16 @@ pub struct AgentsConfig {
     pub agents: Vec<AgentConfig>,
 }
 
+struct RestartState {
+    retry_count: u32,
+    backoff_until: Instant,
+    consecutive_successes: u32,
+}
+
 pub struct AgentRegistry {
     pub configs: Vec<AgentConfig>,
     pub processes: HashMap<String, AgentProcess>,
+    restart_states: HashMap<String, RestartState>,
 }
 
 impl AgentRegistry {
@@ -38,6 +47,7 @@ impl AgentRegistry {
         Self {
             configs,
             processes: HashMap::new(),
+            restart_states: HashMap::new(),
         }
     }
 
@@ -110,24 +120,55 @@ impl AgentRegistry {
         Ok(())
     }
 
-    /// Health check: ping each running agent, restart dead ones. Returns list of restarted agents.
+    /// Health check: ping each running agent, restart dead ones with backoff. Returns list of restarted agents.
     pub fn health_check(&mut self) -> Vec<String> {
         let mut restarted = Vec::new();
         let ids: Vec<String> = self.processes.keys().cloned().collect();
+
         for id in ids {
+            let now = Instant::now();
+
+            if let Some(state) = self.restart_states.get(&id) {
+                if now < state.backoff_until {
+                    continue;
+                }
+            }
+
             let running = self.processes.get_mut(&id)
                 .map(|p| p.is_running())
                 .unwrap_or(false);
-            if !running {
+
+            if running {
+                if let Some(state) = self.restart_states.get_mut(&id) {
+                    state.consecutive_successes += 1;
+                    if state.consecutive_successes >= 3 {
+                        state.retry_count = 0;
+                    }
+                }
+            } else {
                 self.remove_dead(&id);
-                println!("  Agent '{id}' is dead, restarting...");
+
+                let state = self.restart_states.entry(id.clone()).or_insert(RestartState {
+                    retry_count: 0,
+                    backoff_until: now,
+                    consecutive_successes: 0,
+                });
+                state.retry_count += 1;
+                state.consecutive_successes = 0;
+                let backoff_secs = std::cmp::min(
+                    5u64 * (1u64 << state.retry_count.min(6)),
+                    300,
+                );
+                state.backoff_until = now + std::time::Duration::from_secs(backoff_secs);
+
+                tracing::warn!("Agent '{id}' is dead, restarting...");
                 match self.restart_one(&id) {
                     Ok(()) => {
-                        println!("  Agent '{id}' restarted successfully");
+                        tracing::info!("Agent '{id}' restarted successfully");
                         restarted.push(id);
                     }
                     Err(e) => {
-                        eprintln!("  Failed to restart agent '{id}': {e}");
+                        tracing::error!("Failed to restart agent '{id}': {e}");
                     }
                 }
             }
@@ -142,9 +183,9 @@ impl AgentRegistry {
         target_id: &str,
         method: &str,
         params: Option<serde_json::Value>,
-    ) -> Result<transport::JsonRpcResponse, String> {
+    ) -> Result<transport::JsonRpcResponse, AgentError> {
         let agent = self.processes.get_mut(target_id).ok_or_else(|| {
-            format!("agent '{}' not found or not running", target_id)
+            AgentError::ConfigError(format!("agent '{}' not found or not running", target_id))
         })?;
 
         // Write the dispatch message to the agent's .msg file
@@ -162,13 +203,15 @@ impl AgentRegistry {
                     .open(&msg_path)
                 {
                     use std::io::Write;
-                    let _ = writeln!(file, "{}", msg_content);
+                    if let Err(e) = writeln!(file, "{}", msg_content) {
+                        tracing::warn!("Failed to write dispatch message: {e}");
+                    }
                 }
             }
         }
 
         // Send the task call to the agent
-        agent.call(method, params, 0)
+        agent.call(method, params, 0, 60)
     }
 }
 

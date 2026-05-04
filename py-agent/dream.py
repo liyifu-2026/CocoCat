@@ -3,6 +3,8 @@ import os
 import json
 import time
 import hashlib
+import threading
+_dream_lock = threading.Lock()
 
 
 DREAM_PROMPT_TEMPLATE = """You are a Dream processor for {agent_name}, an AI agent in the CocoCat team.
@@ -92,10 +94,6 @@ def get_user_memory_dir(agent_id: str, user_hash: str) -> str:
     return os.path.join(base, "users", user_hash)
 
 
-def _user_hash(user_id: str) -> str:
-    return hashlib.sha256(user_id.encode()).hexdigest()[:16]
-
-
 def append_user_history(agent_id: str, user_hash: str, entry: dict):
     user_dir = get_user_memory_dir(agent_id, user_hash)
     os.makedirs(user_dir, exist_ok=True)
@@ -150,57 +148,60 @@ def _read_entries(path: str) -> list:
 
 def run_dream(agent_id: str, agent_name: str, llm_client=None) -> str:
     """Execute the Dream process: analyze history, update MEMORY.md."""
-    from llm import LLMClient
-
-    llm = llm_client or LLMClient()
-    unprocessed, total_entries = get_unprocessed_history(agent_id)
-
-    if not unprocessed:
-        return "No new history entries to process."
-
-    history_text = ""
-    for i, entry in enumerate(unprocessed):
-        history_text += f"\n### Entry {i+1}\n"
-        history_text += f"Task: {entry.get('prompt', '?')[:300]}\n"
-        history_text += f"Result: {entry.get('response_summary', '?')[:300]}\n"
-        history_text += f"Iterations: {entry.get('iterations', '?')}\n"
-
-    from datetime import datetime
-    prompt = DREAM_PROMPT_TEMPLATE.format(
-        agent_name=agent_name,
-        history_entries=history_text,
-    )
-
+    if not _dream_lock.acquire(blocking=False):
+        return "Dream already in progress, skipped."
     try:
-        response = llm.chat(
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1024,
-            temperature=0.3,
+        from llm import LLMClient
+
+        llm = llm_client or LLMClient()
+        unprocessed, total_entries = get_unprocessed_history(agent_id)
+
+        if not unprocessed:
+            return "No new history entries to process."
+
+        history_text = ""
+        for i, entry in enumerate(unprocessed):
+            history_text += f"\n### Entry {i+1}\n"
+            history_text += f"Task: {entry.get('prompt', '?')[:300]}\n"
+            history_text += f"Result: {entry.get('response_summary', '?')[:300]}\n"
+            history_text += f"Iterations: {entry.get('iterations', '?')}\n"
+
+        from datetime import datetime
+        prompt = DREAM_PROMPT_TEMPLATE.format(
+            agent_name=agent_name,
+            history_entries=history_text,
         )
-        content = (response.get("content") or "").strip()
-    except Exception as e:
-        return f"Dream LLM call failed: {e}"
 
-    if not content:
-        return "Dream produced no output."
+        try:
+            response = llm.chat(
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1024,
+                temperature=0.3,
+            )
+            content = (response.get("content") or "").strip()
+        except Exception as e:
+            return f"Dream LLM call failed: {e}"
 
-    # Phase 2: Use AgentLoop to surgically edit MEMORY.md (restricted to file tools only)
-    from agent_loop import AgentLoop
-    from tools import ToolRegistry, ReadFileTool, EditFileTool
+        if not content:
+            return "Dream produced no output."
 
-    tools = ToolRegistry()
-    tools.register(ReadFileTool())
-    tools.register(EditFileTool())
+        # Phase 2: Use AgentLoop to surgically edit MEMORY.md (restricted to file tools only)
+        from agent_loop import AgentLoop
+        from tools import ToolRegistry, ReadFileTool, EditFileTool
 
-    mem_path = _agent_memory_dir(agent_id, "MEMORY.md")
-    os.makedirs(os.path.dirname(mem_path), exist_ok=True)
+        tools = ToolRegistry()
+        tools.register(ReadFileTool())
+        tools.register(EditFileTool())
 
-    current_memory = ""
-    if os.path.exists(mem_path):
-        with open(mem_path, "r", encoding="utf-8") as f:
-            current_memory = f.read()
+        mem_path = _agent_memory_dir(agent_id, "MEMORY.md")
+        os.makedirs(os.path.dirname(mem_path), exist_ok=True)
 
-    edit_prompt = f"""You are a memory consolidation agent. Your task is to update {agent_name}'s long-term memory file.
+        current_memory = ""
+        if os.path.exists(mem_path):
+            with open(mem_path, "r", encoding="utf-8") as f:
+                current_memory = f.read()
+
+        edit_prompt = f"""You are a memory consolidation agent. Your task is to update {agent_name}'s long-term memory file.
 
 ## Current MEMORY.md
 {current_memory[:3000] if current_memory else "(empty)"}
@@ -217,17 +218,19 @@ def run_dream(agent_id: str, agent_name: str, llm_client=None) -> str:
 
 Use read_file and edit_file tools to complete this task."""
 
-    edit_loop = AgentLoop(agent_id=agent_id, agent_name=f"{agent_name}-dream", tools=tools)
-    edit_loop.run(edit_prompt)
+        edit_loop = AgentLoop(agent_id=agent_id, agent_name=f"{agent_name}-dream", tools=tools)
+        edit_loop.run(edit_prompt)
 
-    set_cursor(agent_id, total_entries)
-    try:
-        from git_store import GitStore
-        GitStore(_agent_memory_dir(agent_id)).commit(f"dream: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-    except Exception:
-        pass
-    entry_count = len(unprocessed)
-    return f"Dream processed {entry_count} history entries. Memory updated via surgical editing."
+        set_cursor(agent_id, total_entries)
+        try:
+            from git_store import GitStore
+            GitStore(_agent_memory_dir(agent_id)).commit(f"dream: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        except Exception:
+            pass
+        entry_count = len(unprocessed)
+        return f"Dream processed {entry_count} history entries. Memory updated via surgical editing."
+    finally:
+        _dream_lock.release()
 
 
 def run_user_dream(agent_id: str, agent_name: str, user_hash: str, llm_client=None) -> str:

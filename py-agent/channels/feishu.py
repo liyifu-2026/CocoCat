@@ -1,7 +1,9 @@
 """Feishu (飞书) channel via WebSocket mode (CowAgent pattern)."""
-import sys, os, json, threading
+import sys, os, json, threading, logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from channel import Channel, ChatMessage
+
+logger = logging.getLogger("cococat.feishu")
 
 
 class FeishuChannel(Channel):
@@ -30,6 +32,16 @@ class FeishuChannel(Channel):
         r = requests.post("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/",
                           json={"app_id": self.app_id, "app_secret": self.app_secret})
         self._token = r.json().get("tenant_access_token", "")
+        self._token_refresh_timer = threading.Timer(5400, self._refresh_token)
+        self._token_refresh_timer.daemon = True
+        self._token_refresh_timer.start()
+
+    def _refresh_token(self):
+        try:
+            token = self._get_token()
+            logger.info("Feishu token refreshed")
+        except Exception as e:
+            logger.error(f"Feishu token refresh failed: {e}")
 
     def _ws_loop(self):
         try:
@@ -88,4 +100,11 @@ class FeishuChannel(Channel):
         url = f"https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id"
         headers = {"Authorization": f"Bearer {self._token}", "Content-Type": "application/json"}
         body = {"receive_id": user_id, "msg_type": "text", "content": json.dumps({"text": reply})}
-        requests.post(url, json=body, headers=headers)
+        resp = requests.post(url, json=body, headers=headers)
+        if resp.status_code in (401, 403):
+            logger.warning("Feishu token expired, refreshing and retrying")
+            self._refresh_token()
+            headers["Authorization"] = f"Bearer {self._token}"
+            resp = requests.post(url, json=body, headers=headers)
+        if resp.status_code != 200:
+            logger.error(f"Feishu send failed: {resp.status_code} {resp.text}")

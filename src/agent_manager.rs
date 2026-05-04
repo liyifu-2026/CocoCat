@@ -1,11 +1,12 @@
-use crate::transport::{self, JsonRpcRequest, JsonRpcResponse};
-use std::io::BufReader;
+use crate::errors::AgentError;
+use cococat::transport::{JsonRpcRequest, JsonRpcResponse};
+use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 
 pub struct AgentProcess {
     child: Child,
     stdin_writer: Option<ChildStdin>,
-    stdout_reader: BufReader<std::process::ChildStdout>,
+    stdout_reader: Option<BufReader<std::process::ChildStdout>>,
     #[allow(dead_code)]
     interpreter: String,
 }
@@ -39,7 +40,7 @@ impl AgentProcess {
         Ok(Self {
             child,
             stdin_writer: Some(stdin_writer),
-            stdout_reader,
+            stdout_reader: Some(stdout_reader),
             interpreter: interpreter.to_string(),
         })
     }
@@ -50,10 +51,60 @@ impl AgentProcess {
         method: &str,
         params: Option<serde_json::Value>,
         id: u64,
-    ) -> Result<JsonRpcResponse, String> {
+        timeout_secs: u64,
+    ) -> Result<JsonRpcResponse, AgentError> {
         let req = JsonRpcRequest::new(method, params, id);
-        transport::send_request(self.stdin_writer.as_mut().unwrap(), &req)?;
-        transport::read_response(&mut self.stdout_reader)
+        let line = serde_json::to_string(&req)?;
+        let writer = self.stdin_writer.as_mut()
+            .ok_or_else(|| AgentError::StdinClosed("stdin closed".to_string()))?;
+        writeln!(writer, "{}", line)?;
+        writer.flush()?;
+
+        let mut reader = self.stdout_reader.take()
+            .ok_or_else(|| AgentError::StdinClosed("stdout reader unavailable".to_string()))?;
+
+        if timeout_secs == 0 {
+            let mut response_line = String::new();
+            let read_result = reader.read_line(&mut response_line);
+            self.stdout_reader = Some(reader);
+            if let Err(e) = read_result {
+                return Err(AgentError::IoError(e));
+            }
+            if response_line.is_empty() {
+                return Err(AgentError::AgentCrashed("child process closed stdout".to_string()));
+            }
+            let response: JsonRpcResponse = serde_json::from_str(&response_line)?;
+            return Ok(response);
+        }
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let mut line = String::new();
+            let result = reader.read_line(&mut line);
+            let _ = tx.send((reader, line, result));
+        });
+
+        let duration = std::time::Duration::from_secs(timeout_secs);
+        match rx.recv_timeout(duration) {
+            Ok((reader, response_line, read_result)) => {
+                self.stdout_reader = Some(reader);
+                if let Err(e) = read_result {
+                    return Err(AgentError::IoError(e));
+                }
+                if response_line.is_empty() {
+                    return Err(AgentError::AgentCrashed("child process closed stdout".to_string()));
+                }
+                let response: JsonRpcResponse = serde_json::from_str(&response_line)?;
+                Ok(response)
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                let _ = self.child.kill();
+                Err(AgentError::Timeout("agent call timed out".to_string()))
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                Err(AgentError::AgentCrashed("read thread disconnected".to_string()))
+            }
+        }
     }
 
     /// Check if process has exited without blocking. Returns true if still running.

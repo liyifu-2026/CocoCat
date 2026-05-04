@@ -1,6 +1,7 @@
 """System prompt builder (nanobot ContextBuilder pattern)."""
 import os
 import json
+from utils import user_hash as _user_hash
 
 
 SYSTEM_PROMPT_TEMPLATE = """You are {agent_name}, a capable AI agent in the CocoCat multi-agent team.
@@ -120,12 +121,6 @@ def load_user_profile(agent_id: str, user_id: str, base_dir: str = "") -> str:
             return f.read().strip()
     except Exception:
         return ""
-
-
-def _user_hash(user_id: str) -> str:
-    """Duplicate of dream._user_hash to avoid circular import."""
-    import hashlib
-    return hashlib.sha256(user_id.encode()).hexdigest()[:16]
 
 
 def load_agent_profile(agent_id: str, base_dir: str = "") -> dict | None:

@@ -4,7 +4,6 @@ import os
 import re
 import shutil
 import sys
-import subprocess
 from pathlib import Path
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -22,6 +21,15 @@ if env_path.exists():
                 os.environ.setdefault(k.strip(), v.strip())
 
 app = FastAPI(title="CocoCat Panel")
+
+from web.middleware.cors import setup_cors
+setup_cors(app)
+
+from web.middleware.error_handler import setup_error_handlers
+setup_error_handlers(app)
+
+from web.middleware.logging import setup_logging
+setup_logging(app)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -101,9 +109,18 @@ async def websocket_endpoint(ws: WebSocket):
 
 @app.on_event("startup")
 async def start_heartbeat():
+    from web.auth import validate_config as validate_auth_config
+    validate_auth_config()
+    try:
+        from web.routes.auth import validate_config as validate_web_auth
+        validate_web_auth()
+    except ImportError:
+        pass
     # Start entry manager channels
     from web.entry_manager import start_all_entries
     start_all_entries()
+    from web.services.scheduler import start_scheduler
+    start_scheduler()
     asyncio.create_task(_heartbeat_loop())
 
 async def _heartbeat_loop():
@@ -192,7 +209,6 @@ def list_knowledge():
 def _agent_process_message(scene_id: str, user_id: str, content: str, channel_type: str, api_key: str = ""):
     """Shared agent invocation logic for all channels."""
     from scene_router import store_message, get_history
-    import subprocess, json
 
     store_message(scene_id, user_id, {
         "content": content, "direction": "incoming", "channel_type": channel_type,
@@ -207,35 +223,12 @@ def _agent_process_message(scene_id: str, user_id: str, content: str, channel_ty
     history = get_history(scene_id, user_id, limit=10)
     history_text = "\n".join([f"[{h['direction']}] {h['content']}" for h in history])
 
-    api_key = api_key or os.environ.get('OPENAI_API_KEY', '')
-    base_url = os.environ.get('OPENAI_BASE_URL', 'https://api.deepseek.com')
-    model = os.environ.get('LLM_MODEL', 'deepseek-v4-flash')
-
     agent_script = str(BASE_DIR / "py-agent" / "agent_runtime.py")
     prompt = f"{context}\n\n## Conversation\n{history_text}\n\n[user] {content}\n\nRespond concisely."
-    task = json.dumps({"jsonrpc": "2.0", "method": "task", "params": {"prompt": prompt, "user_id": user_id}, "id": 1})
 
-    reply_text = "(processing)"
-    try:
-        result = subprocess.run(
-            ["python", "-u", agent_script], input=task,
-            capture_output=True, text=True, timeout=60,
-            env={**os.environ, 'OPENAI_API_KEY': api_key, 'OPENAI_BASE_URL': base_url, 'LLM_MODEL': model},
-        )
-        for line in result.stdout.strip().split("\n"):
-            line = line.strip()
-            if line:
-                try:
-                    resp = json.loads(line)
-                    ct = resp.get("result", {}).get("content", "")
-                    if ct: reply_text = ct; break
-                except json.JSONDecodeError:
-                    continue
-    except subprocess.TimeoutExpired:
-        reply_text = "System busy, please try again later."
-    except Exception as e:
-        print(f"[agent_process] Error: {e}")
-        reply_text = "System error."
+    from web.services.agent_executor import execute_agent
+    result = asyncio.run(execute_agent(agent_script, prompt, timeout=60))
+    reply_text = result.get("content", "") or result.get("error", "System error.")
 
     store_message(scene_id, user_id, {
         "content": reply_text, "direction": "outgoing", "channel_type": channel_type,

@@ -4,6 +4,9 @@ import json
 import time
 import threading
 
+_heartbeat_running = False
+_heartbeat_lock = threading.Lock()
+
 
 def get_schedule_path():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", "schedule.json")
@@ -47,10 +50,15 @@ def start_heartbeat(agent_id: str, agent_name: str, interval: int = 300, scene: 
 
 
 def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = "default"):
-    from agent_runner import AgentRunner
-    runner = AgentRunner(agent_id, agent_name, scene)
-    while True:
-        time.sleep(interval)
+    global _heartbeat_running
+    if _heartbeat_running:
+        return
+    _heartbeat_running = True
+    try:
+        from agent_runner import AgentRunner
+        runner = AgentRunner(agent_id, agent_name, scene)
+        while True:
+            time.sleep(interval)
         try:
             from agent_status import report as _sreport
             _sreport(agent_id, "alive", f"heartbeat {agent_name}")
@@ -101,6 +109,8 @@ def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = 
             run_auto_compact(agent_id)
         except Exception:
             pass
+    finally:
+        _heartbeat_running = False
 
 
 def _execute_task(agent_id: str, agent_name: str, task: dict, scene: str = "default", runner=None):

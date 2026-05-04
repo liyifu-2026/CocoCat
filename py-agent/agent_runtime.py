@@ -99,9 +99,6 @@ def main():
                 )
                 runner._ensure_loop()
                 agent_loop = runner._loop
-                    scene_context=scene_context,
-                    scene_skills=scene_skills,
-                )
 
             result = handle_request(request, agent_loop=agent_loop)
             response = {"jsonrpc": "2.0", "result": result, "id": req_id}

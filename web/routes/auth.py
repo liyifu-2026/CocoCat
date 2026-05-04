@@ -35,3 +35,9 @@ async def verify(token: str = None):
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     return {"valid": True, "sub": payload.get("sub")}
+
+
+def validate_config():
+    import os
+    if not os.environ.get("WEB_PASSWORD"):
+        raise RuntimeError("WEB_PASSWORD environment variable is not set")

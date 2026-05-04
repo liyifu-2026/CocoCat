@@ -3,12 +3,40 @@ import json
 import os
 import sys
 import threading
+import logging
+
+logger = logging.getLogger("cococat.entry_manager")
 
 # Add py-agent to path for channel imports
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, "py-agent"))
 
 from channel import ChatMessage
+
+DEFAULT_ENTRIES_TEMPLATE = [
+    {
+        "channel_type": "telegram",
+        "enabled": True,
+        "config": {
+            "bot_token": "${TELEGRAM_BOT_TOKEN}",
+        },
+    },
+]
+
+def ensure_default_entries(agent_dir: str):
+    entries_path = os.path.join(agent_dir, "entries.json")
+    if os.path.exists(entries_path):
+        return
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if not bot_token:
+        return
+    entries = []
+    for tmpl in DEFAULT_ENTRIES_TEMPLATE:
+        entry = json.loads(json.dumps(tmpl).replace("${TELEGRAM_BOT_TOKEN}", bot_token))
+        entries.append(entry)
+    with open(entries_path, "w") as f:
+        json.dump(entries, f, indent=2)
+    logger.info(f"Created default entries.json at {entries_path}")
 
 
 def _read_entry_config(path: str) -> list[dict]:
@@ -174,6 +202,7 @@ def start_all_entries():
         for d in os.listdir(agents_dir):
             agent_dir = os.path.join(agents_dir, d)
             if os.path.isdir(agent_dir) and d != "mailbox" and d != "dispatch_queue" and d != "dispatch_messages" and not d.startswith("_"):
+                ensure_default_entries(agent_dir)
                 start_agent_entries(d)
 
     # Scene entries
