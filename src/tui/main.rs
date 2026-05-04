@@ -246,6 +246,29 @@ fn process_sidebar_click(app: &mut App, col: i32, row: i32, term_width: u16) {
     }
 }
 
+fn discover_agents() -> Vec<app::AgentStatus> {
+    let agents_dir = dirs::home_dir()
+        .unwrap_or_default()
+        .join(".cococat/agents");
+    let mut agents = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&agents_dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                let id = entry.file_name().to_string_lossy().to_string();
+                agents.push(app::AgentStatus {
+                    id: id.clone(),
+                    name: id,
+                    running: true,
+                });
+            }
+        }
+    }
+    if agents.is_empty() {
+        agents.push(app::AgentStatus { id: "leader".into(), name: "Leader".into(), running: true });
+    }
+    agents
+}
+
 fn run_tui() -> io::Result<()> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -265,12 +288,7 @@ fn run_tui() -> io::Result<()> {
     let cfg = config::Config::load_or_default(config::Config::config_path()).unwrap_or_default();
     let agent_id = std::env::args().nth(1).unwrap_or_else(|| cfg.chat.default_agent.clone());
     let mut app = App::new(&agent_id);
-    app.agent_statuses = vec![
-        app::AgentStatus { id: "leader".into(), name: "Leader".into(), running: true },
-        app::AgentStatus { id: "emp_a".into(), name: "Emp A".into(), running: true },
-        app::AgentStatus { id: "emp_b".into(), name: "Emp B".into(), running: false },
-        app::AgentStatus { id: "emp_c".into(), name: "Emp C".into(), running: false },
-    ];
+    app.agent_statuses = discover_agents();
     let mut input = InputBuffer::new();
     let mut history = InputHistory::new(200);
     let mut agent_client = AgentClient::new(".");
