@@ -216,12 +216,26 @@ fn process_sidebar_click(app: &mut App, col: i32, row: i32, term_width: u16) {
     if !sidebar_visible || col < sidebar_x || col >= term_width as i32 { return; }
     let content_row = row.saturating_sub(1);
     let mut current_row = 0i32;
-    for section in app.sidebar_sections.iter_mut() {
-        if content_row == current_row { section.collapsed = !section.collapsed; return; }
+
+    for section in app.sidebar_sections.iter() {
+        if content_row == current_row {
+            return;
+        }
         current_row += 1;
         if !section.collapsed {
             match section.name.as_str() {
-                "Team" => { current_row += 4; }
+                "Team" => {
+                    for agent in &app.agent_statuses {
+                        if content_row == current_row {
+                            if agent.id != app.agent_id {
+                                let id = agent.id.clone();
+                                app.switch_agent(&id);
+                            }
+                            return;
+                        }
+                        current_row += 1;
+                    }
+                }
                 "Session" => { current_row += 3; }
                 "Tools" => { current_row += app.tool_stats.tool_calls.len().max(1) as i32; }
                 "Mail" => { current_row += 2; }

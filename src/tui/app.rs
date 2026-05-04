@@ -237,6 +237,14 @@ impl App {
         }
     }
 
+    pub fn switch_agent(&mut self, id: &str) {
+        self.agent_id = id.to_string();
+        self.messages.clear();
+        self.session_stats.message_count = 0;
+        self.session_stats.token_count = 0;
+        self.status_message = format!("Switched to agent: {}", id);
+    }
+
     pub fn switch_theme(&mut self, name: &str) -> bool {
         self.theme_registry.switch(name)
     }
