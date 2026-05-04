@@ -27,8 +27,9 @@ async fn test_full_e2e_flow() {
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             last_heartbeat_at TEXT
         );
+        -- Match the agent ID from agents/config.toml
         INSERT INTO agents (id, name, role, model, status)
-        VALUES ('test_leader', 'Test Leader', 'manager', 'gpt-4', 'running');"
+        VALUES ('leader', 'Leader', 'manager', 'gpt-4', 'running');"
     ).unwrap();
     drop(conn);
 
@@ -88,7 +89,7 @@ fn run_e2e(_tmp_dir: &std::path::Path) -> Result<(bool, bool, bool, String), Str
 
     // Step 3: Send chat
     let chat_body = format!(
-        r#"{{"content":"Hello","agent_id":"test_leader","user_id":"test_user"}}"#
+        r#"{{"content":"Hello","agent_id":"leader","user_id":"test_user"}}"#
     );
     let chat_resp = http_post_with_token("127.0.0.1:3000", "/api/chat", &chat_body, &token)?;
     let has_task = chat_resp.contains("task_uuid");

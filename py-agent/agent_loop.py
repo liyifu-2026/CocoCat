@@ -58,7 +58,7 @@ def auto_dream(agent_id: str, agent_name: str, llm) -> None:
         if should_trigger_dream(unprocessed, last_time, _time.time()):
             run_dream(agent_id, agent_name, llm_client=llm)
     except Exception as e:
-        print(f"[auto_dream] Error for {agent_id}: {e}")
+        print(f"[auto_dream] Error for {agent_id}: {e}", file=__import__('sys').stderr)
 
 
 import re

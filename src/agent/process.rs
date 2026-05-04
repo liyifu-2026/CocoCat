@@ -38,7 +38,21 @@ pub struct JsonRpcError {
 
 impl AgentProcess {
     pub fn spawn(config: &Agent) -> Result<Self, String> {
-        let mut child = Command::new("python")
+        let python = if Command::new("python3")
+            .arg("--version")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .and_then(|mut c| c.wait())
+            .map(|s| s.success())
+            .unwrap_or(false)
+        {
+            "python3"
+        } else {
+            "python"
+        };
+
+        let mut child = Command::new(python)
             .arg("-u")
             .arg("py-agent/agent_runtime.py")
             .arg("--agent-id")

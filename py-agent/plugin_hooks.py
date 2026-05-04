@@ -1,5 +1,6 @@
 """Hook registry — manage plugin lifecycle hooks."""
 import copy
+import sys
 
 
 class HookRegistry:
@@ -30,7 +31,7 @@ class HookRegistry:
                 if "args" in result:
                     current_args = result["args"]
             except Exception as e:
-                print(f"[HookRegistry] pre_tool_call error: {e}")
+                print(f"[HookRegistry] pre_tool_call error: {e}", file=sys.stderr)
         return True, "", current_args
 
     def run_post_tool_call(self, tool_name: str, args: dict, result: str) -> str:
@@ -42,7 +43,7 @@ class HookRegistry:
                 if isinstance(res, dict) and "result" in res:
                     current_result = res["result"]
             except Exception as e:
-                print(f"[HookRegistry] post_tool_call error: {e}")
+                print(f"[HookRegistry] post_tool_call error: {e}", file=sys.stderr)
         return current_result
 
     def clear(self) -> None:
