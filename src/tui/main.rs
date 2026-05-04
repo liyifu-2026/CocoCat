@@ -23,6 +23,7 @@ mod event;
 mod protocol;
 mod session;
 mod theme;
+mod types;
 
 use app::{App, Dialog};
 use event::TuiEvent;
@@ -67,7 +68,9 @@ fn handle_key(
             app.toggle_sidebar();
         }
         (KeyCode::Tab, _) => {
-            app.sidebar_tab = sidebar::next_tab(&app.sidebar_tab);
+            if let Some(section) = app.sidebar_sections.get_mut(0) {
+                section.toggle();
+            }
         }
         (KeyCode::Char('p'), KeyModifiers::CONTROL) => {
             app.dialog = Some(Dialog::SessionSwitcher);
@@ -213,12 +216,17 @@ fn main() -> io::Result<()> {
                 ])
                 .split(chunks[0]);
 
-            chat_panel::render_chat_panel(f, vertical[0], &app.messages, app.scroll_offset, app.theme_registry.current_theme());
+            chat_panel::render_chat_panel(f, vertical[0], &app.messages, app.scroll_offset, app.theme_registry.current_theme(), true);
             input_bar::render_input_bar(f, vertical[1], &input, app.theme_registry.current_theme(), !is_streaming);
             status_bar::render_status_bar(f, vertical[2], &app.agent_id, "default", app.theme_registry.current_theme());
 
             if sidebar_visible && term_width > 120 {
-                sidebar::render_sidebar(f, chunks[1], &app.sidebar_tab, app.theme_registry.current_theme());
+                sidebar::render_sidebar(
+                    f, chunks[1],
+                    &mut app.sidebar_sections,
+                    &app.tool_stats, &app.session_stats, &app.system_stats,
+                    app.theme_registry.current_theme(),
+                );
             }
 
             if app.show_sidebar && term_width <= 120 {
@@ -232,7 +240,12 @@ fn main() -> io::Result<()> {
                     .style(Style::default().bg(Color::Rgb(0, 0, 0)).fg(Color::Rgb(0, 0, 0)));
                 f.render_widget(backdrop, area);
 
-                sidebar::render_sidebar(f, overlay[1], &app.sidebar_tab, app.theme_registry.current_theme());
+                sidebar::render_sidebar(
+                    f, overlay[1],
+                    &mut app.sidebar_sections,
+                    &app.tool_stats, &app.session_stats, &app.system_stats,
+                    app.theme_registry.current_theme(),
+                );
             }
 
             if let Some(ref dialog) = app.dialog {
@@ -259,7 +272,12 @@ fn main() -> io::Result<()> {
                         app.finalize_last_message();
                         is_streaming = false;
                     }
-                    _ => { app.append_to_last(event); }
+                    _ => {
+                        app.append_to_last(event);
+                        if app.scroll_offset == usize::MAX {
+                            // stays at MAX which means "follow bottom"
+                        }
+                    }
                 }
             }
         }

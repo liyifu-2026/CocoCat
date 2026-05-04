@@ -75,6 +75,9 @@ impl Theme {
     pub fn accent_color(&self) -> Color { ThemeColors::hex_to_rgb(&self.colors.accent) }
     pub fn text_dim_color(&self) -> Color { ThemeColors::hex_to_rgb(&self.colors.text_dim) }
     pub fn text_color(&self) -> Color { ThemeColors::hex_to_rgb(&self.colors.text) }
+    pub fn error_color(&self) -> Color { ThemeColors::hex_to_rgb(&self.colors.error) }
+    pub fn tool_color(&self) -> Color { ThemeColors::hex_to_rgb(&self.colors.tool) }
+    pub fn scrollbar_color(&self) -> Color { ThemeColors::hex_to_rgb(&self.colors.scrollbar) }
 }
 
 pub struct ThemeRegistry {

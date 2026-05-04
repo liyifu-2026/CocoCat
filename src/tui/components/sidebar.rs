@@ -1,82 +1,99 @@
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::Style,
     text::{Line, Span, Text},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Tabs},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
-use crate::app::SidebarTab;
+use crate::app::SidebarSection;
 use crate::theme::theme::Theme;
+use crate::types::stats::{ToolStats, SessionStats, SystemStats};
 
-pub fn next_tab(tab: &SidebarTab) -> SidebarTab {
-    match tab {
-        SidebarTab::Sessions => SidebarTab::Context,
-        SidebarTab::Context => SidebarTab::Help,
-        SidebarTab::Help => SidebarTab::Sessions,
+pub fn render_sidebar(
+    f: &mut Frame, area: Rect, sections: &mut [SidebarSection],
+    tool_stats: &ToolStats, session_stats: &SessionStats, system_stats: &SystemStats,
+    theme: &Theme,
+) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme.border_color()))
+        .title(Span::styled(" Sidebar ", Style::default().fg(theme.accent_color())));
+
+    let mut lines: Vec<Line> = Vec::new();
+
+    for section in sections.iter() {
+        match section.name.as_str() {
+            "Team" => render_team_section(&mut lines, section, theme),
+            "Session" => render_session_section(&mut lines, section, session_stats, theme),
+            "Tools" => render_tools_section(&mut lines, section, tool_stats, theme),
+            "Mail" => render_mail_section(&mut lines, section, system_stats, theme),
+            _ => {}
+        }
+        lines.push(Line::from(""));
+    }
+
+    lines.push(Line::from(Span::styled(" CocoCat v0.1.0", Style::default().fg(theme.text_dim_color()))));
+    let theme_name = &theme.name;
+    lines.push(Line::from(Span::styled(format!(" {}", theme_name), Style::default().fg(theme.text_dim_color()))));
+
+    let paragraph = Paragraph::new(Text::from(lines)).block(block).wrap(Wrap { trim: false });
+    f.render_widget(paragraph, area);
+}
+
+fn section_header(lines: &mut Vec<Line>, name: &str, collapsed: bool, theme: &Theme) {
+    let icon = if collapsed { "▶" } else { "▼" };
+    lines.push(Line::from(Span::styled(
+        format!(" {} {}", icon, name),
+        Style::default().fg(theme.accent_color()),
+    )));
+}
+
+fn render_team_section(lines: &mut Vec<Line>, section: &SidebarSection, theme: &Theme) {
+    section_header(lines, &section.name, section.collapsed, theme);
+    if !section.collapsed {
+        lines.push(Line::from(Span::styled("  4 agents", Style::default().fg(theme.text_color()))));
+        lines.push(Line::from(Span::styled("  leader    ● running", Style::default().fg(theme.text_color()))));
+        lines.push(Line::from(Span::styled("  emp_a     ● running", Style::default().fg(theme.text_color()))));
+        lines.push(Line::from(Span::styled("  emp_b     ○ idle", Style::default().fg(theme.text_dim_color()))));
+        lines.push(Line::from(Span::styled("  emp_c     ○ idle", Style::default().fg(theme.text_dim_color()))));
     }
 }
 
-pub fn tab_name(tab: &SidebarTab) -> &'static str {
-    match tab {
-        SidebarTab::Sessions => "Sessions",
-        SidebarTab::Context => "Context",
-        SidebarTab::Help => "Help",
+fn render_session_section(lines: &mut Vec<Line>, section: &SidebarSection, stats: &SessionStats, theme: &Theme) {
+    section_header(lines, &section.name, section.collapsed, theme);
+    if !section.collapsed {
+        lines.push(Line::from(Span::styled(format!("  Messages  {}", stats.message_count), Style::default().fg(theme.text_color()))));
+        lines.push(Line::from(Span::styled(format!("  Tokens    {} / {}", stats.token_count, stats.token_limit), Style::default().fg(theme.text_color()))));
+        lines.push(Line::from(Span::styled(format!("  Agent     {}", stats.agent_name), Style::default().fg(theme.text_color()))));
     }
 }
 
-pub fn render_sidebar(f: &mut Frame, area: Rect, tab: &SidebarTab, theme: &Theme) {
-    let names = ["Sessions", "Context", "Help"];
-    let selected = match tab {
-        SidebarTab::Sessions => 0,
-        SidebarTab::Context => 1,
-        SidebarTab::Help => 2,
-    };
-
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(3), Constraint::Min(0)])
-        .split(area);
-
-    let tabs = Tabs::new(names.to_vec())
-    .select(selected)
-    .highlight_style(Style::default().fg(theme.accent_color()))
-    .block(Block::default().title(" Sidebar ").borders(Borders::ALL));
-
-    f.render_widget(tabs, chunks[0]);
-
-    let content_block = Block::default().borders(Borders::ALL);
-
-    match tab {
-        SidebarTab::Sessions => {
-            let items = vec![ListItem::new("No sessions yet")];
-            let list = List::new(items).block(content_block);
-            f.render_widget(list, chunks[1]);
+fn render_tools_section(lines: &mut Vec<Line>, section: &SidebarSection, stats: &ToolStats, theme: &Theme) {
+    section_header(lines, &section.name, section.collapsed, theme);
+    if !section.collapsed {
+        if stats.tool_calls.is_empty() {
+            lines.push(Line::from(Span::styled("  (none yet)", Style::default().fg(theme.text_dim_color()))));
+        } else {
+            for tc in &stats.tool_calls {
+                let icon = match tc.status.as_str() {
+                    "done" => "✓",
+                    "running" => "◌",
+                    "error" => "✗",
+                    _ => "?",
+                };
+                lines.push(Line::from(Span::styled(
+                    format!("  {} {}  {}x", icon, tc.name, tc.count),
+                    Style::default().fg(theme.text_color()),
+                )));
+            }
         }
-        SidebarTab::Context => {
-            let text = Text::from(vec![
-                Line::from(Span::raw("Tokens: --")),
-                Line::from(Span::raw("Tools: --")),
-            ]);
-            let paragraph = Paragraph::new(text).block(content_block);
-            f.render_widget(paragraph, chunks[1]);
-        }
-        SidebarTab::Help => {
-            let help_lines = vec![
-                ListItem::new("Ctrl+Q / Ctrl+C  Quit"),
-                ListItem::new("Ctrl+B           Toggle sidebar"),
-                ListItem::new("Tab              Cycle sidebar tab"),
-                ListItem::new("Ctrl+P           Session switcher"),
-                ListItem::new("Esc              Close dialog"),
-                ListItem::new("Enter            Send message"),
-                ListItem::new("↑↓               History navigation"),
-                ListItem::new("←→               Cursor move"),
-                ListItem::new("/theme [name]    Switch theme"),
-                ListItem::new("/help            Show help"),
-                ListItem::new("/clear           Clear chat"),
-                ListItem::new("/quit            Exit"),
-            ];
-            let list = List::new(help_lines).block(content_block);
-            f.render_widget(list, chunks[1]);
-        }
+    }
+}
+
+fn render_mail_section(lines: &mut Vec<Line>, section: &SidebarSection, stats: &SystemStats, theme: &Theme) {
+    section_header(lines, &section.name, section.collapsed, theme);
+    if !section.collapsed {
+        lines.push(Line::from(Span::styled(format!("  {} unread", stats.unread_mail), Style::default().fg(theme.text_color()))));
+        lines.push(Line::from(Span::styled(format!("  {} dispatches pending", stats.pending_dispatches), Style::default().fg(theme.text_color()))));
     }
 }

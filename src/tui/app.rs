@@ -1,5 +1,6 @@
 use crate::event::TuiEvent;
 use crate::theme::theme::ThemeRegistry;
+use crate::types::stats::{ToolStats, SessionStats, SystemStats};
 
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
@@ -36,16 +37,23 @@ pub enum InputMode {
     Normal,
 }
 
-pub enum SidebarTab {
-    Sessions,
-    Context,
-    Help,
-}
-
 pub enum Dialog {
     ThemeSelector,
     Help,
     SessionSwitcher,
+}
+
+#[derive(Debug, Clone)]
+pub struct SidebarSection {
+    pub name: String,
+    pub collapsed: bool,
+}
+
+impl SidebarSection {
+    pub fn new(name: &str) -> Self {
+        SidebarSection { name: name.to_string(), collapsed: false }
+    }
+    pub fn toggle(&mut self) { self.collapsed = !self.collapsed; }
 }
 
 pub struct App {
@@ -55,12 +63,15 @@ pub struct App {
     pub input_mode: InputMode,
     pub show_sidebar: bool,
     pub sidebar_auto: bool,
-    pub sidebar_tab: SidebarTab,
+    pub sidebar_sections: Vec<SidebarSection>,
     pub theme_registry: ThemeRegistry,
     pub scroll_offset: usize,
     pub should_quit: bool,
     pub status_message: String,
     pub dialog: Option<Dialog>,
+    pub tool_stats: ToolStats,
+    pub session_stats: SessionStats,
+    pub system_stats: SystemStats,
 }
 
 impl App {
@@ -72,12 +83,20 @@ impl App {
             input_mode: InputMode::Normal,
             show_sidebar: false,
             sidebar_auto: true,
-            sidebar_tab: SidebarTab::Sessions,
+            sidebar_sections: vec![
+                SidebarSection::new("Team"),
+                SidebarSection::new("Session"),
+                SidebarSection::new("Tools"),
+                SidebarSection::new("Mail"),
+            ],
             theme_registry: ThemeRegistry::new(),
             scroll_offset: 0,
             should_quit: false,
             status_message: String::new(),
             dialog: None,
+            tool_stats: ToolStats::default(),
+            session_stats: SessionStats::default(),
+            system_stats: SystemStats::default(),
         }
     }
 
