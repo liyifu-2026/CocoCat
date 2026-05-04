@@ -186,6 +186,12 @@ fn handle_slash_command(text: &str, app: &mut App, input: &mut InputBuffer, hist
         "/help" | "/?" => {
             app.dialog = Some(Dialog::Help);
         }
+        "/model" => {
+            app.dialog = Some(Dialog::ModelSelector);
+        }
+        "/session" => {
+            app.dialog = Some(Dialog::SessionSwitcher);
+        }
         "/clear" => {
             app.messages.clear();
             app.scroll_to_bottom();

@@ -32,6 +32,7 @@ pub fn render_dialog(f: &mut Frame, area: Rect, dialog: &Dialog, app: &App) {
         Dialog::ThemeSelector => render_theme_selector(f, area, app),
         Dialog::Help => render_help(f, area, app),
         Dialog::SessionSwitcher => render_session_switcher(f, area, app),
+        Dialog::ModelSelector => render_model_selector(f, area, app),
     }
 }
 
@@ -102,14 +103,41 @@ fn render_session_switcher(f: &mut Frame, area: Rect, app: &App) {
     let theme = app.theme_registry.current_theme();
     let dialog_area = centered_rect(50, 50, area);
 
-    let items: Vec<ListItem> = vec![
-        ListItem::new(Line::from(Span::styled("  Session list (coming soon)", Style::default().fg(theme.text_dim_color())))),
-    ];
+    let mgr = crate::session::manager::SessionManager::new();
+    let sessions = mgr.list();
+
+    let items: Vec<ListItem> = if sessions.is_empty() {
+        vec![ListItem::new(Line::from(Span::styled("  No saved sessions", Style::default().fg(theme.text_dim_color()))))]
+    } else {
+        sessions.iter().map(|s| {
+            ListItem::new(Line::from(Span::styled(format!("  {}", s), Style::default().fg(theme.text_color()))))
+        }).collect()
+    };
 
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.accent_color()))
         .title(Span::styled(" Sessions ", Style::default().fg(theme.accent_color())))
+        .style(Style::default().bg(theme.bg()));
+
+    let list = List::new(items).block(block);
+    f.render_widget(Clear, dialog_area);
+    f.render_widget(list, dialog_area);
+}
+
+fn render_model_selector(f: &mut Frame, area: Rect, app: &App) {
+    let theme = app.theme_registry.current_theme();
+    let dialog_area = centered_rect(50, 50, area);
+
+    let models = ["gpt-4", "gpt-3.5-turbo", "claude-3"];
+    let items: Vec<ListItem> = models.iter().map(|m| {
+        ListItem::new(Line::from(Span::styled(format!("  {}", m), Style::default().fg(theme.text_color()))))
+    }).collect();
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme.accent_color()))
+        .title(Span::styled(" Select Model ", Style::default().fg(theme.accent_color())))
         .style(Style::default().bg(theme.bg()));
 
     let list = List::new(items).block(block);

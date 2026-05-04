@@ -48,6 +48,7 @@ pub enum Dialog {
     ThemeSelector,
     Help,
     SessionSwitcher,
+    ModelSelector,
 }
 
 #[derive(Debug, Clone)]
