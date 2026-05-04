@@ -600,10 +600,10 @@ class WebFetchTool(Tool):
 
 
 class WebSearchTool(Tool):
-    """Search the web using DuckDuckGo (no API key needed)."""
+    """Search the web using auto-fallback SearchRouter (multi-backend)."""
     name = "web_search"
     required_permission = PermissionMode.READONLY
-    description = "Search the web for information. Returns a list of results with titles and snippets."
+    description = "Search the web for information. Returns a list of results with titles and snippets. Works across multiple search engines with automatic fallback."
     parameters = {
         "type": "object",
         "properties": {
@@ -614,28 +614,9 @@ class WebSearchTool(Tool):
     }
 
     def execute(self, query="", max_results=5, **kwargs) -> str:
-        import urllib.request
-        import urllib.parse
-        import json
+        from search_router import get_router
         try:
-            encoded = urllib.parse.quote(query)
-            url = f"https://api.duckduckgo.com/?q={encoded}&format=json&no_html=1"
-            req = urllib.request.Request(url, headers={"User-Agent": "CocoCat/1.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-            results = []
-            heading = data.get("Heading", "")
-            abstract = data.get("AbstractText", "")
-            if heading and abstract:
-                results.append(f"## {heading}\n{abstract}\n")
-            related = data.get("RelatedTopics", [])[:max_results]
-            for r in related:
-                if isinstance(r, dict):
-                    text = r.get("Text", "")
-                    url2 = r.get("FirstURL", "")
-                    if text:
-                        results.append(f"- {text}\n  {url2}" if url2 else f"- {text}")
-            return "\n".join(results) if results else f"No results found for '{query}'."
+            return get_router().search(query, max_results)
         except Exception as e:
             return f"Search failed: {e}"
 
