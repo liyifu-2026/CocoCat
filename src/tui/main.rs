@@ -301,7 +301,18 @@ fn run_tui() -> io::Result<()> {
                     TuiEvent::ToolStart { tool, .. } => app.track_tool_start(&tool),
                     TuiEvent::ToolDone { tool, .. } => app.track_tool_done(&tool),
                     TuiEvent::ToolError { tool, .. } => app.track_tool_error(&tool),
-                    TuiEvent::Done(_) | TuiEvent::JsonRpcDone(_) => {
+                    TuiEvent::JsonRpcDone(ref data) => {
+                        // Parse chat response: {"response": "text"}
+                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(data) {
+                            let text = v.get("response").and_then(|r| r.as_str()).unwrap_or(data);
+                            app.append_to_last(TuiEvent::Delta(text.to_string()));
+                        }
+                        app.finalize_last_message();
+                        app.session_stats.message_count = app.messages.len();
+                        app.session_stats.agent_name = app.agent_id.clone();
+                        is_streaming = false;
+                    }
+                    TuiEvent::Done(_) => {
                         app.finalize_last_message();
                         app.session_stats.message_count = app.messages.len();
                         app.session_stats.agent_name = app.agent_id.clone();
