@@ -1,10 +1,15 @@
 use std::io;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::mpsc;
+use std::time::Duration;
+
 use ratatui::{
     backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
     Terminal,
 };
 use crossterm::{
-    event::{self as crossterm_event, Event, KeyCode},
+    event::{self as crossterm_event, Event, KeyCode, KeyEventKind, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -16,6 +21,12 @@ mod event;
 mod protocol;
 mod theme;
 
+use app::{App, Dialog};
+use event::TuiEvent;
+use protocol::client::AgentClient;
+use components::{chat_panel, input_bar, sidebar, status_bar};
+use components::input_bar::{InputBuffer, InputHistory};
+
 struct Cleanup;
 
 impl Drop for Cleanup {
@@ -23,6 +34,129 @@ impl Drop for Cleanup {
         let _ = disable_raw_mode();
         let _ = execute!(io::stdout(), LeaveAlternateScreen);
     }
+}
+
+fn handle_key(
+    key: KeyCode,
+    modifiers: KeyModifiers,
+    app: &mut App,
+    input: &mut InputBuffer,
+    history: &mut InputHistory,
+    agent_client: &mut AgentClient,
+    tx: &mpsc::Sender<TuiEvent>,
+    is_streaming: &mut bool,
+) {
+    if app.dialog.is_some() {
+        match key {
+            KeyCode::Esc => app.dialog = None,
+            KeyCode::Enter => app.dialog = None,
+            _ => {}
+        }
+        return;
+    }
+
+    match (key, modifiers) {
+        (KeyCode::Char('q'), KeyModifiers::CONTROL) | (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
+            agent_client.close();
+            app.quit();
+        }
+        (KeyCode::Char('b'), KeyModifiers::CONTROL) => {
+            app.toggle_sidebar();
+        }
+        (KeyCode::Tab, _) => {
+            app.sidebar_tab = sidebar::next_tab(&app.sidebar_tab);
+        }
+        (KeyCode::Char('p'), KeyModifiers::CONTROL) => {
+            app.dialog = Some(Dialog::SessionSwitcher);
+        }
+        (KeyCode::Esc, _) => {
+            app.dialog = None;
+        }
+        (KeyCode::Enter, _) => {
+            if *is_streaming {
+                return;
+            }
+            let text = input.take();
+            if text.is_empty() {
+                return;
+            }
+            if text.starts_with('/') {
+                handle_slash_command(&text, app, input, history);
+                return;
+            }
+            app.add_user_message(text.clone());
+            history.push(text.clone());
+            app.start_assistant_message();
+            *is_streaming = true;
+            if let Err(e) = agent_client.send_stream(&app.agent_id, &text, tx.clone()) {
+                app.finalize_last_message();
+                *is_streaming = false;
+                app.status_message = format!("Error: {}", e);
+            }
+        }
+        (KeyCode::Char(c), _) => {
+            input.insert_char(c);
+        }
+        (KeyCode::Backspace, _) => {
+            input.backspace();
+        }
+        (KeyCode::Delete, _) => {
+            input.delete();
+        }
+        (KeyCode::Left, _) => {
+            input.cursor_left();
+        }
+        (KeyCode::Right, _) => {
+            input.cursor_right();
+        }
+        (KeyCode::Up, _) => {
+            if let Some(s) = history.navigate_prev() {
+                input.set_text(s);
+            }
+        }
+        (KeyCode::Down, _) => {
+            if let Some(s) = history.navigate_next() {
+                input.set_text(s);
+            } else {
+                input.clear();
+            }
+        }
+        _ => {}
+    }
+}
+
+fn handle_slash_command(text: &str, app: &mut App, input: &mut InputBuffer, history: &mut InputHistory) {
+    let parts: Vec<&str> = text.splitn(2, ' ').collect();
+    let cmd = parts[0].to_lowercase();
+    match cmd.as_str() {
+        "/theme" => {
+            if let Some(name) = parts.get(1) {
+                let name = name.trim();
+                if app.switch_theme(name) {
+                    app.status_message = format!("Switched to theme: {}", name);
+                } else {
+                    app.status_message = format!("Unknown theme: {}", name);
+                }
+            } else {
+                app.dialog = Some(Dialog::ThemeSelector);
+            }
+        }
+        "/help" | "/?" => {
+            app.dialog = Some(Dialog::Help);
+        }
+        "/clear" => {
+            app.messages.clear();
+            app.scroll_to_bottom();
+        }
+        "/quit" => {
+            app.quit();
+        }
+        _ => {
+            app.status_message = format!("Unknown command: {}", cmd);
+        }
+    }
+    input.clear();
+    history.push(text.to_string());
 }
 
 fn main() -> io::Result<()> {
@@ -35,30 +169,76 @@ fn main() -> io::Result<()> {
 
     let _guard = Cleanup;
 
-    let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
     if let Err(e) = ctrlc::set_handler(move || {
-        r.store(false, std::sync::atomic::Ordering::Relaxed);
+        r.store(false, Ordering::Relaxed);
     }) {
         eprintln!("Warning: could not set Ctrl+C handler: {e}");
     }
 
-    while running.load(std::sync::atomic::Ordering::Relaxed) {
+    let agent_id = std::env::args().nth(1).unwrap_or_else(|| "leader".to_string());
+    let mut app = App::new(&agent_id);
+    let mut input = InputBuffer::new();
+    let mut history = InputHistory::new(200);
+    let mut agent_client = AgentClient::new(".");
+    let (tx, rx) = mpsc::channel::<TuiEvent>();
+    let mut is_streaming = false;
+
+    while running.load(Ordering::Relaxed) && !app.should_quit {
         terminal.draw(|f| {
             let area = f.area();
-            let text = ratatui::text::Text::raw("CocoCat TUI — press 'q' to quit");
-            f.render_widget(text, area);
+            let chunks = if app.show_sidebar {
+                Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
+                    .split(area)
+            } else {
+                Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([Constraint::Percentage(100), Constraint::Length(0)])
+                    .split(area)
+            };
+            let vertical = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Min(3), Constraint::Length(3), Constraint::Length(1)])
+                .split(chunks[0]);
+
+            chat_panel::render_chat_panel(f, vertical[0], &app.messages, app.scroll_offset, app.theme_registry.current_theme());
+            input_bar::render_input_bar(f, vertical[1], &input, app.theme_registry.current_theme(), !is_streaming);
+            status_bar::render_status_bar(f, vertical[2], &app.agent_id, "default", app.theme_registry.current_theme());
+
+            if app.show_sidebar {
+                sidebar::render_sidebar(f, chunks[1], &app.sidebar_tab, app.theme_registry.current_theme());
+            }
         })?;
 
-        if crossterm_event::poll(std::time::Duration::from_millis(100))? {
+        if crossterm_event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = crossterm_event::read()? {
-                if key.code == KeyCode::Char('q') {
-                    break;
+                if key.kind == KeyEventKind::Press {
+                    handle_key(key.code, key.modifiers, &mut app, &mut input, &mut history, &mut agent_client, &tx, &mut is_streaming);
+                }
+            }
+        }
+
+        if is_streaming {
+            while let Ok(event) = rx.try_recv() {
+                match &event {
+                    TuiEvent::Done(_) | TuiEvent::JsonRpcDone(_) => {
+                        app.finalize_last_message();
+                        is_streaming = false;
+                    }
+                    TuiEvent::JsonRpcError(_) => {
+                        app.finalize_last_message();
+                        is_streaming = false;
+                    }
+                    _ => { app.append_to_last(event); }
                 }
             }
         }
     }
 
+    agent_client.close();
     drop(_guard);
     terminal.show_cursor()?;
     Ok(())
