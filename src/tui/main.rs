@@ -10,6 +10,7 @@ use crossterm::{
 };
 
 mod config;
+mod theme;
 
 struct Cleanup;
 
