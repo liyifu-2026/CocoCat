@@ -50,9 +50,31 @@ pub async fn upload_handler(
 
     let file_path = kb_path.join("raw/sources").join(&req.filename);
 
-    // Write file placeholder (in real impl, write multipart bytes)
+    // Write file
     std::fs::write(&file_path, &req.filename)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Extract text from uploaded file (PDF, DOCX, HTML, etc.)
+    let extracted_path = kb_path.join("raw/sources").join(format!("{}.md", req.filename));
+    if let Ok(output) = std::process::Command::new("python3")
+        .arg("tools/extract_text.py")
+        .arg(&file_path)
+        .output()
+    {
+        if output.status.success() {
+            if let Ok(json_str) = String::from_utf8(output.stdout) {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                    if let Some(text) = parsed.get("text").and_then(|v| v.as_str()) {
+                        let meta = format!(
+                            "---\nfilename: {}\n---\n\n",
+                            req.filename
+                        );
+                        let _ = std::fs::write(&extracted_path, format!("{}{}", meta, text));
+                    }
+                }
+            }
+        }
+    }
 
     // Create task for Leader
     let task_uuid = uuid::Uuid::new_v4().to_string();
@@ -60,6 +82,7 @@ pub async fn upload_handler(
         "kb_name": req.kb_name,
         "filename": req.filename,
         "source_path": file_path.to_string_lossy().to_string(),
+        "extracted_path": extracted_path.to_string_lossy().to_string(),
     });
 
     tasks::create_task(

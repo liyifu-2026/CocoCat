@@ -108,6 +108,7 @@ def main():
                 kb_name = params.get("kb_name", "")
                 filename = params.get("filename", "")
                 source_path = params.get("source_path", "")
+                extracted_path = params.get("extracted_path", "")
                 if agent_loop is None:
                     raise RuntimeError("agent loop not initialized")
 
@@ -121,10 +122,11 @@ def main():
                     if msg:
                         _write_stream("reasoning", content=msg)
 
+                read_path = extracted_path or source_path
                 prompt = (
                     f"A new source file has been uploaded to the knowledge base '{kb_name}'. "
                     f"File: {filename}\n\n"
-                    f"Read the file at {source_path}, then follow the Knowledge Ingestion skill "
+                    f"Read the extracted text at {read_path}, then follow the Knowledge Ingestion skill "
                     f"to process it into wiki pages. "
                     f"Read skills/public/knowledge-ingestion.md for the exact workflow."
                 )
