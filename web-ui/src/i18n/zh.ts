@@ -5,6 +5,7 @@ const zh: Record<string, string> = {
   "nav.scenes": "场景",
   "nav.chat": "聊天",
   "nav.knowledge": "知识库",
+  "nav.skills": "技能",
   "nav.hiring": "招聘",
   "nav.mailbox": "交付中心",
   "nav.schedule": "任务",

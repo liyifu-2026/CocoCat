@@ -17,6 +17,7 @@ import Hiring from "@/pages/Hiring"
 import Chat from "@/pages/Chat"
 import Schedule from "@/pages/Schedule"
 import Collaboration from "@/pages/Collaboration"
+import SkillsWarehouse from "@/pages/SkillsWarehouse"
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/collaboration" element={<ErrorBoundary><Collaboration /></ErrorBoundary>} />
           <Route path="/mailbox" element={<ErrorBoundary><Mailbox /></ErrorBoundary>} />
           <Route path="/usage" element={<ErrorBoundary><TokenUsage /></ErrorBoundary>} />
+          <Route path="/skills" element={<ErrorBoundary><SkillsWarehouse /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
           </Route>
         </Route>

@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext"
 import { useT } from "@/context/LanguageContext"
 import {
     LayoutDashboard, Users, FolderKanban, Settings, BookOpen, Mail, BarChart3,
-   UserPlus, MessageSquare, Calendar, GitBranch,
+   UserPlus, MessageSquare, Calendar, GitBranch, Wrench,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PanelLeftClose, PanelLeft, LogOut } from "lucide-react"
@@ -21,6 +21,7 @@ const navItems = [
   { to: "/schedule", labelKey: "nav.schedule", icon: Calendar },
   { to: "/collaboration", labelKey: "nav.collaboration", icon: GitBranch },
   { to: "/knowledge", labelKey: "nav.knowledge", icon: BookOpen },
+  { to: "/skills", labelKey: "nav.skills", icon: Wrench },
   { to: "/settings", labelKey: "nav.settings", icon: Settings },
 ]
 
