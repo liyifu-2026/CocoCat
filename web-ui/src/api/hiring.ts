@@ -17,7 +17,7 @@ export interface PendingHire {
 export const hiringApi = {
   listPending: () => api.get<{ pending: PendingHire[] }>("/hiring/pending"),
   approve: (hireId: string, profile?: Record<string, unknown>) =>
-    api.post<{ status: string; hire_id: string }>(`/hiring/pending/${hireId}/approve`, profile ?? {}),
+    api.post<{ status: string; hire_id: string }>(`/hiring/${hireId}/approve`, profile ?? {}),
   reject: (hireId: string) =>
-    api.post<{ status: string; hire_id: string }>(`/hiring/pending/${hireId}/reject`, {}),
+    api.post<{ status: string; hire_id: string }>(`/hiring/${hireId}/reject`, {}),
 }

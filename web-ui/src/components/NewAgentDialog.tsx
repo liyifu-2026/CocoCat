@@ -32,7 +32,13 @@ export function NewAgentDialog() {
   const handleCreate = async () => {
     if (!name.trim()) return
     try {
-      await api.post("/hiring/pending", { name: name.trim(), scene, profile: { role: role.trim() || "member" } })
+      await api.post("/hiring/request", {
+        requester_agent: "admin",
+        new_agent_id: name.trim().toLowerCase().replace(/\s+/g, "_"),
+        new_agent_name: name.trim(),
+        new_agent_role: role.trim() || "member",
+        reason: "manual request",
+      })
       queryClient.invalidateQueries({ queryKey: ["agents"] })
       queryClient.invalidateQueries({ queryKey: ["hiring"] })
       closeNewAgent()

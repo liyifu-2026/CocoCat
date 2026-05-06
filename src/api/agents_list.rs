@@ -41,6 +41,7 @@ pub struct UpdateAgentRequest {
     pub system_prompt: Option<String>,
     pub scene_id: Option<String>,
     pub status: Option<String>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 pub async fn list_agents(
@@ -94,6 +95,11 @@ pub async fn update_agent(
     }
     if let Some(ref status) = req.status {
         conn.execute("UPDATE agents SET status = ?1 WHERE id = ?2", rusqlite::params![status, agent_id])
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    }
+    if let Some(ref meta) = req.metadata {
+        let meta_str = serde_json::to_string(meta).unwrap_or_default();
+        conn.execute("UPDATE agents SET metadata = ?1 WHERE id = ?2", rusqlite::params![meta_str, agent_id])
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
     drop(conn);

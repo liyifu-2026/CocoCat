@@ -92,6 +92,45 @@ pub fn mark_read(pool: &DbPool, id: i64) -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
+pub fn mark_all_read(pool: &DbPool, to_agent: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    conn.execute("UPDATE mailbox SET read = 1 WHERE to_agent = ?1", params![to_agent])?;
+    Ok(())
+}
+
+pub fn list_inboxes(pool: &DbPool) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    let agents = crate::db::agents::load_agents(pool)?;
+    let mut result = vec![];
+    for agent in &agents {
+        let unread: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM mailbox WHERE to_agent = ?1 AND read = 0",
+            params![agent.id],
+            |row| row.get(0),
+        ).unwrap_or(0);
+        let latest = conn.query_row(
+            "SELECT from_agent, body, created_at, CASE WHEN read = 1 THEN 'read' ELSE 'unread' END as status
+             FROM mailbox WHERE to_agent = ?1 ORDER BY created_at DESC LIMIT 1",
+            params![agent.id],
+            |row| {
+                Ok(serde_json::json!({
+                    "from": row.get::<_, String>(0)?,
+                    "content": row.get::<_, String>(1)?,
+                    "timestamp": row.get::<_, String>(2)?,
+                    "status": row.get::<_, String>(3)?,
+                }))
+            },
+        ).ok();
+        result.push(serde_json::json!({
+            "agent_id": agent.id,
+            "name": agent.name,
+            "unread": unread,
+            "latest": latest,
+        }));
+    }
+    Ok(result)
+}
+
 pub fn count_unread(pool: &DbPool, agent_id: &str) -> Result<i64, Box<dyn std::error::Error>> {
     let conn = pool.get()?;
     Ok(conn.query_row(

@@ -147,6 +147,147 @@ pub fn fail_task(
     Ok(())
 }
 
+pub fn list_all_tasks(
+    pool: &DbPool,
+) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT t.id, t.task_uuid, t.target_agent, t.source, t.method, t.params,
+                t.status, t.result, t.error, t.created_at, t.started_at, t.completed_at,
+                COALESCE(a.name, t.target_agent) AS agent_name
+         FROM tasks t
+         LEFT JOIN agents a ON a.id = t.target_agent
+         ORDER BY t.created_at DESC
+         LIMIT 200"
+    )?;
+    let rows = stmt.query_map([], |row| {
+        let params_str: String = row.get(5)?;
+        let task_desc = serde_json::from_str::<serde_json::Value>(&params_str)
+            .ok()
+            .and_then(|p| p.get("task").and_then(|v| v.as_str().map(String::from)))
+            .unwrap_or_default();
+        Ok(serde_json::json!({
+            "id": row.get::<_, i64>(0)?,
+            "task": task_desc,
+            "assigned_to": row.get::<_, String>(12)?,
+            "status": row.get::<_, String>(6)?,
+            "created_at": row.get::<_, String>(9)?,
+            "result": row.get::<_, Option<String>>(7)?,
+        }))
+    })?;
+    let mut tasks = Vec::new();
+    for row in rows {
+        tasks.push(row?);
+    }
+    Ok(tasks)
+}
+
+pub fn get_task_by_id(
+    pool: &DbPool,
+    task_id: i64,
+) -> Result<Option<crate::db::models::Task>, Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT id, task_uuid, target_agent, source, method, params, status,
+                result, error, retry_count, max_retries, created_at, started_at, completed_at
+         FROM tasks WHERE id = ?1"
+    )?;
+    let mut rows = stmt.query_map(rusqlite::params![task_id], |row| {
+        Ok(crate::db::models::Task {
+            id: row.get(0)?,
+            task_uuid: row.get(1)?,
+            target_agent: row.get(2)?,
+            source: row.get(3)?,
+            method: row.get(4)?,
+            params: row.get(5)?,
+            status: row.get(6)?,
+            result: row.get(7)?,
+            error: row.get(8)?,
+            retry_count: row.get(9)?,
+            max_retries: row.get(10)?,
+            created_at: row.get(11)?,
+            started_at: row.get(12)?,
+            completed_at: row.get(13)?,
+        })
+    })?;
+    Ok(rows.next().and_then(|r| r.ok()))
+}
+
+pub fn update_task_status(
+    pool: &DbPool,
+    task_id: i64,
+    status: &str,
+    result: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    if let Some(res) = result {
+        conn.execute(
+            "UPDATE tasks SET status = ?1, result = ?2, completed_at = datetime('now')
+             WHERE id = ?3",
+            rusqlite::params![status, res, task_id],
+        )?;
+    } else {
+        conn.execute(
+            "UPDATE tasks SET status = ?1 WHERE id = ?2",
+            rusqlite::params![status, task_id],
+        )?;
+    }
+    Ok(())
+}
+
+pub fn delete_task_by_id(
+    pool: &DbPool,
+    task_id: i64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    conn.execute(
+        "DELETE FROM tasks WHERE id = ?1",
+        rusqlite::params![task_id],
+    )?;
+    Ok(())
+}
+
+pub fn list_transfer_edges(
+    pool: &DbPool,
+) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT t.id, t.task_uuid, t.source, t.target_agent, t.params, t.status, t.created_at
+         FROM tasks t
+         WHERE t.source != 'user'
+           AND t.source != 'system'
+           AND t.status IN ('completed','running')
+         ORDER BY t.created_at DESC
+         LIMIT 100"
+    )?;
+    let rows = stmt.query_map([], |row| {
+        let params_str: String = row.get(4)?;
+        let summary = serde_json::from_str::<serde_json::Value>(&params_str)
+            .ok()
+            .and_then(|p| {
+                p.get("task")
+                    .or_else(|| p.get("content"))
+                    .and_then(|v| v.as_str().map(|s| s.chars().take(100).collect::<String>()))
+            })
+            .unwrap_or_default();
+        Ok(serde_json::json!({
+            "id": format!("task-{}", row.get::<_, i64>(0)?),
+            "from": row.get::<_, String>(2)?,
+            "to": row.get::<_, String>(3)?,
+            "task_id": row.get::<_, i64>(0)?,
+            "type": "task",
+            "summary": summary,
+            "timestamp": row.get::<_, String>(6)?,
+            "replies": [],
+        }))
+    })?;
+    let mut edges = Vec::new();
+    for row in rows {
+        edges.push(row?);
+    }
+    Ok(edges)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -18,7 +18,7 @@ export const mailboxApi = {
   list: () => api.get<{ mailboxes: MailboxSummary[] }>("/mailbox"),
   getMessages: (agentId: string) => api.get<{ messages: MailMessage[] }>(`/mailbox/${agentId}`),
   send: (agentId: string, content: string) =>
-    api.post<{ status: string }>(`/mailbox/${agentId}`, { content }),
+    api.post<{ status: string }>("/mailbox/send", { from_agent: "leader", to_agent: agentId, subject: "", body: content }),
   markRead: (agentId: string) =>
     api.post<{ status: string }>(`/mailbox/${agentId}/read`, {}),
 }

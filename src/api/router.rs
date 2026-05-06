@@ -9,7 +9,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::dispatch::engine::{TaskEvent, WsEvent};
 
-use super::{agents_list, chat, chat_groups, deliveries, hire, mailbox, scenes, skills, tasks, ws};
+use super::{agents_detail, agents_list, chat, chat_groups, collab, deliveries, hire, mailbox, scenes, schedule, skills, tasks, usage, ws};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -30,9 +30,10 @@ pub fn build(state: AppState) -> Router {
         .route("/api/health", get(health))
         .route("/api/auth/login", axum::routing::post(auth::login))
         .route("/api/chat", axum::routing::post(chat::chat_handler))
+        .route("/api/mailbox", axum::routing::get(mailbox::list_handler))
         .route("/api/mailbox/send", axum::routing::post(mailbox::send_handler))
-        .route("/api/mailbox/inbox", axum::routing::get(mailbox::inbox_handler))
-        .route("/api/mailbox/:id/read", axum::routing::put(mailbox::read_handler))
+        .route("/api/mailbox/:agent_id", axum::routing::get(mailbox::get_messages_handler))
+        .route("/api/mailbox/:agent_id/read", axum::routing::post(mailbox::mark_read_handler))
         .route("/api/hiring/request", axum::routing::post(hire::create_handler))
         .route("/api/hiring/pending", axum::routing::get(hire::list_handler))
         .route("/api/hiring/:request_uuid/approve", axum::routing::post(hire::approve_handler))
@@ -56,7 +57,18 @@ pub fn build(state: AppState) -> Router {
         .route("/api/deliveries/:id/read", axum::routing::post(deliveries::mark_read))
         .route("/api/deliveries/:id/files/:filename", axum::routing::get(deliveries::download_file))
         .route("/api/agents", axum::routing::get(agents_list::list_agents))
+        .route("/api/agents/display", axum::routing::get(agents_detail::list_displays_handler))
         .route("/api/agents/:id", axum::routing::get(agents_list::get_agent).patch(agents_list::update_agent).delete(agents_list::delete_agent))
+        .route("/api/agents/:id/profile", axum::routing::get(agents_detail::get_profile_handler))
+        .route("/api/agents/:id/skills", axum::routing::get(agents_detail::get_skills_handler).patch(agents_detail::update_skills_handler))
+        .route("/api/agents/:id/memory", axum::routing::get(agents_detail::get_memory_handler))
+        .route("/api/agents/:id/history", axum::routing::get(agents_detail::get_history_handler))
+        .route("/api/agents/:id/display", axum::routing::get(agents_detail::get_display_handler).put(agents_detail::update_display_handler))
+        .route("/api/usage", axum::routing::get(usage::get_usage_handler))
+        .route("/api/schedule", axum::routing::get(schedule::list_schedule_handler))
+        .route("/api/schedule/tasks", axum::routing::post(schedule::create_schedule_handler))
+        .route("/api/schedule/tasks/:id", axum::routing::patch(schedule::update_schedule_handler).delete(schedule::delete_schedule_handler))
+        .route("/api/collaboration/graph", axum::routing::get(collab::get_collab_graph_handler))
         .route("/ws", get(ws::ws_handler))
         .layer(DefaultBodyLimit::max(10 * 1024 * 1024)) // 10MB
         .layer(CompressionLayer::new())

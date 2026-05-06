@@ -14,7 +14,7 @@ export default function Settings() {
 
   const { data: status, isLoading } = useQuery({
     queryKey: ["settings-status"],
-    queryFn: () => api.get("/status").catch(() => null),
+    queryFn: () => api.get("/health").catch(() => null),
     retry: 1,
     staleTime: 60_000,
   })

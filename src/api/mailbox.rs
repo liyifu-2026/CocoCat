@@ -18,6 +18,42 @@ pub struct SendRequest {
     pub body: String,
 }
 
+pub async fn list_handler(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    auth::verify_token(&headers, &state.jwt)?;
+    let mailboxes = mailbox::list_inboxes(&state.db_pool).map_err(|e| {
+        tracing::error!("mailbox list: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok(Json(serde_json::json!({ "mailboxes": mailboxes })))
+}
+
+pub async fn get_messages_handler(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(agent_id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    auth::verify_token(&headers, &state.jwt)?;
+    let messages = mailbox::get_inbox(&state.db_pool, &agent_id, 100).map_err(|e| {
+        tracing::error!("mailbox messages: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    let messages_json: Vec<serde_json::Value> = messages
+        .iter()
+        .map(|m| {
+            serde_json::json!({
+                "from": m.from_agent,
+                "content": m.body,
+                "timestamp": m.created_at,
+                "status": if m.read == 1 { "read" } else { "unread" },
+            })
+        })
+        .collect();
+    Ok(Json(serde_json::json!({ "messages": messages_json })))
+}
+
 pub async fn send_handler(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -37,29 +73,15 @@ pub async fn send_handler(
     })
 }
 
-pub async fn inbox_handler(
+pub async fn mark_read_handler(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
-    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
-) -> Result<Json<Vec<MailMessage>>, StatusCode> {
+    Path(agent_id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
     auth::verify_token(&headers, &state.jwt)?;
-    let agent_id = params.get("agent_id").ok_or(StatusCode::BAD_REQUEST)?;
-    let limit = params.get("limit").and_then(|v| v.parse().ok()).unwrap_or(50);
-    mailbox::get_inbox(&state.db_pool, agent_id, limit).map(Json).map_err(|e| {
-        tracing::error!("mailbox inbox: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })
-}
-
-pub async fn read_handler(
-    State(state): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Path(id): Path<i64>,
-) -> Result<Json<()>, StatusCode> {
-    auth::verify_token(&headers, &state.jwt)?;
-    mailbox::mark_read(&state.db_pool, id).map_err(|e| {
-        tracing::error!("mailbox read: {}", e);
+    mailbox::mark_all_read(&state.db_pool, &agent_id).map_err(|e| {
+        tracing::error!("mailbox mark_read: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    Ok(Json(()))
+    Ok(Json(serde_json::json!({ "status": "ok" })))
 }

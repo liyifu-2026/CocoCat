@@ -1,4 +1,8 @@
+pub mod agents_detail;
 pub mod agents_list;
+pub mod collab;
+pub mod schedule;
+pub mod usage;
 pub mod chat;
 pub mod chat_groups;
 pub mod deliveries;
