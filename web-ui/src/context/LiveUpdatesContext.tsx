@@ -9,6 +9,16 @@ const LiveUpdatesContext = createContext<LiveUpdatesValue | null>(null)
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 15000]
 const DEDUPE_WINDOW = 5000
 
+export type StreamState = {
+  task_uuid: string
+  event: string
+  status: string
+  stream_event?: { event_type: string; content: string; name?: string; input?: string; status?: string; result?: string }
+  updatedAt: number
+}
+export const streamState = new Map<string, StreamState>()
+export const streamListeners = new Set<() => void>()
+
 const toastDedupe = new Map<string, number>()
 
 function dedupedToast(key: string, message: string) {
@@ -60,6 +70,14 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
           case "task_failed":
             qc.invalidateQueries({ queryKey: ["chat-groups"] })
             qc.invalidateQueries({ queryKey: ["chat-messages"] })
+            streamState.delete(data.task_uuid)
+            streamListeners.forEach(fn => fn())
+            break
+          case "stream_progress":
+          case "stream_tool":
+          case "stream_reasoning":
+            streamState.set(data.task_uuid, { ...data, updatedAt: Date.now() })
+            streamListeners.forEach(fn => fn())
             break
         }
       } catch (err) {

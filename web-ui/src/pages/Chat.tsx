@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { chatApi } from "@/api/chat"
 import type { ChatGroup, ChatMessage, ReadByEntry } from "@/api/chat"
@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { useT } from "@/context/LanguageContext"
+import { streamState, streamListeners, type StreamState } from "@/context/LiveUpdatesContext"
 
 function formatTime(ts: string) {
   const d = new Date(ts)
@@ -94,6 +95,8 @@ export default function Chat() {
   const [newGroupName, setNewGroupName] = useState("")
   const [newGroupAnnouncement, setNewGroupAnnouncement] = useState("")
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
+  const [, forceRender] = useState(0)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
   const t = useT()
 
@@ -124,6 +127,13 @@ export default function Chat() {
       } catch {}
     })
   }, [agents])
+
+  useEffect(() => {
+    const handler = () => forceRender(n => n + 1)
+    streamListeners.add(handler)
+    return () => { streamListeners.delete(handler) }
+  }, [])
+
   const agentNames: Record<string, string> = {}
   agents.forEach(a => { agentNames[a.id] = displayConfs[a.id]?.nickname || a.name })
   agentNames["admin"] = "Admin"
@@ -174,6 +184,20 @@ export default function Chat() {
 
   function toggleMember(id: string) {
     setSelectedMembers(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])
+  }
+
+  function activeStreamState(): { state: StreamState; agentName: string } | null {
+    if (!currentGroup || messages.length === 0) return null
+    const agentId = selectedGroup?.startsWith("dm_")
+      ? selectedGroup.replace("dm_", "")
+      : currentGroup.members.find(m => m.id !== "admin")?.id
+    if (!agentId) return null
+    for (const s of streamState.values()) {
+      if (s.status === "streaming") {
+        return { state: s, agentName: agentNames[agentId] ?? agentId }
+      }
+    }
+    return null
   }
 
   return (
@@ -298,6 +322,29 @@ export default function Chat() {
                     msgIndex={i} groupId={selectedGroup} agentNames={agentNames}
                     onRecall={recallMessage} />
                 ))}
+                {(() => {
+                  const stream = activeStreamState()
+                  if (!stream) return null
+                  const se = stream.state.stream_event
+                  let label = "Processing..."
+                  if (se) {
+                    if (se.event_type === "stream_progress") label = se.content
+                    else if (se.event_type === "stream_tool") label = `Tool: ${se.name}`
+                    else if (se.event_type === "stream_reasoning") label = "Thinking..."
+                  }
+                  return (
+                    <div className="flex gap-2">
+                      <AgentAvatar name={stream.agentName} size="sm" />
+                      <div className="bg-muted rounded-lg px-3 py-2 text-sm max-w-[70%]">
+                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                          <span className="animate-pulse">●</span>
+                          <span className="truncate">{label}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+                <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
 
