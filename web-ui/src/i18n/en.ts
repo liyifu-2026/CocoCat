@@ -6,7 +6,7 @@ const en: Record<string, string> = {
   "nav.chat": "Chat",
   "nav.knowledge": "Knowledge",
   "nav.hiring": "Hiring",
-  "nav.mailbox": "Mailbox",
+  "nav.mailbox": "Deliveries",
   "nav.schedule": "Schedule",
   "nav.usage": "Usage",
   "nav.collaboration": "Collaboration",
@@ -198,13 +198,30 @@ const en: Record<string, string> = {
   "hiring.rules": "Rules:",
   "hiring.background": "Background:",
 
-  // Mailbox
-  "mailbox.title": "Mailboxes",
-  "mailbox.select": "Select an agent to view their mailbox",
-  "mailbox.id": "ID: {id}",
-  "mailbox.no_messages": "No messages yet",
+  // Delivery Center
+  "delivery.title": "Deliveries",
+  "delivery.new_count": "{n} new",
+  "delivery.search": "Search deliveries...",
+  "delivery.no_deliveries": "No deliveries yet",
+  "delivery.select": "Select a delivery to view",
+  "delivery.files": "Files",
+  "delivery.agent_notes": "Agent Notes",
+  "delivery.approve": "Approve",
+  "delivery.request_changes": "Request Changes",
+  "delivery.download_all": "Download All",
+  "delivery.view_older": "View older versions",
+  "delivery.status_new": "Pending Review",
+  "delivery.status_approved": "Approved",
+  "delivery.status_changes": "Changes Requested",
+  "delivery.feedback_placeholder": "Enter feedback... (agent will receive on next heartbeat)",
+  "delivery.toast_approved": "✅ Approved, agent notified",
+  "delivery.toast_changes": "🔄 Changes requested, agent will be notified on next heartbeat",
+  "delivery.toast_archived": "📦 Archived",
+
+  // Mailbox (kept for AgentDetail)
   "mailbox.you": "You",
   "mailbox.type_message": "Type a message...",
+  "mailbox.id": "ID: {id}",
 
   // Schedule
   "schedule.title": "Schedule",

@@ -63,6 +63,22 @@ pub async fn mark_read(
     Ok(Json(serde_json::json!({"status": "read"})))
 }
 
+pub async fn approve_delivery(
+    State(state): State<AppState>, headers: HeaderMap, Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    auth::verify_token(&headers, &state.jwt)?;
+    db_del::update_status(&state.db_pool, &id, "approved").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(serde_json::json!({"status": "approved"})))
+}
+
+pub async fn request_changes(
+    State(state): State<AppState>, headers: HeaderMap, Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    auth::verify_token(&headers, &state.jwt)?;
+    db_del::update_status(&state.db_pool, &id, "changes_requested").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(serde_json::json!({"status": "changes_requested"})))
+}
+
 pub async fn download_file(
     State(state): State<AppState>, headers: HeaderMap, Path((id, filename)): Path<(String, String)>,
 ) -> Result<axum::response::Response, StatusCode> {

@@ -6,7 +6,7 @@ const zh: Record<string, string> = {
   "nav.chat": "聊天",
   "nav.knowledge": "知识库",
   "nav.hiring": "招聘",
-  "nav.mailbox": "邮箱",
+  "nav.mailbox": "交付中心",
   "nav.schedule": "任务",
   "nav.usage": "用量",
   "nav.collaboration": "协作图",
@@ -198,13 +198,30 @@ const zh: Record<string, string> = {
   "hiring.rules": "规则：",
   "hiring.background": "背景：",
 
-  // Mailbox
-  "mailbox.title": "邮箱",
-  "mailbox.select": "选择一个智能体查看其邮箱",
-  "mailbox.id": "ID：{id}",
-  "mailbox.no_messages": "暂无消息",
+  // Delivery Center
+  "delivery.title": "交付中心",
+  "delivery.new_count": "新 {n}",
+  "delivery.search": "搜索交付件...",
+  "delivery.no_deliveries": "暂无交付件",
+  "delivery.select": "选择一个交付件查看",
+  "delivery.files": "交付文件",
+  "delivery.agent_notes": "Agent 备注",
+  "delivery.approve": "批准",
+  "delivery.request_changes": "请求修改",
+  "delivery.download_all": "下载全部",
+  "delivery.view_older": "查看更早版本",
+  "delivery.status_new": "待审阅",
+  "delivery.status_approved": "已批准",
+  "delivery.status_changes": "请求修改",
+  "delivery.feedback_placeholder": "输入修改意见...（Agent 将在下次心跳时收到）",
+  "delivery.toast_approved": "✅ 已批准，Agent 已收到通知",
+  "delivery.toast_changes": "🔄 修改意见已提交，Agent 将在下次心跳时收到",
+  "delivery.toast_archived": "📦 已归档",
+
+  // Mailbox (kept for AgentDetail)
   "mailbox.you": "你",
   "mailbox.type_message": "输入消息...",
+  "mailbox.id": "ID：{id}",
 
   // Schedule
   "schedule.title": "任务",
