@@ -8,16 +8,8 @@ from pathlib import Path
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 import asyncio
-from web.auth import verify_jwt_token, verify_api_key
 
-# Python 3.10 compatibility: tomllib is 3.11+
-if sys.version_info < (3, 11):
-    import tomli as tomllib
-    import tomli_w as tomli_w
-    sys.modules['tomllib'] = tomllib
-    sys.modules['tomli_w'] = tomli_w
-
-# Load .env file
+# Load .env file BEFORE any module reads os.environ at import time
 env_path = Path(__file__).resolve().parent.parent / ".env"
 if env_path.exists():
     with open(env_path) as f:
@@ -26,6 +18,15 @@ if env_path.exists():
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip())
+
+from web.auth import verify_jwt_token, verify_api_key
+
+# Python 3.10 compatibility: tomllib is 3.11+
+if sys.version_info < (3, 11):
+    import tomli as tomllib
+    import tomli_w as tomli_w
+    sys.modules['tomllib'] = tomllib
+    sys.modules['tomli_w'] = tomli_w
 
 app = FastAPI(title="CocoCat Panel")
 
@@ -72,6 +73,10 @@ manager = ConnectionManager()
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
+
+    # Only protect /api/* paths; static files & SPA are public (client-side auth)
+    if not path.startswith("/api/"):
+        return await call_next(request)
 
     public_paths = ["/api/auth/login", "/api/auth/verify"]
     if path in public_paths:
@@ -354,6 +359,39 @@ from web.routes.collaboration import router as collaboration_router
 app.include_router(collaboration_router)
 
 
+@app.post("/api/hiring/plan")
+async def create_hiring_plan(request: Request):
+    """Submit a hiring plan to leader for candidate generation."""
+    body = await request.json()
+    position = body.get("position", "")
+    count = body.get("count", 5)
+    if not position:
+        return JSONResponse({"error": "position is required"}, status_code=400)
+    import httpx
+    from web.auth import create_access_token
+    token = create_access_token({"sub": "admin"})
+    async with httpx.AsyncClient() as client:
+        try:
+            content = (
+                f"请根据招聘需求畅想候选人。"
+                f"职位={position}，"
+                f"技能={body.get('skills','')}，"
+                f"职责={body.get('responsibilities','')}，"
+                f"特质={body.get('traits','')}，"
+                f"数量={count}"
+            )
+            resp = await client.post(
+                "http://localhost:3000/api/chat",
+                json={"content": content, "agent_id": "leader", "scene_id": "default", "user_id": "admin"},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5,
+            )
+            result = resp.json()
+            return {"status": "plan_submitted", "task_uuid": result.get("task_uuid", "")}
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # TODO: Migrate to Rust API — reads hire_requests/ directory directly
 @app.get("/api/hiring/pending")
 def list_pending_hires():
@@ -465,6 +503,12 @@ def reject_hire(hire_id: str):
     shutil.move(str(src), str(dst))
     return {"status": "rejected", "hire_id": hire_id}
 
+
+# Serve React web-ui as SPA fallback (must be after all API routes)
+from fastapi.staticfiles import StaticFiles
+ui_dir = BASE_DIR / "web-ui" / "dist"
+if ui_dir.exists():
+    app.mount("/", StaticFiles(directory=str(ui_dir), html=True), name="ui")
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard():
