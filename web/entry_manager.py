@@ -140,6 +140,28 @@ def _start_weixin(scene_id: str, config: dict, target_id: str, target_type: str)
         print(f"[EntryManager] Failed to start Weixin channel: {e}")
 
 
+# Channel registry: name -> (start_func, daemon)
+_CHANNEL_REGISTRY: dict[str, tuple] = {
+    "feishu": (_start_feishu, True),
+    "weixin": (_start_weixin, True),
+    "telegram": (_start_telegram, True),
+    "discord": (_start_discord, True),
+}
+
+
+def _start_entry(channel: str, scene_or_agent_id: str, config: dict, target_agent: str, target_type: str):
+    """Start a single channel entry via registry."""
+    entry = _CHANNEL_REGISTRY.get(channel)
+    if entry is None:
+        if channel == "web_api":
+            return
+        print(f"[EntryManager] Unknown channel: {channel}")
+        return
+    start_func, daemon = entry
+    t = threading.Thread(target=start_func, args=(scene_or_agent_id, config, target_agent, target_type), daemon=daemon)
+    t.start()
+
+
 def start_agent_entries(agent_id: str):
     """Start all enabled entries for an agent."""
     entries_path = os.path.join(BASE_DIR, "agents", agent_id, "entries.json")
@@ -150,21 +172,10 @@ def start_agent_entries(agent_id: str):
             continue
         channel = entry.get("channel", "")
         config = entry.get("config", {})
-
-        if channel == "feishu":
-            t = threading.Thread(target=_start_feishu, args=(agent_id, config, agent_id, "agent"), daemon=True)
-            t.start()
-        elif channel == "weixin":
-            t = threading.Thread(target=_start_weixin, args=(agent_id, config, agent_id, "agent"), daemon=True)
-            t.start()
-        elif channel == "telegram":
-            t = threading.Thread(target=_start_telegram, args=(agent_id, config, agent_id, "agent"), daemon=True)
-            t.start()
-        elif channel == "discord":
-            t = threading.Thread(target=_start_discord, args=(agent_id, config, agent_id, "agent"), daemon=True)
-            t.start()
-        elif channel == "web_api":
+        if channel == "web_api":
             print(f"[EntryManager] Web API entry for agent '{agent_id}' — handled by FastAPI routes")
+        else:
+            _start_entry(channel, agent_id, config, agent_id, "agent")
 
 
 def start_scene_entries(scene_id: str):
@@ -186,29 +197,20 @@ def start_scene_entries(scene_id: str):
         print(f"[EntryManager] Scene '{scene_id}' has no agents assigned, skipping entries")
         return
 
-    # For now, route to the first available agent
-    target_agent = agents_in_scene[0]
-
     for entry in entries:
         if not entry.get("enabled", False):
             continue
         channel = entry.get("channel", "")
         config = entry.get("config", {})
 
-        if channel == "feishu":
-            t = threading.Thread(target=_start_feishu, args=(scene_id, config, target_agent, "scene"), daemon=True)
-            t.start()
-        elif channel == "weixin":
-            t = threading.Thread(target=_start_weixin, args=(scene_id, config, target_agent, "scene"), daemon=True)
-            t.start()
-        elif channel == "telegram":
-            t = threading.Thread(target=_start_telegram, args=(scene_id, config, target_agent, "scene"), daemon=True)
-            t.start()
-        elif channel == "discord":
-            t = threading.Thread(target=_start_discord, args=(scene_id, config, target_agent, "scene"), daemon=True)
-            t.start()
-        elif channel == "web_api":
+        # Route entry to all agents in the scene
+        if channel == "web_api":
             print(f"[EntryManager] Web API entry for scene '{scene_id}' — handled by FastAPI routes")
+        elif channel in _CHANNEL_REGISTRY:
+            for target_agent in agents_in_scene:
+                _start_entry(channel, scene_id, config, target_agent, "scene")
+        else:
+            print(f"[EntryManager] Unknown channel: {channel}")
 
 
 def start_all_entries():

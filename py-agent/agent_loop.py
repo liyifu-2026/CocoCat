@@ -263,8 +263,11 @@ class AgentLoop:
                 on_progress(f"Iteration {iteration}/{self.max_iterations}")
 
             if iteration > 1:
-                messages = consolidate(messages, self.llm, budget=131072)
-                messages = _snip_history(messages, budget=131072)
+                current_tokens = estimate_messages_tokens(messages)
+                budget = 131072
+                if current_tokens > budget * 0.75:
+                    messages = consolidate(messages, self.llm, budget=budget)
+                messages = _snip_history(messages, budget=budget)
                 messages = _microcompact_tool_results(messages)
 
             if on_progress:
