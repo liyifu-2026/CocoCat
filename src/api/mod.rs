@@ -7,6 +7,7 @@ pub mod chat;
 pub mod chat_groups;
 pub mod deliveries;
 pub mod hire;
+pub mod knowledge;
 pub mod mailbox;
 pub mod router;
 pub mod scenes;

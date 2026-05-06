@@ -9,7 +9,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::dispatch::engine::{TaskEvent, WsEvent};
 
-use super::{agents_detail, agents_list, chat, chat_groups, collab, deliveries, hire, mailbox, scenes, schedule, skills, tasks, usage, ws};
+use super::{agents_detail, agents_list, chat, chat_groups, collab, deliveries, hire, knowledge, mailbox, scenes, schedule, skills, tasks, usage, ws};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -55,6 +55,8 @@ pub fn build(state: AppState) -> Router {
         .route("/api/deliveries/:id", axum::routing::get(deliveries::get_delivery))
         .route("/api/deliveries/:id/archive", axum::routing::post(deliveries::archive_delivery))
         .route("/api/deliveries/:id/read", axum::routing::post(deliveries::mark_read))
+        .route("/api/deliveries/:id/approve", axum::routing::post(deliveries::approve_delivery))
+        .route("/api/deliveries/:id/request-changes", axum::routing::post(deliveries::request_changes))
         .route("/api/deliveries/:id/files/:filename", axum::routing::get(deliveries::download_file))
         .route("/api/agents", axum::routing::get(agents_list::list_agents))
         .route("/api/agents/display", axum::routing::get(agents_detail::list_displays_handler))
@@ -69,6 +71,9 @@ pub fn build(state: AppState) -> Router {
         .route("/api/schedule/tasks", axum::routing::post(schedule::create_schedule_handler))
         .route("/api/schedule/tasks/:id", axum::routing::patch(schedule::update_schedule_handler).delete(schedule::delete_schedule_handler))
         .route("/api/collaboration/graph", axum::routing::get(collab::get_collab_graph_handler))
+        .route("/api/knowledge/upload", axum::routing::post(knowledge::upload_handler))
+        .route("/api/knowledge/:kb_name/process", axum::routing::post(knowledge::process_handler))
+        .route("/api/knowledge/:kb_name/tasks", axum::routing::get(knowledge::tasks_handler))
         .route("/ws", get(ws::ws_handler))
         .layer(DefaultBodyLimit::max(10 * 1024 * 1024)) // 10MB
         .layer(CompressionLayer::new())

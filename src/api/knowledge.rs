@@ -1,0 +1,142 @@
+use axum::{
+    extract::{Path, State},
+    http::{HeaderMap, StatusCode},
+    Json,
+};
+use serde::Deserialize;
+use std::path::PathBuf;
+
+use crate::auth;
+use crate::db::tasks;
+use crate::db::models::NewTask;
+use crate::dispatch::engine::TaskEvent;
+
+use super::router::AppState;
+
+#[derive(Deserialize)]
+pub struct ProcessRequest {
+    pub kb_name: String,
+    pub filename: String,
+}
+
+pub async fn upload_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<ProcessRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    auth::verify_token(&headers, &state.jwt)?;
+
+    let kb_path = PathBuf::from("knowledge").join(&req.kb_name);
+
+    // Create KB directory structure if new
+    if !kb_path.exists() {
+        std::fs::create_dir_all(kb_path.join("raw/sources"))
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        std::fs::create_dir_all(kb_path.join("wiki/entities"))
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        std::fs::create_dir_all(kb_path.join("wiki/concepts"))
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        // Copy schema template
+        let template = std::path::Path::new("skills/public/knowledge-ingestion.md");
+        if template.exists() {
+            let _ = std::fs::copy(template, kb_path.join("schema.md"));
+        }
+
+        // Create empty index and log
+        let _ = std::fs::write(kb_path.join("index.md"), "# Index\n\n");
+        let _ = std::fs::write(kb_path.join("log.md"), "# Log\n\n");
+    }
+
+    let file_path = kb_path.join("raw/sources").join(&req.filename);
+
+    // Write file placeholder (in real impl, write multipart bytes)
+    std::fs::write(&file_path, &req.filename)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Create task for Leader
+    let task_uuid = uuid::Uuid::new_v4().to_string();
+    let params = serde_json::json!({
+        "kb_name": req.kb_name,
+        "filename": req.filename,
+        "source_path": file_path.to_string_lossy().to_string(),
+    });
+
+    tasks::create_task(
+        &state.db_pool,
+        &NewTask {
+            task_uuid: task_uuid.clone(),
+            target_agent: "leader".into(),
+            source: "kb".into(),
+            method: "process_kb_source".into(),
+            params: params.to_string(),
+        },
+    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let _ = state.task_tx.send(TaskEvent::NewTask {
+        task_uuid: task_uuid.clone(),
+    }).await;
+
+    Ok(Json(serde_json::json!({
+        "status": "queued",
+        "task_uuid": task_uuid,
+        "kb_name": req.kb_name,
+    })))
+}
+
+pub async fn process_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(kb_name): Path<String>,
+    Json(req): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    auth::verify_token(&headers, &state.jwt)?;
+
+    let filename = req.get("filename")
+        .and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    let task_uuid = uuid::Uuid::new_v4().to_string();
+    let params = serde_json::json!({
+        "kb_name": kb_name,
+        "filename": filename,
+    });
+
+    tasks::create_task(
+        &state.db_pool,
+        &NewTask {
+            task_uuid: task_uuid.clone(),
+            target_agent: "leader".into(),
+            source: "kb".into(),
+            method: "process_kb_source".into(),
+            params: params.to_string(),
+        },
+    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let _ = state.task_tx.send(TaskEvent::NewTask {
+        task_uuid: task_uuid.clone(),
+    }).await;
+
+    Ok(Json(serde_json::json!({
+        "status": "queued",
+        "task_uuid": task_uuid,
+    })))
+}
+
+pub async fn tasks_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(kb_name): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    auth::verify_token(&headers, &state.jwt)?;
+
+    let all_tasks = tasks::list_all_tasks(&state.db_pool)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Filter tasks related to this KB
+    let kb_tasks: Vec<_> = all_tasks.into_iter()
+        .filter(|t| t["params"].as_str().map_or(false, |p| p.contains(&kb_name)))
+        .collect();
+
+    Ok(Json(serde_json::json!({ "tasks": kb_tasks })))
+}
