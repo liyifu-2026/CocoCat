@@ -218,11 +218,21 @@ pub async fn send_message(
     // Create task for each target agent
     for agent_id in &target_agents {
         let task_uuid = uuid::Uuid::new_v4().to_string();
+
+        let history: Vec<serde_json::Value> = crate::db::messages::get_recent_messages(&state.db_pool, "default", &group_id, 30)
+            .unwrap_or_default()
+            .iter()
+            .rev()
+            .filter(|m| m.id != msg_id)
+            .map(|m| serde_json::json!({"role": m.role, "content": m.content}))
+            .collect();
+
         let params = serde_json::json!({
             "content": content,
             "chat_group": group_id,
             "source_msg_id": msg_id,
             "scene_id": "default",
+            "history": history,
         });
 
         if let Err(e) = tasks::create_task(

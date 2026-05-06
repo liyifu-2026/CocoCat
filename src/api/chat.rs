@@ -55,9 +55,19 @@ pub async fn chat_handler(
     })?;
 
     let task_uuid = uuid::Uuid::new_v4().to_string();
+
+    let history: Vec<serde_json::Value> = messages::get_recent_messages(&state.db_pool, &scene_id, "general", 30)
+        .unwrap_or_default()
+        .iter()
+        .rev()
+        .filter(|m| m.msg_uuid != user_msg_uuid)
+        .map(|m| serde_json::json!({"role": m.role, "content": m.content}))
+        .collect();
+
     let params = serde_json::json!({
         "content": req.content,
         "scene_id": scene_id,
+        "history": history,
     });
 
     tasks::create_task(

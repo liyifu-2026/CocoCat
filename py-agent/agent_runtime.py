@@ -27,8 +27,8 @@ def handle_request(request: dict, agent_loop=None) -> dict:
         if agent_loop is None:
             return {"error": "agent loop not initialized"}
         content = params.get("content", "")
-        messages = params.get("messages", [])
-        result = agent_loop.run(content, user_id=params.get("user_id", ""))
+        history = params.get("history", [])
+        result = agent_loop.run(content, user_id=params.get("user_id", ""), history=history)
         if isinstance(result, dict):
             return result
         return {"response": str(result)}
