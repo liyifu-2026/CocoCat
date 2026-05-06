@@ -21,6 +21,8 @@ pub struct WsEvent {
     pub status: String,
     pub result: Option<Value>,
     pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_event: Option<crate::agent::stream_event::StreamEvent>,
 }
 
 pub struct DispatchEngine {
@@ -136,6 +138,7 @@ async fn process_task(
                 status: "completed".into(),
                 result: Some(result),
                 error: None,
+                stream_event: None,
             });
 
             tracing::info!("Task {} completed successfully", task_uuid);
@@ -150,6 +153,7 @@ async fn process_task(
                 status: "failed".into(),
                 result: None,
                 error: Some(e.clone()),
+                stream_event: None,
             });
 
             tracing::error!("Task {} failed: {}", task_uuid, e);
