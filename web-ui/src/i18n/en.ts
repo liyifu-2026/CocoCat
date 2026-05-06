@@ -62,6 +62,7 @@ const en: Record<string, string> = {
   "common.no_data": "No data",
   "common.properties": "Properties",
   "common.confirm": "Confirm",
+  "common.members": "Members",
   "common.name": "Name",
   "common.scene": "Scene",
   "common.role": "Role",

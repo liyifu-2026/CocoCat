@@ -62,6 +62,7 @@ const zh: Record<string, string> = {
   "common.no_data": "暂无数据",
   "common.properties": "属性",
   "common.confirm": "确认",
+  "common.members": "成员",
   "common.name": "名称",
   "common.scene": "场景",
   "common.role": "角色",
