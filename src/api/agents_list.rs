@@ -40,6 +40,7 @@ pub struct UpdateAgentRequest {
     pub name: Option<String>,
     pub system_prompt: Option<String>,
     pub scene_id: Option<String>,
+    pub status: Option<String>,
 }
 
 pub async fn list_agents(
@@ -89,6 +90,10 @@ pub async fn update_agent(
     }
     if let Some(ref sid) = req.scene_id {
         conn.execute("UPDATE agents SET scene_id = ?1 WHERE id = ?2", rusqlite::params![sid, agent_id])
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    }
+    if let Some(ref status) = req.status {
+        conn.execute("UPDATE agents SET status = ?1 WHERE id = ?2", rusqlite::params![status, agent_id])
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
     drop(conn);

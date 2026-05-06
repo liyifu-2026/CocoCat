@@ -102,8 +102,8 @@ export default function AgentDetail() {
           <h1 className="text-2xl font-bold">{displayData?.nickname || agent.name}</h1>
           <p className="text-sm text-muted-foreground">{agent.id}</p>
         </div>
-        <Badge variant={agent.enabled ? "default" : "secondary"}>
-          {agent.enabled ? t("common.online") : t("common.offline")}
+        <Badge variant={agent.status === "running" ? "default" : "secondary"}>
+          {agent.status === "running" ? t("common.online") : agent.status === "error" ? t("common.error_status") : t("common.offline")}
         </Badge>
         {id === "leader" && (
           <Badge variant="outline" className="ml-2">Leader</Badge>
@@ -112,14 +112,15 @@ export default function AgentDetail() {
       {id !== "leader" && (
         <div className="flex items-center gap-4">
           <Button
-            variant={agent.enabled ? "secondary" : "default"}
+            variant={agent.status === "running" ? "secondary" : "default"}
             size="sm"
             onClick={async () => {
-              await agentsApi.update(agent.id, { enabled: !agent.enabled })
+              const newStatus = agent.status === "running" ? "stopped" : "running"
+              await agentsApi.update(agent.id, { status: newStatus })
               queryClient.invalidateQueries({ queryKey: ["agents"] })
             }}
           >
-            {agent.enabled ? t("agent.disable") : t("agent.enable")}
+            {agent.status === "running" ? t("agent.disable") : t("agent.enable")}
           </Button>
           <Button size="sm" variant="outline" onClick={() => {
             setDisplayConfig(displayData ?? { nickname: "", avatar: "", color: "" })
