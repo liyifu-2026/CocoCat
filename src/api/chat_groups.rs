@@ -196,16 +196,24 @@ pub async fn send_message(
         })?;
 
     // Determine which agents to dispatch to
-    let mentions = db_chat::parse_mentions(&content);
-    let target_agents: Vec<String> = if mentions.is_empty() {
-        // No mentions: dispatch to first non-admin member
-        group.members.iter()
-            .filter(|m| m.agent_id != "admin")
-            .map(|m| m.agent_id.clone())
-            .take(1)
-            .collect()
+    let target_agents: Vec<String> = if group_id.starts_with("dm_") {
+        // DM mode: dispatch to the DM's agent directly
+        let agent_id = group_id.strip_prefix("dm_").unwrap_or("").to_string();
+        if agent_id.is_empty() {
+            return Ok(Json(serde_json::json!({"error": "invalid dm group"})));
+        }
+        vec![agent_id]
     } else {
-        mentions
+        let mentions = db_chat::parse_mentions(&content);
+        if mentions.is_empty() {
+            group.members.iter()
+                .filter(|m| m.agent_id != "admin")
+                .map(|m| m.agent_id.clone())
+                .take(1)
+                .collect()
+        } else {
+            mentions
+        }
     };
 
     // Create task for each target agent
