@@ -2,30 +2,32 @@ import { NavLink } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "@/context/SidebarContext"
 import { useAuth } from "@/context/AuthContext"
+import { useTranslation } from "@/context/LanguageContext"
 import {
     LayoutDashboard, Users, FolderKanban, Settings, BookOpen, Mail, BarChart3,
    UserPlus, MessageSquare, Calendar, GitBranch,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { PanelLeftClose, PanelLeft, LogOut } from "lucide-react"
+import { PanelLeftClose, PanelLeft, LogOut, Languages } from "lucide-react"
 
 const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/chat", label: "Chat", icon: MessageSquare },
-  { to: "/agents", label: "Agents", icon: Users },
-  { to: "/scenes", label: "Scenes", icon: FolderKanban },
-  { to: "/hiring", label: "Hiring", icon: UserPlus },
-  { to: "/mailbox", label: "Mailbox", icon: Mail },
-  { to: "/usage", label: "Usage", icon: BarChart3 },
-  { to: "/schedule", label: "Schedule", icon: Calendar },
-  { to: "/collaboration", label: "协作图", icon: GitBranch },
-  { to: "/knowledge", label: "Knowledge", icon: BookOpen },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
+  { to: "/chat", labelKey: "nav.chat", icon: MessageSquare },
+  { to: "/agents", labelKey: "nav.agents", icon: Users },
+  { to: "/scenes", labelKey: "nav.scenes", icon: FolderKanban },
+  { to: "/hiring", labelKey: "nav.hiring", icon: UserPlus },
+  { to: "/mailbox", labelKey: "nav.mailbox", icon: Mail },
+  { to: "/usage", labelKey: "nav.usage", icon: BarChart3 },
+  { to: "/schedule", labelKey: "nav.schedule", icon: Calendar },
+  { to: "/collaboration", labelKey: "nav.collaboration", icon: GitBranch },
+  { to: "/knowledge", labelKey: "nav.knowledge", icon: BookOpen },
+  { to: "/settings", labelKey: "nav.settings", icon: Settings },
 ]
 
 export function Sidebar() {
   const { collapsed, toggle } = useSidebar()
   const { logout } = useAuth()
+  const { t, lang, setLang } = useTranslation()
 
   return (
     <aside
@@ -62,32 +64,48 @@ export function Sidebar() {
             }
           >
             <item.icon className="size-4 shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
+            {!collapsed && <span>{t(item.labelKey)}</span>}
           </NavLink>
         ))}
       </nav>
-      {!collapsed && (
-        <div className="border-t border-sidebar-border p-2">
+      <div className="border-t border-sidebar-border p-2 space-y-1">
+        {!collapsed && (
+          <button
+            onClick={() => setLang(lang === "zh" ? "en" : "zh")}
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          >
+            <Languages className="size-4 shrink-0" />
+            <span>{lang === "zh" ? "English" : "中文"}</span>
+          </button>
+        )}
+        {collapsed && (
+          <button
+            onClick={() => setLang(lang === "zh" ? "en" : "zh")}
+            className="flex w-full items-center justify-center rounded-md px-2 py-2 text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            title={lang === "zh" ? "English" : "中文"}
+          >
+            <Languages className="size-4 shrink-0" />
+          </button>
+        )}
+        {!collapsed && (
           <button
             onClick={logout}
             className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
           >
             <LogOut className="size-4 shrink-0" />
-            <span>退出登录</span>
+            <span>{t("nav.logout")}</span>
           </button>
-        </div>
-      )}
-      {collapsed && (
-        <div className="border-t border-sidebar-border p-2">
+        )}
+        {collapsed && (
           <button
             onClick={logout}
             className="flex w-full items-center justify-center rounded-md px-2 py-2 text-red-500 hover:bg-red-50 transition-colors"
-            title="退出登录"
+            title={t("nav.logout")}
           >
             <LogOut className="size-4 shrink-0" />
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </aside>
   )
 }
