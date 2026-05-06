@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { useT } from "@/context/LanguageContext"
+import { knowledgeApi } from "@/api/knowledge"
 import { streamState, streamListeners, type StreamState } from "@/context/LiveUpdatesContext"
 
 function formatTime(ts: string) {
@@ -97,8 +98,11 @@ export default function Chat() {
   const [newGroupName, setNewGroupName] = useState("")
   const [newGroupAnnouncement, setNewGroupAnnouncement] = useState("")
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
+  const [mentionQuery, setMentionQuery] = useState("")
+  const [mentionStart, setMentionStart] = useState(-1)
   const [, forceRender] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const queryClient = useQueryClient()
   const t = useT()
@@ -184,6 +188,40 @@ export default function Chat() {
     await chatApi.recallMessage(selectedGroup, msgId)
     queryClient.invalidateQueries({ queryKey: ["chat-messages", selectedGroup] })
   }
+
+  function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const val = e.target.value
+    const pos = e.target.selectionStart ?? val.length
+    setMessage(val)
+
+    const before = val.slice(0, pos)
+    const atIdx = before.lastIndexOf("@")
+    if (atIdx >= 0 && (atIdx === 0 || before[atIdx - 1] === " " || before[atIdx - 1] === "\n")) {
+      const query = before.slice(atIdx + 1).replace(/[^a-zA-Z0-9\u4e00-\u9fff_\-]/g, "")
+      setMentionQuery(query)
+      setMentionStart(atIdx)
+    } else {
+      setMentionQuery("")
+      setMentionStart(-1)
+    }
+  }
+
+  function selectMention(name: string) {
+    if (mentionStart < 0) return
+    const before = message.slice(0, mentionStart)
+    const after = message.slice(mentionStart + 1 + mentionQuery.length)
+    const inserted = `@${name} `
+    setMessage(before + inserted + after)
+    setMentionQuery("")
+    setMentionStart(-1)
+    textareaRef.current?.focus()
+  }
+
+  const mentionMembers = mentionQuery
+    ? (currentGroup?.members ?? []).filter(m =>
+        m.id !== "admin" && m.name.toLowerCase().includes(mentionQuery.toLowerCase())
+      )
+    : (currentGroup?.members ?? []).filter(m => m.id !== "admin")
 
   async function createGroup() {
     if (!newGroupName.trim()) return
@@ -326,7 +364,7 @@ export default function Chat() {
               <div className="space-y-4">
                 {messages.length === 0 && <p className="text-center text-sm text-muted-foreground py-10">{t("chat.no_messages")}</p>}
                 {messages.filter(m => !m.recalled || true).map((msg) => (
-                  <MessageBubble key={i} msg={msg} isAdmin={msg.from === "admin"}
+                  <MessageBubble key={msg.id} msg={msg} isAdmin={msg.from === "admin"}
                     msgIndex={msg.id} groupId={selectedGroup} agentNames={agentNames}
                     onRecall={recallMessage} />
                 ))}
@@ -356,12 +394,33 @@ export default function Chat() {
               </div>
             </ScrollArea>
 
-            <div className="p-4 border-t border-border">
+            <div className="p-4 border-t border-border relative">
               <div className="flex gap-2">
-                <Textarea value={message} onChange={e => setMessage(e.target.value)}
-                  placeholder={selectedGroup?.startsWith("dm_") ? t("chat.type_dm").replace("{name}", currentGroup?.name ?? "") : t("chat.type_message")}
-                  className="min-h-[40px] max-h-[120px]"
-                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }} />
+                <div className="flex-1 relative">
+                  <Textarea value={message} onChange={handleInput}
+                    ref={textareaRef}
+                    placeholder={selectedGroup?.startsWith("dm_") ? t("chat.type_dm").replace("{name}", currentGroup?.name ?? "") : t("chat.type_message")}
+                    className="min-h-[40px] max-h-[120px]"
+                    onKeyDown={e => {
+                      if (mentionStart >= 0 && e.key === "Enter" && mentionMembers.length > 0) {
+                        e.preventDefault()
+                        selectMention(mentionMembers[0]!.name)
+                        return
+                      }
+                      if (e.key === "Escape") { setMentionQuery(""); setMentionStart(-1); return }
+                      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() }
+                    }} />
+                  {mentionStart >= 0 && mentionMembers.length > 0 && (
+                    <div className="absolute bottom-full left-0 mb-1 bg-popover border border-border rounded-lg shadow-lg p-1 min-w-[160px] max-h-[200px] overflow-y-auto z-50">
+                      {mentionMembers.map(m => (
+                        <button key={m.id} onClick={() => selectMention(m.name)}
+                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm rounded-md hover:bg-accent text-left">
+                          {m.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <Button onClick={sendMessage} disabled={!message.trim()} className="shrink-0 self-end">
                   <Send className="size-4" />
                 </Button>
