@@ -277,7 +277,7 @@ class AgentLoop:
             knowledge_overview=knowledge_overview,
         )
 
-    def run(self, prompt: str, user_id: str = "", on_progress=None, on_tool=None, on_reasoning=None) -> dict:
+    def run(self, prompt: str, user_id: str = "", history: list | None = None, on_progress=None, on_tool=None, on_reasoning=None) -> dict:
         """Execute a task prompt and return the result.
 
         Callbacks (nanobot pattern):
@@ -298,8 +298,12 @@ class AgentLoop:
 
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
         ]
+        if history:
+            for h in history:
+                if isinstance(h, dict) and h.get("role") and h.get("content"):
+                    messages.append({"role": h["role"], "content": h["content"]})
+        messages.append({"role": "user", "content": prompt})
 
         iteration = 0
         final_content = ""
