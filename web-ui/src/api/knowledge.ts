@@ -40,4 +40,10 @@ export const knowledgeApi = {
     api.get<WikiPageContent>(`/knowledge/${kbId}/wiki/${type}/${name}`),
   search: (kbId: string, q: string) =>
     api.get<{ results: SearchResult[] }>(`/knowledge/${kbId}/search?q=${encodeURIComponent(q)}`),
+  upload: (kbName: string, filename: string, content: string) =>
+    api.post<{ status: string; task_uuid: string; kb_name: string }>("/knowledge/upload", { kb_name: kbName, filename, content }),
+  process: (kbName: string, filename: string) =>
+    api.post<{ status: string; task_uuid: string }>(`/knowledge/${kbName}/process`, { filename }),
+  tasks: (kbName: string) =>
+    api.get<{ tasks: any[] }>(`/knowledge/${kbName}/tasks`),
 }
