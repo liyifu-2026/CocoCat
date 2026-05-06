@@ -24,6 +24,10 @@ interface GraphEdge {
   id: string
   from: string
   to: string
+  task_id?: number
+  type?: string
+  summary?: string
+  timestamp?: string
 }
 
 interface GraphData {
@@ -103,7 +107,8 @@ export default function Dashboard() {
     enabled: !!defaultGroup,
   })
 
-  const onlineAgents = agents.data?.agents?.filter(a => a.status === "running").length ?? 0
+  const agentList: any[] = Array.isArray(agents.data) ? agents.data : agents.data?.agents ?? []
+  const onlineAgents = agentList.filter(a => a.status === "running").length ?? 0
   const sceneCount = scenes.data?.scenes?.length ?? 0
   const pendingHires = hires.data?.pending?.length ?? 0
   const pendingTasks = schedule.data?.tasks?.filter(t => t.status === "pending").length ?? 0
@@ -111,8 +116,8 @@ export default function Dashboard() {
   const recentMessages = chatMessages.data?.messages?.slice(-5).reverse() ?? []
 
   useEffect(() => {
-    if (!agents.data?.agents) return
-    agents.data.agents.forEach(async (a: any) => {
+    if (!agentList.length) return
+    agentList.forEach(async (a: any) => {
       try {
         const r = await agentsApi.display(a.id)
         if (r?.nickname) setDisplayConfs(p => ({ ...p, [a.id]: { nickname: r.nickname } }))
@@ -228,7 +233,7 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {agents.data?.agents?.map(a => (
+            {agentList.map(a => (
               <div key={a.id} className="flex items-center justify-between group relative">
                 <span
                   className="font-medium cursor-pointer hover:text-primary"
@@ -283,62 +288,27 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             {collab.isLoading ? (
-              <Skeleton className="h-[200px] w-full" />
+              <Skeleton className="h-[120px] w-full" />
             ) : collab.isError ? (
-              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-                {t("common.error")}
-              </div>
-            ) : collabNodes.length === 0 ? (
-              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-                {t("common.no_data")}
-              </div>
+              <div className="h-[120px] flex items-center justify-center text-muted-foreground text-sm">{t("common.error")}</div>
+            ) : collabEdges.length === 0 ? (
+              <div className="h-[120px] flex items-center justify-center text-muted-foreground text-sm">{t("common.no_data")}</div>
             ) : (
-              <div className="flex items-center gap-6">
-                <div className="flex-1 min-w-0">
-                  <svg viewBox="0 0 500 220" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-                    {(() => {
-                      const cx = 250, cy = 110, rx = 200, ry = 85
-                      const total = collabNodes.length
-                      const colors = ["#3b82f6","#22c55e","#f59e0b","#ef4444","#8b5cf6","#ec4899","#14b8a6"]
-                      const positions = collabNodes.map((_, i) => {
-                        const angle = (2 * Math.PI * i) / total - Math.PI / 2
-                        return { x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) }
-                      })
-                      return (
-                        <>
-                          {collabEdges.map(edge => {
-                            const fromIdx = collabNodes.findIndex(n => n.id === edge.from)
-                            const toIdx = collabNodes.findIndex(n => n.id === edge.to)
-                            if (fromIdx === -1 || toIdx === -1) return null
-                            const fp = positions[fromIdx]!
-                            const tp = positions[toIdx]!
-                            return (
-                              <line key={edge.id} x1={fp.x} y1={fp.y} x2={tp.x} y2={tp.y}
-                                stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" opacity="0.4" />
-                            )
-                          })}
-                          {collabNodes.map((node, i) => {
-                            const pos = positions[i]!
-                            const color = colors[i % colors.length]
-                            return (
-                              <g key={node.id}>
-                                <circle cx={pos.x} cy={pos.y} r={18} fill={color} />
-                                <text x={pos.x} y={pos.y + 5} textAnchor="middle" fontSize={12}
-                                  fill="#fff" fontWeight="bold">
-                                  {node.label.charAt(0).toUpperCase()}
-                                </text>
-                                <text x={pos.x} y={pos.y + 30} textAnchor="middle" fontSize={9}
-                                  fill="hsl(var(--muted-foreground))">
-                                  {node.label.length > 8 ? node.label.substring(0, 8) + "\u2026" : node.label}
-                                </text>
-                              </g>
-                            )
-                          })}
-                        </>
-                      )
-                    })()}
-                  </svg>
-                </div>
+              <div className="space-y-1 max-h-[200px] overflow-auto">
+                {collabEdges
+                  .filter(e => e.timestamp)
+                  .sort((a, b) => new Date(b.timestamp!).getTime() - new Date(a.timestamp!).getTime())
+                  .slice(0, 8).map(e => (
+                  <div key={e.id} className="flex items-center gap-2 text-xs border-b border-border/50 pb-1.5 last:border-0">
+                    <span className="text-[10px] text-muted-foreground shrink-0 w-10">
+                      {new Date(e.timestamp!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className="font-medium text-[10px]">{displayConfs[e.from]?.nickname || e.from}</span>
+                    <span className="text-muted-foreground">{e.type === "task" ? "→" : "←"}</span>
+                    <span className="font-medium text-[10px]">{displayConfs[e.to]?.nickname || e.to}</span>
+                    <span className="text-muted-foreground truncate ml-1">{e.summary ?? ""}</span>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>

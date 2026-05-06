@@ -19,8 +19,9 @@ export default function Agents() {
   const t = useT()
 
   useEffect(() => {
-    if (!data?.agents) return
-    data.agents.forEach(async (a: any) => {
+    const list = Array.isArray(data) ? data : data?.agents ?? []
+    if (!list.length) return
+    list.forEach(async (a: any) => {
       try {
         const d = await agentsApi.display(a.id)
         if (d?.nickname) setDisplayConfs(p => ({ ...p, [a.id]: { nickname: d.nickname } }))
@@ -31,7 +32,7 @@ export default function Agents() {
   if (isLoading) return <CardGridSkeleton count={6} />
   if (isError) return <ErrorState message={error?.message} onRetry={refetch} />
 
-  const agents: any[] = data?.agents ?? []
+  const agents: any[] = Array.isArray(data) ? data : data?.agents ?? []
   const leader = agents.find((a: any) => a.id === "leader")
   const members = agents.filter((a: any) => a.id !== "leader")
 
