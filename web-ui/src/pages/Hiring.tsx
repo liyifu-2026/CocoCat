@@ -85,7 +85,7 @@ export default function Hiring() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="stagger-item flex items-center gap-3" style={{animationDelay: "0s"}}>
         <h1 className="text-2xl font-bold">{t("hiring.title")}</h1>
         <Badge variant="outline" className="gap-1">
           <Clock className="size-3" /> {t("hiring.pending_count").replace("{count}", String(hires.length))}
@@ -93,7 +93,7 @@ export default function Hiring() {
       </div>
 
       {/* Hiring Plan Form */}
-      <Card>
+      <Card className="stagger-item" style={{animationDelay: "0.08s"}}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Sparkles className="size-4" />
@@ -137,7 +137,7 @@ export default function Hiring() {
 
       {/* Candidate Cards */}
       {hires.length > 0 && (
-        <div>
+        <div className="stagger-item" style={{animationDelay: "0.16s"}}>
           <div className="flex items-center gap-2 mb-4">
             <Users className="size-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
@@ -184,7 +184,7 @@ export default function Hiring() {
       )}
 
       {hires.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground">
+        <div className="stagger-item text-center py-16 text-muted-foreground" style={{animationDelay: "0.16s"}}>
           <UserPlus className="size-12 mx-auto mb-4 opacity-30" />
           <p>{t("hiring.no_pending")}</p>
           <p className="text-sm mt-1">{t("hiring.no_pending_desc")}</p>

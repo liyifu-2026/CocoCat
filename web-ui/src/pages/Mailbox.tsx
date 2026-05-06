@@ -43,7 +43,7 @@ export default function Mailbox() {
   return (
     <div className="flex h-full">
       {/* Left: Delivery list */}
-      <div className="w-80 border-r border-border flex flex-col shrink-0">
+      <div className="stagger-item w-80 border-r border-border flex flex-col shrink-0" style={{animationDelay: "0s"}}>
         <div className="p-4 border-b border-border">
           <h2 className="font-semibold flex items-center gap-2">
             <Inbox className="size-4" /> Inbox
@@ -81,7 +81,7 @@ export default function Mailbox() {
       </div>
 
       {/* Right: Detail */}
-      <div className="flex-1 flex flex-col">
+      <div className="stagger-item flex-1 flex flex-col" style={{animationDelay: "0.08s"}}>
         {!selected ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">

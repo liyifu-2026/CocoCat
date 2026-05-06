@@ -37,12 +37,12 @@ export default function SceneDetail() {
 
   return (
     <div className="p-6 space-y-6">
-      <Link to="/scenes" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link to="/scenes" className="stagger-item inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground" style={{animationDelay: "0s"}}>
         <ArrowLeft className="size-4" /> {t("scene.back_to_all")}
       </Link>
-      <h1 className="text-2xl font-bold">{scene.id}</h1>
+      <h1 className="stagger-item text-2xl font-bold" style={{animationDelay: "0.08s"}}>{scene.id}</h1>
 
-      <Card>
+      <Card className="stagger-item" style={{animationDelay: "0.16s"}}>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>{t("scene.context")}</CardTitle>
           {editingContext ? (
@@ -71,7 +71,7 @@ export default function SceneDetail() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="stagger-item grid gap-4 md:grid-cols-3" style={{animationDelay: "0.24s"}}>
         <Card>
           <CardHeader><CardTitle>{t("scene.knowledge_bases")}</CardTitle></CardHeader>
           <CardContent>
@@ -173,20 +173,22 @@ export default function SceneDetail() {
         </Card>
       </div>
 
-      <EntryManager
-        title={t("scene.entries")}
-        entries={entriesConfig.data?.entries}
-        allChannels={channels.data?.channels}
-        onSave={async (newEntries) => {
-          await entriesApi.updateSceneEntries(scene.id, newEntries)
-          queryClient.invalidateQueries({ queryKey: ["scene", id, "entries"] })
-        }}
-      />
-      <p className="text-xs text-muted-foreground -mt-2">
+      <div className="stagger-item" style={{animationDelay: "0.32s"}}>
+        <EntryManager
+          title={t("scene.entries")}
+          entries={entriesConfig.data?.entries}
+          allChannels={channels.data?.channels}
+          onSave={async (newEntries) => {
+            await entriesApi.updateSceneEntries(scene.id, newEntries)
+            queryClient.invalidateQueries({ queryKey: ["scene", id, "entries"] })
+          }}
+        />
+      </div>
+      <p className="stagger-item text-xs text-muted-foreground -mt-2" style={{animationDelay: "0.40s"}}>
         {t("scene.entries_desc")}
       </p>
 
-      <div className="pt-4 border-t border-border">
+      <div className="stagger-item pt-4 border-t border-border" style={{animationDelay: "0.48s"}}>
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <DialogTrigger asChild>
             <Button variant="destructive" size="sm"><Trash2 className="size-4 mr-1" /> {t("scene.delete")}</Button>

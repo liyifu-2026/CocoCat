@@ -97,7 +97,7 @@ export default function KnowledgeDetail() {
   return (
     <div className="flex h-full">
       {/* Left sidebar: KB info + wiki tree */}
-      <div className="w-64 border-r border-border flex flex-col shrink-0">
+      <div className="stagger-item w-64 border-r border-border flex flex-col shrink-0" style={{animationDelay: "0s"}}>
         <div className="p-4 border-b border-border">
           <Link
             to="/knowledge"
@@ -184,7 +184,7 @@ export default function KnowledgeDetail() {
       </div>
 
       {/* Right: Wiki reader */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="stagger-item flex-1 overflow-auto p-6" style={{animationDelay: "0.08s"}}>
         {!selectedPage && (
           <div className="text-center text-muted-foreground py-20">
             {t("knowledge.select_page")}

@@ -26,11 +26,11 @@ export default function TokenUsage() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold flex items-center gap-2">
+      <h1 className="stagger-item text-2xl font-bold flex items-center gap-2" style={{animationDelay: "0s"}}>
         <BarChart3 className="size-6" /> {t("usage.title")}
       </h1>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="stagger-item grid gap-4 md:grid-cols-3" style={{animationDelay: "0.08s"}}>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">{t("usage.total_tokens")}</CardTitle>
@@ -59,7 +59,7 @@ export default function TokenUsage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="stagger-item" style={{animationDelay: "0.16s"}}>
         <CardHeader>
           <CardTitle>{t("usage.history")}</CardTitle>
         </CardHeader>

@@ -21,9 +21,9 @@ export default function Settings() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
+      <h1 className="stagger-item text-2xl font-bold" style={{animationDelay: "0s"}}>{t("settings.title")}</h1>
 
-      <Card>
+      <Card className="stagger-item" style={{animationDelay: "0.08s"}}>
         <CardHeader><CardTitle>{t("settings.appearance")}</CardTitle></CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
@@ -39,7 +39,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="stagger-item" style={{animationDelay: "0.16s"}}>
         <CardHeader><CardTitle>{t("settings.language")}</CardTitle></CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-3">{t("settings.language_desc")}</p>
@@ -54,7 +54,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="stagger-item" style={{animationDelay: "0.24s"}}>
         <CardHeader><CardTitle>{t("settings.system_status")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
@@ -79,7 +79,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="stagger-item" style={{animationDelay: "0.32s"}}>
         <CardHeader><CardTitle>{t("settings.llm_config")}</CardTitle></CardHeader>
         <CardContent className="text-sm space-y-2 text-muted-foreground">
           <p>{t("settings.llm_desc_1")}</p>

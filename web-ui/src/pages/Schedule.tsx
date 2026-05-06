@@ -97,7 +97,7 @@ export default function Schedule() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="stagger-item flex items-center justify-between" style={{animationDelay: "0s"}}>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Calendar className="size-6" /> {t("schedule.title")}
         </h1>
@@ -132,7 +132,7 @@ export default function Schedule() {
       </div>
 
       {isLoading && (
-        <div className="space-y-3">
+        <div className="stagger-item space-y-3" style={{animationDelay: "0.08s"}}>
           {[1,2,3].map(i => (
             <div key={i} className="rounded-lg border border-border p-4 space-y-2">
               <Skeleton className="h-5 w-3/4" />
@@ -142,17 +142,17 @@ export default function Schedule() {
         </div>
       )}
 
-      {isError && <ErrorState message={error?.message} onRetry={refetch} />}
+      {isError && <div className="stagger-item" style={{animationDelay: "0.08s"}}><ErrorState message={error?.message} onRetry={refetch} /></div>}
 
       {!isLoading && !isError && tasks.length === 0 && (
-        <div className="text-center py-20 text-muted-foreground">
+        <div className="stagger-item text-center py-20 text-muted-foreground" style={{animationDelay: "0.08s"}}>
           <Calendar className="size-12 mx-auto mb-4 opacity-30" />
           <p>{t("schedule.no_tasks")}</p>
         </div>
       )}
 
       {pendingTasks.length > 0 && (
-        <div>
+        <div className="stagger-item" style={{animationDelay: "0.16s"}}>
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
             <Clock className="size-4" /> {t("schedule.pending").replace("{count}", String(pendingTasks.length))}
           </h2>
@@ -163,7 +163,7 @@ export default function Schedule() {
       )}
 
       {completedTasks.length > 0 && (
-        <div>
+        <div className="stagger-item" style={{animationDelay: "0.24s"}}>
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
             <CheckCircle className="size-4 text-green-500" /> {t("schedule.completed").replace("{count}", String(completedTasks.length))}
           </h2>
@@ -174,7 +174,7 @@ export default function Schedule() {
       )}
 
       {failedTasks.length > 0 && (
-        <div>
+        <div className="stagger-item" style={{animationDelay: "0.32s"}}>
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2 text-red-500">
             {t("schedule.failed").replace("{count}", String(failedTasks.length))}
           </h2>

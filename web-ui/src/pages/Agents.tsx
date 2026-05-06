@@ -39,7 +39,7 @@ export default function Agents() {
     <div className="p-6 space-y-6">
       {/* Leader Card */}
       {leader && (
-        <div className="rounded-lg border border-l-4 border-l-primary bg-muted/30 p-6">
+        <div className="stagger-item rounded-lg border border-l-4 border-l-primary bg-muted/30 p-6" style={{animationDelay: "0s"}}>
           <div className="flex items-start gap-5">
             <AgentAvatar name={displayConfs["leader"]?.nickname || leader.name} size="lg"
               status={leader.status === "running" ? "idle" : leader.status === "error" ? "busy" : undefined} />
@@ -69,7 +69,7 @@ export default function Agents() {
 
       {/* Team Members */}
       {members.length > 0 && (
-        <div>
+        <div className="stagger-item" style={{animationDelay: "0.08s"}}>
           <div className="flex items-center gap-2 mb-4">
             <Users className="size-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
@@ -128,7 +128,7 @@ export default function Agents() {
       )}
 
       {agents.length === 0 && (
-        <p className="text-muted-foreground">{t("agents.no_agents")}</p>
+        <p className="stagger-item text-muted-foreground" style={{animationDelay: "0.16s"}}>{t("agents.no_agents")}</p>
       )}
     </div>
   )

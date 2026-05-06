@@ -17,8 +17,8 @@ export default function Knowledge() {
   if (!data?.kbs || data.kbs.length === 0) {
     return (
       <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-bold">{t("knowledge.title")}</h1>
-        <div className="text-center py-20 text-muted-foreground">
+        <h1 className="stagger-item text-2xl font-bold" style={{animationDelay: "0s"}}>{t("knowledge.title")}</h1>
+        <div className="stagger-item text-center py-20 text-muted-foreground" style={{animationDelay: "0.08s"}}>
           <BookOpen className="size-12 mx-auto mb-4 opacity-30" />
           <p>{t("knowledge.no_kbs")}</p>
         </div>
@@ -28,8 +28,8 @@ export default function Knowledge() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">{t("knowledge.title")}</h1>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <h1 className="stagger-item text-2xl font-bold" style={{animationDelay: "0s"}}>{t("knowledge.title")}</h1>
+      <div className="stagger-item grid gap-4 md:grid-cols-2 lg:grid-cols-3" style={{animationDelay: "0.08s"}}>
         {data.kbs.map(kb => (
           <Link key={kb.id} to={`/knowledge/${kb.id}`}>
             <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">

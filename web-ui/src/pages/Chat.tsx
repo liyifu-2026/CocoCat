@@ -160,7 +160,7 @@ export default function Chat() {
   return (
     <div className="flex h-full">
       {/* Left sidebar: conversation list */}
-      <div className="w-72 border-r border-border flex flex-col shrink-0">
+      <div className="stagger-item w-72 border-r border-border flex flex-col shrink-0" style={{animationDelay: "0s"}}>
         <div className="p-4 border-b border-border flex items-center justify-between">
           <h2 className="font-semibold">{t("chat.title")}</h2>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -241,7 +241,7 @@ export default function Chat() {
       </div>
 
       {/* Right: Conversation */}
-      <div className="flex-1 flex flex-col">
+      <div className="stagger-item flex-1 flex flex-col" style={{animationDelay: "0.08s"}}>
         {!selectedGroup ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center"><MessageSquare className="size-12 mx-auto mb-4 opacity-30" /><p>{t("chat.select_chat")}</p></div>

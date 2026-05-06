@@ -97,7 +97,7 @@ export default function Collaboration() {
 
   return (
     <div className="flex h-full">
-      <div className="flex-1 overflow-auto p-4">
+      <div className="stagger-item flex-1 overflow-auto p-4" style={{animationDelay: "0s"}}>
         <h1 className="text-lg font-semibold mb-4">{t("collab.title")}</h1>
         <svg ref={svgRef} width={svgWidth} height={svgHeight} className="border rounded bg-card">
           <defs>
@@ -163,7 +163,7 @@ export default function Collaboration() {
       </div>
 
       {selectedEdge && (
-        <div className="w-80 border-l bg-muted p-4 overflow-y-auto">
+        <div className="stagger-item w-80 border-l bg-muted p-4 overflow-y-auto" style={{animationDelay: "0.08s"}}>
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-semibold">{t("collab.task").replace("{id}", String(selectedEdge.task_id))}</h2>
             <Button variant="outline" size="sm" onClick={() => setSelectedEdge(null)}>

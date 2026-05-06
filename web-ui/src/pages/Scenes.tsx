@@ -24,7 +24,7 @@ export default function Scenes() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="stagger-item flex items-center justify-between" style={{animationDelay: "0s"}}>
         <h1 className="text-2xl font-bold">{t("page.scenes")}</h1>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
@@ -52,9 +52,9 @@ export default function Scenes() {
         </Dialog>
       </div>
       {!data?.scenes?.length ? (
-        <p className="text-muted-foreground">{t("scene.no_scenes")}</p>
+        <p className="stagger-item text-muted-foreground" style={{animationDelay: "0.08s"}}>{t("scene.no_scenes")}</p>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="stagger-item grid gap-4 md:grid-cols-2 lg:grid-cols-3" style={{animationDelay: "0.08s"}}>
           {data.scenes.map(s => (
             <Link key={s.id} to={`/scenes/${s.id}`}>
               <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">

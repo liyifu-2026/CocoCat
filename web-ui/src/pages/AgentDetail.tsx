@@ -86,11 +86,12 @@ export default function AgentDetail() {
     <div className="p-6 space-y-6">
       <Link
         to="/agents"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="stagger-item inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        style={{animationDelay: "0s"}}
       >
         <ArrowLeft className="size-4" /> {t("agent.back_to_list")}
       </Link>
-      <div className="flex items-center gap-3">
+      <div className="stagger-item flex items-center gap-3" style={{animationDelay: "0.08s"}}>
         <AgentAvatar
           avatarId={displayData?.avatar}
           gender={displayData?.gender}
@@ -110,7 +111,7 @@ export default function AgentDetail() {
         )}
       </div>
       {id !== "leader" && (
-        <div className="flex items-center gap-4">
+        <div className="stagger-item flex items-center gap-4" style={{animationDelay: "0.16s"}}>
           <Button
             variant={agent.status === "running" ? "secondary" : "default"}
             size="sm"
@@ -167,7 +168,7 @@ export default function AgentDetail() {
         </DialogContent>
       </Dialog>
 
-      <Tabs defaultValue="profile">
+      <Tabs defaultValue="profile" className="stagger-item" style={{animationDelay: "0.24s"}}>
         <TabsList>
           <TabsTrigger value="profile">{t("agent.profile")}</TabsTrigger>
           <TabsTrigger value="skills">{t("agent.skills")}</TabsTrigger>
@@ -419,7 +420,7 @@ export default function AgentDetail() {
         </TabsContent>
       </Tabs>
       {id !== "leader" && (
-        <div className="pt-4 border-t border-border">
+        <div className="stagger-item pt-4 border-t border-border" style={{animationDelay: "0.32s"}}>
           <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="destructive" size="sm">{t("agent.delete")}</Button>
