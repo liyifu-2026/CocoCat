@@ -71,6 +71,7 @@ export const agentsApi = {
   updateSkills: (id: string, skills: { public: string[]; private: string[] }) =>
     api.patch<{ status: string }>(`/agents/${id}/skills`, skills),
   display: (id: string) => api.get<AgentDisplay>(`/agents/${id}/display`),
+  listDisplays: () => api.get<Record<string, AgentDisplay>>("/agents/display"),
   updateDisplay: (id: string, display: AgentDisplay) =>
     api.put<{ display: AgentDisplay }>(`/agents/${id}/display`, display),
   delete: (id: string) =>
