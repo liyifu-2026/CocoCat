@@ -678,66 +678,6 @@ class BrowserTool(Tool):
             session.close()
 
 
-class McpCallTool(Tool):
-    """Call a tool from an MCP server."""
-    name = "mcp_call"
-    required_permission = PermissionMode.FULL_ACCESS
-    description = "Call a tool from an MCP (Model Context Protocol) server. Specify the server command, tool name, and arguments."
-    parameters = {
-        "type": "object",
-        "properties": {
-            "server_command": {"type": "string", "description": "Shell command to start the MCP server"},
-            "tool_name": {"type": "string", "description": "Name of the tool to call"},
-            "arguments": {"type": "object", "description": "Arguments to pass to the tool"},
-        },
-        "required": ["server_command", "tool_name"],
-    }
-
-    def execute(self, server_command="", tool_name="", arguments=None, **kwargs) -> str:
-        from sandbox import CommandValidator
-        validator = CommandValidator()
-        is_safe, reason = validator.validate(server_command, self.required_permission)
-        if not is_safe:
-            return f"Error: MCP server command rejected - {reason}"
-        import subprocess, json
-        try:
-            proc = subprocess.Popen(
-                server_command, shell=True,
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                text=True,
-            )
-            init = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "cococat", "version": "1.0"}}})
-            proc.stdin.write(init + "\n")
-            proc.stdin.flush()
-            proc.stdout.readline()
-
-            call = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": tool_name, "arguments": arguments or {}}})
-            proc.stdin.write(call + "\n")
-            proc.stdin.flush()
-
-            result_lines = []
-            for line in proc.stdout:
-                line = line.strip()
-                if line:
-                    try:
-                        resp = json.loads(line)
-                        content_list = resp.get("result", {}).get("content", [])
-                        for c in content_list:
-                            if isinstance(c, dict) and c.get("type") == "text":
-                                result_lines.append(c["text"])
-                        if "error" in resp:
-                            result_lines.append(f"Error: {resp['error'].get('message', '')}")
-                    except json.JSONDecodeError:
-                        continue
-                if len(result_lines) > 3:
-                    break
-
-            proc.terminate()
-            return "\n".join(result_lines) if result_lines else "(no result)"
-        except Exception as e:
-            return f"MCP call failed: {e}"
-
-
 class SendMessageTool(Tool):
     """Send a message to another agent's mailbox."""
     name = "send_message"
@@ -950,7 +890,6 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(WebSearchTool())
     registry.register(EditFileTool())
     registry.register(AskUserTool())
-    registry.register(McpCallTool())
     registry.register(SendMessageTool(from_agent=agent_id))
     registry.register(LspQueryTool())
     registry.register(BrowserTool())
@@ -964,9 +903,11 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
         print(f"[PluginLoader] Failed to load plugin tools: {e}", file=sys.stderr)
 
     try:
-        from skills.dream_candidates import dream_candidates, TOOL_DEF
-        registry.register(DynamicTool("dream_candidates", dream_candidates, TOOL_DEF))
-    except ImportError as e:
-        print(f"[SkillLoader] Failed to load dream_candidates: {e}", file=sys.stderr)
+        mcp_env = os.environ.get("MCP_SERVERS", "")
+        if mcp_env:
+            from mcp_client import connect_mcp_servers
+            connect_mcp_servers(json.loads(mcp_env), registry)
+    except Exception as e:
+        print(f"[MCP] Failed to connect: {e}", file=sys.stderr)
 
     return registry
