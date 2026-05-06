@@ -6,6 +6,13 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
+def _write_stream(etype: str, **kwargs):
+    data = {"type": etype}
+    data.update(kwargs)
+    sys.stdout.write(json.dumps(data) + "\n")
+    sys.stdout.flush()
+
+
 def handle_request(request: dict, agent_loop=None) -> dict:
     method = request.get("method", "")
     params = request.get("params", {})
@@ -70,8 +77,35 @@ def main():
             request = json.loads(line)
             req_id = request.get("id")
 
-            result = handle_request(request, agent_loop=agent_loop)
-            response = {"jsonrpc": "2.0", "result": result, "id": req_id}
+            if request.get("method") == "chat":
+                params = request.get("params", {})
+                if agent_loop is None:
+                    raise RuntimeError("agent loop not initialized")
+                content = params.get("content", "")
+
+                def on_progress(msg):
+                    _write_stream("progress", content=msg)
+                def on_tool(name, input_data, status, result=""):
+                    _write_stream("tool", name=name,
+                        input=str(input_data)[:500], status=status,
+                        result=str(result)[:500])
+                def on_reasoning(msg):
+                    if msg:
+                        _write_stream("reasoning", content=msg)
+
+                result = agent_loop.run(
+                    content,
+                    user_id=params.get("user_id", ""),
+                    on_progress=on_progress,
+                    on_tool=on_tool,
+                    on_reasoning=on_reasoning,
+                )
+                if not isinstance(result, dict):
+                    result = {"response": str(result)}
+                response = {"jsonrpc": "2.0", "result": result, "id": req_id}
+            else:
+                result = handle_request(request, agent_loop=agent_loop)
+                response = {"jsonrpc": "2.0", "result": result, "id": req_id}
         except json.JSONDecodeError as e:
             response = {
                 "jsonrpc": "2.0",
