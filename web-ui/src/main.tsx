@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ThemeProvider } from "@/context/ThemeContext"
 import { SidebarProvider } from "@/context/SidebarContext"
 import { AuthProvider } from "@/context/AuthContext"
+import { DialogProvider } from "@/context/DialogContext"
+import { LanguageProvider } from "@/context/LanguageContext"
+import { LiveUpdatesProvider } from "@/context/LiveUpdatesContext"
 import { Toaster } from "sonner"
 import App from "./App"
 import "./index.css"
@@ -27,8 +30,14 @@ createRoot(document.getElementById("root")!).render(
       <AuthProvider>
         <ThemeProvider>
           <SidebarProvider>
-            <App />
-            <Toaster richColors closeButton position="top-right" />
+            <DialogProvider>
+              <LanguageProvider>
+              <LiveUpdatesProvider>
+                <App />
+                <Toaster richColors closeButton position="top-right" />
+              </LiveUpdatesProvider>
+              </LanguageProvider>
+            </DialogProvider>
           </SidebarProvider>
         </ThemeProvider>
       </AuthProvider>
