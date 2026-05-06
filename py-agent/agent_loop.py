@@ -7,6 +7,7 @@ from providers import make_provider
 from tools import ToolRegistry, create_default_registry, PermissionMode
 from plugin_hooks import HookRegistry
 from context import build_system_prompt, build_tool_descriptions, load_agent_skills, load_agent_profile, load_user_profile
+from dream import run_dream as auto_dream
 
 _enc = None
 
@@ -78,7 +79,54 @@ def append_history(agent_id: str, prompt: str, response_summary: str, iterations
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
+_USAGE_LOG_PATH: str | None = None
+
+
+def _get_usage_log_path() -> str:
+    global _USAGE_LOG_PATH
+    if _USAGE_LOG_PATH is None:
+        _USAGE_LOG_PATH = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "agents", "_usage.jsonl",
+        )
+    return _USAGE_LOG_PATH
+
+
+def _log_usage(agent_id: str, prompt: str, usage: dict, iterations: int):
+    import json as _json
+    if not usage.get("input", 0) and not usage.get("output", 0):
+        return
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "agent_id": agent_id,
+        "input_tokens": usage.get("input", 0),
+        "output_tokens": usage.get("output", 0),
+        "total_tokens": usage.get("input", 0) + usage.get("output", 0),
+        "iterations": iterations,
+    }
+    try:
+        log_path = _get_usage_log_path()
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(_json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 MAX_DEPTH = 3
+
+
+def _microcompact_tool_results(messages: list[dict], max_tool_chars: int = 16000) -> list[dict]:
+    result = []
+    for msg in messages:
+        if msg.get("role") == "tool" and isinstance(msg.get("content"), str):
+            content = msg["content"]
+            if len(content) > max_tool_chars:
+                msg = dict(msg)
+                msg["content"] = content[:max_tool_chars] + f"\n...[truncated {len(content) - max_tool_chars} chars]"
+        result.append(msg)
+    return result
+
 
 def consolidate(messages: list[dict], llm, budget: int = 131072, depth: int = 0) -> list[dict]:
     """Upgraded consolidator: boundary-aware, multi-round, fallback."""
@@ -327,11 +375,11 @@ class AgentLoop:
                     assistant_msg["reasoning_content"] = reasoning
                 assistant_msg["tool_calls"] = [
                     {
-                        "id": tc["id"],
+                        "id": tc.id,
                         "type": "function",
                         "function": {
-                            "name": tc["name"],
-                            "arguments": json.dumps(tc.get("arguments", {}), ensure_ascii=False),
+                            "name": tc.name,
+                            "arguments": json.dumps(tc.arguments, ensure_ascii=False),
                         },
                     }
                     for tc in tool_calls
@@ -339,21 +387,21 @@ class AgentLoop:
                 messages.append(assistant_msg)
 
                 from concurrent.futures import ThreadPoolExecutor, as_completed
-                tool_names = [tc["name"] for tc in tool_calls]
+                tool_names = [tc.name for tc in tool_calls]
                 if on_tool:
                     for tc in tool_calls:
-                        on_tool(tc["name"], tc.get("arguments", {}), "start", "")
+                        on_tool(tc.name, tc.arguments, "start", "")
                 with ThreadPoolExecutor(max_workers=len(tool_calls)) as executor:
                     futures = {}
                     for tc in tool_calls:
-                        tool_name = tc["name"]
-                        tool_args = tc.get("arguments", {})
+                        tool_name = tc.name
+                        tool_args = tc.arguments
                         allowed, reason, modified_args = self.hook_registry.run_pre_tool_call(tool_name, tool_args)
                         if not allowed:
                             result = f"Error: Tool call denied by plugin: {reason}"
                             messages.append({
                                 "role": "tool",
-                                "tool_call_id": tc["id"],
+                                "tool_call_id": tc.id,
                                 "content": result,
                             })
                             continue
@@ -372,7 +420,7 @@ class AgentLoop:
                         result = self.hook_registry.run_post_tool_call(tool_name, modified_args, result)
                         messages.append({
                             "role": "tool",
-                            "tool_call_id": tc["id"],
+                            "tool_call_id": tc.id,
                             "content": result,
                         })
 

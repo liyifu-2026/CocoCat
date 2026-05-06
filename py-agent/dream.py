@@ -179,7 +179,7 @@ def run_dream(agent_id: str, agent_name: str, llm_client=None) -> str:
                 temperature=0.3,
                 retry_mode="persistent",
             )
-            content = (response.get("content") or "").strip()
+            content = (response.content or "").strip()
         except Exception as e:
             return f"Dream LLM call failed: {e}"
 
@@ -251,7 +251,7 @@ Write concise bullet points for their PROFILE.md file.
 {history_text}"""
     try:
         analysis = llm.chat_with_retry(messages=[{"role": "user", "content": analysis_prompt}], max_tokens=512, temperature=0.3, retry_mode="persistent")
-        content = (analysis.get("content") or "").strip()
+        content = (analysis.content or "").strip()
     except Exception as e:
         return f"User dream LLM call failed: {e}"
 
