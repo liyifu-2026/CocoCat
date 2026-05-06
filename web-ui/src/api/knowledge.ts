@@ -46,4 +46,6 @@ export const knowledgeApi = {
     api.post<{ status: string; task_uuid: string }>(`/knowledge/${kbName}/process`, { filename }),
   tasks: (kbName: string) =>
     api.get<{ tasks: any[] }>(`/knowledge/${kbName}/tasks`),
+  extract: (filename: string, content: string) =>
+    api.post<{ filename: string; text: string }>("/upload/extract", { filename, content }),
 }

@@ -163,3 +163,43 @@ pub async fn tasks_handler(
 
     Ok(Json(serde_json::json!({ "tasks": kb_tasks })))
 }
+
+#[derive(Deserialize)]
+pub struct ExtractRequest {
+    pub filename: String,
+    pub content: String,
+}
+
+pub async fn extract_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<ExtractRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    auth::verify_token(&headers, &state.jwt)?;
+
+    let tmp_dir = std::env::temp_dir().join("cococat_uploads");
+    let _ = std::fs::create_dir_all(&tmp_dir);
+    let tmp_path = tmp_dir.join(&req.filename);
+    let _ = std::fs::write(&tmp_path, &req.content);
+
+    let result = std::process::Command::new("python3")
+        .arg("tools/extract_text.py")
+        .arg(&tmp_path)
+        .output();
+
+    let _ = std::fs::remove_file(&tmp_path);
+
+    match result {
+        Ok(output) if output.status.success() => {
+            let json_str = String::from_utf8_lossy(&output.stdout);
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                let text = parsed.get("text").and_then(|v| v.as_str()).unwrap_or("");
+                return Ok(Json(serde_json::json!({
+                    "filename": req.filename, "text": text, "pages": parsed.get("pages"),
+                })));
+            }
+            Ok(Json(serde_json::json!({"filename": req.filename, "text": json_str})))
+        }
+        _ => Ok(Json(serde_json::json!({"filename": req.filename, "text": req.content}))),
+    }
+}

@@ -75,6 +75,7 @@ pub fn build(state: AppState) -> Router {
         .route("/api/knowledge/upload", axum::routing::post(knowledge::upload_handler))
         .route("/api/knowledge/:kb_name/process", axum::routing::post(knowledge::process_handler))
         .route("/api/knowledge/:kb_name/tasks", axum::routing::get(knowledge::tasks_handler))
+        .route("/api/upload/extract", axum::routing::post(knowledge::extract_handler))
         .route("/ws", get(ws::ws_handler))
         .layer(DefaultBodyLimit::max(10 * 1024 * 1024)) // 10MB
         .layer(CompressionLayer::new())
