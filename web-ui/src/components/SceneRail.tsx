@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { scenesApi } from "@/api/scenes"
@@ -15,6 +16,7 @@ export function SceneRail() {
   const { theme, toggleTheme } = useTheme()
   const { collapsed, toggle } = useSidebar()
   const { openImportScene } = useDialogActions()
+  const [hovered, setHovered] = useState(false)
 
   const handleNav = (to: string) => {
     if (collapsed) toggle()
@@ -27,7 +29,12 @@ export function SceneRail() {
   const activeSceneId = location.pathname.match(/^\/scenes\/([^/]+)/)?.[1]
 
   return (
-    <aside className="w-11 shrink-0 border-r border-border bg-sidebar flex flex-col items-center py-2 gap-2">
+    <aside
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={`shrink-0 border-r border-border bg-sidebar flex flex-col items-center py-2 gap-2 transition-all duration-200 overflow-hidden ${
+        hovered ? "w-32" : "w-11"
+      }`}>
       <button
         onClick={() => handleNav("/dashboard")}
         className={cn(
@@ -50,31 +57,30 @@ export function SceneRail() {
 
       <div className="w-full border-t border-sidebar-border my-1" />
 
-      <nav className="flex-1 flex flex-col items-center gap-1.5 overflow-y-auto scrollbar-auto-hide">
+      <nav className="flex-1 flex flex-col items-center gap-1.5 overflow-y-auto scrollbar-auto-hide w-full px-1">
         {scenes.map(scene => (
           <button
             key={scene.id}
             onClick={() => handleNav(`/scenes/${scene.id}`)}
-            className={cn(
-              "rounded-md transition-all duration-150",
+            className={`flex items-center gap-2 rounded-md transition-all duration-150 w-full px-1 ${
               activeSceneId === scene.id
                 ? "ring-2 ring-sidebar-primary ring-offset-1 ring-offset-sidebar"
-                : "hover:opacity-80",
-            )}
-            title={scene.id}
+                : "hover:opacity-80"
+            }`}
+            title={hovered ? undefined : scene.id}
           >
             <SceneAvatar id={scene.id} />
+            {hovered && <span className="text-xs text-sidebar-foreground truncate">{scene.id}</span>}
           </button>
         ))}
-        <Button
-          variant="ghost"
-          size="icon-xs"
+        <button
           onClick={openImportScene}
-          className="mt-1 text-sidebar-foreground hover:bg-sidebar-accent"
-          title="Import Scene"
+          className="flex items-center justify-center gap-2 w-full text-sidebar-foreground hover:bg-sidebar-accent rounded-md py-1 mt-1"
+          title="Import / Create Scene"
         >
-          <Plus className="size-4" />
-        </Button>
+          <Plus className="size-4 shrink-0" />
+          {hovered && <span className="text-xs">New Scene</span>}
+        </button>
       </nav>
 
       <div className="w-full border-t border-sidebar-border my-1" />
