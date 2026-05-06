@@ -5,6 +5,7 @@ export interface Agent {
   name: string
   enabled: boolean
   scene: string
+  status: string
 }
 
 export interface UsageEntry {

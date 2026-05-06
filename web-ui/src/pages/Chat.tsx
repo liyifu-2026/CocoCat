@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { chatApi } from "@/api/chat"
 import type { ChatGroup, ChatMessage, ReadByEntry } from "@/api/chat"
@@ -106,8 +106,18 @@ export default function Chat() {
   const currentGroup = groups.find(g => g.id === selectedGroup)
   const messages = messagesData?.messages ?? []
   const agents = agentsData?.agents ?? []
+  const [displayConfs, setDisplayConfs] = useState<Record<string, {nickname?: string}>>({})
+  useEffect(() => {
+    if (!agents.length) return
+    agents.forEach(async (a: any) => {
+      try {
+        const r = await agentsApi.display(a.id)
+        if (r?.nickname) setDisplayConfs(p => ({ ...p, [a.id]: { nickname: r.nickname } }))
+      } catch {}
+    })
+  }, [agents])
   const agentNames: Record<string, string> = {}
-  agents.forEach(a => { agentNames[a.id] = a.name })
+  agents.forEach(a => { agentNames[a.id] = displayConfs[a.id]?.nickname || a.name })
   agentNames["admin"] = "Admin"
 
   async function sendMessage() {

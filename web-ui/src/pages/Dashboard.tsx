@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { agentsApi } from "@/api/agents"
 import { scenesApi } from "@/api/scenes"
@@ -21,10 +22,20 @@ export default function Dashboard() {
     enabled: !!defaultGroup,
   })
 
-  const onlineAgents = agents.data?.agents?.filter(a => a.enabled).length ?? 0
+  const onlineAgents = agents.data?.agents?.filter(a => a.status === "running").length ?? 0
   const sceneCount = scenes.data?.scenes?.length ?? 0
   const pendingHires = hires.data?.pending?.length ?? 0
   const recentMessages = chatMessages.data?.messages?.length ?? 0
+  const [displayConfs, setDisplayConfs] = useState<Record<string, {nickname?: string}>>({})
+  useEffect(() => {
+    if (!agents.data?.agents) return
+    agents.data.agents.forEach(async (a: any) => {
+      try {
+        const r = await agentsApi.display(a.id)
+        if (r?.nickname) setDisplayConfs(p => ({ ...p, [a.id]: { nickname: r.nickname } }))
+      } catch {}
+    })
+  }, [agents.data])
 
   const isAnyError = agents.isError || scenes.isError || hires.isError || chatMessages.isError
 
@@ -66,9 +77,9 @@ export default function Dashboard() {
           <CardContent className="space-y-2">
             {agents.data?.agents?.map(a => (
               <div key={a.id} className="flex items-center justify-between">
-                <span className="font-medium">{a.name}</span>
-                <Badge variant={a.enabled ? "default" : "secondary"}>
-                  {a.enabled ? "Online" : "Disabled"}
+                <span className="font-medium">{displayConfs[a.id]?.nickname || a.name}</span>
+                <Badge variant={a.status === "running" ? "default" : "secondary"}>
+                  {a.status === "running" ? "Online" : a.status === "error" ? "Error" : "Offline"}
                 </Badge>
               </div>
             ))}
