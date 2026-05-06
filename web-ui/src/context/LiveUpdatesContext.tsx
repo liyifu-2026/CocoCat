@@ -76,6 +76,8 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
           case "stream_progress":
           case "stream_tool":
           case "stream_reasoning":
+          case "kb.progress":
+          case "kb.complete":
             streamState.set(data.task_uuid, { ...data, updatedAt: Date.now() })
             streamListeners.forEach(fn => fn())
             break
