@@ -105,6 +105,9 @@ pub async fn delete_agent(
     Path(agent_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     auth::verify_token(&headers, &state.jwt)?;
+    if agent_id == "leader" {
+        return Ok(Json(serde_json::json!({"error": "Leader cannot be removed"})));
+    }
     crate::db::agents::update_status(&state.db_pool, &agent_id, "stopped")
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(serde_json::json!({"status": "stopped"})))
