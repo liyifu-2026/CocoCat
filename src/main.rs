@@ -17,6 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let db_pool = db::pool::create_pool()?;
     db::pool::run_migrations(&db_pool)?;
+    db::chat_groups::init_default_group(&db_pool)?;
     config::seed_from_config_toml(&db_pool)?;
 
     let agents = db::agents::load_agents(&db_pool)?;
