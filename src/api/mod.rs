@@ -1,3 +1,4 @@
+pub mod agents_list;
 pub mod chat;
 pub mod chat_groups;
 pub mod hire;
