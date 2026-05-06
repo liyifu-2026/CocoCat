@@ -22,6 +22,7 @@ export interface ReadByEntry {
 }
 
 export interface ChatMessage {
+  id: number
   from: string
   content: string
   timestamp: string

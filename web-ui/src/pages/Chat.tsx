@@ -14,6 +14,8 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import {
   MessageSquare, Plus, Send, Hash, Users, X, Copy, Undo2, MoreHorizontal,
 } from "lucide-react"
@@ -54,10 +56,10 @@ function MessageBubble({ msg, isAdmin, msgIndex, groupId, agentNames, onRecall }
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <div className={`rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors ${
+            <div className={`rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors [&_p]:m-0 [&_ul]:m-0 [&_ol]:m-0 [&_pre]:mt-1 [&_pre]:mb-1 [&_code]:text-xs ${
               isAdmin ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted hover:bg-muted/80"
             }`}>
-              {msg.content}
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align={isAdmin ? "end" : "start"}>
@@ -97,6 +99,7 @@ export default function Chat() {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [, forceRender] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
   const queryClient = useQueryClient()
   const t = useT()
 
@@ -113,6 +116,17 @@ export default function Chat() {
   const currentGroup = groups.find(g => g.id === selectedGroup)
   const messages = messagesData?.messages ?? []
   const agents: any[] = ((agentsData as any)?.agents ?? (Array.isArray(agentsData) ? agentsData : [])) as any[]
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messagesData, selectedGroup])
+
+  // Mark messages as read when viewing
+  useEffect(() => {
+    if (!selectedGroup || !messages.length) return
+    const lastMsg = messages[messages.length - 1]
+    if (lastMsg) chatApi.markRead(selectedGroup, lastMsg.id, "admin", 0).catch(() => {})
+  }, [selectedGroup, messages])
   const channels = groups.filter(g => !g.id.startsWith("dm_"))
   const dmGroups = groups.filter(g => g.id.startsWith("dm_"))
   const agentStatus: Record<string, string> = {}
@@ -165,9 +179,9 @@ export default function Chat() {
     queryClient.invalidateQueries({ queryKey: ["chat-groups"] })
   }
 
-  async function recallMessage(msgIndex: number) {
+  async function recallMessage(msgId: number) {
     if (!selectedGroup) return
-    await chatApi.recallMessage(selectedGroup, msgIndex)
+    await chatApi.recallMessage(selectedGroup, msgId)
     queryClient.invalidateQueries({ queryKey: ["chat-messages", selectedGroup] })
   }
 
@@ -234,20 +248,14 @@ export default function Chat() {
                   <Hash className="size-5" />
                 </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium truncate">{g.name}</span>
-                  {messagesData?.messages?.slice(-1)[0] && (
-                    <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatTime(messagesData!.messages.slice(-1)[0]!.timestamp)}</span>
-                  )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium truncate">{g.name}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate mt-0.5">
+                    {t("chat.members_count").replace("{count}", String(g.members.length))}
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground truncate mt-0.5">
-                  {(() => {
-                    const last = messagesData?.messages?.slice(-1)[0]
-                    return last ? (last.recalled ? t("chat.recalled") : last.content) : t("chat.members_count").replace("{count}", String(g.members.length))
-                  })()}
-                </div>
-              </div>
             </button>
           ))}
 
@@ -317,9 +325,9 @@ export default function Chat() {
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-4">
                 {messages.length === 0 && <p className="text-center text-sm text-muted-foreground py-10">{t("chat.no_messages")}</p>}
-                {messages.filter(m => !m.recalled || true).map((msg, i) => (
+                {messages.filter(m => !m.recalled || true).map((msg) => (
                   <MessageBubble key={i} msg={msg} isAdmin={msg.from === "admin"}
-                    msgIndex={i} groupId={selectedGroup} agentNames={agentNames}
+                    msgIndex={msg.id} groupId={selectedGroup} agentNames={agentNames}
                     onRecall={recallMessage} />
                 ))}
                 {(() => {

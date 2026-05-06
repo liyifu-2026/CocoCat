@@ -209,7 +209,6 @@ pub async fn send_message(
             group.members.iter()
                 .filter(|m| m.agent_id != "admin")
                 .map(|m| m.agent_id.clone())
-                .take(1)
                 .collect()
         } else {
             mentions
