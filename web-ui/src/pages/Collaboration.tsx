@@ -5,6 +5,7 @@ import { api } from "@/api/client"
 import { Skeleton } from "@/components/ui/skeleton"
 import ErrorState from "@/components/ErrorState"
 import { Button } from "@/components/ui/button"
+import { useT } from "@/context/LanguageContext"
 
 interface GraphNode {
   id: string
@@ -50,6 +51,7 @@ interface DagreEdge {
 }
 
 export default function Collaboration() {
+  const t = useT()
   const [selectedEdge, setSelectedEdge] = useState<GraphEdge | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
 
@@ -63,7 +65,7 @@ export default function Collaboration() {
   if (isError) return <ErrorState message={error?.message} onRetry={refetch} />
 
   if (!data || data.nodes.length === 0) {
-    return <div className="p-8 text-muted-foreground">No collaboration data yet. Run a task dispatch first.</div>
+    return <div className="p-8 text-muted-foreground">{t("collab.no_data")}</div>
   }
 
   const g = new dagre.graphlib.Graph()
@@ -96,7 +98,7 @@ export default function Collaboration() {
   return (
     <div className="flex h-full">
       <div className="flex-1 overflow-auto p-4">
-        <h1 className="text-lg font-semibold mb-4">Collaboration Graph</h1>
+        <h1 className="text-lg font-semibold mb-4">{t("collab.title")}</h1>
         <svg ref={svgRef} width={svgWidth} height={svgHeight} className="border rounded bg-card">
           <defs>
             <marker id="arrow-task" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
@@ -163,7 +165,7 @@ export default function Collaboration() {
       {selectedEdge && (
         <div className="w-80 border-l bg-muted p-4 overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="font-semibold">Task #{selectedEdge.task_id}</h2>
+            <h2 className="font-semibold">{t("collab.task").replace("{id}", String(selectedEdge.task_id))}</h2>
             <Button variant="outline" size="sm" onClick={() => setSelectedEdge(null)}>
               &times;
             </Button>

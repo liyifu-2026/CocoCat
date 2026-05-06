@@ -1,6 +1,7 @@
 import { Component, ReactNode } from "react"
 import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useT } from "@/context/LanguageContext"
 
 interface Props {
   children: ReactNode
@@ -10,6 +11,22 @@ interface Props {
 interface State {
   hasError: boolean
   error?: Error
+}
+
+function ErrorFallback({ error, onReset }: { error?: Error; onReset: () => void }) {
+  const t = useT()
+  return (
+    <div className="flex flex-col items-center justify-center p-12 text-center">
+      <AlertCircle className="size-12 text-destructive mb-4" />
+      <h2 className="text-xl font-semibold mb-2">{t("component.something_wrong")}</h2>
+      <p className="text-muted-foreground text-sm mb-4 max-w-md">
+        {error?.message || t("component.unexpected_error")}
+      </p>
+      <Button variant="outline" onClick={onReset}>
+        {t("component.try_again")}
+      </Button>
+    </div>
+  )
 }
 
 export default class ErrorBoundary extends Component<Props, State> {
@@ -25,16 +42,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return this.props.fallback || (
-        <div className="flex flex-col items-center justify-center p-12 text-center">
-          <AlertCircle className="size-12 text-destructive mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
-          <p className="text-muted-foreground text-sm mb-4 max-w-md">
-            {this.state.error?.message || "An unexpected error occurred"}
-          </p>
-          <Button variant="outline" onClick={() => this.setState({ hasError: false })}>
-            Try again
-          </Button>
-        </div>
+        <ErrorFallback error={this.state.error} onReset={() => this.setState({ hasError: false })} />
       )
     }
     return this.props.children

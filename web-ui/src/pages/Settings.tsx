@@ -6,9 +6,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Sun, Moon, Server, Activity } from "lucide-react"
 import { api } from "@/api/client"
 import { useQuery } from "@tanstack/react-query"
+import { useTranslation } from "@/context/LanguageContext"
 
 export default function Settings() {
   const { theme, toggleTheme } = useTheme()
+  const { t, lang, setLang } = useTranslation()
 
   const { data: status, isLoading } = useQuery({
     queryKey: ["settings-status"],
@@ -19,26 +21,41 @@ export default function Settings() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
 
       <Card>
-        <CardHeader><CardTitle>Appearance</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("settings.appearance")}</CardTitle></CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">Theme</p>
-              <p className="text-xs text-muted-foreground">Toggle between light and dark mode</p>
+              <p className="text-sm font-medium">{t("settings.theme")}</p>
+              <p className="text-xs text-muted-foreground">{t("settings.theme_desc")}</p>
             </div>
             <Button variant="outline" size="sm" onClick={toggleTheme}>
               {theme === "light" ? <Moon className="size-4 mr-1" /> : <Sun className="size-4 mr-1" />}
-              {theme === "light" ? "Dark Mode" : "Light Mode"}
+              {theme === "light" ? t("settings.dark_mode") : t("settings.light_mode")}
             </Button>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>System Status</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("settings.language")}</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">{t("settings.language_desc")}</p>
+          <select
+            className="border rounded px-3 py-1.5 text-sm"
+            value={lang}
+            onChange={e => setLang(e.target.value as "zh" | "en")}
+          >
+            <option value="zh">{t("settings.chinese")}</option>
+            <option value="en">{t("settings.english")}</option>
+          </select>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>{t("settings.system_status")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="space-y-2">
@@ -49,13 +66,13 @@ export default function Settings() {
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm">
                 <Server className="size-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Backend:</span>
-                <Badge variant="secondary">Connected</Badge>
+                <span className="text-muted-foreground">{t("settings.backend")}:</span>
+                <Badge variant="secondary">{t("settings.connected")}</Badge>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Activity className="size-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Status:</span>
-                <Badge variant="secondary">Operational</Badge>
+                <span className="text-muted-foreground">{t("settings.status")}:</span>
+                <Badge variant="secondary">{t("settings.operational")}</Badge>
               </div>
             </div>
           )}
@@ -63,10 +80,10 @@ export default function Settings() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>LLM Configuration</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("settings.llm_config")}</CardTitle></CardHeader>
         <CardContent className="text-sm space-y-2 text-muted-foreground">
-          <p>LLM configuration is managed server-side through .env variables.</p>
-          <p>The frontend communicates with the FastAPI backend at /api.</p>
+          <p>{t("settings.llm_desc_1")}</p>
+          <p>{t("settings.llm_desc_2")}</p>
         </CardContent>
       </Card>
     </div>

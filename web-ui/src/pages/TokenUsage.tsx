@@ -7,8 +7,10 @@ import { Badge } from "@/components/ui/badge"
 import { BarChart3, Cpu } from "lucide-react"
 import { TableSkeleton } from "@/components/LoadingSkeleton"
 import ErrorState from "@/components/ErrorState"
+import { useT } from "@/context/LanguageContext"
 
 export default function TokenUsage() {
+  const t = useT()
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ["usage"], queryFn: () => agentsApi.usage(100) })
   const { data: agentsData } = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
 
@@ -25,13 +27,13 @@ export default function TokenUsage() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold flex items-center gap-2">
-        <BarChart3 className="size-6" /> Token Usage
+        <BarChart3 className="size-6" /> {t("usage.title")}
       </h1>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Tokens</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("usage.total_tokens")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalTokens.toLocaleString()}</div>
@@ -39,7 +41,7 @@ export default function TokenUsage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Iterations</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("usage.total_iterations")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalIterations.toLocaleString()}</div>
@@ -47,7 +49,7 @@ export default function TokenUsage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Unique Agents</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("usage.unique_agents")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -59,26 +61,26 @@ export default function TokenUsage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Usage History</CardTitle>
+          <CardTitle>{t("usage.history")}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading && <TableSkeleton rows={5} cols={6} />}
           {!isLoading && usage.length === 0 && (
             <div className="text-center py-10 text-muted-foreground">
               <Cpu className="size-12 mx-auto mb-4 opacity-30" />
-              <p>No usage data yet</p>
+              <p>{t("usage.no_data")}</p>
             </div>
           )}
           {usage.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Agent</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Input Tokens</TableHead>
-                  <TableHead>Output Tokens</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Iterations</TableHead>
+                  <TableHead>{t("usage.agent")}</TableHead>
+                  <TableHead>{t("usage.time")}</TableHead>
+                  <TableHead>{t("usage.input_tokens")}</TableHead>
+                  <TableHead>{t("usage.output_tokens")}</TableHead>
+                  <TableHead>{t("usage.total")}</TableHead>
+                  <TableHead>{t("usage.iterations")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

@@ -13,6 +13,7 @@ import { Plus, Trash2, Calendar, CheckCircle, Clock } from "lucide-react"
 import ErrorState from "@/components/ErrorState"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useT } from "@/context/LanguageContext"
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-500/10 text-yellow-600 border-yellow-200",
@@ -25,6 +26,7 @@ export default function Schedule() {
   const [newTask, setNewTask] = useState("")
   const [newAssignee, setNewAssignee] = useState("")
   const queryClient = useQueryClient()
+  const t = useT()
 
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ["schedule"], queryFn: () => scheduleApi.get() })
   const { data: agentsData } = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
@@ -39,7 +41,7 @@ export default function Schedule() {
   async function createTask() {
     if (!newTask.trim() || !newAssignee) return
     await scheduleApi.create(newTask.trim(), newAssignee)
-    toast.success("Task created")
+    toast.success(t("schedule.created_toast"))
     queryClient.invalidateQueries({ queryKey: ["schedule"] })
     setCreateOpen(false)
     setNewTask("")
@@ -48,45 +50,45 @@ export default function Schedule() {
 
   async function markDone(taskId: number) {
     await scheduleApi.update(taskId, { status: "completed" })
-    toast.success("Task marked as completed")
+    toast.success(t("schedule.completed_toast"))
     queryClient.invalidateQueries({ queryKey: ["schedule"] })
   }
 
   async function deleteTask(taskId: number) {
     await scheduleApi.delete(taskId)
-    toast.success("Task deleted")
+    toast.success(t("schedule.deleted_toast"))
     queryClient.invalidateQueries({ queryKey: ["schedule"] })
   }
 
-  function TaskCard({ t }: { t: typeof tasks[0] }) {
-    const agent = agents.find(a => a.id === t.assigned_to)
+  function TaskCard({ t: task }: { t: typeof tasks[0] }) {
+    const agent = agents.find(a => a.id === task.assigned_to)
     return (
       <div className="rounded-lg border border-border p-4 space-y-2">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <p className="text-sm font-medium">{t.task}</p>
+            <p className="text-sm font-medium">{task.task}</p>
             <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-              <Badge variant="outline">{agent?.name ?? t.assigned_to}</Badge>
-              <span>{t.created_at?.slice(0, 19).replace("T", " ")}</span>
-              <span className={`px-1.5 py-0.5 rounded text-xs border ${STATUS_COLORS[t.status] ?? ""}`}>
-                {t.status}
+              <Badge variant="outline">{agent?.name ?? task.assigned_to}</Badge>
+              <span>{task.created_at?.slice(0, 19).replace("T", " ")}</span>
+              <span className={`px-1.5 py-0.5 rounded text-xs border ${STATUS_COLORS[task.status] ?? ""}`}>
+                {task.status}
               </span>
             </div>
           </div>
           <div className="flex gap-1 shrink-0">
-            {t.status === "pending" && (
-              <Button size="xs" variant="outline" onClick={() => markDone(t.id)}>
+            {task.status === "pending" && (
+              <Button size="xs" variant="outline" onClick={() => markDone(task.id)}>
                 <CheckCircle className="size-3" />
               </Button>
             )}
-            <Button size="xs" variant="outline" onClick={() => deleteTask(t.id)}>
+            <Button size="xs" variant="outline" onClick={() => deleteTask(task.id)}>
               <Trash2 className="size-3" />
             </Button>
           </div>
         </div>
-        {t.result && (
+        {task.result && (
           <p className="text-xs text-muted-foreground border-t border-border pt-1 mt-1">
-            Result: {t.result.slice(0, 200)}
+            {`${t("schedule.result")} ${task.result.slice(0, 200)}`}
           </p>
         )}
       </div>
@@ -97,32 +99,32 @@ export default function Schedule() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Calendar className="size-6" /> Schedule
+          <Calendar className="size-6" /> {t("schedule.title")}
         </h1>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="size-4 mr-1" /> New Task</Button>
+            <Button size="sm"><Plus className="size-4 mr-1" /> {t("schedule.new_task")}</Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
-            <DialogHeader><DialogTitle>New Scheduled Task</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("schedule.new_task_title")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium">Task Description</label>
+                <label className="text-sm font-medium">{t("schedule.task_desc")}</label>
                 <Textarea value={newTask} onChange={e => setNewTask(e.target.value)}
-                  placeholder="Describe the task..." className="min-h-[100px]" />
+                  placeholder={t("schedule.task_desc_placeholder")} className="min-h-[100px]" />
               </div>
               <div>
-                <label className="text-sm font-medium">Assign To</label>
+                <label className="text-sm font-medium">{t("schedule.assign_to")}</label>
                 <Select value={newAssignee} onValueChange={setNewAssignee}>
-                  <SelectTrigger><SelectValue placeholder="Select agent..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("schedule.select_agent")} /></SelectTrigger>
                   <SelectContent>
                     {agents.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                <Button size="sm" onClick={createTask} disabled={!newTask.trim() || !newAssignee}>Create</Button>
+                <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
+                <Button size="sm" onClick={createTask} disabled={!newTask.trim() || !newAssignee}>{t("common.create")}</Button>
               </div>
             </div>
           </DialogContent>
@@ -145,14 +147,14 @@ export default function Schedule() {
       {!isLoading && !isError && tasks.length === 0 && (
         <div className="text-center py-20 text-muted-foreground">
           <Calendar className="size-12 mx-auto mb-4 opacity-30" />
-          <p>No scheduled tasks yet</p>
+          <p>{t("schedule.no_tasks")}</p>
         </div>
       )}
 
       {pendingTasks.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <Clock className="size-4" /> Pending ({pendingTasks.length})
+            <Clock className="size-4" /> {t("schedule.pending").replace("{count}", String(pendingTasks.length))}
           </h2>
           <div className="space-y-2">
             {pendingTasks.map(t => <TaskCard key={t.id} t={t} />)}
@@ -163,7 +165,7 @@ export default function Schedule() {
       {completedTasks.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <CheckCircle className="size-4 text-green-500" /> Completed ({completedTasks.length})
+            <CheckCircle className="size-4 text-green-500" /> {t("schedule.completed").replace("{count}", String(completedTasks.length))}
           </h2>
           <div className="space-y-2 opacity-60">
             {completedTasks.map(t => <TaskCard key={t.id} t={t} />)}
@@ -174,7 +176,7 @@ export default function Schedule() {
       {failedTasks.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2 text-red-500">
-            Failed ({failedTasks.length})
+            {t("schedule.failed").replace("{count}", String(failedTasks.length))}
           </h2>
           <div className="space-y-2">
             {failedTasks.map(t => <TaskCard key={t.id} t={t} />)}

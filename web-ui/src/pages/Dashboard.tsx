@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { Users, FolderKanban, UserPlus, MessageSquare } from "lucide-react"
 import ErrorState from "@/components/ErrorState"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useT } from "@/context/LanguageContext"
 
 export default function Dashboard() {
+  const t = useT()
   const agents = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
   const scenes = useQuery({ queryKey: ["scenes"], queryFn: () => scenesApi.list() })
   const hires = useQuery({ queryKey: ["hiring"], queryFn: () => hiringApi.listPending() })
@@ -40,15 +42,15 @@ export default function Dashboard() {
   const isAnyError = agents.isError || scenes.isError || hires.isError || chatMessages.isError
 
   const metrics = [
-    { label: "Online Agents", value: onlineAgents, icon: Users, loading: agents.isLoading },
-    { label: "Scenes", value: sceneCount, icon: FolderKanban, loading: scenes.isLoading },
-    { label: "Pending Hires", value: pendingHires, icon: UserPlus, loading: hires.isLoading },
-    { label: "Recent Messages", value: recentMessages, icon: MessageSquare, loading: chatMessages.isLoading },
+    { label: t("dashboard.online_agents"), value: onlineAgents, icon: Users, loading: agents.isLoading },
+    { label: t("dashboard.active_scenes"), value: sceneCount, icon: FolderKanban, loading: scenes.isLoading },
+    { label: t("dashboard.pending_hires"), value: pendingHires, icon: UserPlus, loading: hires.isLoading },
+    { label: t("dashboard.recent_messages"), value: recentMessages, icon: MessageSquare, loading: chatMessages.isLoading },
   ]
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <h1 className="text-2xl font-bold">{t("dashboard.title")}</h1>
       {isAnyError && (
         <ErrorState
           message={agents.error?.message ?? scenes.error?.message ?? hires.error?.message ?? chatMessages.error?.message}
@@ -73,13 +75,13 @@ export default function Dashboard() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-lg">Agents</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">{t("dashboard.agents_card")}</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {agents.data?.agents?.map(a => (
               <div key={a.id} className="flex items-center justify-between">
                 <span className="font-medium">{displayConfs[a.id]?.nickname || a.name}</span>
                 <Badge variant={a.status === "running" ? "default" : "secondary"}>
-                  {a.status === "running" ? "Online" : a.status === "error" ? "Error" : "Offline"}
+                  {a.status === "running" ? t("common.online") : a.status === "error" ? t("common.error_status") : t("common.offline")}
                 </Badge>
               </div>
             ))}
@@ -87,7 +89,7 @@ export default function Dashboard() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-lg">Recent Chat</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">{t("dashboard.recent_chat")}</CardTitle></CardHeader>
           <CardContent className="space-y-2 max-h-64 overflow-auto">
             {chatMessages.data?.messages?.slice(-5).reverse().map((m, i) => (
               <div key={i} className="text-sm border-b border-border pb-1">

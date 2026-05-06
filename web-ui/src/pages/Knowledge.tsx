@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookOpen } from "lucide-react"
 import { CardGridSkeleton } from "@/components/LoadingSkeleton"
 import ErrorState from "@/components/ErrorState"
+import { useT } from "@/context/LanguageContext"
 
 export default function Knowledge() {
+  const t = useT()
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ["knowledge"], queryFn: () => knowledgeApi.list() })
 
   if (isLoading) return <CardGridSkeleton count={3} />
@@ -15,10 +17,10 @@ export default function Knowledge() {
   if (!data?.kbs || data.kbs.length === 0) {
     return (
       <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-bold">Knowledge Bases</h1>
+        <h1 className="text-2xl font-bold">{t("knowledge.title")}</h1>
         <div className="text-center py-20 text-muted-foreground">
           <BookOpen className="size-12 mx-auto mb-4 opacity-30" />
-          <p>No knowledge bases yet</p>
+          <p>{t("knowledge.no_kbs")}</p>
         </div>
       </div>
     )
@@ -26,7 +28,7 @@ export default function Knowledge() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Knowledge Bases</h1>
+      <h1 className="text-2xl font-bold">{t("knowledge.title")}</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {data.kbs.map(kb => (
           <Link key={kb.id} to={`/knowledge/${kb.id}`}>
@@ -37,7 +39,7 @@ export default function Knowledge() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Click to browse wiki pages
+                {t("knowledge.browse")}
               </CardContent>
             </Card>
           </Link>

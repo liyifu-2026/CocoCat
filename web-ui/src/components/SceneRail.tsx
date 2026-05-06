@@ -5,12 +5,14 @@ import { scenesApi } from "@/api/scenes"
 import { SceneAvatar } from "./SceneAvatar"
 import { useTheme } from "@/context/ThemeContext"
 import { useSidebar } from "@/context/SidebarContext"
+import { useT } from "@/context/LanguageContext"
 import { useDialogActions } from "@/context/DialogContext"
 import { Button } from "@/components/ui/button"
 import { Sun, Moon, Plus, PanelRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function SceneRail() {
+  const t = useT()
   const navigate = useNavigate()
   const location = useLocation()
   const { theme, toggleTheme } = useTheme()
@@ -43,12 +45,12 @@ export function SceneRail() {
             ? "bg-sidebar-accent text-sidebar-accent-foreground"
             : "text-sidebar-foreground hover:bg-sidebar-accent",
         )}
-        title="Dashboard"
+        title={t("component.dashboard")}
       >
         <span className="text-xs font-bold">CC</span>
       </button>
       {collapsed && (
-        <button onClick={toggle} title="Show sidebar"
+        <button onClick={toggle} title={t("component.show_sidebar")}
           className="w-7 h-7 rounded-md flex items-center justify-center text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
         >
           <PanelRight className="size-4" />
@@ -76,10 +78,10 @@ export function SceneRail() {
         <button
           onClick={openImportScene}
           className="flex items-center justify-center gap-2 w-full text-sidebar-foreground hover:bg-sidebar-accent rounded-md py-1 mt-1"
-          title="Import / Create Scene"
+          title={t("import_create.title")}
         >
           <Plus className="size-4 shrink-0" />
-          {hovered && <span className="text-xs">New Scene</span>}
+          {hovered && <span className="text-xs">{t("component.new_scene")}</span>}
         </button>
       </nav>
 
@@ -88,7 +90,7 @@ export function SceneRail() {
       <button
         onClick={toggleTheme}
         className="w-7 h-7 rounded-md flex items-center justify-center text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-        title={theme === "light" ? "Dark Mode" : "Light Mode"}
+        title={theme === "light" ? t("component.dark_mode") : t("component.light_mode")}
       >
         {theme === "light" ? <Moon className="size-4" /> : <Sun className="size-4" />}
       </button>

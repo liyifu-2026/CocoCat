@@ -2,13 +2,13 @@ import { NavLink } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "@/context/SidebarContext"
 import { useAuth } from "@/context/AuthContext"
-import { useTranslation } from "@/context/LanguageContext"
+import { useT } from "@/context/LanguageContext"
 import {
     LayoutDashboard, Users, FolderKanban, Settings, BookOpen, Mail, BarChart3,
    UserPlus, MessageSquare, Calendar, GitBranch,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { PanelLeftClose, PanelLeft, LogOut, Languages } from "lucide-react"
+import { PanelLeftClose, PanelLeft, LogOut } from "lucide-react"
 
 const navItems = [
   { to: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
@@ -27,7 +27,7 @@ const navItems = [
 export function Sidebar() {
   const { collapsed, toggle } = useSidebar()
   const { logout } = useAuth()
-  const { t, lang, setLang } = useTranslation()
+  const t = useT()
 
   return (
     <aside
@@ -69,24 +69,6 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="border-t border-sidebar-border p-2 space-y-1">
-        {!collapsed && (
-          <button
-            onClick={() => setLang(lang === "zh" ? "en" : "zh")}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-          >
-            <Languages className="size-4 shrink-0" />
-            <span>{lang === "zh" ? "English" : "中文"}</span>
-          </button>
-        )}
-        {collapsed && (
-          <button
-            onClick={() => setLang(lang === "zh" ? "en" : "zh")}
-            className="flex w-full items-center justify-center rounded-md px-2 py-2 text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-            title={lang === "zh" ? "English" : "中文"}
-          >
-            <Languages className="size-4 shrink-0" />
-          </button>
-        )}
         {!collapsed && (
           <button
             onClick={logout}

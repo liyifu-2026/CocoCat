@@ -8,8 +8,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, Mail, MailOpen } from "lucide-react"
+import { useT } from "@/context/LanguageContext"
 
 export default function Mailbox() {
+  const t = useT()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [message, setMessage] = useState("")
   const queryClient = useQueryClient()
@@ -48,7 +50,7 @@ export default function Mailbox() {
       {/* Left: Agent list */}
       <div className="w-64 border-r border-border flex flex-col shrink-0">
         <div className="p-4 border-b border-border">
-          <h2 className="font-semibold">Mailboxes</h2>
+          <h2 className="font-semibold">{t("mailbox.title")}</h2>
         </div>
         <ScrollArea className="flex-1">
           {mailboxes.map(mb => (
@@ -88,19 +90,19 @@ export default function Mailbox() {
       <div className="flex-1 flex flex-col">
         {!selectedId ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            Select an agent to view their mailbox
+            {t("mailbox.select")}
           </div>
         ) : (
           <>
             <div className="p-4 border-b border-border">
               <h2 className="font-semibold">{selectedMailbox?.name ?? selectedId}</h2>
-              <p className="text-xs text-muted-foreground">ID: {selectedId}</p>
+              <p className="text-xs text-muted-foreground">{t("mailbox.id").replace("{id}", selectedId!)}</p>
             </div>
 
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-3">
                 {messages.length === 0 && (
-                  <p className="text-center text-sm text-muted-foreground py-10">No messages yet</p>
+                  <p className="text-center text-sm text-muted-foreground py-10">{t("mailbox.no_messages")}</p>
                 )}
                 {messages.slice().reverse().map((msg, i) => (
                   <div key={i} className={`flex ${msg.from === "admin" ? "justify-end" : "justify-start"}`}>
@@ -110,7 +112,7 @@ export default function Mailbox() {
                         : "bg-muted"
                     }`}>
                       <div className="text-xs opacity-70 mb-1">
-                        {msg.from === "admin" ? "You" : msg.from}
+                        {msg.from === "admin" ? t("mailbox.you") : msg.from}
                         <span className="ml-2">{msg.timestamp?.slice(11, 19)}</span>
                       </div>
                       <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -125,7 +127,7 @@ export default function Mailbox() {
                 <Textarea
                   value={message}
                   onChange={e => setMessage(e.target.value)}
-                  placeholder="Type a message..."
+                  placeholder={t("mailbox.type_message")}
                   className="min-h-[40px] max-h-[120px]"
                   onKeyDown={e => {
                     if (e.key === "Enter" && !e.shiftKey) {

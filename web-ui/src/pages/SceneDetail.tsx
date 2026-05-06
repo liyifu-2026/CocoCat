@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useT } from "@/context/LanguageContext"
 import { scenesApi } from "@/api/scenes"
 import { agentsApi } from "@/api/agents"
 import { entriesApi } from "@/api/entries"
@@ -18,6 +19,7 @@ export default function SceneDetail() {
   const { data } = useQuery({ queryKey: ["scenes"], queryFn: () => scenesApi.list() })
   const scene = data?.scenes?.find(s => s.id === id)
   const queryClient = useQueryClient()
+  const t = useT()
   const { data: agentsData } = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
   const channels = useQuery({ queryKey: ["channels"], queryFn: () => entriesApi.listChannels() })
   const entriesConfig = useQuery({
@@ -31,31 +33,31 @@ export default function SceneDetail() {
   const [newSkill, setNewSkill] = useState("")
   const [deleteOpen, setDeleteOpen] = useState(false)
 
-  if (!scene) return <div className="p-6 text-muted-foreground">Scene not found</div>
+  if (!scene) return <div className="p-6 text-muted-foreground">{t("scene.not_found")}</div>
 
   return (
     <div className="p-6 space-y-6">
       <Link to="/scenes" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Back to Scenes
+        <ArrowLeft className="size-4" /> {t("scene.back_to_all")}
       </Link>
       <h1 className="text-2xl font-bold">{scene.id}</h1>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Context</CardTitle>
+          <CardTitle>{t("scene.context")}</CardTitle>
           {editingContext ? (
             <div className="flex gap-2">
-              <Button size="xs" variant="outline" onClick={() => setEditingContext(false)}>Cancel</Button>
+              <Button size="xs" variant="outline" onClick={() => setEditingContext(false)}>{t("scene.context_cancel")}</Button>
               <Button size="xs" onClick={async () => {
                 await scenesApi.updateContext(scene.id, contextText)
                 queryClient.invalidateQueries({ queryKey: ["scenes"] })
                 setEditingContext(false)
-              }}>Save</Button>
+              }}>{t("scene.context_save")}</Button>
             </div>
           ) : (
             <Button size="xs" variant="outline"
               onClick={() => { setContextText(scene.context); setEditingContext(true) }}>
-              <Pencil className="size-3 mr-1" /> Edit
+              <Pencil className="size-3 mr-1" /> {t("scene.context_edit")}
             </Button>
           )}
         </CardHeader>
@@ -71,11 +73,11 @@ export default function SceneDetail() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardHeader><CardTitle>Knowledge Bases</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("scene.knowledge_bases")}</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-1 mb-2">
               {(scene.mounted_kbs ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">None mounted</p>
+                <p className="text-sm text-muted-foreground">{t("scene.no_kbs")}</p>
               ) : (
                 scene.mounted_kbs.map((kb, i) => (
                   <div key={i} className="flex items-center justify-between text-sm">
@@ -93,7 +95,7 @@ export default function SceneDetail() {
               )}
             </div>
             <div className="flex gap-2">
-              <Input size={1} placeholder="KB name..." value={newKb} onChange={e => setNewKb(e.target.value)} />
+              <Input size={1} placeholder={t("scene.add_kb")} value={newKb} onChange={e => setNewKb(e.target.value)} />
               <Button size="sm" variant="outline" onClick={async () => {
                 if (!newKb.trim()) return
                 const updated = [...(scene.mounted_kbs ?? []), newKb.trim()]
@@ -106,11 +108,11 @@ export default function SceneDetail() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Environment Skills</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("scene.env_skills")}</CardTitle></CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-1 mb-2">
               {scene.env_skills.length === 0 ? (
-                <p className="text-sm text-muted-foreground">None</p>
+                <p className="text-sm text-muted-foreground">{t("scene.no_skills")}</p>
               ) : (
                 scene.env_skills.map((sk, i) => (
                   <span key={i} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs">
@@ -125,7 +127,7 @@ export default function SceneDetail() {
               )}
             </div>
             <div className="flex gap-2">
-              <Input size={1} placeholder="Skill name..." value={newSkill} onChange={e => setNewSkill(e.target.value)} />
+              <Input size={1} placeholder={t("scene.add_skill")} value={newSkill} onChange={e => setNewSkill(e.target.value)} />
               <Button size="sm" variant="outline" onClick={async () => {
                 if (!newSkill.trim()) return
                 const updated = [...scene.env_skills, newSkill.trim()]
@@ -138,11 +140,11 @@ export default function SceneDetail() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Roster</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("scene.roster")}</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-1 mb-2">
               {scene.roster.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No agents</p>
+                <p className="text-sm text-muted-foreground">{t("scene.no_agents")}</p>
               ) : (
                 scene.roster.map((a, i) => (
                   <div key={i} className="flex items-center justify-between text-sm">
@@ -172,7 +174,7 @@ export default function SceneDetail() {
       </div>
 
       <EntryManager
-        title="Scene Entries"
+        title={t("scene.entries")}
         entries={entriesConfig.data?.entries}
         allChannels={channels.data?.channels}
         onSave={async (newEntries) => {
@@ -181,17 +183,17 @@ export default function SceneDetail() {
         }}
       />
       <p className="text-xs text-muted-foreground -mt-2">
-        Messages from these channels are routed to agents assigned to this scene.
+        {t("scene.entries_desc")}
       </p>
 
       <div className="pt-4 border-t border-border">
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <DialogTrigger asChild>
-            <Button variant="destructive" size="sm"><Trash2 className="size-4 mr-1" /> Delete Scene</Button>
+            <Button variant="destructive" size="sm"><Trash2 className="size-4 mr-1" /> {t("scene.delete")}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Delete {scene.id}?</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground">This will permanently remove the scene and all its files.</p>
+            <DialogHeader><DialogTitle>{t("scene.delete")} {scene.id}?</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">{t("scene.delete_desc")}</p>
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" size="sm" onClick={() => setDeleteOpen(false)}>Cancel</Button>
               <Button variant="destructive" size="sm" onClick={async () => {

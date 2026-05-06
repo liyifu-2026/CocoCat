@@ -18,6 +18,7 @@ import {
   MessageSquare, Plus, Send, Hash, Users, X, Copy, Undo2, MoreHorizontal,
 } from "lucide-react"
 import { AgentAvatar } from "@/components/AgentAvatar"
+import { useT } from "@/context/LanguageContext"
 
 function formatTime(ts: string) {
   const d = new Date(ts)
@@ -31,10 +32,11 @@ function MessageBubble({ msg, isAdmin, msgIndex, groupId, agentNames, onRecall }
   msg: ChatMessage; isAdmin: boolean; msgIndex: number; groupId: string
   agentNames: Record<string, string>; onRecall: (idx: number) => void
 }) {
+  const t = useT()
   if (msg.recalled) {
     return (
       <div className="flex justify-center py-2">
-        <span className="text-xs text-muted-foreground italic">A message was recalled</span>
+        <span className="text-xs text-muted-foreground italic">{t("chat.message_recalled")}</span>
       </div>
     )
   }
@@ -59,11 +61,11 @@ function MessageBubble({ msg, isAdmin, msgIndex, groupId, agentNames, onRecall }
           </DropdownMenuTrigger>
           <DropdownMenuContent align={isAdmin ? "end" : "start"}>
             <DropdownMenuItem onClick={() => navigator.clipboard.writeText(msg.content)}>
-              <Copy className="size-3 mr-2" /> Copy
+              <Copy className="size-3 mr-2" /> {t("chat.copy")}
             </DropdownMenuItem>
             {isAdmin && (
               <DropdownMenuItem onClick={() => onRecall(msgIndex)}>
-                <Undo2 className="size-3 mr-2" /> Recall
+                <Undo2 className="size-3 mr-2" /> {t("chat.recall")}
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -93,6 +95,7 @@ export default function Chat() {
   const [newGroupAnnouncement, setNewGroupAnnouncement] = useState("")
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const queryClient = useQueryClient()
+  const t = useT()
 
   const { data: groupsData } = useQuery({ queryKey: ["chat-groups"], queryFn: () => chatApi.listGroups() })
   const { data: agentsData } = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
@@ -159,16 +162,16 @@ export default function Chat() {
       {/* Left sidebar: conversation list */}
       <div className="w-72 border-r border-border flex flex-col shrink-0">
         <div className="p-4 border-b border-border flex items-center justify-between">
-          <h2 className="font-semibold">Chat</h2>
+          <h2 className="font-semibold">{t("chat.title")}</h2>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild><Button size="icon-xs" variant="ghost"><Plus className="size-4" /></Button></DialogTrigger>
             <DialogContent className="max-w-md">
-              <DialogHeader><DialogTitle>New Group</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{t("chat.new_group")}</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div><label className="text-sm font-medium">Group Name</label><Input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Group name..." /></div>
-                <div><label className="text-sm font-medium">Announcement</label><Input value={newGroupAnnouncement} onChange={e => setNewGroupAnnouncement(e.target.value)} placeholder="Group announcement..." /></div>
-                <div><label className="text-sm font-medium">Members</label><div className="flex flex-wrap gap-1 mt-1">{agents.map(a => (<button key={a.id} onClick={() => toggleMember(a.id)} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs border transition-colors ${selectedMembers.includes(a.id) ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}>{a.name}{selectedMembers.includes(a.id) && <X className="size-3" />}</button>))}</div></div>
-                <div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>Cancel</Button><Button size="sm" onClick={createGroup} disabled={!newGroupName.trim()}>Create</Button></div>
+                <div><label className="text-sm font-medium">{t("chat.group_name")}</label><Input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder={t("chat.group_name_placeholder")} /></div>
+                <div><label className="text-sm font-medium">{t("chat.announcement")}</label><Input value={newGroupAnnouncement} onChange={e => setNewGroupAnnouncement(e.target.value)} placeholder={t("chat.announcement_placeholder")} /></div>
+                <div><label className="text-sm font-medium">{t("chat.members")}</label><div className="flex flex-wrap gap-1 mt-1">{agents.map(a => (<button key={a.id} onClick={() => toggleMember(a.id)} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs border transition-colors ${selectedMembers.includes(a.id) ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}>{a.name}{selectedMembers.includes(a.id) && <X className="size-3" />}</button>))}</div></div>
+                <div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button><Button size="sm" onClick={createGroup} disabled={!newGroupName.trim()}>{t("common.create")}</Button></div>
               </div>
             </DialogContent>
           </Dialog>
@@ -177,7 +180,7 @@ export default function Chat() {
           {/* Channels Section */}
           {channels.length > 0 && (
             <div className="px-3 pt-3 pb-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Channels</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("chat.channels")}</p>
             </div>
           )}
           {channels.map(g => (
@@ -198,7 +201,7 @@ export default function Chat() {
                 <div className="text-xs text-muted-foreground truncate mt-0.5">
                   {(() => {
                     const last = messagesData?.messages?.slice(-1)[0]
-                    return last ? (last.recalled ? "[recalled]" : last.content) : `${g.members.length} members`
+                    return last ? (last.recalled ? t("chat.recalled") : last.content) : t("chat.members_count").replace("{count}", String(g.members.length))
                   })()}
                 </div>
               </div>
@@ -211,7 +214,7 @@ export default function Chat() {
               <div className="px-3 pt-4 pb-1 flex items-center justify-between">
                 <button onClick={() => setDmOpen(o => !o)} className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
                   <span className={`transition-transform duration-150 ${dmOpen ? "rotate-90" : ""}`}>▶</span>
-                  Direct Messages
+                  {t("chat.direct_messages")}
                 </button>
                 <span className="text-[10px] text-muted-foreground">{dmGroups.length}</span>
               </div>
@@ -241,7 +244,7 @@ export default function Chat() {
       <div className="flex-1 flex flex-col">
         {!selectedGroup ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <div className="text-center"><MessageSquare className="size-12 mx-auto mb-4 opacity-30" /><p>Select a group to start chatting</p></div>
+            <div className="text-center"><MessageSquare className="size-12 mx-auto mb-4 opacity-30" /><p>{t("chat.select_chat")}</p></div>
           </div>
         ) : (
           <>
@@ -257,7 +260,7 @@ export default function Chat() {
                     <div>
                       <h2 className="font-semibold">{agentName}</h2>
                       <p className="text-xs text-muted-foreground">
-                        {status === "running" ? "Online" : status === "error" ? "Error" : status === "busy" ? "Busy" : "Offline"}
+                        {status === "running" ? t("chat.online") : status === "error" ? t("chat.error") : status === "busy" ? t("chat.busy") : t("chat.offline")}
                       </p>
                     </div>
                   </div>
@@ -270,7 +273,7 @@ export default function Chat() {
 
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-4">
-                {messages.length === 0 && <p className="text-center text-sm text-muted-foreground py-10">No messages yet</p>}
+                {messages.length === 0 && <p className="text-center text-sm text-muted-foreground py-10">{t("chat.no_messages")}</p>}
                 {messages.filter(m => !m.recalled || true).map((msg, i) => (
                   <MessageBubble key={i} msg={msg} isAdmin={msg.from === "admin"}
                     msgIndex={i} groupId={selectedGroup} agentNames={agentNames}
@@ -282,7 +285,7 @@ export default function Chat() {
             <div className="p-4 border-t border-border">
               <div className="flex gap-2">
                 <Textarea value={message} onChange={e => setMessage(e.target.value)}
-                  placeholder={selectedGroup?.startsWith("dm_") ? `Message ${currentGroup?.name}...` : "Type a message... (use @name to mention)"}
+                  placeholder={selectedGroup?.startsWith("dm_") ? t("chat.type_dm").replace("{name}", currentGroup?.name ?? "") : t("chat.type_message")}
                   className="min-h-[40px] max-h-[120px]"
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }} />
                 <Button onClick={sendMessage} disabled={!message.trim()} className="shrink-0 self-end">

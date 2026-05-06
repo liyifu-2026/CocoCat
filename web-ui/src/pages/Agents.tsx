@@ -8,12 +8,14 @@ import { Badge } from "@/components/ui/badge"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import ErrorState from "@/components/ErrorState"
 import { CardGridSkeleton } from "@/components/LoadingSkeleton"
+import { useT } from "@/context/LanguageContext"
 
 export default function Agents() {
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [nicknameInput, setNicknameInput] = useState("")
   const [displayConfs, setDisplayConfs] = useState<Record<string, {nickname?: string}>>({})
+  const t = useT()
 
   useEffect(() => {
     if (!data?.agents) return
@@ -30,9 +32,9 @@ export default function Agents() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Agents</h1>
+      <h1 className="text-2xl font-bold">{t("agents.title")}</h1>
       {!data?.agents?.length ? (
-        <p className="text-muted-foreground">No agents found.</p>
+        <p className="text-muted-foreground">{t("agents.no_agents")}</p>
       ) : (
         <div>
           {data.agents.map(a => (
@@ -52,13 +54,13 @@ export default function Agents() {
                   <p className="text-xs text-muted-foreground">{a.scene}</p>
                 </div>
                 <Badge variant={a.status === "running" ? "default" : "secondary"}>
-                  {a.status === "running" ? "Online" : a.status === "error" ? "Error" : "Offline"}
+                  {a.status === "running" ? t("common.online") : a.status === "error" ? t("common.error_status") : t("common.offline")}
                 </Badge>
               </div>
               {editingId === a.id && (
                 <div className="px-3 pb-2">
                   <div className="flex gap-1 items-center">
-                    <input autoFocus className="h-7 text-sm border rounded px-1 flex-1" placeholder="Set nickname..."
+                    <input autoFocus className="h-7 text-sm border rounded px-1 flex-1" placeholder={t("agents.set_nickname")}
                       value={nicknameInput} onChange={e => setNicknameInput(e.target.value)}
                       onKeyDown={async e => {
                         if (e.key === "Enter" && nicknameInput.trim()) {

@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, ChevronRight, ChevronDown, Users, Lightbulb, BookOpen } from "lucide-react"
+import { useT } from "@/context/LanguageContext"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { transformWikilinks } from "@/lib/wikilink-transform"
@@ -14,13 +15,14 @@ import { resolveWikiPage } from "@/lib/wiki-resolver"
 import type { WikiPageInfo } from "@/lib/wiki-resolver"
 import { FrontmatterPanel } from "@/components/FrontmatterPanel"
 
-const TYPE_CONFIG: Record<string, { icon: typeof Users; label: string; color: string }> = {
-  entity:  { icon: Users,     label: "Entities", color: "text-blue-500" },
-  concept: { icon: Lightbulb, label: "Concepts", color: "text-purple-500" },
-  source:  { icon: BookOpen,  label: "Sources",  color: "text-orange-500" },
+const TYPE_CONFIG: Record<string, { icon: typeof Users; labelKey: string; color: string }> = {
+  entity:  { icon: Users,     labelKey: "knowledge.entities", color: "text-blue-500" },
+  concept: { icon: Lightbulb, labelKey: "knowledge.concepts", color: "text-purple-500" },
+  source:  { icon: BookOpen,  labelKey: "knowledge.sources",  color: "text-orange-500" },
 }
 
 export default function KnowledgeDetail() {
+  const t = useT()
   const { kbId } = useParams<{ kbId: string }>()
   const { data: kb } = useQuery({
     queryKey: ["knowledge", kbId],
@@ -101,14 +103,14 @@ export default function KnowledgeDetail() {
             to="/knowledge"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-2"
           >
-            <ArrowLeft className="size-3" /> Back
+            <ArrowLeft className="size-3" /> {t("knowledge.back")}
           </Link>
           <h2 className="font-semibold truncate">{kbId}</h2>
         </div>
         <div className="p-2">
           <input
             type="text"
-            placeholder="Search wiki..."
+            placeholder={t("knowledge.search")}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-ring"
@@ -117,10 +119,10 @@ export default function KnowledgeDetail() {
         {searchQuery.length >= 2 && search.data ? (
           <ScrollArea className="flex-1 p-2">
             <div className="text-xs font-medium text-muted-foreground px-2 pb-1">
-              Search results ({search.data.results.length})
+              {t("knowledge.search_results").replace("{count}", String(search.data.results.length))}
             </div>
             {search.data.results.length === 0 && (
-              <div className="px-2 text-xs text-muted-foreground">No results</div>
+              <div className="px-2 text-xs text-muted-foreground">{t("knowledge.no_results")}</div>
             )}
             {search.data.results.map(r => (
               <button key={r.path}
@@ -139,7 +141,7 @@ export default function KnowledgeDetail() {
               </div>
             )}
             {sortedTypes.map(([type, pages]) => {
-              const config = TYPE_CONFIG[type] ?? { icon: BookOpen, label: type, color: "text-muted-foreground" }
+              const config = TYPE_CONFIG[type] ?? { icon: BookOpen, labelKey: type, color: "text-muted-foreground" }
               const Icon = config.icon
               const isExpanded = expandedTypes.has(type)
               return (
@@ -154,7 +156,7 @@ export default function KnowledgeDetail() {
                       <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
                     )}
                     <Icon className={`size-3.5 shrink-0 ${config.color}`} />
-                    <span className="flex-1 text-left font-medium">{config.label}</span>
+                    <span className="flex-1 text-left font-medium">{t(config.labelKey)}</span>
                     <span className="text-xs text-muted-foreground">{pages.length}</span>
                   </button>
                   {isExpanded && (
@@ -185,7 +187,7 @@ export default function KnowledgeDetail() {
       <div className="flex-1 overflow-auto p-6">
         {!selectedPage && (
           <div className="text-center text-muted-foreground py-20">
-            Select a wiki page from the sidebar
+            {t("knowledge.select_page")}
           </div>
         )}
         {pageContent.isLoading && (

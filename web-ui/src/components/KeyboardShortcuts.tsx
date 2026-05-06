@@ -2,15 +2,17 @@ import { useEffect, useState } from "react"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
-
-const shortcuts = [
-  { keys: ["Ctrl", "K"], label: "Command palette" },
-  { keys: ["?"], label: "Keyboard shortcuts" },
-  { keys: ["Esc"], label: "Close dialog / Cancel" },
-]
+import { useT } from "@/context/LanguageContext"
 
 export function KeyboardShortcuts() {
+  const t = useT()
   const [open, setOpen] = useState(false)
+
+  const shortcuts = [
+    { keys: ["Ctrl", "K"], label: t("component.cmd_palette") },
+    { keys: ["?"], label: t("component.keyboard_shortcuts") },
+    { keys: ["Esc"], label: t("component.close_cancel") },
+  ]
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -29,7 +31,7 @@ export function KeyboardShortcuts() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Keyboard Shortcuts</DialogTitle>
+          <DialogTitle>{t("component.keyboard_shortcuts")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           {shortcuts.map(s => (

@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
+import { useT } from "@/context/LanguageContext"
 import { scenesApi } from "@/api/scenes"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -15,6 +16,7 @@ export function ImportSceneDialog() {
   const { closeImportScene } = useDialogActions()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const t = useT()
   const [sceneId, setSceneId] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -35,18 +37,18 @@ export function ImportSceneDialog() {
     <Dialog open={importSceneOpen} onOpenChange={(open) => !open && closeImportScene()}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Import / Create Scene</DialogTitle>
+          <DialogTitle>{t("import_create.title")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Scene ID</Label>
+            <Label>{t("import_create.id")}</Label>
             <Input value={sceneId} onChange={e => setSceneId(e.target.value)}
-              placeholder="e.g. marketing" />
+              placeholder={t("import_create.id_placeholder")} />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={closeImportScene}>Cancel</Button>
+            <Button variant="outline" size="sm" onClick={closeImportScene}>{t("common.cancel")}</Button>
             <Button size="sm" onClick={handleCreate} disabled={!sceneId.trim() || loading}>
-              {loading ? "Creating..." : "Create"}
+              {loading ? t("import_create.creating") : t("common.create")}
             </Button>
           </div>
         </div>
