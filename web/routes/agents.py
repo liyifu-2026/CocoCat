@@ -7,28 +7,35 @@ TODO: Migrate all endpoints to proxy through Rust HTTP API:
   - DELETE /api/agents/{id} → Rust DELETE /api/agents/{id}
   - Profile, skills, memory, display, entries → Rust equivalents
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 import json, os, sys
+import httpx
+from fastapi.responses import JSONResponse
 from pathlib import Path
 
 router = APIRouter()
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+RUST_API = "http://localhost:3000/api/agents"
+
+
+async def _proxy(method: str, path: str, request: Request, body: dict | None = None):
+    async with httpx.AsyncClient() as client:
+        try:
+            url = f"{RUST_API}{path}"
+            headers = {}
+            auth = request.headers.get("Authorization", "")
+            if auth:
+                headers["Authorization"] = auth
+            resp = await client.request(method, url, json=body, headers=headers, timeout=30)
+            return JSONResponse(content=resp.json(), status_code=resp.status_code)
+        except httpx.RequestError as e:
+            return JSONResponse({"error": f"Rust core unavailable: {e}"}, status_code=503)
+
 
 @router.get("/api/agents")
-def list_agents():
-    config_path = BASE_DIR / "agents" / "config.toml"
-    agents = []
-    if config_path.exists():
-        import tomllib
-        with open(config_path, "rb") as f:
-            data = tomllib.load(f)
-        for a in data.get("agents", []):
-            agents.append({
-                "id": a["id"], "name": a["name"],
-                "enabled": a.get("enabled", True), "scene": a.get("scene", "default"),
-            })
-    return {"agents": agents}
+async def list_agents(request: Request):
+    return await _proxy("GET", "", request)
 
 
 @router.get("/api/usage")
@@ -47,24 +54,8 @@ def get_usage(limit: int = 50):
 
 
 @router.get("/api/agents/{agent_id}")
-def get_agent(agent_id: str):
-    config_path = BASE_DIR / "agents" / "config.toml"
-    if config_path.exists():
-        import tomllib
-        with open(config_path, "rb") as f:
-            data = tomllib.load(f)
-        for a in data.get("agents", []):
-            if a["id"] == agent_id:
-                return {
-                    "id": a["id"],
-                    "name": a["name"],
-                    "enabled": a.get("enabled", True),
-                    "scene": a.get("scene", "default"),
-                    "interpreter": a.get("interpreter", ""),
-                    "script": a.get("script", ""),
-                }
-    from fastapi.responses import JSONResponse
-    return JSONResponse({"error": "agent not found"}, status_code=404)
+async def get_agent(request: Request, agent_id: str):
+    return await _proxy("GET", f"/{agent_id}", request)
 
 
 @router.get("/api/agents/{agent_id}/profile")
@@ -115,37 +106,8 @@ def get_agent_history(agent_id: str, limit: int = 50):
 
 
 @router.patch("/api/agents/{agent_id}")
-def update_agent(agent_id: str, body: dict):
-    config_path = BASE_DIR / "agents" / "config.toml"
-    if not config_path.exists():
-        from fastapi.responses import JSONResponse
-        return JSONResponse({"error": "config not found"}, status_code=404)
-
-    import tomllib
-    with open(config_path, "rb") as f:
-        data = tomllib.load(f)
-
-    found = False
-    for a in data.get("agents", []):
-        if a["id"] == agent_id:
-            if "name" in body:
-                a["name"] = body["name"]
-            if "scene" in body:
-                a["scene"] = body["scene"]
-            if "enabled" in body:
-                a["enabled"] = body["enabled"]
-            found = True
-            break
-
-    if not found:
-        from fastapi.responses import JSONResponse
-        return JSONResponse({"error": "agent not found"}, status_code=404)
-
-    import tomli_w
-    with open(config_path, "wb") as f:
-        tomli_w.dump(data, f)
-
-    return {"status": "updated", "agent_id": agent_id}
+async def update_agent(request: Request, agent_id: str, body: dict):
+    return await _proxy("PATCH", f"/{agent_id}", request, body)
 
 
 @router.patch("/api/agents/{agent_id}/skills")
@@ -163,29 +125,8 @@ def update_agent_skills(agent_id: str, body: dict):
 
 
 @router.delete("/api/agents/{agent_id}")
-def delete_agent(agent_id: str):
-    config_path = BASE_DIR / "agents" / "config.toml"
-    import tomllib
-    with open(config_path, "rb") as f:
-        data = tomllib.load(f)
-
-    agents = data.get("agents", [])
-    new_agents = [a for a in agents if a["id"] != agent_id]
-    if len(new_agents) == len(agents):
-        from fastapi.responses import JSONResponse
-        return JSONResponse({"error": "agent not found"}, status_code=404)
-
-    data["agents"] = new_agents
-    import tomli_w
-    with open(config_path, "wb") as f:
-        tomli_w.dump(data, f)
-
-    agent_dir = BASE_DIR / "agents" / agent_id
-    if agent_dir.exists():
-        import shutil
-        shutil.rmtree(agent_dir)
-
-    return {"status": "deleted", "agent_id": agent_id}
+async def delete_agent(request: Request, agent_id: str):
+    return await _proxy("DELETE", f"/{agent_id}", request)
 
 
 @router.get("/api/agents/{agent_id}/entries")
@@ -279,6 +220,8 @@ def update_agent_display(agent_id: str, body: dict):
             existing = json.loads(display_path.read_text(encoding="utf-8"))
         except Exception:
             pass
+    if "nickname" in body and existing.get("nickname"):
+        return JSONResponse({"error": "Nickname is locked after first set"}, status_code=409)
     for key in ("nickname", "avatar", "color", "gender"):
         if key in body:
             existing[key] = body[key]
