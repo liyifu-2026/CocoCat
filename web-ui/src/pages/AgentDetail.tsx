@@ -105,25 +105,30 @@ export default function AgentDetail() {
         <Badge variant={agent.enabled ? "default" : "secondary"}>
           {agent.enabled ? t("common.online") : t("common.offline")}
         </Badge>
+        {id === "leader" && (
+          <Badge variant="outline" className="ml-2">Leader</Badge>
+        )}
       </div>
-      <div className="flex items-center gap-4">
-        <Button
-          variant={agent.enabled ? "secondary" : "default"}
-          size="sm"
-          onClick={async () => {
-            await agentsApi.update(agent.id, { enabled: !agent.enabled })
-            queryClient.invalidateQueries({ queryKey: ["agents"] })
-          }}
-        >
-          {agent.enabled ? t("agent.disable") : t("agent.enable")}
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => {
-          setDisplayConfig(displayData ?? { nickname: "", avatar: "", color: "" })
-          setDisplayOpen(true)
-        }}>
-          <Pencil className="size-3 mr-1" /> {t("agent.edit_display")}
-        </Button>
-      </div>
+      {id !== "leader" && (
+        <div className="flex items-center gap-4">
+          <Button
+            variant={agent.enabled ? "secondary" : "default"}
+            size="sm"
+            onClick={async () => {
+              await agentsApi.update(agent.id, { enabled: !agent.enabled })
+              queryClient.invalidateQueries({ queryKey: ["agents"] })
+            }}
+          >
+            {agent.enabled ? t("agent.disable") : t("agent.enable")}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => {
+            setDisplayConfig(displayData ?? { nickname: "", avatar: "", color: "" })
+            setDisplayOpen(true)
+          }}>
+            <Pencil className="size-3 mr-1" /> {t("agent.edit_display")}
+          </Button>
+        </div>
+      )}
 
       <Dialog open={displayOpen} onOpenChange={setDisplayOpen}>
         <DialogContent className="max-w-sm">
@@ -412,26 +417,28 @@ export default function AgentDetail() {
           </p>
         </TabsContent>
       </Tabs>
-      <div className="pt-4 border-t border-border">
-        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="destructive" size="sm">{t("agent.delete")}</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>{t("agent.delete_confirm").replace("{name}", agent.name)}</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground">{t("agent.delete_desc")}</p>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" size="sm" onClick={() => setDeleteDialogOpen(false)}>{t("common.cancel")}</Button>
-              <Button variant="destructive" size="sm" onClick={async () => {
-                await agentsApi.delete(agent.id)
-                queryClient.invalidateQueries({ queryKey: ["agents"] })
-                setDeleteDialogOpen(false)
-                window.location.href = "/agents"
-              }}>{t("common.delete")}</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+      {id !== "leader" && (
+        <div className="pt-4 border-t border-border">
+          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive" size="sm">{t("agent.delete")}</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>{t("agent.delete_confirm").replace("{name}", agent.name)}</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">{t("agent.delete_desc")}</p>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" size="sm" onClick={() => setDeleteDialogOpen(false)}>{t("common.cancel")}</Button>
+                <Button variant="destructive" size="sm" onClick={async () => {
+                  await agentsApi.delete(agent.id)
+                  queryClient.invalidateQueries({ queryKey: ["agents"] })
+                  setDeleteDialogOpen(false)
+                  window.location.href = "/agents"
+                }}>{t("common.delete")}</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
     </div>
   )
 }
