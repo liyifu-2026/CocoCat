@@ -130,8 +130,27 @@ export default function Chat() {
 
   async function sendMessage() {
     if (!selectedGroup || !message.trim()) return
-    await chatApi.sendMessage(selectedGroup, message.trim())
+    const content = message.trim()
     setMessage("")
+
+    const prev = queryClient.getQueryData<{ messages: ChatMessage[] }>(["chat-messages", selectedGroup])
+    queryClient.setQueryData(["chat-messages", selectedGroup],
+      (old: { messages: ChatMessage[] } | undefined) => ({
+        messages: [...(old?.messages ?? []), {
+          from: "admin",
+          content,
+          timestamp: new Date().toISOString(),
+          mentions: [],
+        }],
+      })
+    )
+
+    try {
+      await chatApi.sendMessage(selectedGroup, content)
+    } catch {
+      queryClient.setQueryData(["chat-messages", selectedGroup], prev)
+      return
+    }
     queryClient.invalidateQueries({ queryKey: ["chat-messages", selectedGroup] })
     queryClient.invalidateQueries({ queryKey: ["chat-groups"] })
   }
