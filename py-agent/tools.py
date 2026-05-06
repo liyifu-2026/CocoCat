@@ -105,6 +105,20 @@ class Tool:
         raise NotImplementedError
 
 
+class DynamicTool(Tool):
+    """Tool wrapping a callable function with its OpenAI schema."""
+
+    def __init__(self, name: str, fn, schema: dict):
+        self.name = name
+        self._fn = fn
+        func = schema.get("function", schema)
+        self.description = func.get("description", "")
+        self.parameters = func.get("parameters", {})
+
+    def execute(self, **kwargs) -> str:
+        return self._fn(**kwargs)
+
+
 class ReadFileTool(Tool):
     name = "read_file"
     required_permission = PermissionMode.READONLY
@@ -948,5 +962,11 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
                 registry.register(ptool)
     except Exception as e:
         print(f"[PluginLoader] Failed to load plugin tools: {e}", file=sys.stderr)
+
+    try:
+        from skills.dream_candidates import dream_candidates, TOOL_DEF
+        registry.register(DynamicTool("dream_candidates", dream_candidates, TOOL_DEF))
+    except ImportError as e:
+        print(f"[SkillLoader] Failed to load dream_candidates: {e}", file=sys.stderr)
 
     return registry
