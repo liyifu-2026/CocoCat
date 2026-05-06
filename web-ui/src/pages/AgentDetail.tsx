@@ -68,10 +68,13 @@ export default function AgentDetail() {
     queryFn: () => agentsApi.display(id!),
     enabled: !!id,
   })
+  const { data: warehouseData } = useQuery({
+    queryKey: ["warehouse"],
+    queryFn: () => agentsApi.warehouseList(),
+  })
 
   const [editingSkills, setEditingSkills] = useState(false)
-  const [publicSkills, setPublicSkills] = useState<string[]>([])
-  const [privateSkills, setPrivateSkills] = useState<string[]>([])
+  const [selectedSkillIds, setSelectedSkillIds] = useState<Set<string>>(new Set())
   const [newPublicSkill, setNewPublicSkill] = useState("")
   const [newPrivateSkill, setNewPrivateSkill] = useState("")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -262,107 +265,56 @@ export default function AgentDetail() {
         </TabsContent>
 
         <TabsContent value="skills" className="mt-4">
-          {skills.isLoading ? <TabSkeleton /> : (
-            <div className="space-y-4">
-              <div className="flex justify-end">
+          {skills.isLoading || warehouseData === undefined ? <TabSkeleton /> : (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>{t("agent.skills")}</CardTitle>
+                  {editingSkills ? (
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setEditingSkills(false)}>{t("common.cancel")}</Button>
+                      <Button size="sm" onClick={async () => {
+                        const selected = warehouseData?.skills?.filter((s: any) => selectedSkillIds.has(s.id)).map((s: any) => s.id) ?? []
+                        await agentsApi.assignSkills(agent.id, selected)
+                        queryClient.invalidateQueries({ queryKey: ["agent", id, "skills"] })
+                        setEditingSkills(false)
+                      }}>{t("common.save")}</Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setSelectedSkillIds(new Set((skills.data?.skills ?? []).map((s: any) => s.id)))
+                      setEditingSkills(true)
+                    }}>{t("common.edit")}</Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
                 {editingSkills ? (
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setEditingSkills(false)}>{t("common.cancel")}</Button>
-                    <Button size="sm" onClick={async () => {
-                      await agentsApi.updateSkills(agent.id, { public: publicSkills, private: privateSkills })
-                      queryClient.invalidateQueries({ queryKey: ["agent", id, "skills"] })
-                      setEditingSkills(false)
-                    }}>{t("common.save")}</Button>
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {warehouseData?.skills?.map((s: any) => (
+                      <label key={s.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent cursor-pointer">
+                        <input type="checkbox" checked={selectedSkillIds.has(s.id)}
+                          onChange={() => setSelectedSkillIds(prev => {
+                            const next = new Set(prev)
+                            next.has(s.id) ? next.delete(s.id) : next.add(s.id)
+                            return next
+                          })} />
+                        <div>
+                          <p className="text-sm font-medium">{s.name}</p>
+                          <p className="text-xs text-muted-foreground">{s.description || s.id}</p>
+                        </div>
+                      </label>
+                    ))}
                   </div>
                 ) : (
-                  <Button size="sm" variant="outline" onClick={() => {
-                    setPublicSkills(skills.data?.public ?? [])
-                    setPrivateSkills(skills.data?.private ?? [])
-                    setEditingSkills(true)
-                  }}>{t("common.edit")}</Button>
+                  <div className="flex flex-wrap gap-2">
+                    {skills.data?.skills?.length ? skills.data.skills.map((s: any) => (
+                      <Badge key={s.id} variant="outline">{s.name}</Badge>
+                    )) : <span className="text-sm text-muted-foreground">No skills assigned</span>}
+                  </div>
                 )}
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader><CardTitle>{t("agent.public_skills")}</CardTitle></CardHeader>
-                  <CardContent>
-                    {editingSkills ? (
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                          {publicSkills.map((s, i) => (
-                            <span key={i} className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-sm">
-                              {s}
-                              <button onClick={() => setPublicSkills(prev => prev.filter((_, j) => j !== i))}
-                                className="text-destructive hover:text-destructive/80">×</button>
-                            </span>
-                          ))}
-                        </div>
-                        <div className="flex gap-2">
-                          <Input size={1} placeholder={t("agent.add_skill")}
-                            value={newPublicSkill} onChange={e => setNewPublicSkill(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === "Enter" && newPublicSkill.trim()) {
-                                setPublicSkills(prev => [...prev, newPublicSkill.trim()])
-                                setNewPublicSkill("")
-                              }
-                            }} />
-                          <Button size="sm" onClick={() => {
-                            if (newPublicSkill.trim()) {
-                              setPublicSkills(prev => [...prev, newPublicSkill.trim()])
-                              setNewPublicSkill("")
-                            }
-                          }}>+</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {skills.data?.public?.map(s => <Badge key={s}>{s}</Badge>)}
-                        {(!skills.data?.public?.length) && <p className="text-sm text-muted-foreground">{t("agent.none")}</p>}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader><CardTitle>{t("agent.private_skills")}</CardTitle></CardHeader>
-                  <CardContent>
-                    {editingSkills ? (
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                          {privateSkills.map((s, i) => (
-                            <span key={i} className="inline-flex items-center gap-1 rounded-md bg-secondary/20 px-2 py-1 text-sm">
-                              {s}
-                              <button onClick={() => setPrivateSkills(prev => prev.filter((_, j) => j !== i))}
-                                className="text-destructive hover:text-destructive/80">×</button>
-                            </span>
-                          ))}
-                        </div>
-                        <div className="flex gap-2">
-                          <Input size={1} placeholder={t("agent.add_skill")}
-                            value={newPrivateSkill} onChange={e => setNewPrivateSkill(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === "Enter" && newPrivateSkill.trim()) {
-                                setPrivateSkills(prev => [...prev, newPrivateSkill.trim()])
-                                setNewPrivateSkill("")
-                              }
-                            }} />
-                          <Button size="sm" onClick={() => {
-                            if (newPrivateSkill.trim()) {
-                              setPrivateSkills(prev => [...prev, newPrivateSkill.trim()])
-                              setNewPrivateSkill("")
-                            }
-                          }}>+</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {skills.data?.private?.map(s => <Badge key={s} variant="secondary">{s}</Badge>)}
-                        {(!skills.data?.private?.length) && <p className="text-sm text-muted-foreground">{t("agent.none")}</p>}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 

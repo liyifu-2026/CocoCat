@@ -62,18 +62,20 @@ export const agentsApi = {
   usage: (limit = 10) => api.get<{ usage: UsageEntry[] }>(`/usage?limit=${limit}`),
   get: (id: string) => api.get<AgentDetail>(`/agents/${id}`),
   profile: (id: string) => api.get<AgentProfile>(`/agents/${id}/profile`),
-  skills: (id: string) => api.get<AgentSkills>(`/agents/${id}/skills`),
+  skills: (id: string) => api.get<{ skills: any[] }>(`/agents/${id}/skills`),
   memory: (id: string) => api.get<AgentMemory>(`/agents/${id}/memory`),
   history: (id: string, limit = 50) =>
     api.get<{ entries: HistoryEntry[] }>(`/agents/${id}/history?limit=${limit}`),
   update: (id: string, body: Record<string, unknown>) =>
     api.patch<{ status: string }>(`/agents/${id}`, body),
-  updateSkills: (id: string, skills: { public: string[]; private: string[] }) =>
-    api.patch<{ status: string }>(`/agents/${id}/skills`, skills),
   display: (id: string) => api.get<AgentDisplay>(`/agents/${id}/display`),
   listDisplays: () => api.get<Record<string, AgentDisplay>>("/agents/display"),
   updateDisplay: (id: string, display: AgentDisplay) =>
     api.put<{ display: AgentDisplay }>(`/agents/${id}/display`, display),
   delete: (id: string) =>
     api.delete<{ status: string }>(`/agents/${id}`),
+  warehouseList: () => api.get<{ skills: any[] }>("/skills/warehouse"),
+  assignSkills: (id: string, skillIds: string[]) =>
+    api.post<{ status: string }>(`/agents/${id}/skills`, { skill_ids: skillIds }),
+  capabilities: () => api.get<{ agents: any[] }>("/agents/capabilities"),
 }
