@@ -124,6 +124,22 @@ pub fn run_migrations(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
             scene_id TEXT REFERENCES scenes(id),
             agent_id TEXT REFERENCES agents(id),
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS chat_groups (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            announcement TEXT NOT NULL DEFAULT '',
+            is_default INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS chat_group_members (
+            group_id TEXT NOT NULL REFERENCES chat_groups(id),
+            agent_id TEXT NOT NULL REFERENCES agents(id),
+            name TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'member',
+            PRIMARY KEY (group_id, agent_id)
         );"
     )?;
     Ok(())
