@@ -35,7 +35,17 @@ async def _proxy(method: str, path: str, request: Request, body: dict | None = N
 
 @router.get("/api/agents")
 async def list_agents(request: Request):
-    return await _proxy("GET", "", request)
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {}
+            auth = request.headers.get("Authorization", "")
+            if auth:
+                headers["Authorization"] = auth
+            resp = await client.get("http://localhost:3000/api/agents", headers=headers, timeout=30)
+            data = resp.json()
+            return JSONResponse(content={"agents": data} if isinstance(data, list) else data, status_code=resp.status_code)
+        except httpx.RequestError as e:
+            return JSONResponse({"error": f"Rust core unavailable: {e}"}, status_code=503)
 
 
 @router.get("/api/usage")
