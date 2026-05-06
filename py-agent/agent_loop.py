@@ -273,26 +273,39 @@ class AgentLoop:
             tool_calls = []
             reasoning = None
             response = None
-            for retry in range(3):
-                response = self.llm.chat_with_retry(
-                    messages=messages,
-                    tools=tool_defs if tool_defs else None,
-                    retry_mode="persistent",
-                )
-                content = response.get("content", "") or ""
-                tool_calls = response.get("tool_calls", []) or []
-                reasoning = response.get("reasoning_content")
-                if reasoning and on_reasoning:
-                    on_reasoning(reasoning)
-                if content.strip() or tool_calls:
-                    break
 
-            if response and "usage" in response:
-                u = response["usage"]
-                total_usage["input"] += u.get("input_tokens", 0) or u.get("prompt_tokens", 0) or 0
-                total_usage["output"] += u.get("output_tokens", 0) or u.get("completion_tokens", 0) or 0
+            # Stream if no tools needed (text-only response), else use retry
+            if not tool_defs and hasattr(self.llm, 'chat_stream'):
+                for chunk in self.llm.chat_stream(messages=messages):
+                    if chunk["type"] == "delta":
+                        content += chunk["content"]
+                        if on_progress:
+                            on_progress(chunk["content"])
+                    elif chunk["type"] == "done":
+                        if chunk["content"]:
+                            content = chunk["content"]
+                        response = self.llm.chat(messages=messages) if not content else None
+            else:
+                for retry in range(3):
+                    response = self.llm.chat_with_retry(
+                        messages=messages,
+                        tools=tool_defs if tool_defs else None,
+                        retry_mode="persistent",
+                    )
+                    content = response.content or ""
+                    tool_calls = response.tool_calls or []
+                    reasoning = response.reasoning_content
+                    if reasoning and on_reasoning:
+                        on_reasoning(reasoning)
+                    if content.strip() or tool_calls:
+                        break
 
-            if response and response.get("finish_reason") == "length" and content.strip():
+            if response and response.usage:
+                u = response.usage
+                total_usage["input"] += u.get("input_tokens", 0) or 0
+                total_usage["output"] += u.get("output_tokens", 0) or 0
+
+            if response and response.finish_reason == "length" and content.strip():
                 messages.append({"role": "assistant", "content": content})
                 messages.append({"role": "user", "content": "Please continue from where you left off."})
                 for _ in range(5):
@@ -301,8 +314,8 @@ class AgentLoop:
                         tools=tool_defs if tool_defs else None,
                         retry_mode="persistent",
                     )
-                    content += (response.get("content", "") or "")
-                    if response.get("finish_reason") != "length":
+                    content += (response.content or "")
+                    if response.finish_reason != "length":
                         break
 
             if tool_calls:
