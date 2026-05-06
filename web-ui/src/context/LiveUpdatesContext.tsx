@@ -13,6 +13,7 @@ export type StreamState = {
   task_uuid: string
   event: string
   status: string
+  content?: string
   stream_event?: { event_type: string; content: string; name?: string; input?: string; status?: string; result?: string }
   updatedAt: number
 }
