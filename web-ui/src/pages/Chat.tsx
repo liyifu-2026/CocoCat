@@ -17,7 +17,7 @@ import {
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
-  MessageSquare, Plus, Send, Hash, Users, X, Copy, Undo2, MoreHorizontal,
+  MessageSquare, Plus, Send, Hash, Users, X, Copy, Undo2, MoreHorizontal, Paperclip,
 } from "lucide-react"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { useT } from "@/context/LanguageContext"
@@ -100,9 +100,13 @@ export default function Chat() {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [mentionQuery, setMentionQuery] = useState("")
   const [mentionStart, setMentionStart] = useState(-1)
+  const [toolLog, setToolLog] = useState<{ type: string; name: string; content: string; input?: string; result?: string }[]>([])
+  const [reasoningExpanded, setReasoningExpanded] = useState(false)
   const [, forceRender] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
 
   const queryClient = useQueryClient()
   const t = useT()
@@ -165,10 +169,13 @@ export default function Chat() {
     queryClient.setQueryData(["chat-messages", selectedGroup],
       (old: { messages: ChatMessage[] } | undefined) => ({
         messages: [...(old?.messages ?? []), {
+          id: Date.now(),
           from: "admin",
           content,
           timestamp: new Date().toISOString(),
           mentions: [],
+          recalled: false,
+          read_by: [],
         }],
       })
     )
@@ -222,6 +229,21 @@ export default function Chat() {
         m.id !== "admin" && m.name.toLowerCase().includes(mentionQuery.toLowerCase())
       )
     : (currentGroup?.members ?? []).filter(m => m.id !== "admin")
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const text = await file.text()
+      const res = await knowledgeApi.extract(file.name, text)
+      setMessage(m => m + (m ? "\n\n" : "") + `[📎 ${res.filename}]\n${res.text}`)
+    } catch {
+      setMessage(m => m + (m ? "\n\n" : "") + `[📎 ${file.name}] (failed to extract)`)
+    }
+    setUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
 
   async function createGroup() {
     if (!newGroupName.trim()) return
@@ -370,21 +392,65 @@ export default function Chat() {
                 ))}
                 {(() => {
                   const stream = activeStreamState()
-                  if (!stream) return null
+                  if (!stream) {
+                    if (toolLog.length > 0) setToolLog([])
+                    return null
+                  }
                   const se = stream.state.stream_event
+                  if (se && (se.event_type === "stream_tool" || se.event_type === "stream_reasoning")) {
+                    setToolLog(prev => {
+                      const last = prev[prev.length - 1]
+                      if (last?.type === se.event_type && last?.name === se.name) return prev
+                      return [...prev, {
+                        type: se.event_type,
+                        name: se.name ?? "",
+                        content: se.content ?? "",
+                        input: se.input,
+                        result: se.result,
+                      }]
+                    })
+                  }
                   let label = "Processing..."
                   if (se) {
                     if (se.event_type === "stream_progress") label = se.content
                     else if (se.event_type === "stream_tool") label = `Tool: ${se.name}`
                     else if (se.event_type === "stream_reasoning") label = "Thinking..."
                   }
+                  const showLog = toolLog.filter(t => t.type === "stream_tool" || (t.type === "stream_reasoning" && t.content))
                   return (
-                    <div className="flex gap-2">
-                      <AgentAvatar name={stream.agentName} size="sm" />
-                      <div className="bg-muted rounded-lg px-3 py-2 text-sm max-w-[70%]">
-                        <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                          <span className="animate-pulse">●</span>
-                          <span className="truncate">{label}</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-start gap-2">
+                        <div className="mt-2"><AgentAvatar name={stream.agentName} size="sm" /></div>
+                        <div className="bg-muted rounded-lg px-3 py-2 text-sm max-w-[70%]">
+                          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                            <span className="animate-pulse">●</span>
+                            <span className="truncate">{label}</span>
+                          </div>
+                          {showLog.length > 0 && (
+                            <div className="mt-1 border-t border-border/50 pt-1">
+                              <button onClick={() => setReasoningExpanded(!reasoningExpanded)}
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1">
+                                <span className={`transition-transform ${reasoningExpanded ? "rotate-90" : ""}`}>▶</span>
+                                {showLog.filter(t => t.type === "stream_tool").length} tools
+                              </button>
+                              {reasoningExpanded && (
+                                <div className="max-h-[300px] overflow-y-auto space-y-1 text-xs">
+                                  {showLog.map((t, i) => (
+                                    <div key={i} className="border border-border/30 rounded p-1.5">
+                                      {t.type === "stream_reasoning" ? (
+                                        <p className="text-muted-foreground whitespace-pre-wrap">{t.content}</p>
+                                      ) : (
+                                        <div>
+                                          <p className="font-medium text-foreground/80">{t.name}</p>
+                                          <p className="text-muted-foreground mt-0.5 line-clamp-2">{t.content}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -421,6 +487,10 @@ export default function Chat() {
                     </div>
                   )}
                 </div>
+                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".md,.txt,.pdf,.docx,.xlsx,.pptx,.htm,.html,.json,.csv,.yaml,.yml,.py,.rs,.ts,.js" />
+                <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} variant="ghost" size="icon" className="shrink-0 self-end">
+                  <Paperclip className="size-4" />
+                </Button>
                 <Button onClick={sendMessage} disabled={!message.trim()} className="shrink-0 self-end">
                   <Send className="size-4" />
                 </Button>
