@@ -103,6 +103,41 @@ def main():
                 if not isinstance(result, dict):
                     result = {"response": str(result)}
                 response = {"jsonrpc": "2.0", "result": result, "id": req_id}
+            elif request.get("method") == "process_kb_source":
+                params = request.get("params", {})
+                kb_name = params.get("kb_name", "")
+                filename = params.get("filename", "")
+                source_path = params.get("source_path", "")
+                if agent_loop is None:
+                    raise RuntimeError("agent loop not initialized")
+
+                def write_progress(msg):
+                    _write_stream("progress", content=msg)
+                def write_tool(name, input_data, status, result=""):
+                    _write_stream("tool", name=name,
+                        input=str(input_data)[:500], status=status,
+                        result=str(result)[:500])
+                def write_reasoning(msg):
+                    if msg:
+                        _write_stream("reasoning", content=msg)
+
+                prompt = (
+                    f"A new source file has been uploaded to the knowledge base '{kb_name}'. "
+                    f"File: {filename}\n\n"
+                    f"Read the file at {source_path}, then follow the Knowledge Ingestion skill "
+                    f"to process it into wiki pages. "
+                    f"Read skills/public/knowledge-ingestion.md for the exact workflow."
+                )
+                result = agent_loop.run(
+                    prompt,
+                    user_id=params.get("user_id", ""),
+                    on_progress=write_progress,
+                    on_tool=write_tool,
+                    on_reasoning=write_reasoning,
+                )
+                if not isinstance(result, dict):
+                    result = {"response": str(result)}
+                response = {"jsonrpc": "2.0", "result": result, "id": req_id}
             else:
                 result = handle_request(request, agent_loop=agent_loop)
                 response = {"jsonrpc": "2.0", "result": result, "id": req_id}
