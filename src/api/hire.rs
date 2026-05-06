@@ -53,36 +53,37 @@ pub async fn create_handler(
 pub async fn list_handler(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
-) -> Result<Json<Vec<HireRequest>>, StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     auth::verify_token(&headers, &state.jwt)?;
-    hire::list_pending(&state.db_pool).map_err(|e| {
+    let list = hire::list_pending(&state.db_pool).map_err(|e| {
         tracing::error!("hire list: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
-    }).map(Json)
+    })?;
+    Ok(Json(serde_json::json!({"pending": list})))
 }
 
 pub async fn approve_handler(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
     Path(request_uuid): Path<String>,
-) -> Result<Json<()>, StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     auth::verify_token(&headers, &state.jwt)?;
     hire::approve_request(&state.db_pool, &request_uuid, "admin").map_err(|e| {
         tracing::error!("hire approve: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    Ok(Json(()))
+    Ok(Json(serde_json::json!({"status": "approved", "hire_id": request_uuid})))
 }
 
 pub async fn reject_handler(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
     Path(request_uuid): Path<String>,
-) -> Result<Json<()>, StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     auth::verify_token(&headers, &state.jwt)?;
     hire::reject_request(&state.db_pool, &request_uuid, "admin").map_err(|e| {
         tracing::error!("hire reject: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    Ok(Json(()))
+    Ok(Json(serde_json::json!({"status": "rejected", "hire_id": request_uuid})))
 }

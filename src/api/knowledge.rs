@@ -19,6 +19,25 @@ pub struct ProcessRequest {
     pub filename: String,
 }
 
+pub async fn list_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    auth::verify_token(&headers, &state.jwt)?;
+    let kb_dir = std::path::Path::new("knowledge");
+    let mut kbs = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(kb_dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    kbs.push(serde_json::json!({"id": name, "path": entry.path().to_string_lossy()}));
+                }
+            }
+        }
+    }
+    Ok(Json(serde_json::json!({"kbs": kbs})))
+}
+
 pub async fn upload_handler(
     State(state): State<AppState>,
     headers: HeaderMap,

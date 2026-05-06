@@ -103,11 +103,7 @@ pub async fn update_agent(
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
     drop(conn);
-    match crate::db::agents::get_agent(&state.db_pool, &agent_id)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
-        Some(a) => Ok(Json(serde_json::to_value(agent_to_response(&a)).unwrap())),
-        None => Ok(Json(serde_json::json!({"error": "not found"}))),
-    }
+    Ok(Json(serde_json::json!({"status": "updated"})))
 }
 
 pub async fn delete_agent(
