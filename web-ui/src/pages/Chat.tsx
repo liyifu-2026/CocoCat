@@ -88,6 +88,7 @@ export default function Chat() {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
   const [message, setMessage] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
+  const [dmOpen, setDmOpen] = useState(true)
   const [newGroupName, setNewGroupName] = useState("")
   const [newGroupAnnouncement, setNewGroupAnnouncement] = useState("")
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
@@ -204,25 +205,36 @@ export default function Chat() {
             </button>
           ))}
 
-          {/* DM Section */}
+          {/* DM Section - collapsible */}
           {dmGroups.length > 0 && (
-            <div className="px-3 pt-4 pb-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Direct Messages</p>
-            </div>
+            <>
+              <div className="px-3 pt-4 pb-1 flex items-center justify-between">
+                <button onClick={() => setDmOpen(o => !o)} className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
+                  <span className={`transition-transform duration-150 ${dmOpen ? "rotate-90" : ""}`}>▶</span>
+                  Direct Messages
+                </button>
+                <span className="text-[10px] text-muted-foreground">{dmGroups.length}</span>
+              </div>
+              {dmOpen && dmGroups.map(g => {
+                const agentId = g.id.replace("dm_", "")
+                const agentName = displayConfs[agentId]?.nickname || g.name
+                const status = agentStatus[agentId]
+                return (
+                  <button key={g.id} onClick={() => setSelectedGroup(g.id)}
+                    className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors border-l-2 ${
+                      selectedGroup === g.id
+                        ? "bg-accent/50 border-primary"
+                        : "border-transparent hover:bg-accent/30 hover:border-muted-foreground/30"
+                    }`}>
+                    <span className={`shrink-0 w-2 h-2 rounded-full ${
+                      status === "running" ? "bg-green-500" : status === "error" || status === "busy" ? "bg-red-500" : "bg-muted-foreground/30"
+                    }`} />
+                    <span className="truncate">{agentName}</span>
+                  </button>
+                )
+              })}
+            </>
           )}
-          {dmGroups.map(g => {
-            const agentId = g.id.replace("dm_", "")
-            const agentName = g.name
-            const status = agentStatus[agentId]
-            const statusDot = status === "running" ? "🟢" : status === "error" || status === "busy" ? "🔴" : "○"
-            return (
-              <button key={g.id} onClick={() => setSelectedGroup(g.id)}
-                className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-accent/50 transition-colors ${selectedGroup === g.id ? "bg-accent" : ""}`}>
-                <span className="text-xs shrink-0 w-4 text-center">{statusDot}</span>
-                <span className="truncate">{agentName}</span>
-              </button>
-            )
-          })}
         </ScrollArea>
       </div>
 
@@ -235,7 +247,19 @@ export default function Chat() {
         ) : (
           <>
             <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
-              <div><h2 className="font-semibold flex items-center gap-2"><Hash className="size-4 text-muted-foreground" />{currentGroup?.name}</h2>{currentGroup?.announcement && <p className="text-xs text-muted-foreground mt-0.5">{currentGroup.announcement}</p>}</div>
+              {selectedGroup?.startsWith("dm_") ? (
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${
+                    agentStatus[selectedGroup.replace("dm_", "")] === "running" ? "bg-green-500"
+                    : agentStatus[selectedGroup.replace("dm_", "")] === "error" || agentStatus[selectedGroup.replace("dm_", "")] === "busy" ? "bg-red-500"
+                    : "bg-muted-foreground/30"
+                  }`} />
+                  <h2 className="font-semibold">{currentGroup?.name}</h2>
+                  <span className="text-xs text-muted-foreground">· DM</span>
+                </div>
+              ) : (
+                <div><h2 className="font-semibold flex items-center gap-2"><Hash className="size-4 text-muted-foreground" />{currentGroup?.name}</h2>{currentGroup?.announcement && <p className="text-xs text-muted-foreground mt-0.5">{currentGroup.announcement}</p>}</div>
+              )}
               <Badge variant="outline" className="text-xs gap-1"><Users className="size-3" /> {currentGroup?.members.length}</Badge>
             </div>
 
@@ -253,7 +277,7 @@ export default function Chat() {
             <div className="p-4 border-t border-border">
               <div className="flex gap-2">
                 <Textarea value={message} onChange={e => setMessage(e.target.value)}
-                  placeholder="Type a message... (use @name to mention)"
+                  placeholder={selectedGroup?.startsWith("dm_") ? `Message ${currentGroup?.name}...` : "Type a message... (use @name to mention)"}
                   className="min-h-[40px] max-h-[120px]"
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }} />
                 <Button onClick={sendMessage} disabled={!message.trim()} className="shrink-0 self-end">
