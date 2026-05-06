@@ -50,7 +50,11 @@ def _read_entry_config(path: str) -> list[dict]:
 
 
 def _route_to_agent(agent_id: str, channel_type: str, user_id: str, content: str):
-    """Write incoming message to agent's mailbox."""
+    """Write incoming message to agent's mailbox (with FileLock for consistency)."""
+    import sys as _sys
+    _sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "py-agent"))
+    from sandbox import FileLock
+
     mailbox_dir = os.path.join(BASE_DIR, "agents", "mailbox", agent_id)
     os.makedirs(mailbox_dir, exist_ok=True)
     inbox_path = os.path.join(mailbox_dir, "inbox.jsonl")
@@ -63,8 +67,23 @@ def _route_to_agent(agent_id: str, channel_type: str, user_id: str, content: str
         "channel": channel_type,
         "external_user": user_id,
     }
-    with open(inbox_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    with FileLock(inbox_path):
+        with open(inbox_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    # Notify WebSocket clients
+    try:
+        import importlib, asyncio
+        web_main = importlib.import_module("web.main")
+        asyncio.ensure_future(web_main.manager.broadcast("message", {
+            "type": "inbound",
+            "agent_id": agent_id,
+            "channel": channel_type,
+            "from": user_id,
+            "content": content[:200],
+        }))
+    except Exception:
+        pass
 
 
 def _start_feishu(scene_id: str, config: dict, target_id: str, target_type: str):

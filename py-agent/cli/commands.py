@@ -1047,3 +1047,10 @@ def upgrade():
             print_error(f"Git pull failed:\n{result.stderr}")
     except Exception as e:
         print_error(f"Upgrade failed: {e}")
+
+
+@app.command()
+def onboard():
+    """Interactive setup — configure API keys and test connection."""
+    from .onboard import run
+    run()
