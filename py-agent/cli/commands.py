@@ -1054,3 +1054,87 @@ def onboard():
     """Interactive setup — configure API keys and test connection."""
     from .onboard import run
     run()
+
+
+@app.command()
+def show_config():
+    """Show current configuration."""
+    import os
+    from .render import console
+
+    console.print("\n[bold]Environment[/bold]")
+    providers = [
+        ("DEEPSEEK_API_KEY", "DeepSeek"),
+        ("OPENAI_API_KEY", "OpenAI"),
+        ("ANTHROPIC_API_KEY", "Anthropic"),
+        ("SILICONFLOW_API_KEY", "SiliconFlow"),
+        ("GEMINI_API_KEY", "Gemini"),
+    ]
+    for key, name in providers:
+        val = os.environ.get(key, "")
+        status = "[green]✓[/green]" if val else "[dim]not set[/dim]"
+        console.print(f"  {name:20s} {status}")
+
+    console.print("\n[bold]Paths[/bold]")
+    console.print(f"  Config:      ~/.cococat/config.json")
+    console.print(f"  Sessions:    ~/.cococat/sessions/")
+    console.print(f"  Workspace:   {os.path.abspath('.')}")
+
+
+@app.command()
+def validate():
+    """Validate configuration and test provider connections."""
+    import os, sys
+    from .render import console, print_info, print_success, print_error
+
+    console.print("\n[bold]Validating configuration...[/bold]\n")
+
+    # Check required env vars
+    has_key = False
+    required = [
+        ("DEEPSEEK_API_KEY", "DeepSeek"),
+        ("OPENAI_API_KEY", "OpenAI"),
+        ("ANTHROPIC_API_KEY", "Anthropic"),
+        ("SILICONFLOW_API_KEY", "SiliconFlow"),
+    ]
+    for key, name in required:
+        val = os.environ.get(key, "")
+        if val:
+            print_success(f"{name}: API key configured")
+            has_key = True
+        else:
+            if key == "DEEPSEEK_API_KEY" or key == "OPENAI_API_KEY":
+                print_info(f"{name}: not set (recommended)")
+
+    if not has_key:
+        print_error("No API keys configured. Run 'cococat onboard' to set up.")
+        return
+
+    # Test provider connection
+    model = os.environ.get("LLM_MODEL", "")
+    if not model:
+        if os.environ.get("DEEPSEEK_API_KEY"):
+            model = "deepseek-chat"
+        elif os.environ.get("OPENAI_API_KEY"):
+            model = "gpt-4o-mini"
+        elif os.environ.get("ANTHROPIC_API_KEY"):
+            model = "claude-sonnet-4-20250514"
+
+    if model:
+        print_info(f"Testing connection with model: {model}...")
+        try:
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+            from providers import make_provider
+            provider = make_provider(model=model)
+            resp = provider.chat_with_retry(
+                messages=[{"role": "user", "content": "Say exactly: OK"}],
+                max_tokens=10, temperature=0,
+            )
+            if resp.finish_reason != "error":
+                print_success(f"Connection OK: {resp.content}")
+            else:
+                print_error(f"Connection failed: {resp.content[:200]}")
+        except Exception as e:
+            print_error(f"Connection failed: {e}")
+
+    console.print()
