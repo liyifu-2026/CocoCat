@@ -268,13 +268,17 @@ export default function Dashboard() {
         </Card>
 
         <Card
-          className="lg:col-span-1 cursor-pointer hover:shadow-lg transition-shadow"
+          className="lg:col-span-3 cursor-pointer hover:shadow-lg transition-shadow"
           onClick={() => navigate("/collaboration")}
         >
           <CardHeader>
             <CardTitle className="text-lg flex items-center justify-between">
-              <span>{t("dashboard.collaboration")}</span>
-              <Activity className="size-4 text-muted-foreground" />
+              <span className="flex items-center gap-2">
+                <Activity className="size-4" /> {t("dashboard.collaboration")}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {collabNodes.length} agents · {collabEdges.length} interactions
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -289,55 +293,53 @@ export default function Dashboard() {
                 {t("common.no_data")}
               </div>
             ) : (
-              <>
-                <svg viewBox="0 0 400 200" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-                  {(() => {
-                    const cx = 200, cy = 100, rx = 160, ry = 70
-                    const total = collabNodes.length
-                    const positions = collabNodes.map((_, i) => {
-                      const angle = (2 * Math.PI * i) / total - Math.PI / 2
-                      return { x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) }
-                    })
-                    return (
-                      <>
-                        {collabEdges.map(edge => {
-                          const fromIdx = collabNodes.findIndex(n => n.id === edge.from)
-                          const toIdx = collabNodes.findIndex(n => n.id === edge.to)
-                          if (fromIdx === -1 || toIdx === -1) return null
-                          const fromP = positions[fromIdx]!
-                          const toP = positions[toIdx]!
-                          return (
-                            <line
-                              key={edge.id}
-                              x1={fromP.x} y1={fromP.y}
-                              x2={toP.x} y2={toP.y}
-                              stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.5"
-                            />
-                          )
-                        })}
-                        {collabNodes.map((node, i) => {
-                          const pos = positions[i]!
-                          return (
-                            <g key={node.id}>
-                              <circle cx={pos.x} cy={pos.y} r="6" fill="hsl(var(--primary))" />
-                              <text
-                                x={pos.x} y={pos.y + 16}
-                                textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))"
-                              >
-                                {node.label.length > 10 ? node.label.substring(0, 10) + "\u2026" : node.label}
-                              </text>
-                            </g>
-                          )
-                        })}
-                      </>
-                    )
-                  })()}
-                </svg>
-                <div className="flex gap-4 text-xs text-muted-foreground mt-2">
-                  <span>{collabNodes.length} {t("dashboard.agents")}</span>
-                  <span>{collabEdges.length} {t("dashboard.interactions")}</span>
+              <div className="flex items-center gap-6">
+                <div className="flex-1 min-w-0">
+                  <svg viewBox="0 0 500 220" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+                    {(() => {
+                      const cx = 250, cy = 110, rx = 200, ry = 85
+                      const total = collabNodes.length
+                      const colors = ["#3b82f6","#22c55e","#f59e0b","#ef4444","#8b5cf6","#ec4899","#14b8a6"]
+                      const positions = collabNodes.map((_, i) => {
+                        const angle = (2 * Math.PI * i) / total - Math.PI / 2
+                        return { x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) }
+                      })
+                      return (
+                        <>
+                          {collabEdges.map(edge => {
+                            const fromIdx = collabNodes.findIndex(n => n.id === edge.from)
+                            const toIdx = collabNodes.findIndex(n => n.id === edge.to)
+                            if (fromIdx === -1 || toIdx === -1) return null
+                            const fp = positions[fromIdx]!
+                            const tp = positions[toIdx]!
+                            return (
+                              <line key={edge.id} x1={fp.x} y1={fp.y} x2={tp.x} y2={tp.y}
+                                stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" opacity="0.4" />
+                            )
+                          })}
+                          {collabNodes.map((node, i) => {
+                            const pos = positions[i]!
+                            const color = colors[i % colors.length]
+                            return (
+                              <g key={node.id}>
+                                <circle cx={pos.x} cy={pos.y} r={18} fill={color} />
+                                <text x={pos.x} y={pos.y + 5} textAnchor="middle" fontSize={12}
+                                  fill="#fff" fontWeight="bold">
+                                  {node.label.charAt(0).toUpperCase()}
+                                </text>
+                                <text x={pos.x} y={pos.y + 30} textAnchor="middle" fontSize={9}
+                                  fill="hsl(var(--muted-foreground))">
+                                  {node.label.length > 8 ? node.label.substring(0, 8) + "\u2026" : node.label}
+                                </text>
+                              </g>
+                            )
+                          })}
+                        </>
+                      )
+                    })()}
+                  </svg>
                 </div>
-              </>
+              </div>
             )}
           </CardContent>
         </Card>
