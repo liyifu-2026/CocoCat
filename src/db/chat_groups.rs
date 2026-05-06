@@ -249,7 +249,8 @@ pub fn send_message(
     from: &str,
 ) -> Result<i64, Box<dyn std::error::Error>> {
     let mentions = parse_mentions(content);
-    let mentions_json = serde_json::to_string(&mentions)?;
+    let meta = serde_json::json!({"mentions": mentions, "read_by": []});
+    let mentions_json = serde_json::to_string(&meta)?;
     let conn = pool.get()?;
     conn.execute(
         "INSERT INTO messages (msg_uuid, agent_id, user_id, role, content, scene_id, chat_group, metadata)
@@ -273,7 +274,15 @@ pub fn get_messages(
     let messages = stmt
         .query_map(params![group_id, limit], |row| {
             let metadata: String = row.get(4)?;
-            let mentions: Vec<String> = serde_json::from_str(&metadata).unwrap_or_default();
+            let meta: serde_json::Value = serde_json::from_str(&metadata).unwrap_or_default();
+            let mentions: Vec<String> = meta
+                .get("mentions")
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .unwrap_or_default();
+            let read_by: Vec<ReadReceipt> = meta
+                .get("read_by")
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .unwrap_or_default();
             Ok(ChatMessage {
                 id: row.get(0)?,
                 from: row.get(1)?,
@@ -281,7 +290,7 @@ pub fn get_messages(
                 timestamp: row.get(3)?,
                 recalled: false,
                 mentions,
-                read_by: Vec::new(),
+                read_by,
             })
         })?
         .filter_map(|r| r.ok())
