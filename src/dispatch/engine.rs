@@ -105,8 +105,10 @@ async fn process_task(
     let target_clone = target.clone();
 
     let manager = agent_manager.clone();
+    let ws_clone = ws_tx.clone();
+    let uuid_clone = task_uuid.to_string();
     let call_result = tokio::task::spawn_blocking(move || {
-        manager.call_agent(&target, &method, params, 120)
+        manager.call_agent_stream(&target, &method, params, 120, &ws_clone, &uuid_clone)
     })
     .await
     .map_err(|e| format!("join error: {}", e))?;

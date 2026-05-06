@@ -1,6 +1,7 @@
 use crate::agent::process::AgentProcess;
 use crate::db::models::Agent;
 use crate::db::pool::DbPool;
+use crate::dispatch::engine::WsEvent;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -45,6 +46,22 @@ impl AgentManager {
         let process = processes.get_mut(agent_id)
             .ok_or_else(|| format!("Agent {} not found", agent_id))?;
         process.call(method, params, timeout_secs)
+    }
+
+    pub fn call_agent_stream(
+        &self,
+        agent_id: &str,
+        method: &str,
+        params: serde_json::Value,
+        timeout_secs: u64,
+        ws_tx: &tokio::sync::broadcast::Sender<WsEvent>,
+        task_uuid: &str,
+    ) -> Result<serde_json::Value, String> {
+        let mut processes = self.processes.lock()
+            .map_err(|e| format!("lock error: {}", e))?;
+        let process = processes.get_mut(agent_id)
+            .ok_or_else(|| format!("Agent {} not found", agent_id))?;
+        process.call_stream(method, params, timeout_secs, ws_tx, task_uuid)
     }
 
     pub async fn health_check_loop(self: Arc<Self>) {
