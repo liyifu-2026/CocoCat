@@ -1,4 +1,6 @@
+use crate::agent::stream_event::StreamEvent;
 use crate::db::models::Agent;
+use crate::dispatch::engine::WsEvent;
 use serde_json::Value;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
@@ -165,6 +167,96 @@ impl AgentProcess {
         }
 
         Ok(response.result.unwrap_or(Value::Null))
+    }
+
+    pub fn call_stream(
+        &mut self,
+        method: &str,
+        params: Value,
+        timeout_secs: u64,
+        ws_tx: &tokio::sync::broadcast::Sender<WsEvent>,
+        task_uuid: &str,
+    ) -> Result<Value, String> {
+        let request = JsonRpcRequest {
+            jsonrpc: "2.0".into(),
+            id: uuid::Uuid::new_v4().to_string(),
+            method: method.into(),
+            params,
+        };
+
+        let request_line = serde_json::to_string(&request)
+            .map_err(|e| format!("serialize request: {}", e))?;
+
+        if let Some(ref mut stdin) = self.stdin_writer {
+            writeln!(stdin, "{}", request_line)
+                .map_err(|e| format!("write to stdin: {}", e))?;
+            stdin.flush().map_err(|e| format!("flush stdin: {}", e))?;
+        } else {
+            return Err("stdin closed".to_string());
+        }
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
+
+        loop {
+            if std::time::Instant::now() > deadline {
+                return Err(format!("Agent {} call timed out after {}s", self.agent_id, timeout_secs));
+            }
+
+            let remaining = deadline - std::time::Instant::now();
+            let line = self.stdout_receiver
+                .recv_timeout(remaining.max(std::time::Duration::from_secs(1)))
+                .map_err(|e| match e {
+                    mpsc::RecvTimeoutError::Timeout => {
+                        format!("Agent {} call timed out", self.agent_id)
+                    }
+                    mpsc::RecvTimeoutError::Disconnected => {
+                        "Agent stdout channel disconnected".to_string()
+                    }
+                })?;
+
+            let parsed: serde_json::Value = serde_json::from_str(&line)
+                .map_err(|e| format!("parse line: {} (raw: {})", e, line))?;
+
+            if parsed.get("jsonrpc").and_then(|v| v.as_str()) == Some("2.0") {
+                // Final JSON-RPC response
+                let response: JsonRpcResponse = serde_json::from_str(&line)
+                    .map_err(|e| format!("parse JSON-RPC response: {} (raw: {})", e, line))?;
+                if let Some(err) = response.error {
+                    return Err(format!("Agent error: {} (code {})", err.message, err.code));
+                }
+                return Ok(response.result.unwrap_or(Value::Null));
+            }
+
+            // Forward stream events to WebSocket in real-time
+            if let Some(etype) = parsed.get("type").and_then(|v| v.as_str()) {
+                let stream_event = match etype {
+                    "progress" => Some(StreamEvent::progress(
+                        parsed.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    )),
+                    "tool" => Some(StreamEvent::tool(
+                        parsed.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        parsed.get("input").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        parsed.get("status").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        parsed.get("result").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    )),
+                    "reasoning" => Some(StreamEvent::reasoning(
+                        parsed.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    )),
+                    _ => None,
+                };
+                if let Some(se) = stream_event {
+                    let ws_event = WsEvent {
+                        event: se.event_type.clone(),
+                        task_uuid: task_uuid.to_string(),
+                        status: "streaming".into(),
+                        result: None,
+                        error: None,
+                        stream_event: Some(se),
+                    };
+                    let _ = ws_tx.send(ws_event);
+                }
+            }
+        }
     }
 
     pub fn is_running(&mut self) -> bool {
