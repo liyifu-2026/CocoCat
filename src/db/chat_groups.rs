@@ -254,8 +254,8 @@ pub fn send_message(
     let conn = pool.get()?;
     conn.execute(
         "INSERT INTO messages (msg_uuid, agent_id, user_id, role, content, scene_id, chat_group, metadata)
-         VALUES (?1, ?2, ?3, 'user', ?4, 'default', ?5, ?6)",
-        params![uuid::Uuid::new_v4().to_string(), from, from, content, group_id, mentions_json],
+         VALUES (?1, NULL, ?2, 'user', ?3, 'default', ?4, ?5)",
+        params![uuid::Uuid::new_v4().to_string(), from, content, group_id, mentions_json],
     )?;
     Ok(conn.last_insert_rowid())
 }

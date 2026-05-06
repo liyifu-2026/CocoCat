@@ -28,6 +28,7 @@ impl JwtState {
 pub struct Claims {
     pub sub: String,
     pub exp: usize,
+    #[serde(default)]
     pub role: String,
 }
 
