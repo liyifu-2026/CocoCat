@@ -107,6 +107,7 @@ const zh: Record<string, string> = {
   "agent.not_found": "智能体未找到",
   "agent.back_to_list": "← 所有智能体",
   "agent.edit_display": "编辑显示",
+  "agent.edit_profile": "编辑资料",
   "agent.customize_display": "自定义显示",
   "agent.nickname": "昵称",
   "agent.preview": "预览：",

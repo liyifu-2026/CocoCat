@@ -77,6 +77,8 @@ export default function AgentDetail() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [displayOpen, setDisplayOpen] = useState(false)
   const [displayConfig, setDisplayConfig] = useState<AgentDisplay>({ nickname: "", avatar: "", color: "" })
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [profileForm, setProfileForm] = useState({ objective: "", traits: "", background: "", rules: "" })
   const queryClient = useQueryClient()
 
   const agent = agentsData?.agents?.find(a => a.id === id)
@@ -183,53 +185,76 @@ export default function AgentDetail() {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>{t("agent.profile")}</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>{t("agent.profile")}</CardTitle>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    if (!editingProfile) {
+                      setProfileForm({
+                        objective: profile.data?.objective ?? "",
+                        traits: (profile.data?.traits ?? []).join(", "),
+                        background: profile.data?.background ?? "",
+                        rules: (profile.data?.rules ?? []).join("\n"),
+                      })
+                    }
+                    setEditingProfile(!editingProfile)
+                  }}>
+                    <Pencil className="size-3 mr-1" /> {editingProfile ? t("common.cancel") : t("agent.edit_profile")}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4 text-sm">
-                <div>
-                  <strong>{t("agent.id")}</strong> {agent.id}
-                </div>
-                <div>
-                  <strong>{t("agent.name")}</strong> {agent.name}
-                </div>
-                <div>
-                  <strong>{t("agent.scene")}</strong> {agent.scene}
-                </div>
-                {profile.data && (
+                <div><strong>{t("agent.id")}</strong> {agent.id}</div>
+                <div><strong>{t("agent.name")}</strong> {agent.name}</div>
+                <div><strong>{t("agent.scene")}</strong> {agent.scene}</div>
+                {editingProfile ? (
                   <>
                     <div>
-                      <strong>{t("agent.role")}</strong> {profile.data.role}
+                      <label className="text-sm font-medium mb-1 block">{t("agent.objective")}</label>
+                      <Input value={profileForm.objective} onChange={e => setProfileForm(p => ({ ...p, objective: e.target.value }))} />
                     </div>
                     <div>
-                      <strong>{t("agent.objective")}</strong> {profile.data.objective}
+                      <label className="text-sm font-medium mb-1 block">{t("agent.traits")} (comma separated)</label>
+                      <Input value={profileForm.traits} onChange={e => setProfileForm(p => ({ ...p, traits: e.target.value }))} />
                     </div>
                     <div>
-                      <strong>{t("agent.traits")}</strong>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {profile.data.traits.map((t, i) => (
-                          <Badge key={i} variant="outline">
-                            {t}
-                          </Badge>
-                        ))}
-                      </div>
+                      <label className="text-sm font-medium mb-1 block">{t("agent.background")}</label>
+                      <textarea className="w-full border border-border rounded-md p-2 text-sm min-h-[80px]" value={profileForm.background} onChange={e => setProfileForm(p => ({ ...p, background: e.target.value }))} />
                     </div>
-                    {profile.data.rules.length > 0 && (
-                      <div>
-                        <strong>{t("agent.rules")}</strong>
-                        <ul className="list-disc list-inside mt-1 text-muted-foreground">
-                          {profile.data.rules.map((r, i) => (
-                            <li key={i}>{r}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {profile.data.background && (
-                      <div>
-                        <strong>{t("agent.background")}</strong>
-                        <p className="text-muted-foreground mt-1">{profile.data.background}</p>
-                      </div>
-                    )}
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">{t("agent.rules")} (one per line)</label>
+                      <textarea className="w-full border border-border rounded-md p-2 text-sm min-h-[80px]" value={profileForm.rules} onChange={e => setProfileForm(p => ({ ...p, rules: e.target.value }))} />
+                    </div>
+                    <Button size="sm" onClick={async () => {
+                      await agentsApi.update(agent.id, {
+                        metadata: {
+                          profile: {
+                            objective: profileForm.objective,
+                            traits: profileForm.traits.split(",").map(s => s.trim()).filter(Boolean),
+                            background: profileForm.background,
+                            rules: profileForm.rules.split("\n").map(s => s.trim()).filter(Boolean),
+                          },
+                        },
+                      })
+                      queryClient.invalidateQueries({ queryKey: ["agent", id, "profile"] })
+                      setEditingProfile(false)
+                    }}>{t("common.save")}</Button>
                   </>
+                ) : (
+                  profile.data && (
+                    <>
+                      <div><strong>{t("agent.role")}</strong> {profile.data.role}</div>
+                      <div><strong>{t("agent.objective")}</strong> {profile.data.objective}</div>
+                      <div><strong>{t("agent.traits")}</strong>
+                        <div className="flex flex-wrap gap-1 mt-1">{profile.data.traits.map((t, i) => <Badge key={i} variant="outline">{t}</Badge>)}</div>
+                      </div>
+                      {profile.data.rules.length > 0 && (
+                        <div><strong>{t("agent.rules")}</strong>
+                          <ul className="list-disc list-inside mt-1 text-muted-foreground">{profile.data.rules.map((r, i) => <li key={i}>{r}</li>)}</ul>
+                        </div>
+                      )}
+                      {profile.data.background && <div><strong>{t("agent.background")}</strong><p className="text-muted-foreground mt-1">{profile.data.background}</p></div>}
+                    </>
+                  )
                 )}
               </CardContent>
             </Card>

@@ -107,6 +107,7 @@ const en: Record<string, string> = {
   "agent.not_found": "Agent not found",
   "agent.back_to_list": "← Back to Agents",
   "agent.edit_display": "Edit Display",
+  "agent.edit_profile": "Edit Profile",
   "agent.customize_display": "Customize Display",
   "agent.nickname": "Nickname",
   "agent.preview": "Preview:",
