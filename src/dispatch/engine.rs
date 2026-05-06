@@ -97,6 +97,11 @@ async fn process_task(
 
     tracing::info!("Dispatching task {} to agent {}", task_uuid, target);
 
+    // Capture chat origin info before params/target are moved into closure
+    let chat_group = params.get("chat_group").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let scene_id = params.get("scene_id").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let target_clone = target.clone();
+
     let manager = agent_manager.clone();
     let call_result = tokio::task::spawn_blocking(move || {
         manager.call_agent(&target, &method, params, 120)
@@ -111,6 +116,19 @@ async fn process_task(
 
             tasks::complete_task(db_pool, task_uuid, &result_str)
                 .map_err(|e| format!("complete task: {}", e))?;
+
+            // If task originated from chat, insert agent reply into messages table
+            if let (Some(ref cg), Some(ref sid)) = (chat_group, scene_id) {
+                let reply = result.get("response")
+                    .and_then(|v| v.as_str())
+                    .or_else(|| result.get("content").and_then(|v| v.as_str()))
+                    .unwrap_or("");
+                if !reply.is_empty() {
+                    let _ = crate::db::chat_groups::insert_agent_reply(
+                        db_pool, cg, &target_clone, reply, sid,
+                    );
+                }
+            }
 
             let _ = ws_tx.send(WsEvent {
                 event: "task_completed".into(),
