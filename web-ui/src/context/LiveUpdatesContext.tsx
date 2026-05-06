@@ -72,14 +72,13 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
           case "task_failed":
             qc.invalidateQueries({ queryKey: ["chat-groups"] })
             qc.invalidateQueries({ queryKey: ["chat-messages"] })
-            streamState.delete(data.task_uuid)
+            qc.invalidateQueries({ queryKey: ["knowledge"] })
+            streamState.set(data.task_uuid, { ...data, updatedAt: Date.now() })
             streamListeners.forEach(fn => fn())
             break
           case "stream_progress":
           case "stream_tool":
           case "stream_reasoning":
-          case "kb.progress":
-          case "kb.complete":
             streamState.set(data.task_uuid, { ...data, updatedAt: Date.now() })
             streamListeners.forEach(fn => fn())
             break
