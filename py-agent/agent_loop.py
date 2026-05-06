@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime
 import time as _time
-from llm import LLMClient
+from providers import make_provider
 from tools import ToolRegistry, create_default_registry, PermissionMode
 from plugin_hooks import HookRegistry
 from context import build_system_prompt, build_tool_descriptions, load_agent_skills, load_agent_profile, load_user_profile
@@ -62,6 +62,22 @@ CONSOLIDATION_PROMPT = """Summarize the following conversation turn in 1-2 sente
 """
 
 
+def append_history(agent_id: str, prompt: str, response_summary: str, iterations: int):
+    import json, os
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    hist_dir = os.path.join(base, "agents", agent_id, "memory")
+    os.makedirs(hist_dir, exist_ok=True)
+    hist_path = os.path.join(hist_dir, "history.jsonl")
+    entry = {
+        "prompt": prompt[:500],
+        "response_summary": response_summary[:500],
+        "iterations": iterations,
+        "timestamp": datetime.now().isoformat(),
+    }
+    with open(hist_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
 MAX_DEPTH = 3
 
 def consolidate(messages: list[dict], llm, budget: int = 131072, depth: int = 0) -> list[dict]:
@@ -109,7 +125,7 @@ def consolidate(messages: list[dict], llm, budget: int = 131072, depth: int = 0)
 
     summary = ""
     try:
-        response = llm.chat(messages=[{"role": "user", "content": prompt}], max_tokens=256, temperature=0.3)
+        response = llm.chat_with_retry(messages=[{"role": "user", "content": prompt}], max_tokens=256, temperature=0.3, retry_mode="persistent")
         summary = (response.get("content") or "").strip()
     except Exception:
         pass
@@ -138,7 +154,7 @@ class AgentLoop:
         agent_id: str = "unknown",
         agent_name: str = "Agent",
         tools: ToolRegistry | None = None,
-        llm: LLMClient | None = None,
+        llm = None,
         max_iterations: int = 20,
         workspace: str = "",
         scene_name: str = "default",
@@ -150,7 +166,7 @@ class AgentLoop:
         self.agent_id = agent_id
         self.agent_name = agent_name
         self.tools = tools or create_default_registry()
-        self.llm = llm or LLMClient()
+        self.llm = llm or make_provider()
         self.max_iterations = max_iterations
         self.workspace = workspace
         self.scene_name = scene_name
@@ -258,9 +274,10 @@ class AgentLoop:
             reasoning = None
             response = None
             for retry in range(3):
-                response = self.llm.chat(
+                response = self.llm.chat_with_retry(
                     messages=messages,
                     tools=tool_defs if tool_defs else None,
+                    retry_mode="persistent",
                 )
                 content = response.get("content", "") or ""
                 tool_calls = response.get("tool_calls", []) or []
@@ -279,9 +296,10 @@ class AgentLoop:
                 messages.append({"role": "assistant", "content": content})
                 messages.append({"role": "user", "content": "Please continue from where you left off."})
                 for _ in range(5):
-                    response = self.llm.chat(
+                    response = self.llm.chat_with_retry(
                         messages=messages,
                         tools=tool_defs if tool_defs else None,
+                        retry_mode="persistent",
                     )
                     content += (response.get("content", "") or "")
                     if response.get("finish_reason") != "length":
@@ -358,7 +376,8 @@ class AgentLoop:
             pass
         append_history(self.agent_id, prompt, final_content, iteration)
         if uid:
-            from dream import append_user_history, _user_hash
+            from dream import append_user_history
+            from utils import user_hash as _user_hash
             append_user_history(self.agent_id, _user_hash(uid), {
                 "role": "assistant", "content": final_content[:500],
                 "timestamp": datetime.now().isoformat(),

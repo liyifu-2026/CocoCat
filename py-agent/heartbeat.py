@@ -1,6 +1,7 @@
 """Heartbeat service: periodically check schedule and execute pending tasks."""
 import os
 import json
+import sys
 import time
 import threading
 
@@ -69,39 +70,39 @@ def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = 
                 messages = read_inbox(agent_id)
                 unread = [m for m in messages if m.get("status") == "unread"]
                 if unread:
-                    print(f"[Mailbox] {agent_name} has {len(unread)} unread message(s)")
+                    print(f"[Mailbox] {agent_name} has {len(unread)} unread message(s)", file=sys.stderr)
                     for i, msg in enumerate(messages):
                         if msg.get("status") == "unread":
                             from_prompt = f"[Message from {msg.get('from', 'unknown')}]\n{msg.get('content', '')}"
                             _execute_task(agent_id, agent_name, {"id": i, "task": from_prompt}, scene=scene, runner=runner)
                             mark_read(agent_id, i)
             except Exception as e:
-                print(f"[Mailbox] Error: {e}")
+                print(f"[Mailbox] Error: {e}", file=sys.stderr)
 
             try:
                 from chat_reader import get_unread_messages, mark_as_read
                 unread_chat = get_unread_messages(agent_id)
                 if unread_chat:
-                    print(f"[ChatReader] {agent_name} has {len(unread_chat)} unread chat message(s)")
+                    print(f"[ChatReader] {agent_name} has {len(unread_chat)} unread chat message(s)", file=sys.stderr)
                     for item in unread_chat:
                         try:
                             prompt = f"[Chat: {item['group_name']}] [from {item['from']}] (priority: {item['score']})\n{item['content']}"
                             _execute_task(agent_id, agent_name, {"id": f"chat_{item['group_id']}_{item['msg_index']}", "task": prompt}, scene=scene, runner=runner)
                         except Exception as e:
-                            print(f"[ChatReader] Failed to process: {e}")
+                            print(f"[ChatReader] Failed to process: {e}", file=sys.stderr)
                         mark_as_read(agent_id, item['group_id'], item['msg_index'], item['score'])
             except Exception as e:
-                print(f"[ChatReader] Error: {e}")
+                print(f"[ChatReader] Error: {e}", file=sys.stderr)
 
             try:
                 tasks = get_pending_tasks(agent_id)
                 if not tasks:
                     continue
-                print(f"[Heartbeat] {agent_name} found {len(tasks)} pending task(s)")
+                print(f"[Heartbeat] {agent_name} found {len(tasks)} pending task(s)", file=sys.stderr)
                 for task in tasks:
                     _execute_task(agent_id, agent_name, task, scene=scene, runner=runner)
             except Exception as e:
-                print(f"[Heartbeat] Error: {e}")
+                print(f"[Heartbeat] Error: {e}", file=sys.stderr)
 
             try:
                 from auto_compact import run_auto_compact
@@ -128,7 +129,7 @@ def _execute_task(agent_id: str, agent_name: str, task: dict, scene: str = "defa
         result = runner.run(prompt)
         content = result.get("content", "")
         update_task_status(task_id, "completed", content[:500])
-        print(f"[Heartbeat] Task {task_id} completed")
+        print(f"[Heartbeat] Task {task_id} completed", file=sys.stderr)
     except Exception as e:
         update_task_status(task_id, "failed", str(e)[:500])
-        print(f"[Heartbeat] Task {task_id} failed: {e}")
+        print(f"[Heartbeat] Task {task_id} failed: {e}", file=sys.stderr)

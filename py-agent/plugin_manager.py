@@ -39,7 +39,7 @@ def discover_plugins() -> dict:
             manifest["_root"] = str(d)
             plugins[manifest.get("name", d.name)] = manifest
         except Exception as e:
-            print(f"[PluginManager] Failed to load {d.name}: {e}")
+            print(f"[PluginManager] Failed to load {d.name}: {e}", file=sys.stderr)
     return plugins
 
 
@@ -53,7 +53,7 @@ def load_plugin_tools(manifest: dict) -> list:
         try:
             handler = _load_handler(tdef["handler"], plugin_root)
         except Exception as e:
-            print(f"[PluginManager] Failed to load tool '{tdef.get('name')}': {e}")
+            print(f"[PluginManager] Failed to load tool '{tdef.get('name')}': {e}", file=sys.stderr)
             continue
         tool = type(tdef["name"], (PluginTool,), {
             "name": tdef["name"],
@@ -75,7 +75,7 @@ def load_plugin_hooks(manifest: dict) -> dict:
                 handler = _load_handler(spec, plugin_root)
                 hooks.setdefault(event, []).append(handler)
             except Exception as e:
-                print(f"[PluginManager] Failed to load hook '{spec}': {e}")
+                print(f"[PluginManager] Failed to load hook '{spec}': {e}", file=sys.stderr)
     return hooks
 
 

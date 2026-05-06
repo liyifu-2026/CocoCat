@@ -70,3 +70,20 @@ def test_install_uninstall():
 
         result = uninstall_plugin("test-plugin")
         assert "successfully" in result
+
+
+def test_example_hook_output_goes_to_stderr():
+    import io
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "plugins", "example-plugin"))
+    from hooks.logger import log_pre_tool, log_post_tool
+
+    old_out, old_err = sys.stdout, sys.stderr
+    sys.stdout = io.StringIO()
+    sys.stderr = io.StringIO()
+    try:
+        log_pre_tool("hello_world", {"name": "test"}, {})
+        log_post_tool("hello_world", {"name": "test"}, "result", {})
+        assert "PluginHook" not in sys.stdout.getvalue(), "PluginHook leaked to stdout"
+        assert "PluginHook" in sys.stderr.getvalue(), "PluginHook should be on stderr"
+    finally:
+        sys.stdout, sys.stderr = old_out, old_err

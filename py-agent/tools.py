@@ -483,7 +483,8 @@ class RememberTool(Tool):
         self._agent_id = agent_id
 
     def execute(self, content: str = "", user_id: str = "", **kwargs) -> str:
-        from dream import get_user_memory_dir, _user_hash, _agent_memory_dir
+        from dream import get_user_memory_dir, _agent_memory_dir
+        from utils import user_hash as _user_hash
         with _memory_lock:
             if user_id:
                 user_hash = _user_hash(user_id)
@@ -518,7 +519,8 @@ class RecallTool(Tool):
         self._agent_id = agent_id
 
     def execute(self, keyword: str = "", user_id: str = "", **kwargs) -> str:
-        from dream import _user_hash, get_user_memory_dir, _agent_memory_dir
+        from utils import user_hash as _user_hash
+        from dream import get_user_memory_dir, _agent_memory_dir
         lines = []
         mem_path = os.path.join(_agent_memory_dir(self._agent_id), "MEMORY.md")
         if os.path.exists(mem_path):
@@ -945,6 +947,6 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
             for ptool in load_plugin_tools(manifest):
                 registry.register(ptool)
     except Exception as e:
-        print(f"[PluginLoader] Failed to load plugin tools: {e}")
+        print(f"[PluginLoader] Failed to load plugin tools: {e}", file=sys.stderr)
 
     return registry

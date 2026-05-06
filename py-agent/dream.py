@@ -151,9 +151,9 @@ def run_dream(agent_id: str, agent_name: str, llm_client=None) -> str:
     if not _dream_lock.acquire(blocking=False):
         return "Dream already in progress, skipped."
     try:
-        from llm import LLMClient
+        from providers import make_provider
 
-        llm = llm_client or LLMClient()
+        llm = llm_client or make_provider()
         unprocessed, total_entries = get_unprocessed_history(agent_id)
 
         if not unprocessed:
@@ -173,10 +173,11 @@ def run_dream(agent_id: str, agent_name: str, llm_client=None) -> str:
         )
 
         try:
-            response = llm.chat(
+            response = llm.chat_with_retry(
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1024,
                 temperature=0.3,
+                retry_mode="persistent",
             )
             content = (response.get("content") or "").strip()
         except Exception as e:
@@ -234,8 +235,8 @@ Use read_file and edit_file tools to complete this task."""
 
 
 def run_user_dream(agent_id: str, agent_name: str, user_hash: str, llm_client=None) -> str:
-    from llm import LLMClient
-    llm = llm_client or LLMClient()
+    from providers import make_provider
+    llm = llm_client or make_provider()
     user_dir = get_user_memory_dir(agent_id, user_hash)
     history_path = os.path.join(user_dir, "history.jsonl")
     profile_path = os.path.join(user_dir, "PROFILE.md")
@@ -249,7 +250,7 @@ Write concise bullet points for their PROFILE.md file.
 
 {history_text}"""
     try:
-        analysis = llm.chat(messages=[{"role": "user", "content": analysis_prompt}], max_tokens=512, temperature=0.3)
+        analysis = llm.chat_with_retry(messages=[{"role": "user", "content": analysis_prompt}], max_tokens=512, temperature=0.3, retry_mode="persistent")
         content = (analysis.get("content") or "").strip()
     except Exception as e:
         return f"User dream LLM call failed: {e}"
