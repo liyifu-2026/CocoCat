@@ -57,3 +57,25 @@ def mark_read(agent_id: str, idx: int):
                     f.write(json.dumps(m, ensure_ascii=False) + "\n")
             return f"Message {idx} marked as read."
         return f"Message index {idx} out of range."
+
+
+def create_bus_subscriber(bus):
+    """Create a bus consumer that persists inbound messages to mailbox files."""
+    import json, os, time
+
+    def on_inbound(msg):
+        if msg.channel == "mailbox":
+            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", "mailbox", msg.agent_id, "inbox.jsonl")
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            entry = {
+                "from": msg.source,
+                "content": msg.content,
+                "timestamp": time.time(),
+                "status": "unread",
+                "channel": msg.channel,
+                "metadata": msg.metadata,
+            }
+            with open(path, "a") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    bus.subscribe_inbound(on_inbound)

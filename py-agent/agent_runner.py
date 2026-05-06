@@ -7,10 +7,11 @@ class AgentRunner:
     """Unified facade over AgentLoop setup and execution (nanobot Nanobot pattern)."""
 
     def __init__(self, agent_id: str, agent_name: str = "Agent", scene: str = "default",
-                 agent_runtime_path: str = ""):
+                 agent_runtime_path: str = "", bus=None):
         self.agent_id = agent_id
         self.agent_name = agent_name
         self.scene = scene
+        self.bus = bus
         if not agent_runtime_path:
             import os
             agent_runtime_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_runtime.py")

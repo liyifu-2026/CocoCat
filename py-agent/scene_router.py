@@ -44,3 +44,28 @@ def get_history(scene_id: str, user_id: str, limit: int = 20) -> list[dict]:
                 except json.JSONDecodeError:
                     pass
     return entries[-limit:]
+
+
+def create_bus_subscriber(bus):
+    """Record all inbound/outbound messages as scene history."""
+    def on_inbound(msg):
+        if msg.scene_id:
+            store_message(msg.scene_id, msg.source, {
+                "timestamp": __import__("time").time(),
+                "direction": "incoming",
+                "content": msg.content,
+                "channel": msg.channel,
+            })
+
+    def on_outbound(msg):
+        scene_id = msg.metadata.get("scene_id")
+        if scene_id:
+            store_message(scene_id, msg.target, {
+                "timestamp": __import__("time").time(),
+                "direction": "outgoing",
+                "content": msg.content,
+                "channel": msg.channel,
+            })
+
+    bus.subscribe_inbound(on_inbound)
+    bus.subscribe_outbound(on_outbound)

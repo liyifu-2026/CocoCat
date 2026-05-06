@@ -1,4 +1,4 @@
-"""Heartbeat service: periodically check schedule and execute pending tasks."""
+"""Heartbeat service: consume bus events, check schedule, execute pending tasks."""
 import os
 import json
 import sys
@@ -44,63 +44,57 @@ def update_task_status(task_id: int, status: str, result: str = ""):
     save_schedule(schedule)
 
 
-def start_heartbeat(agent_id: str, agent_name: str, interval: int = 300, scene: str = "default"):
-    thread = threading.Thread(target=_heartbeat_loop, args=(agent_id, agent_name, interval, scene), daemon=True)
+def start_heartbeat(agent_id: str, agent_name: str, interval: int = 300, scene: str = "default", bus=None):
+    thread = threading.Thread(
+        target=_heartbeat_loop, args=(agent_id, agent_name, interval, scene, bus), daemon=True
+    )
     thread.start()
     return thread
 
 
-def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = "default"):
+def _heartbeat_loop(agent_id: str, agent_name: str, interval: int, scene: str = "default", bus=None):
     global _heartbeat_running
     if _heartbeat_running:
         return
     _heartbeat_running = True
     try:
         from agent_runner import AgentRunner
-        runner = AgentRunner(agent_id, agent_name, scene)
+        runner = AgentRunner(agent_id, agent_name, scene, bus=bus)
+
         while True:
-            time.sleep(interval)
+            # Wait for bus events (with interval timeout for schedule checks)
+            if bus is not None:
+                msg = bus.wait_for_inbound(timeout=interval)
+                if msg is not None:
+                    from message import InboundMessage
+                    if isinstance(msg, InboundMessage) and msg.agent_id == agent_id:
+                        prompt = msg.content
+                        _execute_task(agent_id, agent_name, {"id": f"{msg.channel}_{msg.source}", "task": prompt}, scene=scene, runner=runner)
+                        continue
+            else:
+                time.sleep(interval)
+
+            # Status report
             try:
                 from agent_status import report as _sreport
                 _sreport(agent_id, "alive", f"heartbeat {agent_name}")
             except Exception:
                 pass
-            try:
-                from mailbox import read_inbox, mark_read
-                messages = read_inbox(agent_id)
-                unread = [m for m in messages if m.get("status") == "unread"]
-                if unread:
-                    print(f"[Mailbox] {agent_name} has {len(unread)} unread message(s)", file=sys.stderr)
-                    for i, msg in enumerate(messages):
-                        if msg.get("status") == "unread":
-                            from_prompt = f"[Message from {msg.get('from', 'unknown')}]\n{msg.get('content', '')}"
-                            _execute_task(agent_id, agent_name, {"id": i, "task": from_prompt}, scene=scene, runner=runner)
-                            mark_read(agent_id, i)
-            except Exception as e:
-                print(f"[Mailbox] Error: {e}", file=sys.stderr)
 
-            try:
-                from chat_reader import get_unread_messages, mark_as_read
-                unread_chat = get_unread_messages(agent_id)
-                if unread_chat:
-                    print(f"[ChatReader] {agent_name} has {len(unread_chat)} unread chat message(s)", file=sys.stderr)
-                    for item in unread_chat:
-                        try:
-                            prompt = f"[Chat: {item['group_name']}] [from {item['from']}] (priority: {item['score']})\n{item['content']}"
-                            _execute_task(agent_id, agent_name, {"id": f"chat_{item['group_id']}_{item['msg_index']}", "task": prompt}, scene=scene, runner=runner)
-                        except Exception as e:
-                            print(f"[ChatReader] Failed to process: {e}", file=sys.stderr)
-                        mark_as_read(agent_id, item['group_id'], item['msg_index'], item['score'])
-            except Exception as e:
-                print(f"[ChatReader] Error: {e}", file=sys.stderr)
+            # Fallback: drain any bus messages that arrived during processing
+            if bus is not None:
+                for msg in bus.drain_inbound():
+                    if msg.agent_id == agent_id:
+                        prompt = msg.content
+                        _execute_task(agent_id, agent_name, {"id": f"{msg.channel}_{msg.source}", "task": prompt}, scene=scene, runner=runner)
 
+            # Schedule check
             try:
                 tasks = get_pending_tasks(agent_id)
-                if not tasks:
-                    continue
-                print(f"[Heartbeat] {agent_name} found {len(tasks)} pending task(s)", file=sys.stderr)
-                for task in tasks:
-                    _execute_task(agent_id, agent_name, task, scene=scene, runner=runner)
+                if tasks:
+                    print(f"[Heartbeat] {agent_name} found {len(tasks)} pending task(s)", file=sys.stderr)
+                    for task in tasks:
+                        _execute_task(agent_id, agent_name, task, scene=scene, runner=runner)
             except Exception as e:
                 print(f"[Heartbeat] Error: {e}", file=sys.stderr)
 
@@ -123,7 +117,7 @@ def _execute_task(agent_id: str, agent_name: str, task: dict, scene: str = "defa
         return
 
     if runner is None:
-        runner = AgentRunner(agent_id, agent_name, scene)
+        runner = AgentRunner(agent_id, agent_name, scene, bus=bus)
 
     try:
         result = runner.run(prompt)

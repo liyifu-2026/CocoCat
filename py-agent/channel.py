@@ -1,7 +1,9 @@
 """Channel base class and ChatMessage format."""
-
+from __future__ import annotations
 
 import uuid
+
+from message import InboundMessage, OutboundMessage
 
 
 class ChatMessage:
@@ -30,12 +32,22 @@ class ChatMessage:
             **self.extra,
         }
 
+    def to_inbound(self, agent_id: str) -> InboundMessage:
+        return InboundMessage(
+            channel=self.channel_type or "unknown",
+            source=self.user_id,
+            content=self.content,
+            agent_id=agent_id,
+            scene_id=self.scene_id or "default",
+            metadata={"msg_id": self.msg_id, "user_name": self.user_name},
+        )
+
 
 class Channel:
     """Base class for external communication channels."""
-    def __init__(self):
+    def __init__(self, bus=None):
         self._connected = False
-        self.on_message = None
+        self.bus = bus
 
     @property
     def connected(self) -> bool:
@@ -52,3 +64,7 @@ class Channel:
 
     def send(self, reply: str, user_id: str):
         raise NotImplementedError
+
+    def reply(self, msg: OutboundMessage):
+        """Send an outbound message back through this channel."""
+        self.send(msg.content, msg.target)
