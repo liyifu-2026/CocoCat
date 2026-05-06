@@ -105,7 +105,11 @@ export default function Chat() {
   const groups = groupsData?.groups ?? []
   const currentGroup = groups.find(g => g.id === selectedGroup)
   const messages = messagesData?.messages ?? []
-  const agents = agentsData?.agents ?? []
+  const agents: any[] = ((agentsData as any)?.agents ?? (Array.isArray(agentsData) ? agentsData : [])) as any[]
+  const channels = groups.filter(g => !g.id.startsWith("dm_"))
+  const dmGroups = groups.filter(g => g.id.startsWith("dm_"))
+  const agentStatus: Record<string, string> = {}
+  ;(Array.isArray(agents) ? agents : []).forEach((a: any) => { agentStatus[a.id] = a.status })
   const [displayConfs, setDisplayConfs] = useState<Record<string, {nickname?: string}>>({})
   useEffect(() => {
     if (!agents.length) return
@@ -169,27 +173,53 @@ export default function Chat() {
           </Dialog>
         </div>
         <ScrollArea className="flex-1">
-          {groups.map(g => {
-            const lastMsg = messagesData?.messages?.slice(-1)[0]
-            const unread = 0
+          {/* Channels Section */}
+          {channels.length > 0 && (
+            <div className="px-3 pt-3 pb-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Channels</p>
+            </div>
+          )}
+          {channels.map(g => (
+            <button key={g.id} onClick={() => setSelectedGroup(g.id)}
+              className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-accent/50 transition-colors ${selectedGroup === g.id ? "bg-accent" : ""}`}>
+              <div className="relative shrink-0">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${g.is_default ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                  <Hash className="size-5" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium truncate">{g.name}</span>
+                  {messagesData?.messages?.slice(-1)[0] && (
+                    <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatTime(messagesData!.messages.slice(-1)[0]!.timestamp)}</span>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground truncate mt-0.5">
+                  {(() => {
+                    const last = messagesData?.messages?.slice(-1)[0]
+                    return last ? (last.recalled ? "[recalled]" : last.content) : `${g.members.length} members`
+                  })()}
+                </div>
+              </div>
+            </button>
+          ))}
+
+          {/* DM Section */}
+          {dmGroups.length > 0 && (
+            <div className="px-3 pt-4 pb-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Direct Messages</p>
+            </div>
+          )}
+          {dmGroups.map(g => {
+            const agentId = g.id.replace("dm_", "")
+            const agentName = g.name
+            const status = agentStatus[agentId]
+            const statusDot = status === "running" ? "🟢" : status === "error" || status === "busy" ? "🔴" : "○"
             return (
               <button key={g.id} onClick={() => setSelectedGroup(g.id)}
-                className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-accent/50 transition-colors ${selectedGroup === g.id ? "bg-accent" : ""}`}>
-                <div className="relative shrink-0">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${g.is_default ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                    <Hash className="size-5" />
-                  </div>
-                  {unread > 0 && <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground px-1">{unread > 99 ? "99+" : unread}</span>}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium truncate">{g.name}</span>
-                    {lastMsg && <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatTime(lastMsg.timestamp)}</span>}
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate mt-0.5">
-                    {lastMsg ? (lastMsg.recalled ? "[recalled]" : lastMsg.content) : `${g.members.length} members`}
-                  </div>
-                </div>
+                className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-accent/50 transition-colors ${selectedGroup === g.id ? "bg-accent" : ""}`}>
+                <span className="text-xs shrink-0 w-4 text-center">{statusDot}</span>
+                <span className="truncate">{agentName}</span>
               </button>
             )
           })}
