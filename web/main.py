@@ -504,6 +504,73 @@ def reject_hire(hire_id: str):
     return {"status": "rejected", "hire_id": hire_id}
 
 
+# Delivery endpoints — proxies to Rust core
+@app.get("/api/deliveries")
+async def list_deliveries(request: Request):
+    import httpx
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {}
+            auth = request.headers.get("Authorization", "")
+            if auth: headers["Authorization"] = auth
+            resp = await client.get("http://localhost:3000/api/deliveries", headers=headers, timeout=10)
+            return JSONResponse(content=resp.json(), status_code=resp.status_code)
+        except httpx.RequestError as e:
+            return JSONResponse({"error": f"Rust core unavailable: {e}"}, status_code=503)
+
+@app.get("/api/deliveries/{delivery_id}")
+async def get_delivery(request: Request, delivery_id: str):
+    import httpx
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {}
+            auth = request.headers.get("Authorization", "")
+            if auth: headers["Authorization"] = auth
+            resp = await client.get(f"http://localhost:3000/api/deliveries/{delivery_id}", headers=headers, timeout=10)
+            return JSONResponse(content=resp.json(), status_code=resp.status_code)
+        except httpx.RequestError as e:
+            return JSONResponse({"error": f"Rust core unavailable: {e}"}, status_code=503)
+
+@app.post("/api/deliveries/{delivery_id}/archive")
+async def archive_delivery(request: Request, delivery_id: str):
+    import httpx
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {}
+            auth = request.headers.get("Authorization", "")
+            if auth: headers["Authorization"] = auth
+            resp = await client.post(f"http://localhost:3000/api/deliveries/{delivery_id}/archive", headers=headers, timeout=10)
+            return JSONResponse(content=resp.json(), status_code=resp.status_code)
+        except httpx.RequestError as e:
+            return JSONResponse({"error": f"Rust core unavailable: {e}"}, status_code=503)
+
+@app.post("/api/deliveries/{delivery_id}/read")
+async def mark_delivery_read(request: Request, delivery_id: str):
+    import httpx
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {}
+            auth = request.headers.get("Authorization", "")
+            if auth: headers["Authorization"] = auth
+            resp = await client.post(f"http://localhost:3000/api/deliveries/{delivery_id}/read", headers=headers, timeout=10)
+            return JSONResponse(content=resp.json(), status_code=resp.status_code)
+        except httpx.RequestError as e:
+            return JSONResponse({"error": f"Rust core unavailable: {e}"}, status_code=503)
+
+@app.get("/api/deliveries/{delivery_id}/files/{filename}")
+async def download_delivery_file(request: Request, delivery_id: str, filename: str):
+    import httpx
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {}
+            auth = request.headers.get("Authorization", "")
+            if auth: headers["Authorization"] = auth
+            resp = await client.get(f"http://localhost:3000/api/deliveries/{delivery_id}/files/{filename}", headers=headers)
+            from fastapi.responses import Response
+            return Response(content=resp.content, media_type=resp.headers.get("content-type", "application/octet-stream"))
+        except httpx.RequestError as e:
+            return JSONResponse({"error": str(e)}, status_code=502)
+
 # Serve React web-ui as SPA fallback (must be after all API routes)
 from fastapi.staticfiles import StaticFiles
 ui_dir = BASE_DIR / "web-ui" / "dist"

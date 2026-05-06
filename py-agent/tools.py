@@ -895,6 +895,12 @@ def create_default_registry(agent_runtime_path: str = "", scene_id: str = "defau
     registry.register(BrowserTool())
 
     try:
+        from skills.send_delivery import send_delivery, TOOL_DEF as DELIVERY_DEF
+        registry.register(DynamicTool("send_delivery", send_delivery, DELIVERY_DEF))
+    except ImportError:
+        pass
+
+    try:
         from plugin_manager import discover_plugins, load_plugin_tools
         for pname, manifest in discover_plugins().items():
             for ptool in load_plugin_tools(manifest):
