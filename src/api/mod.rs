@@ -1,4 +1,5 @@
 pub mod chat;
+pub mod chat_groups;
 pub mod hire;
 pub mod mailbox;
 pub mod router;
