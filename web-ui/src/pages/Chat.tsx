@@ -221,14 +221,13 @@ export default function Chat() {
                 const status = agentStatus[agentId]
                 return (
                   <button key={g.id} onClick={() => setSelectedGroup(g.id)}
-                    className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors border-l-2 ${
+                    className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors border-l-2 ${
                       selectedGroup === g.id
                         ? "bg-accent/50 border-primary"
                         : "border-transparent hover:bg-accent/30 hover:border-muted-foreground/30"
                     }`}>
-                    <span className={`shrink-0 w-2 h-2 rounded-full ${
-                      status === "running" ? "bg-green-500" : status === "error" || status === "busy" ? "bg-red-500" : "bg-muted-foreground/30"
-                    }`} />
+                    <AgentAvatar name={agentName} size="xs"
+                      status={status === "running" ? "idle" : status === "error" || status === "busy" ? "busy" : undefined} />
                     <span className="truncate">{agentName}</span>
                   </button>
                 )
@@ -247,17 +246,23 @@ export default function Chat() {
         ) : (
           <>
             <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
-              {selectedGroup?.startsWith("dm_") ? (
-                <div className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${
-                    agentStatus[selectedGroup.replace("dm_", "")] === "running" ? "bg-green-500"
-                    : agentStatus[selectedGroup.replace("dm_", "")] === "error" || agentStatus[selectedGroup.replace("dm_", "")] === "busy" ? "bg-red-500"
-                    : "bg-muted-foreground/30"
-                  }`} />
-                  <h2 className="font-semibold">{currentGroup?.name}</h2>
-                  <span className="text-xs text-muted-foreground">· DM</span>
-                </div>
-              ) : (
+              {selectedGroup?.startsWith("dm_") ? (() => {
+                const agentId = selectedGroup.replace("dm_", "")
+                const agentName = agentNames[agentId] || currentGroup?.name || agentId
+                const status = agentStatus[agentId]
+                return (
+                  <div className="flex items-center gap-3">
+                    <AgentAvatar name={agentName} size="sm"
+                      status={status === "running" ? "idle" : status === "error" || status === "busy" ? "busy" : undefined} />
+                    <div>
+                      <h2 className="font-semibold">{agentName}</h2>
+                      <p className="text-xs text-muted-foreground">
+                        {status === "running" ? "Online" : status === "error" ? "Error" : status === "busy" ? "Busy" : "Offline"}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })() : (
                 <div><h2 className="font-semibold flex items-center gap-2"><Hash className="size-4 text-muted-foreground" />{currentGroup?.name}</h2>{currentGroup?.announcement && <p className="text-xs text-muted-foreground mt-0.5">{currentGroup.announcement}</p>}</div>
               )}
               <Badge variant="outline" className="text-xs gap-1"><Users className="size-3" /> {currentGroup?.members.length}</Badge>
