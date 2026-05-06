@@ -74,8 +74,12 @@ pub fn build(state: AppState) -> Router {
         .route("/api/collaboration/graph", axum::routing::get(collab::get_collab_graph_handler))
         .route("/api/knowledge", axum::routing::get(knowledge::list_handler))
         .route("/api/knowledge/upload", axum::routing::post(knowledge::upload_handler))
+        .route("/api/knowledge/:kb_name", axum::routing::get(knowledge::kb_detail_handler))
         .route("/api/knowledge/:kb_name/process", axum::routing::post(knowledge::process_handler))
         .route("/api/knowledge/:kb_name/tasks", axum::routing::get(knowledge::tasks_handler))
+        .route("/api/knowledge/:kb_name/wiki", axum::routing::get(knowledge::wiki_list_handler))
+        .route("/api/knowledge/:kb_name/wiki/:page_type/:page_name", axum::routing::get(knowledge::wiki_page_handler))
+        .route("/api/knowledge/:kb_name/search", axum::routing::get(knowledge::search_handler))
         .route("/api/upload/extract", axum::routing::post(knowledge::extract_handler))
         .route("/ws", get(ws::ws_handler))
         .layer(DefaultBodyLimit::max(10 * 1024 * 1024)) // 10MB

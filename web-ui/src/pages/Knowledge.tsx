@@ -30,8 +30,11 @@ export default function Knowledge() {
 
   async function handleUpload() {
     if (!selectedFile || !kbInput.trim()) return
-    const res = await knowledgeApi.upload(kbInput.trim(), selectedFile.name, "placeholder content")
+    setUploadOpen(false)
+    const content = await selectedFile.text()
+    const res = await knowledgeApi.upload(kbInput.trim(), selectedFile.name, content)
     setTaskUuid(res.task_uuid)
+    refetch()
   }
 
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ["knowledge"], queryFn: () => knowledgeApi.list() })
@@ -98,13 +101,13 @@ export default function Knowledge() {
         <div className="border rounded-lg p-4 bg-muted/30 stagger-item" style={{animationDelay: "0.04s"}}>
           <h3 className="font-semibold mb-2 text-sm">Processing: {taskProgress.task_uuid?.slice(0, 8)}</h3>
           <div className="space-y-1 text-sm">
-            {taskProgress.event === "kb.progress" && (
+            {taskProgress.event === "stream_progress" && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="size-3 animate-spin" />
-                <span>{taskProgress.content || "Processing..."}</span>
+                <span>{taskProgress.stream_event?.content || taskProgress.content || "Processing..."}</span>
               </div>
             )}
-            {taskProgress.event === "kb.complete" && (
+            {taskProgress.event === "task_completed" && (
               <div className="flex items-center gap-2 text-green-600">
                 <CheckCircle className="size-3" />
                 <span>Complete</span>
