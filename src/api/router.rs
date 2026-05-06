@@ -9,7 +9,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::dispatch::engine::{TaskEvent, WsEvent};
 
-use super::{agents_list, chat, chat_groups, hire, mailbox, scenes, skills, tasks, ws};
+use super::{agents_list, chat, chat_groups, deliveries, hire, mailbox, scenes, skills, tasks, ws};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -49,6 +49,12 @@ pub fn build(state: AppState) -> Router {
         .route("/api/chat/groups/:group_id/messages", axum::routing::post(chat_groups::send_message).get(chat_groups::get_messages))
         .route("/api/chat/groups/:group_id/messages/:msg_id/recall", axum::routing::post(chat_groups::recall_message))
         .route("/api/chat/groups/:group_id/messages/:msg_id/read", axum::routing::post(chat_groups::mark_read))
+        .route("/api/deliveries/create", axum::routing::post(deliveries::create_delivery))
+        .route("/api/deliveries", axum::routing::get(deliveries::list_deliveries))
+        .route("/api/deliveries/:id", axum::routing::get(deliveries::get_delivery))
+        .route("/api/deliveries/:id/archive", axum::routing::post(deliveries::archive_delivery))
+        .route("/api/deliveries/:id/read", axum::routing::post(deliveries::mark_read))
+        .route("/api/deliveries/:id/files/:filename", axum::routing::get(deliveries::download_file))
         .route("/api/agents", axum::routing::get(agents_list::list_agents))
         .route("/api/agents/:id", axum::routing::get(agents_list::get_agent).patch(agents_list::update_agent).delete(agents_list::delete_agent))
         .route("/ws", get(ws::ws_handler))

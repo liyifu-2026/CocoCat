@@ -126,6 +126,16 @@ pub fn run_migrations(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS deliveries (
+            id TEXT PRIMARY KEY,
+            subject TEXT NOT NULL,
+            from_agent TEXT NOT NULL,
+            body TEXT NOT NULL DEFAULT '',
+            files TEXT NOT NULL DEFAULT '[]',
+            status TEXT NOT NULL DEFAULT 'new',
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
         CREATE TABLE IF NOT EXISTS chat_groups (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -136,7 +146,7 @@ pub fn run_migrations(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
 
         CREATE TABLE IF NOT EXISTS chat_group_members (
             group_id TEXT NOT NULL REFERENCES chat_groups(id),
-            agent_id TEXT NOT NULL REFERENCES agents(id),
+            agent_id TEXT NOT NULL,
             name TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'member',
             PRIMARY KEY (group_id, agent_id)

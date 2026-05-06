@@ -1,6 +1,7 @@
 pub mod agents_list;
 pub mod chat;
 pub mod chat_groups;
+pub mod deliveries;
 pub mod hire;
 pub mod mailbox;
 pub mod router;
