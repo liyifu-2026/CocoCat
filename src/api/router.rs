@@ -1,7 +1,7 @@
 use crate::auth;
 use crate::db::pool::DbPool;
 use axum::extract::DefaultBodyLimit;
-use axum::{routing::get, Router};
+use axum::{routing::get, Json, Router};
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::Sender;
 use tower_http::compression::CompressionLayer;
@@ -66,6 +66,7 @@ pub fn build(state: AppState) -> Router {
         .route("/api/agents/:id/memory", axum::routing::get(agents_detail::get_memory_handler))
         .route("/api/agents/:id/history", axum::routing::get(agents_detail::get_history_handler))
         .route("/api/agents/:id/display", axum::routing::get(agents_detail::get_display_handler).put(agents_detail::update_display_handler))
+        .route("/api/activity", get(|| async { Json(serde_json::json!({"activities": []})) }))
         .route("/api/usage", axum::routing::get(usage::get_usage_handler))
         .route("/api/schedule", axum::routing::get(schedule::list_schedule_handler))
         .route("/api/schedule/tasks", axum::routing::post(schedule::create_schedule_handler))

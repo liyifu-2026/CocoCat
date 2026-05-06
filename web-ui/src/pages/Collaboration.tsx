@@ -80,6 +80,7 @@ export default function Collaboration() {
   const nodePositions: Record<string, DagreNode> = {}
   g.nodes().forEach((id: string) => {
     const node = g.node(id)
+    if (!node) return
     nodePositions[id] = { x: node.x - 70, y: node.y - 25, width: 140, height: 50 }
   })
 

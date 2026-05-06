@@ -37,8 +37,9 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
   const mountedRef = useRef(true)
 
   const connect = () => {
+    const token = localStorage.getItem("cococat_token")
+    if (!token) return // skip if not authenticated
     const protocol = location.protocol === "https:" ? "wss:" : "ws:"
-    const token = localStorage.getItem("cococat_token") ?? ""
     const ws = new WebSocket(`${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`)
     wsRef.current = ws
 
