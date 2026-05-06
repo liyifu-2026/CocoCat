@@ -103,7 +103,7 @@ export default function Chat() {
     queryKey: ["chat-messages", selectedGroup],
     queryFn: () => chatApi.getMessages(selectedGroup!),
     enabled: !!selectedGroup,
-    refetchInterval: 5000,
+    refetchInterval: 15000,
   })
 
   const groups = groupsData?.groups ?? []
