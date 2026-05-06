@@ -65,6 +65,29 @@ pub fn init_default_group(pool: &DbPool) -> Result<(), Box<dyn std::error::Error
         "INSERT OR IGNORE INTO chat_group_members (group_id, agent_id, name, role) VALUES (?1, ?2, ?3, 'owner')",
         params!["general", "admin", "Admin"],
     )?;
+    // Create DM groups for each agent
+    let mut agents = conn.prepare("SELECT id, name FROM agents WHERE status != 'stopped'")?;
+    let agent_rows: Vec<(String, String)> = agents
+        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+        .filter_map(|r| r.ok())
+        .collect();
+    drop(agents);
+
+    for (agent_id, agent_name) in &agent_rows {
+        let dm_id = format!("dm_{}", agent_id);
+        conn.execute(
+            "INSERT OR IGNORE INTO chat_groups (id, name, announcement, is_default) VALUES (?1, ?2, '', 0)",
+            rusqlite::params![dm_id, agent_name],
+        )?;
+        conn.execute(
+            "INSERT OR IGNORE INTO chat_group_members (group_id, agent_id, name, role) VALUES (?1, 'admin', 'Admin', 'owner')",
+            rusqlite::params![dm_id],
+        )?;
+        conn.execute(
+            "INSERT OR IGNORE INTO chat_group_members (group_id, agent_id, name, role) VALUES (?1, ?2, ?3, 'member')",
+            rusqlite::params![dm_id, agent_id, agent_name],
+        )?;
+    }
     Ok(())
 }
 
