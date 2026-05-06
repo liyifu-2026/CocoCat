@@ -256,6 +256,36 @@ def load_agent_skills(agent_id: str, progressive: bool = True) -> str:
     import os as _os
     from skill_hub import get_skill_summary, check_skill_dependencies
     base = _os.path.dirname(_os.path.abspath(__file__))
+
+    # Try DB-based skill warehouse first
+    try:
+        import sqlite3 as _sqlite3
+        _db_path = _os.path.join(base, "..", "cococat.db")
+        if _os.path.exists(_db_path):
+            _conn = _sqlite3.connect(_db_path)
+            _rows = _conn.execute(
+                "SELECT s.name, s.description, s.content FROM agent_skills a_s "
+                "JOIN skill_warehouse s ON s.id = a_s.skill_id "
+                "WHERE a_s.agent_id = ? AND a_s.enabled = 1 ORDER BY s.name",
+                (agent_id,)
+            ).fetchall()
+            _conn.close()
+            if _rows:
+                if progressive:
+                    lines = ["You have the following skills available. Use read_file to view full content:"]
+                    for name, desc, _content in _rows:
+                        summary = (desc or "")[:200]
+                        lines.append(f"- {name}: {summary}")
+                    return "\n".join(lines)
+                else:
+                    parts = []
+                    for _name, _desc, content in _rows:
+                        if content and content.strip():
+                            parts.append(content.strip())
+                    return "\n\n---\n\n".join(parts) if parts else ""
+    except Exception:
+        pass
+
     manifest_path = _os.path.join(base, "..", "agents", agent_id, "skills", "manifest.json")
     if not _os.path.exists(manifest_path):
         return ""

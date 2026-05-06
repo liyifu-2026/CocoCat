@@ -152,6 +152,31 @@ pub fn run_migrations(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
             PRIMARY KEY (group_id, agent_id)
         );"
     )?;
+
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS skill_warehouse (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            content TEXT NOT NULL DEFAULT '',
+            version TEXT NOT NULL DEFAULT '1.0',
+            source TEXT NOT NULL DEFAULT 'builtin',
+            source_url TEXT,
+            author TEXT NOT NULL DEFAULT 'CocoCat',
+            tags TEXT NOT NULL DEFAULT '[]',
+            deps TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS agent_skills (
+            agent_id TEXT NOT NULL REFERENCES agents(id),
+            skill_id TEXT NOT NULL REFERENCES skill_warehouse(id),
+            enabled INTEGER NOT NULL DEFAULT 1,
+            assigned_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (agent_id, skill_id)
+        );"
+    )?;
+
     Ok(())
 }
 

@@ -20,6 +20,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     config::seed_from_config_toml(&db_pool)?;
     db::chat_groups::init_default_group(&db_pool)?;
 
+    // Auto-register builtin skills from skills/public/*.md
+    let builtin_dir = std::path::Path::new("skills/public");
+    if builtin_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(builtin_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                    let id = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
+                    if !id.is_empty() {
+                        let content = std::fs::read_to_string(&path).unwrap_or_default();
+                        let name = id.replace('-', " ");
+                        let name = name
+                            .split_whitespace()
+                            .map(|w| {
+                                let mut c = w.chars();
+                                c.next().map(|f| f.to_uppercase().to_string() + c.as_str()).unwrap_or_default()
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        db::skill_warehouse::upsert_warehouse_skill(
+                            &db_pool, &id, &name, "", &content, "builtin", None, "CocoCat", "[]", "{}",
+                        ).ok();
+                    }
+                }
+            }
+        }
+        db::skill_warehouse::auto_assign_builtin(&db_pool).ok();
+        tracing::info!("Builtin skills registered and assigned");
+    }
+
     let agents = db::agents::load_agents(&db_pool)?;
     tracing::info!("Loaded {} agents", agents.len());
 

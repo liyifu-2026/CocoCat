@@ -9,7 +9,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::dispatch::engine::{TaskEvent, WsEvent};
 
-use super::{agents_detail, agents_list, chat, chat_groups, collab, deliveries, hire, knowledge, mailbox, scenes, schedule, skills, tasks, usage, ws};
+use super::{agents_detail, agents_list, chat, chat_groups, collab, deliveries, hire, knowledge, mailbox, scenes, schedule, skill_warehouse, skills, tasks, usage, ws};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -42,6 +42,11 @@ pub fn build(state: AppState) -> Router {
         .route("/api/scenes/:id", axum::routing::get(scenes::get_handler).delete(scenes::delete_handler))
         .route("/api/skills", axum::routing::get(skills::list_handler).post(skills::create_handler))
         .route("/api/skills/:id", axum::routing::get(skills::get_handler))
+        .route("/api/skills/warehouse", axum::routing::get(skill_warehouse::list_warehouse_handler))
+        .route("/api/skills/warehouse/install", axum::routing::post(skill_warehouse::install_handler))
+        .route("/api/skills/warehouse/:id", axum::routing::delete(skill_warehouse::delete_warehouse_handler))
+        .route("/api/agents/capabilities", axum::routing::get(skill_warehouse::capabilities_handler))
+        .route("/api/agents/:id/skills", axum::routing::get(skill_warehouse::get_agent_skills_handler).post(skill_warehouse::assign_skills_handler))
         .route("/api/tasks/:task_uuid", axum::routing::get(tasks::get_task_handler))
         .route("/api/chat/groups", axum::routing::get(chat_groups::list_groups).post(chat_groups::create_group))
         .route("/api/chat/groups/:group_id", axum::routing::get(chat_groups::get_group).patch(chat_groups::update_group).delete(chat_groups::delete_group))
@@ -62,7 +67,6 @@ pub fn build(state: AppState) -> Router {
         .route("/api/agents/display", axum::routing::get(agents_detail::list_displays_handler))
         .route("/api/agents/:id", axum::routing::get(agents_list::get_agent).patch(agents_list::update_agent).delete(agents_list::delete_agent))
         .route("/api/agents/:id/profile", axum::routing::get(agents_detail::get_profile_handler))
-        .route("/api/agents/:id/skills", axum::routing::get(agents_detail::get_skills_handler).patch(agents_detail::update_skills_handler))
         .route("/api/agents/:id/memory", axum::routing::get(agents_detail::get_memory_handler))
         .route("/api/agents/:id/history", axum::routing::get(agents_detail::get_history_handler))
         .route("/api/agents/:id/display", axum::routing::get(agents_detail::get_display_handler).put(agents_detail::update_display_handler))
