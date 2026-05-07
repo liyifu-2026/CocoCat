@@ -60,8 +60,6 @@ class Channel:
     def _startup_wrapper(self):
         try:
             self.startup()
-            self.connected_state = Channel.CONN_CONNECTED
-            self.report_startup_success()
         except Exception as e:
             self.connected_state = Channel.CONN_DISCONNECTED
             self.report_startup_error(str(e))

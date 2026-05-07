@@ -14,7 +14,7 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from queue import Queue
 
-from channel import Channel
+from channel import Channel, ChatMessage
 from channel_context import Context, ContextType, Reply, ReplyType
 
 logger = logging.getLogger("cococat.chat_channel")
@@ -35,6 +35,7 @@ class ChatChannel(Channel):
         self.futures: dict[str, list[Future]] = {}
         self.sessions: dict[str, list] = {}
         self.lock = threading.Lock()
+        self._stop_consume = threading.Event()
         _thread = threading.Thread(target=self._consume, daemon=True)
         _thread.start()
 
@@ -62,7 +63,7 @@ class ChatChannel(Channel):
 
     def _consume(self):
         """Background thread: drain session queues and dispatch to handler pool."""
-        while True:
+        while not self._stop_consume.is_set():
             with self.lock:
                 session_ids = list(self.sessions.keys())
             for session_id in session_ids:
@@ -74,6 +75,8 @@ class ChatChannel(Channel):
                     if not ctx_queue.empty():
                         context = ctx_queue.get_nowait()
                         future = handler_pool.submit(self._handle, context)
+                        with self.lock:
+                            self.futures.setdefault(session_id, []).append(future)
                         future.add_done_callback(self._make_callback(session_id))
                     else:
                         semaphore.release()
@@ -88,6 +91,8 @@ class ChatChannel(Channel):
             except Exception:
                 pass
             with self.lock:
+                if session_id in self.futures:
+                    self.futures[session_id] = [f for f in self.futures[session_id] if not f.done()]
                 if session_id in self.sessions:
                     self.sessions[session_id][1].release()
         return cb
@@ -117,11 +122,17 @@ class ChatChannel(Channel):
             self._send_reply(context, reply)
 
     def _generate_reply(self, context: Context, reply: Reply = None) -> Reply:
-        """Generate a reply via Bridge.
+        """Generate a reply via Bridge or mailbox routing.
 
-        Override in subclasses to customize.
-        Bridge integration (LocalBridge / MailboxBridge) will replace this stub.
+        If on_message is set (by entry_manager for mailbox routing), calls it
+        and returns a no-op reply. Otherwise applies the default echo stub.
+        Bridge integration (LocalBridge / MailboxBridge) will replace this.
         """
+        if self.on_message:
+            msg = context.kwargs.get("msg")
+            if msg:
+                self.on_message(msg)
+            return Reply(ReplyType.TEXT, "")
         if reply is None:
             reply = Reply(ReplyType.TEXT, "")
         if context.type == ContextType.TEXT:
@@ -154,6 +165,10 @@ class ChatChannel(Channel):
                 self._send(reply, context, retry_cnt + 1)
 
     # --- Session management ---
+
+    def stop(self):
+        self._stop_consume.set()
+        super().stop()
 
     def cancel_session(self, session_id: str):
         """Cancel queued and in-flight tasks for a session."""

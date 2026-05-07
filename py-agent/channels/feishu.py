@@ -1,5 +1,5 @@
 """Feishu (飞书) channel via WebSocket mode (CowAgent ChatChannel pattern)."""
-import sys, os, json, threading, logging
+import sys, os, json, threading, logging, requests
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from channel import Channel, ChatMessage
 from channel_context import Context, ContextType, Reply, ReplyType
@@ -35,7 +35,6 @@ class FeishuChannel(ChatChannel, ReconnectingChannel):
         self._ws_thread.start()
 
     def _get_token(self):
-        import requests
         r = requests.post(
             "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/",
             json={"app_id": self.app_id, "app_secret": self.app_secret},
@@ -108,7 +107,6 @@ class FeishuChannel(ChatChannel, ReconnectingChannel):
             logger.error(f"Handle error: {e}")
 
     def send(self, reply: Reply, context: Context):
-        import requests
         if not self._token:
             self._get_token()
         receiver = context.get("receiver", "")
