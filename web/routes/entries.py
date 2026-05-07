@@ -1,18 +1,19 @@
-"""Entry configuration routes for scenes.
-
-TODO: Migrate all endpoints to proxy through Rust HTTP API:
-  - GET /api/scenes/{scene_id}/entries → Rust equivalent
-  - PUT /api/scenes/{scene_id}/entries → Rust equivalent
-  - GET /api/channels → Rust equivalent (or keep static)
-"""
+"""Entry configuration routes for channels — scenes and agents."""
 import json
+import os
+import sys
 from pathlib import Path
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "py-agent"))
 
 router = APIRouter()
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+
+# ── Scene entries ──────────────────────────────────────────────────────
 
 @router.get("/api/scenes/{scene_id}/entries")
 def get_scene_entries(scene_id: str):
@@ -38,62 +39,276 @@ def update_scene_entries(scene_id: str, body: dict):
     return {"status": "updated", "entries": entries}
 
 
+# ── Agent entries ──────────────────────────────────────────────────────
+
+@router.get("/api/agents/{agent_id}/entries")
+def get_agent_entries(agent_id: str):
+    """Get agent's entry configuration."""
+    entries_path = BASE_DIR / "agents" / agent_id / "entries.json"
+    if not entries_path.exists():
+        return {"entries": []}
+    try:
+        return json.loads(entries_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"entries": []}
+
+
+@router.put("/api/agents/{agent_id}/entries")
+def update_agent_entries(agent_id: str, body: dict):
+    """Update agent's entry configuration."""
+    agent_dir = BASE_DIR / "agents" / agent_id
+    if not agent_dir.exists():
+        return JSONResponse({"error": "agent not found"}, status_code=404)
+    entries_path = agent_dir / "entries.json"
+    entries = body.get("entries", [])
+    entries_path.write_text(json.dumps({"entries": entries}, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"status": "updated", "entries": entries}
+
+
+# ── Channel connect/disconnect ─────────────────────────────────────────
+
+CHANNEL_STATUS_CACHE: dict[str, dict] = {}
+
+
+class ChannelConnectRequest(BaseModel):
+    target_type: str  # "scene" or "agent"
+    target_id: str
+    channel_type: str
+    config: dict = {}
+
+
+@router.post("/api/channels/connect")
+def connect_channel(body: ChannelConnectRequest):
+    """Start a channel and bind it to a scene or agent."""
+    from channels.channel_factory import create_channel, register_channel
+    from scene_manager import SceneManager
+
+    try:
+        ch = create_channel(body.channel_type)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+    # Set up on_message and start
+    if body.target_type == "scene":
+        mgr = SceneManager()
+        runtime = mgr.get_or_create(body.target_id)
+        if runtime is None:
+            return JSONResponse({"error": "scene not found"}, status_code=404)
+        reply_url = os.environ.get("COCOCAT_REPLY_URL", "http://localhost:8080/api/channels/reply")
+
+        from web.entry_manager import _route_to_scene
+        ch.on_message = lambda msg, rt=runtime, ct=body.channel_type: _route_to_scene(
+            rt, ct, msg.user_id, msg.content
+        )
+        ch.start(body.target_id, body.config)
+        runtime.channels.append(ch)
+
+        # Update entries.json
+        _append_entry(body.target_type, body.target_id, body.channel_type, body.config)
+
+        CHANNEL_STATUS_CACHE[f"scene:{body.target_id}:{body.channel_type}"] = {
+            "status": "connected", "channel_type": body.channel_type
+        }
+        return {"status": "connected", "target_type": "scene", "target_id": body.target_id}
+
+    elif body.target_type == "agent":
+        from web.entry_manager import register_agent_channel, _route_to_agent
+        ch.on_message = lambda msg, aid=body.target_id, ct=body.channel_type: _route_to_agent(
+            aid, ct, msg.user_id, msg.content
+        )
+        ch.start(body.target_id, body.config)
+        register_agent_channel(body.channel_type, body.target_id, ch)
+
+        _append_entry(body.target_type, body.target_id, body.channel_type, body.config)
+
+        CHANNEL_STATUS_CACHE[f"agent:{body.target_id}:{body.channel_type}"] = {
+            "status": "connected", "channel_type": body.channel_type
+        }
+        return {"status": "connected", "target_type": "agent", "target_id": body.target_id}
+
+    else:
+        return JSONResponse({"error": f"unknown target_type: {body.target_type}"}, status_code=400)
+
+
+@router.post("/api/channels/disconnect")
+def disconnect_channel(body: ChannelConnectRequest):
+    """Stop and disconnect a channel from a scene or agent."""
+    cache_key = f"{body.target_type}:{body.target_id}:{body.channel_type}"
+    ch = CHANNEL_STATUS_CACHE.pop(cache_key, None)
+
+    if body.target_type == "scene":
+        from scene_manager import SceneManager
+        mgr = SceneManager()
+        runtime = mgr.get_runtime(body.target_id)
+        if runtime:
+            for c in list(runtime.channels):
+                if getattr(c, "channel_type", "") == body.channel_type:
+                    try:
+                        c.stop()
+                    except Exception:
+                        pass
+                    runtime.channels.remove(c)
+
+    elif body.target_type == "agent":
+        from web.entry_manager import get_agent_channel
+        ch = get_agent_channel(body.channel_type, body.target_id)
+        if ch:
+            try:
+                ch.stop()
+            except Exception:
+                pass
+
+    _remove_entry(body.target_type, body.target_id, body.channel_type)
+    return {"status": "disconnected"}
+
+
+@router.get("/api/channels/{target_type}/{target_id}/{channel_type}/status")
+def get_channel_status(target_type: str, target_id: str, channel_type: str):
+    """Get the connection status of a channel."""
+    cache_key = f"{target_type}:{target_id}:{channel_type}"
+    cached = CHANNEL_STATUS_CACHE.get(cache_key)
+
+    if target_type == "scene":
+        from scene_manager import SceneManager
+        mgr = SceneManager()
+        runtime = mgr.get_runtime(target_id)
+        if runtime:
+            for ch in runtime.channels:
+                if getattr(ch, "channel_type", "") == channel_type:
+                    return {
+                        "status": "connected" if ch.is_running() else "disconnected",
+                        "channel_type": channel_type,
+                        "connected": ch.is_running(),
+                    }
+        return {"status": "disconnected", "channel_type": channel_type, "connected": False}
+
+    elif target_type == "agent":
+        from web.entry_manager import get_agent_channel
+        ch = get_agent_channel(channel_type, target_id)
+        if ch:
+            return {
+                "status": "connected" if ch.is_running() else "disconnected",
+                "channel_type": channel_type,
+                "connected": ch.is_running(),
+            }
+        return {"status": "disconnected", "channel_type": channel_type, "connected": False}
+
+    return JSONResponse({"error": "unknown target_type"}, status_code=400)
+
+
+# ── WeChat QR login ────────────────────────────────────────────────────
+
+@router.get("/api/channels/weixin/qr")
+def get_weixin_qr_code():
+    """Get WeChat QR code URL for channel login."""
+    try:
+        from channels.weixin import WeixinApi
+        api = WeixinApi()
+        qr_data = api.fetch_qr()
+        qrcode_url = qr_data.get("qrcode", "")
+        qrcode_img = qr_data.get("qrcode_img_content", "")
+        return {
+            "qrcode_url": qrcode_url or qrcode_img,
+            "qrcode": qr_data.get("qrcode", ""),
+        }
+    except Exception as e:
+        return JSONResponse({"error": f"Failed to get QR code: {e}"}, status_code=500)
+
+
+# ── Available channel types ────────────────────────────────────────────
+
 @router.get("/api/channels")
 def list_available_channels():
     """List all available channel types with their config schema."""
     return {
-        "channels": [
-            {
-                "id": "web_api",
-                "name": "Web API",
-                "description": "HTTP API endpoint for programmatic access",
-                "config_schema": {
-                    "endpoint": {"type": "string", "description": "API endpoint path", "default": "/api/scenes/{scene_id}/chat"}
-                }
-            },
-            {
-                "id": "wechat",
-                "name": "WeChat Official Account",
-                "description": "WeChat Official Account webhook integration",
-                "config_schema": {
-                    "token": {"type": "string", "description": "WeChat verification token", "default": ""},
-                    "app_id": {"type": "string", "description": "WeChat App ID", "default": ""},
-                    "app_secret": {"type": "string", "description": "WeChat App Secret", "default": ""}
-                }
-            },
-            {
-                "id": "weixin",
-                "name": "Personal WeChat",
-                "description": "Personal WeChat via ilink bot API",
-                "config_schema": {
-                    "app_id": {"type": "string", "description": "WeChat app ID", "default": ""},
-                    "token": {"type": "string", "description": "Access token", "default": ""}
-                }
-            },
-            {
-                "id": "feishu",
-                "name": "Feishu",
-                "description": "Feishu (飞书) integration via WebSocket",
-                "config_schema": {
-                    "app_id": {"type": "string", "description": "Feishu app ID", "default": ""},
-                    "app_secret": {"type": "string", "description": "Feishu app secret", "default": ""}
-                }
-            },
-            {
-                "id": "telegram",
-                "name": "Telegram",
-                "description": "Telegram Bot via Bot API polling",
-                "config_schema": {
-                    "bot_token": {"type": "string", "description": "Telegram Bot Token from @BotFather"}
-                }
-            },
-            {
-                "id": "discord",
-                "name": "Discord",
-                "description": "Discord bot via discord.py",
-                "config_schema": {
-                    "bot_token": {"type": "string", "description": "Discord Bot Token"}
-                }
-            }
-        ]
+        "channels": CHANNEL_DEFINITIONS
     }
+
+
+# ── Helpers ────────────────────────────────────────────────────────────
+
+CHANNEL_DEFINITIONS = [
+    {
+        "id": "web_api",
+        "name": "Web API",
+        "description": "HTTP API endpoint for programmatic access",
+        "config_fields": [
+            {"key": "endpoint", "label": "Endpoint", "type": "text", "default": "/api/scenes/{scene_id}/chat"}
+        ]
+    },
+    {
+        "id": "weixin",
+        "name": "Personal WeChat",
+        "description": "Personal WeChat via ilink bot API (QR code login)",
+        "config_fields": [],
+        "needs_qr_login": True
+    },
+    {
+        "id": "feishu",
+        "name": "Feishu",
+        "description": "Feishu (飞书) integration via WebSocket",
+        "config_fields": [
+            {"key": "app_id", "label": "App ID", "type": "text"},
+            {"key": "app_secret", "label": "App Secret", "type": "secret"},
+        ]
+    },
+    {
+        "id": "telegram",
+        "name": "Telegram",
+        "description": "Telegram Bot via Bot API polling",
+        "config_fields": [
+            {"key": "bot_token", "label": "Bot Token", "type": "secret"}
+        ]
+    },
+    {
+        "id": "discord",
+        "name": "Discord",
+        "description": "Discord bot via discord.py",
+        "config_fields": [
+            {"key": "bot_token", "label": "Bot Token", "type": "secret"}
+        ]
+    },
+]
+
+
+def _append_entry(target_type: str, target_id: str, channel_type: str, config: dict):
+    """Add a channel entry to the target's entries.json."""
+    if target_type == "scene":
+        entries_path = BASE_DIR / "scenes" / target_id / "entries.json"
+    elif target_type == "agent":
+        entries_path = BASE_DIR / "agents" / target_id / "entries.json"
+    else:
+        return
+
+    current = {"entries": []}
+    if entries_path.exists():
+        try:
+            current = json.loads(entries_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    current["entries"] = [e for e in current.get("entries", [])
+                          if e.get("channel") != channel_type]
+    current["entries"].append({"channel": channel_type, "enabled": True, "config": config})
+    entries_path.parent.mkdir(parents=True, exist_ok=True)
+    entries_path.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _remove_entry(target_type: str, target_id: str, channel_type: str):
+    """Remove a channel entry from the target's entries.json."""
+    if target_type == "scene":
+        entries_path = BASE_DIR / "scenes" / target_id / "entries.json"
+    elif target_type == "agent":
+        entries_path = BASE_DIR / "agents" / target_id / "entries.json"
+    else:
+        return
+
+    if not entries_path.exists():
+        return
+    try:
+        current = json.loads(entries_path.read_text(encoding="utf-8"))
+        current["entries"] = [e for e in current.get("entries", [])
+                              if e.get("channel") != channel_type]
+        entries_path.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
