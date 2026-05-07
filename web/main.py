@@ -423,6 +423,9 @@ app.include_router(collaboration_router)
 from web.routes.reply_handler import router as reply_router
 app.include_router(reply_router)
 
+from web.routes.providers import router as providers_router
+app.include_router(providers_router)
+
 
 @app.post("/api/hiring/plan")
 async def create_hiring_plan(request: Request):
