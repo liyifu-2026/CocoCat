@@ -384,6 +384,8 @@ export default function AgentDetail() {
         <TabsContent value="entries" className="mt-4">
           <EntryManager
             title={t("agent.personal_entries")}
+            targetType="agent"
+            targetId={agent.id}
             entries={entriesConfig.data?.entries}
             allChannels={channels.data?.channels}
             onSave={async (newEntries) => {

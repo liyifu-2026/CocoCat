@@ -176,6 +176,8 @@ export default function SceneDetail() {
       <div className="stagger-item" style={{animationDelay: "0.32s"}}>
         <EntryManager
           title={t("scene.entries")}
+          targetType="scene"
+          targetId={scene.id}
           entries={entriesConfig.data?.entries}
           allChannels={channels.data?.channels}
           onSave={async (newEntries) => {
