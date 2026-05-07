@@ -1,70 +1,103 @@
-"""Channel base class and ChatMessage format."""
+"""Channel base class with 4-state connection and startup event (CowAgent pattern)."""
 from __future__ import annotations
 
+import threading
 import uuid
-
-from message import InboundMessage, OutboundMessage
 
 
 class ChatMessage:
-    """Unified chat message format across all channels."""
-    def __init__(self, content: str, user_id: str = "", user_name: str = "",
-                 msg_type: str = "text", channel_type: str = "", scene_id: str = "",
-                 msg_id: str = "", **kwargs):
-        self.content = content
-        self.user_id = user_id
-        self.user_name = user_name
-        self.msg_type = msg_type
+    """Unified message format across all channels.
+
+    Created by channel implementations when receiving platform messages.
+    Passed to _compose_context() via kwargs as msg=.
+    """
+    def __init__(self, channel_type="", scene_id="", user_id="",
+                 content="", msg_type="text", msg_id="", **kwargs):
         self.channel_type = channel_type
         self.scene_id = scene_id
+        self.user_id = user_id
+        self.content = content
+        self.msg_type = msg_type
         self.msg_id = msg_id or str(uuid.uuid4())[:8]
         self.extra = kwargs
 
-    def to_dict(self) -> dict:
-        return {
-            "content": self.content,
-            "user_id": self.user_id,
-            "user_name": self.user_name,
-            "msg_type": self.msg_type,
-            "channel_type": self.channel_type,
-            "scene_id": self.scene_id,
-            "msg_id": self.msg_id,
-            **self.extra,
-        }
-
-    def to_inbound(self, agent_id: str) -> InboundMessage:
-        return InboundMessage(
-            channel=self.channel_type or "unknown",
-            source=self.user_id,
-            content=self.content,
-            agent_id=agent_id,
-            scene_id=self.scene_id or "default",
-            metadata={"msg_id": self.msg_id, "user_name": self.user_name},
-        )
-
 
 class Channel:
-    """Base class for external communication channels."""
-    def __init__(self, bus=None):
-        self._connected = False
-        self.bus = bus
+    """Base class for external communication channels.
 
-    @property
-    def connected(self) -> bool:
-        return self._connected
+    Subclasses must set channel_type and implement startup() and send().
+    """
+    channel_type = ""
+
+    CONN_DISCONNECTED = "disconnected"
+    CONN_CONNECTING = "connecting"
+    CONN_CONNECTED = "connected"
+    CONN_RECONNECTING = "reconnecting"
+
+    def __init__(self):
+        self.scene_id = ""
+        self.on_message = None
+        self.on_disconnected = None
+        self.connected_state = Channel.CONN_DISCONNECTED
+        self._startup_event = threading.Event()
+        self._startup_error = None
+        self._config = {}
+
+    def startup(self):
+        """Initialize channel connection. Called by start() in a background thread."""
+        raise NotImplementedError
 
     def start(self, scene_id: str, config: dict):
+        """Start the channel in a background thread and report completion via startup_event."""
+        self.scene_id = scene_id
+        self._config = config
+        self.connected_state = Channel.CONN_CONNECTING
+        self._startup_event.clear()
+        self._startup_error = None
+        t = threading.Thread(target=self._startup_wrapper, daemon=True)
+        t.start()
+
+    def _startup_wrapper(self):
+        try:
+            self.startup()
+            self.connected_state = Channel.CONN_CONNECTED
+            self.report_startup_success()
+        except Exception as e:
+            self.connected_state = Channel.CONN_DISCONNECTED
+            self.report_startup_error(str(e))
+
+    def report_startup_success(self):
+        self._startup_error = None
+        self._startup_event.set()
+
+    def report_startup_error(self, error: str):
+        self._startup_error = error
+        self._startup_event.set()
+
+    def wait_startup(self, timeout: float = 3) -> tuple[bool, str]:
+        """Wait for channel startup result. Returns (success, error_msg)."""
+        ready = self._startup_event.wait(timeout=timeout)
+        if not ready:
+            return True, ""
+        if self._startup_error:
+            return False, self._startup_error
+        return True, ""
+
+    def send(self, reply, context):
+        """Send a Reply object through this channel.
+
+        Args:
+            reply: Reply object with type and content.
+            context: Context object with receiver/session metadata.
+        """
         raise NotImplementedError
 
     def stop(self):
-        raise NotImplementedError
+        self.connected_state = Channel.CONN_DISCONNECTED
 
     def is_running(self) -> bool:
-        return self._connected
-
-    def send(self, reply: str, user_id: str):
-        raise NotImplementedError
-
-    def reply(self, msg: OutboundMessage):
-        """Send an outbound message back through this channel."""
-        self.send(msg.content, msg.target)
+        return self.connected_state in (
+            Channel.CONN_CONNECTED,
+            Channel.CONN_CONNECTING,
+            Channel.CONN_RECONNECTING,
+        )
