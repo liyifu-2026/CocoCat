@@ -14,7 +14,8 @@ router = APIRouter()
 
 class AgentReply(BaseModel):
     reply: str
-    scene_id: str = ""
+    target_type: str = "scene"  # "scene" or "agent"
+    target_id: str = ""
     channel: str = ""
     user_id: str = ""
 
@@ -22,26 +23,30 @@ class AgentReply(BaseModel):
 @router.post("/api/channels/reply")
 def handle_agent_reply(body: AgentReply):
     """Receive a reply from an agent and route to the appropriate channel."""
-    if not body.scene_id or not body.channel or not body.user_id:
+    if not body.target_id or not body.channel or not body.user_id:
         logger.warning(f"Invalid reply: missing fields — {body}")
-        return {"status": "error", "message": "missing scene_id, channel, or user_id"}
+        return {"status": "error", "message": "missing target_id, channel, or user_id"}
 
     try:
-        # Try scene route first
-        from scene_manager import SceneManager
-        mgr = SceneManager()
-        runtime = mgr.get_runtime(body.scene_id)
-        if runtime is not None:
+        if body.target_type == "scene":
+            from scene_manager import SceneManager
+            mgr = SceneManager()
+            runtime = mgr.get_runtime(body.target_id)
+            if runtime is None:
+                _write_outbox(body.target_id, body.channel, body.user_id, body.reply)
+                return {"status": "error", "message": "scene not found"}
             if runtime.state.name != "ACTIVE":
-                _write_outbox(body.scene_id, body.channel, body.user_id, body.reply)
-                return {"status": "queued", "message": "scene not active, saved to outbox"}
+                _write_outbox(body.target_id, body.channel, body.user_id, body.reply)
+                return {"status": "queued", "message": "scene not active"}
             _send_reply_via_runtime(runtime, body.channel, body.user_id, body.reply)
             return {"status": "ok"}
 
-        # Fallback: agent-direct channel
-        from web.entry_manager import get_agent_channel
-        ch = get_agent_channel(body.channel, body.scene_id)
-        if ch is not None:
+        elif body.target_type == "agent":
+            from web.entry_manager import get_agent_channel
+            ch = get_agent_channel(body.channel, body.target_id)
+            if ch is None:
+                _write_outbox(body.target_id, body.channel, body.user_id, body.reply)
+                return {"status": "error", "message": "agent channel not found"}
             from channel_context import Reply, ReplyType, Context, ContextType
             reply = Reply(ReplyType.TEXT, body.reply)
             ctx = Context(ContextType.TEXT, body.reply, receiver=body.user_id)
@@ -49,12 +54,12 @@ def handle_agent_reply(body: AgentReply):
             logger.info(f"Reply sent via agent-direct channel {body.channel} to {body.user_id}")
             return {"status": "ok"}
 
-        logger.warning(f"No route for reply: scene/agent '{body.scene_id}' not found")
-        _write_outbox(body.scene_id, body.channel, body.user_id, body.reply)
-        return {"status": "error", "message": "no route found"}
+        else:
+            _write_outbox(body.target_id, body.channel, body.user_id, body.reply)
+            return {"status": "error", "message": f"unknown target_type: {body.target_type}"}
     except Exception as e:
         logger.error(f"Reply handler error: {e}")
-        _write_outbox(body.scene_id, body.channel, body.user_id, body.reply)
+        _write_outbox(body.target_id, body.channel, body.user_id, body.reply)
         return {"status": "error", "message": str(e)}
 
 

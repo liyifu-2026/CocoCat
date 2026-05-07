@@ -103,7 +103,8 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
                                 try:
                                     resp = _requests.post(reply_url, json={
                                         "reply": reply_text,
-                                        "scene_id": msg.get("scene_id", ""),
+                                        "target_type": msg.get("target_type", "agent"),
+                                        "target_id": msg.get("target_id", msg.get("scene_id", "")),
                                         "channel": msg.get("channel", ""),
                                         "user_id": user_id,
                                     }, timeout=10)

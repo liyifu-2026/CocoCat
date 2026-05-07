@@ -170,23 +170,28 @@ async def _outbox_poll_loop():
                     from web.entry_manager import get_agent_channel
                     from channel_context import Reply, ReplyType, Context, ContextType
 
-                    scene_id = entry.get("scene_id", "")
+                    target_type = entry.get("target_type", "agent")
+                    target_id = entry.get("target_id", "")
                     channel_type = entry.get("channel", "")
                     user_id = entry.get("user_id", "")
                     content = entry.get("content", "")
 
-                    mgr = SceneManager()
-                    runtime = mgr.get_runtime(scene_id)
-                    if runtime and runtime.state.name == "ACTIVE":
-                        _send_reply_via_runtime(runtime, channel_type, user_id, content)
-                    else:
-                        ch = get_agent_channel(channel_type, scene_id)
+                    delivered = False
+                    if target_type == "scene":
+                        mgr = SceneManager()
+                        runtime = mgr.get_runtime(target_id)
+                        if runtime and runtime.state.name == "ACTIVE":
+                            _send_reply_via_runtime(runtime, channel_type, user_id, content)
+                            delivered = True
+                    elif target_type == "agent":
+                        ch = get_agent_channel(channel_type, target_id)
                         if ch:
                             reply = Reply(ReplyType.TEXT, content)
                             ctx = Context(ContextType.TEXT, content, receiver=user_id)
                             ch.send(reply, ctx)
-                        else:
-                            remaining.append(line)
+                            delivered = True
+                    if not delivered:
+                        remaining.append(line)
                 except Exception:
                     remaining.append(line)
 

@@ -83,9 +83,10 @@ def _route_to_agent(agent_id: str, channel_type: str, user_id: str, content: str
         "content": content,
         "timestamp": __import__("datetime").datetime.now().isoformat(),
         "status": "unread",
+        "target_type": "agent",
+        "target_id": agent_id,
         "channel": channel_type,
         "external_user": user_id,
-        "scene_id": agent_id,
         "reply_url": reply_url,
     }
     with FileLock(inbox_path):

@@ -58,6 +58,8 @@ class AgentHandle:
             "content": content,
             "timestamp": datetime.now().isoformat(),
             "status": "unread",
+            "target_type": "scene",
+            "target_id": self.scene_id,
             "scene_id": self.scene_id,
             "channel": channel,
             "external_user": user_id,
