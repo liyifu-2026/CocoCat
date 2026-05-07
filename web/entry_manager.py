@@ -86,6 +86,14 @@ def _route_to_agent(agent_id: str, channel_type: str, user_id: str, content: str
         pass
 
 
+def _route_to_scene(runtime, channel_type: str, user_id: str, content: str):
+    """Route a message to a scene's agent via its AgentHandle."""
+    if runtime.state.name != "ACTIVE" or not runtime.agent_handle:
+        print(f"[EntryManager] Scene '{runtime.scene_id}' not active, dropping message from {user_id}")
+        return
+    runtime.agent_handle.send_message(channel_type, user_id, content)
+
+
 def _start_entry(channel_type: str, scene_id: str, config: dict, target_id: str, target_type: str):
     """Start a channel via ChannelFactory in a background thread."""
     try:
@@ -98,6 +106,28 @@ def _start_entry(channel_type: str, scene_id: str, config: dict, target_id: str,
         print(f"[EntryManager] {channel_type} channel started for {target_type} '{target_id}'")
     except Exception as e:
         print(f"[EntryManager] Failed to start {channel_type} channel: {e}")
+
+
+def _start_scene_channels(runtime):
+    """Start all enabled channels for a scene runtime."""
+    from channels.channel_factory import create_channel
+
+    for ch_cfg in runtime.config.channels:
+        if not ch_cfg.enabled:
+            continue
+        if ch_cfg.channel_type == "web_api":
+            print(f"[EntryManager] Web API for scene '{runtime.scene_id}' — handled by FastAPI")
+            continue
+        try:
+            ch = create_channel(ch_cfg.channel_type)
+            ch.on_message = lambda msg, s=runtime, ct=ch_cfg.channel_type: _route_to_scene(
+                s, ct, msg.user_id, msg.content
+            )
+            ch.start(runtime.scene_id, ch_cfg.config)
+            runtime.channels.append(ch)
+            print(f"[EntryManager] {ch_cfg.channel_type} channel started for scene '{runtime.scene_id}'")
+        except Exception as e:
+            print(f"[EntryManager] Failed to start {ch_cfg.channel_type}: {e}")
 
 
 def start_agent_entries(agent_id: str):
@@ -150,24 +180,19 @@ def start_scene_entries(scene_id: str):
 
 
 def start_all_entries():
-    """Start all entries for all agents and scenes."""
-    print("[EntryManager] Starting all entries...")
+    """Start all entries for all scenes via SceneRuntime."""
+    from scene_manager import SceneManager
+    from scene_config import list_scenes, load_scene_config
 
-    # Agent entries
-    agents_dir = os.path.join(BASE_DIR, "agents")
-    if os.path.exists(agents_dir):
-        for d in os.listdir(agents_dir):
-            agent_dir = os.path.join(agents_dir, d)
-            if os.path.isdir(agent_dir) and d != "mailbox" and d != "dispatch_queue" and d != "dispatch_messages" and not d.startswith("_"):
-                ensure_default_entries(agent_dir)
-                start_agent_entries(d)
+    mgr = SceneManager()
 
-    # Scene entries
-    scenes_dir = os.path.join(BASE_DIR, "scenes")
-    if os.path.exists(scenes_dir):
-        for d in os.listdir(scenes_dir):
-            scene_dir = os.path.join(scenes_dir, d)
-            if os.path.isdir(scene_dir):
-                start_scene_entries(d)
+    for scene_id in list_scenes():
+        config = load_scene_config(scene_id)
+        if not config or not config.channels:
+            continue
+        runtime = mgr.get_or_create(scene_id)
+        if runtime is None:
+            continue
+        _start_scene_channels(runtime)
 
     print("[EntryManager] All entries started")
