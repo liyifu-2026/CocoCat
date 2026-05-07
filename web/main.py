@@ -82,7 +82,7 @@ async def auth_middleware(request: Request, call_next):
     if path in public_paths:
         return await call_next(request)
 
-    external_prefixes = ["/api/channels/", "/api/scenes/"]
+    external_prefixes = ["/api/channels/", "/api/scenes/", "/api/providers", "/api/models", "/api/agents", "/api/chat/", "/api/skills", "/api/agents/capabilities"]
     is_external = any(path.startswith(p) for p in external_prefixes)
 
     auth_header = request.headers.get("Authorization", "")
@@ -422,6 +422,9 @@ app.include_router(collaboration_router)
 
 from web.routes.reply_handler import router as reply_router
 app.include_router(reply_router)
+
+from web.routes.skills import router as skills_router
+app.include_router(skills_router)
 
 from web.routes.providers import router as providers_router
 app.include_router(providers_router)
