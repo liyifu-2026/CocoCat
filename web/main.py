@@ -133,12 +133,55 @@ async def start_heartbeat():
     from web.services.scheduler import start_scheduler
     start_scheduler()
     asyncio.create_task(_heartbeat_loop())
+    asyncio.create_task(_outbox_poll_loop())
 
 
 async def _heartbeat_loop():
     while True:
         await asyncio.sleep(10)
         await manager.broadcast("heartbeat", {"timestamp": __import__("datetime").datetime.now().isoformat()})
+
+
+async def _outbox_poll_loop():
+    """Poll reply_outbox.jsonl and retry sending undelivered replies."""
+    import os, json, asyncio
+    base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "agents", "mailbox")
+    outbox_path = os.path.join(base, "reply_outbox.jsonl")
+
+    while True:
+        await asyncio.sleep(30)
+        if not os.path.exists(outbox_path):
+            continue
+        try:
+            with open(outbox_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            if not lines:
+                continue
+
+            remaining = []
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                    from web.routes.reply_handler import _send_reply
+                    from scene_manager import SceneManager
+                    mgr = SceneManager()
+                    runtime = mgr.get_runtime(entry.get("scene_id", ""))
+                    if runtime and runtime.state.name == "ACTIVE":
+                        _send_reply(runtime, entry.get("channel", ""), entry.get("user_id", ""), entry.get("content", ""))
+                    else:
+                        remaining.append(line)
+                except Exception:
+                    remaining.append(line)
+
+            # Rewrite with only failed entries
+            with open(outbox_path, "w", encoding="utf-8") as f:
+                for line in remaining:
+                    f.write(line + "\n")
+        except Exception as e:
+            print(f"[OutboxPoll] Error: {e}")
 
 
 # TODO: Migrate to Rust API — reads chat/general/messages.jsonl directly
@@ -357,6 +400,9 @@ app.include_router(auth_router)
 
 from web.routes.collaboration import router as collaboration_router
 app.include_router(collaboration_router)
+
+from web.routes.reply_handler import router as reply_router
+app.include_router(reply_router)
 
 
 @app.post("/api/hiring/plan")

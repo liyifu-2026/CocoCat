@@ -91,7 +91,11 @@ def _route_to_scene(runtime, channel_type: str, user_id: str, content: str):
     if runtime.state.name != "ACTIVE" or not runtime.agent_handle:
         print(f"[EntryManager] Scene '{runtime.scene_id}' not active, dropping message from {user_id}")
         return
-    runtime.agent_handle.send_message(channel_type, user_id, content)
+    reply_url = os.environ.get(
+        "COCOCAT_REPLY_URL",
+        "http://localhost:8080/api/channels/reply"
+    )
+    runtime.agent_handle.send_message(channel_type, user_id, content, reply_url=reply_url)
 
 
 def _start_entry(channel_type: str, scene_id: str, config: dict, target_id: str, target_type: str):

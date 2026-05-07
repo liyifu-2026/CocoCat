@@ -108,10 +108,28 @@ def test_agent_handle_assign_release():
 
 def test_agent_handle_send_message():
     from agent_handle import AgentHandle
-    import tempfile, os
+    import tempfile, os, json
     h = AgentHandle("test_send_agent")
     h.assign_to_scene("test_scene", "ctx")
     msg_id = h.send_message("weixin", "user123", "hello")
     assert msg_id is not None
     assert "scene:test_scene:weixin:user123" in msg_id
+    h.release()
+
+
+def test_agent_handle_send_message_with_reply_url():
+    from agent_handle import AgentHandle
+    import os, json
+    h = AgentHandle("test_reply_url_agent")
+    h.assign_to_scene("test_scene", "ctx")
+    h.send_message("weixin", "user123", "hello", reply_url="http://test:8080/reply")
+    base = os.path.join(os.path.dirname(__file__), "..", "agents", "mailbox", "test_reply_url_agent")
+    inbox_path = os.path.join(base, "inbox.jsonl")
+    assert os.path.exists(inbox_path)
+    with open(inbox_path, "r") as f:
+        line = json.loads(f.readline().strip())
+    assert line["reply_url"] == "http://test:8080/reply"
+    assert line["channel"] == "weixin"
+    assert line["external_user"] == "user123"
+    assert line["scene_id"] == "test_scene"
     h.release()

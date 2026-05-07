@@ -40,6 +40,85 @@ def handle_request(request: dict, agent_loop=None) -> dict:
         return {"error": f"unknown method: {method}"}
 
 
+def _mailbox_poll_loop(agent_id: str, agent_loop):
+    """Background thread: poll mailbox inbox.jsonl and process messages."""
+    import os, json, time, requests as _requests
+    import threading
+
+    mailbox_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..",
+        "agents", "mailbox", agent_id, "inbox.jsonl"
+    )
+    # Track processed messages by "from" field to avoid re-processing
+    processed = set()
+
+    while True:
+        try:
+            if os.path.exists(mailbox_path):
+                with open(mailbox_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        msg = json.loads(line)
+                        msg_from = msg.get("from", "")
+                        if msg_from in processed:
+                            continue
+                        processed.add(msg_from)
+
+                        content = msg.get("content", "")
+                        user_id = msg.get("external_user", "")
+                        reply_url = msg.get("reply_url", "")
+
+                        if not content:
+                            continue
+
+                        # Process through agent loop
+                        def on_progress(p):
+                            _write_stream("progress", content=p)
+                        def on_tool(name, input_data, status, result=""):
+                            _write_stream("tool", name=name, input=str(input_data)[:500],
+                                          status=status, result=str(result)[:500])
+                        def on_reasoning(r):
+                            if r:
+                                _write_stream("reasoning", content=r)
+
+                        result = agent_loop.run(
+                            content,
+                            user_id=user_id,
+                            on_progress=on_progress,
+                            on_tool=on_tool,
+                            on_reasoning=on_reasoning,
+                        )
+
+                        reply_text = ""
+                        if isinstance(result, dict):
+                            reply_text = result.get("response", str(result))
+                        else:
+                            reply_text = str(result)
+
+                        # Send reply via HTTP callback
+                        if reply_url:
+                            for attempt in range(3):
+                                try:
+                                    resp = _requests.post(reply_url, json={
+                                        "reply": reply_text,
+                                        "scene_id": msg.get("scene_id", ""),
+                                        "channel": msg.get("channel", ""),
+                                        "user_id": user_id,
+                                    }, timeout=10)
+                                    if resp.status_code == 200:
+                                        break
+                                except Exception:
+                                    if attempt < 2:
+                                        time.sleep(2 ** attempt)
+
+        except Exception:
+            pass
+
+        time.sleep(2)
+
+
 def main():
     import argparse
     import compileall
@@ -54,17 +133,26 @@ def main():
     parser.add_argument("--scene-id", default="default")
     args, _ = parser.parse_known_args()
 
+    agent_id = args.agent_id or "unknown"
+
     # Eagerly initialize agent loop on startup, not on first request.
     # This loads tools, plugins, scene context before accepting any RPC.
     from agent_runner import AgentRunner
     runner = AgentRunner(
-        agent_id=args.agent_id or "unknown",
-        agent_name=args.agent_id or "Agent",
+        agent_id=agent_id,
+        agent_name=agent_id or "Agent",
         scene=args.scene_id,
     )
     runner._ensure_loop()
     agent_loop = runner._loop
     del runner
+
+    # Start mailbox polling thread
+    import threading as _threading
+    _poll_thread = _threading.Thread(
+        target=_mailbox_poll_loop, args=(agent_id, agent_loop), daemon=True
+    )
+    _poll_thread.start()
 
     for line in sys.stdin:
         line = line.strip()

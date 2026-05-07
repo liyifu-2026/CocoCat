@@ -45,7 +45,8 @@ class AgentHandle:
             logger.info(f"Agent {self.agent_id} released from scene {self.scene_id}")
             self.scene_id = None
 
-    def send_message(self, channel: str, user_id: str, content: str) -> str | None:
+    def send_message(self, channel: str, user_id: str, content: str,
+                     reply_url: str = "") -> str | None:
         """Write a user message to the agent's inbox. Returns message_id."""
         mailbox_dir = os.path.join(_mailbox_dir(), self.agent_id)
         os.makedirs(mailbox_dir, exist_ok=True)
@@ -60,6 +61,10 @@ class AgentHandle:
             "scene_id": self.scene_id,
             "channel": channel,
             "external_user": user_id,
+            "reply_url": reply_url or os.environ.get(
+                "COCOCAT_REPLY_URL",
+                "http://localhost:8080/api/channels/reply"
+            ),
         }
         with FileLock(inbox_path):
             with open(inbox_path, "a", encoding="utf-8") as f:
