@@ -62,6 +62,7 @@ class OpenAICompatProvider(LLMProvider):
         model: str | None = None,
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        reasoning_effort: str | None = None,
     ) -> LLMResponse:
         body: dict[str, Any] = {
             "model": model or self.model,
@@ -69,6 +70,8 @@ class OpenAICompatProvider(LLMProvider):
             "max_tokens": max_tokens,
             "temperature": temperature,
         }
+        if reasoning_effort:
+            body["reasoning_effort"] = reasoning_effort
         if tools:
             body["tools"] = tools
             body["tool_choice"] = "auto"
@@ -113,7 +116,8 @@ class OpenAICompatProvider(LLMProvider):
             reasoning_content=message.get("reasoning_content"),
         )
 
-    def chat_stream(self, messages, tools=None, model=None, max_tokens=4096, temperature=0.7):
+    def chat_stream(self, messages, tools=None, model=None, max_tokens=4096, temperature=0.7,
+                    reasoning_effort=None):
         body: dict[str, Any] = {
             "model": model or self.model,
             "messages": _sanitize_messages(messages),
@@ -121,6 +125,8 @@ class OpenAICompatProvider(LLMProvider):
             "temperature": temperature,
             "stream": True,
         }
+        if reasoning_effort:
+            body["reasoning_effort"] = reasoning_effort
         if tools:
             body["tools"] = tools
             body["tool_choice"] = "auto"

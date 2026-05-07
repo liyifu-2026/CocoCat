@@ -120,6 +120,50 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
         time.sleep(2)
 
 
+def _control_poll_loop(agent_id: str, agent_loop):
+    """Background thread: poll control.jsonl for scene_assign/scene_release commands."""
+    import os, json, time
+    import logging
+    logger = logging.getLogger("cococat.agent_runtime")
+
+    control_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..",
+        "agents", "mailbox", agent_id, "control.jsonl"
+    )
+    processed = set()
+
+    while True:
+        try:
+            if os.path.exists(control_path):
+                with open(control_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        cmd = json.loads(line)
+                        cmd_id = cmd.get("timestamp", "")
+                        if cmd_id in processed:
+                            continue
+                        processed.add(cmd_id)
+
+                        command = cmd.get("command", "")
+                        data = cmd.get("data", {})
+
+                        if command == "scene_assign":
+                            scene_id = data.get("scene_id", "")
+                            context = data.get("context", "")
+                            agent_loop.update_scene(scene_id, context)
+                            logger.info(f"Agent {agent_id} assigned to scene {scene_id}")
+
+                        elif command == "scene_release":
+                            agent_loop.update_scene("", "", "")
+                            logger.info(f"Agent {agent_id} released from scene")
+        except Exception:
+            pass
+
+        time.sleep(3)
+
+
 def main():
     import argparse
     import compileall
@@ -130,7 +174,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--agent-id", default=None)
-    parser.add_argument("--model", default="gpt-4")
+    parser.add_argument("--model", default="")
     parser.add_argument("--scene-id", default="default")
     args, _ = parser.parse_known_args()
 
@@ -143,17 +187,22 @@ def main():
         agent_id=agent_id,
         agent_name=agent_id or "Agent",
         scene=args.scene_id,
+        model=args.model,
     )
     runner._ensure_loop()
     agent_loop = runner._loop
     del runner
 
-    # Start mailbox polling thread
+    # Start background polling threads
     import threading as _threading
     _poll_thread = _threading.Thread(
         target=_mailbox_poll_loop, args=(agent_id, agent_loop), daemon=True
     )
     _poll_thread.start()
+    _control_thread = _threading.Thread(
+        target=_control_poll_loop, args=(agent_id, agent_loop), daemon=True
+    )
+    _control_thread.start()
 
     for line in sys.stdin:
         line = line.strip()

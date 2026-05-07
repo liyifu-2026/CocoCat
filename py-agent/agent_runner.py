@@ -7,10 +7,11 @@ class AgentRunner:
     """Unified facade over AgentLoop setup and execution (nanobot Nanobot pattern)."""
 
     def __init__(self, agent_id: str, agent_name: str = "Agent", scene: str = "default",
-                 agent_runtime_path: str = "", bus=None):
+                 model: str = "", agent_runtime_path: str = "", bus=None):
         self.agent_id = agent_id
         self.agent_name = agent_name
         self.scene = scene
+        self.model = model
         self.bus = bus
         if not agent_runtime_path:
             import os
@@ -27,9 +28,14 @@ class AgentRunner:
             agent_runtime_path=self.agent_runtime_path,
             scene_id=self.scene, agent_id=self.agent_id, agent_name=self.agent_name,
         )
+        llm_provider = None
+        if self.model:
+            from providers import make_provider
+            llm_provider = make_provider(self.model)
         self._loop = AgentLoop(
             agent_id=self.agent_id, agent_name=self.agent_name, tools=tools,
             scene_name=scene_name, scene_context=scene_context, scene_skills=scene_skills,
+            llm=llm_provider,
         )
 
     def run(self, prompt: str, user_id: str = "") -> dict:

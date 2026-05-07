@@ -68,14 +68,17 @@ class LLMProvider(ABC):
         model: str | None = None,
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        reasoning_effort: str | None = None,
     ) -> LLMResponse:
         ...
 
-    def chat_stream(self, messages, tools=None, model=None, max_tokens=4096, temperature=0.7):
+    def chat_stream(self, messages, tools=None, model=None, max_tokens=4096, temperature=0.7,
+                    reasoning_effort=None):
         """Default: yield full response as a single delta. Override for true streaming."""
         response = self.chat(
             messages=messages, tools=tools, model=model,
             max_tokens=max_tokens, temperature=temperature,
+            reasoning_effort=reasoning_effort,
         )
         if response.content:
             yield {"type": "delta", "content": response.content}
@@ -126,6 +129,7 @@ class LLMProvider(ABC):
         model: str | None = None,
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        reasoning_effort: str | None = None,
         retry_mode: str = "standard",
     ) -> LLMResponse:
         attempt = 0
@@ -138,6 +142,7 @@ class LLMProvider(ABC):
                 response = self.chat(
                     messages=messages, tools=tools, model=model,
                     max_tokens=max_tokens, temperature=temperature,
+                    reasoning_effort=reasoning_effort,
                 )
             except Exception as e:
                 response = LLMResponse(
