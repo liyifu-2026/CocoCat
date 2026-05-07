@@ -27,29 +27,39 @@ def handle_agent_reply(body: AgentReply):
         return {"status": "error", "message": "missing scene_id, channel, or user_id"}
 
     try:
+        # Try scene route first
         from scene_manager import SceneManager
         mgr = SceneManager()
         runtime = mgr.get_runtime(body.scene_id)
-        if runtime is None:
-            logger.warning(f"Scene '{body.scene_id}' not found for reply")
-            return {"status": "error", "message": "scene not found"}
+        if runtime is not None:
+            if runtime.state.name != "ACTIVE":
+                _write_outbox(body.scene_id, body.channel, body.user_id, body.reply)
+                return {"status": "queued", "message": "scene not active, saved to outbox"}
+            _send_reply_via_runtime(runtime, body.channel, body.user_id, body.reply)
+            return {"status": "ok"}
 
-        if runtime.state.name != "ACTIVE":
-            logger.warning(f"Scene '{body.scene_id}' not active, dropping reply")
-            # Write to outbox for later retry
-            _write_outbox(body.scene_id, body.channel, body.user_id, body.reply)
-            return {"status": "queued", "message": "scene not active, saved to outbox"}
+        # Fallback: agent-direct channel
+        from web.entry_manager import get_agent_channel
+        ch = get_agent_channel(body.channel, body.scene_id)
+        if ch is not None:
+            from channel_context import Reply, ReplyType, Context, ContextType
+            reply = Reply(ReplyType.TEXT, body.reply)
+            ctx = Context(ContextType.TEXT, body.reply, receiver=body.user_id)
+            ch.send(reply, ctx)
+            logger.info(f"Reply sent via agent-direct channel {body.channel} to {body.user_id}")
+            return {"status": "ok"}
 
-        _send_reply(runtime, body.channel, body.user_id, body.reply)
-        return {"status": "ok"}
+        logger.warning(f"No route for reply: scene/agent '{body.scene_id}' not found")
+        _write_outbox(body.scene_id, body.channel, body.user_id, body.reply)
+        return {"status": "error", "message": "no route found"}
     except Exception as e:
         logger.error(f"Reply handler error: {e}")
         _write_outbox(body.scene_id, body.channel, body.user_id, body.reply)
         return {"status": "error", "message": str(e)}
 
 
-def _send_reply(runtime, channel_type: str, user_id: str, content: str):
-    """Send a reply through the correct channel."""
+def _send_reply_via_runtime(runtime, channel_type: str, user_id: str, content: str):
+    """Send a reply through a scene runtime's channel."""
     from channel_context import Reply, ReplyType, Context, ContextType
 
     for ch in runtime.channels:

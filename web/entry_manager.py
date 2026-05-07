@@ -13,6 +13,20 @@ sys.path.insert(0, os.path.join(BASE_DIR, "py-agent"))
 
 from channel import ChatMessage
 
+# Global registry for agent-direct channels (for reply routing)
+# (channel_type, target_id) → channel_instance
+_agent_channel_registry: dict[tuple[str, str], object] = {}
+
+
+def register_agent_channel(channel_type: str, target_id: str, channel):
+    """Register an agent-direct channel for reply routing."""
+    _agent_channel_registry[(channel_type, target_id)] = channel
+
+
+def get_agent_channel(channel_type: str, target_id: str):
+    """Look up an agent-direct channel for reply."""
+    return _agent_channel_registry.get((channel_type, target_id))
+
 DEFAULT_ENTRIES_TEMPLATE = [
     {
         "channel_type": "telegram",
@@ -59,6 +73,11 @@ def _route_to_agent(agent_id: str, channel_type: str, user_id: str, content: str
     os.makedirs(mailbox_dir, exist_ok=True)
     inbox_path = os.path.join(mailbox_dir, "inbox.jsonl")
 
+    reply_url = os.environ.get(
+        "COCOCAT_REPLY_URL",
+        "http://localhost:8080/api/channels/reply"
+    )
+
     entry = {
         "from": f"channel:{channel_type}:{user_id}",
         "content": content,
@@ -66,6 +85,8 @@ def _route_to_agent(agent_id: str, channel_type: str, user_id: str, content: str
         "status": "unread",
         "channel": channel_type,
         "external_user": user_id,
+        "scene_id": agent_id,
+        "reply_url": reply_url,
     }
     with FileLock(inbox_path):
         with open(inbox_path, "a", encoding="utf-8") as f:
@@ -103,10 +124,11 @@ def _start_entry(channel_type: str, scene_id: str, config: dict, target_id: str,
     try:
         from channels.channel_factory import create_channel
         ch = create_channel(channel_type)
-        ch.on_message = lambda msg: _route_to_agent(
-            target_id, channel_type, msg.user_id, msg.content
+        ch.on_message = lambda msg, tid=target_id, ct=channel_type: _route_to_agent(
+            tid, ct, msg.user_id, msg.content
         )
         ch.start(scene_id, config)
+        register_agent_channel(channel_type, target_id, ch)
         print(f"[EntryManager] {channel_type} channel started for {target_type} '{target_id}'")
     except Exception as e:
         print(f"[EntryManager] Failed to start {channel_type} channel: {e}")
@@ -184,12 +206,13 @@ def start_scene_entries(scene_id: str):
 
 
 def start_all_entries():
-    """Start all entries for all scenes via SceneRuntime."""
+    """Start all entries for all scenes and agent-direct channels."""
     from scene_manager import SceneManager
     from scene_config import list_scenes, load_scene_config
 
     mgr = SceneManager()
 
+    # Scene channels
     for scene_id in list_scenes():
         config = load_scene_config(scene_id)
         if not config or not config.channels:
@@ -198,5 +221,14 @@ def start_all_entries():
         if runtime is None:
             continue
         _start_scene_channels(runtime)
+
+    # Agent-direct channels
+    agents_dir = os.path.join(BASE_DIR, "agents")
+    if os.path.exists(agents_dir):
+        for d in os.listdir(agents_dir):
+            agent_dir = os.path.join(agents_dir, d)
+            if os.path.isdir(agent_dir) and d != "mailbox" and d != "dispatch_queue" and d != "dispatch_messages" and not d.startswith("_"):
+                ensure_default_entries(agent_dir)
+                start_agent_entries(d)
 
     print("[EntryManager] All entries started")

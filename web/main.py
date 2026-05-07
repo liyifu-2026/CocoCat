@@ -165,14 +165,28 @@ async def _outbox_poll_loop():
                     continue
                 try:
                     entry = json.loads(line)
-                    from web.routes.reply_handler import _send_reply
+                    from web.routes.reply_handler import _send_reply_via_runtime
                     from scene_manager import SceneManager
+                    from web.entry_manager import get_agent_channel
+                    from channel_context import Reply, ReplyType, Context, ContextType
+
+                    scene_id = entry.get("scene_id", "")
+                    channel_type = entry.get("channel", "")
+                    user_id = entry.get("user_id", "")
+                    content = entry.get("content", "")
+
                     mgr = SceneManager()
-                    runtime = mgr.get_runtime(entry.get("scene_id", ""))
+                    runtime = mgr.get_runtime(scene_id)
                     if runtime and runtime.state.name == "ACTIVE":
-                        _send_reply(runtime, entry.get("channel", ""), entry.get("user_id", ""), entry.get("content", ""))
+                        _send_reply_via_runtime(runtime, channel_type, user_id, content)
                     else:
-                        remaining.append(line)
+                        ch = get_agent_channel(channel_type, scene_id)
+                        if ch:
+                            reply = Reply(ReplyType.TEXT, content)
+                            ctx = Context(ContextType.TEXT, content, receiver=user_id)
+                            ch.send(reply, ctx)
+                        else:
+                            remaining.append(line)
                 except Exception:
                     remaining.append(line)
 
