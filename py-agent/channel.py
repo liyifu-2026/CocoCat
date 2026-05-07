@@ -78,7 +78,7 @@ class Channel:
         """Wait for channel startup result. Returns (success, error_msg)."""
         ready = self._startup_event.wait(timeout=timeout)
         if not ready:
-            return True, ""
+            return False, "timeout"
         if self._startup_error:
             return False, self._startup_error
         return True, ""
