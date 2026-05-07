@@ -86,80 +86,18 @@ def _route_to_agent(agent_id: str, channel_type: str, user_id: str, content: str
         pass
 
 
-def _start_feishu(scene_id: str, config: dict, target_id: str, target_type: str):
-    """Start Feishu channel in background thread."""
+def _start_entry(channel_type: str, scene_id: str, config: dict, target_id: str, target_type: str):
+    """Start a channel via ChannelFactory in a background thread."""
     try:
-        from channels.feishu import FeishuChannel
-        ch = FeishuChannel()
+        from channels.channel_factory import create_channel
+        ch = create_channel(channel_type)
         ch.on_message = lambda msg: _route_to_agent(
-            target_id, "feishu", msg.user_id, msg.content
+            target_id, channel_type, msg.user_id, msg.content
         )
         ch.start(scene_id, config)
-        print(f"[EntryManager] Feishu channel started for {target_type} '{target_id}'")
+        print(f"[EntryManager] {channel_type} channel started for {target_type} '{target_id}'")
     except Exception as e:
-        print(f"[EntryManager] Failed to start Feishu channel: {e}")
-
-
-def _start_telegram(scene_id: str, config: dict, target_id: str, target_type: str):
-    try:
-        from channels.telegram import TelegramChannel
-        ch = TelegramChannel()
-        ch.on_message = lambda msg: _route_to_agent(
-            target_id, "telegram", msg.user_id, msg.content
-        )
-        ch.start(scene_id, config)
-        print(f"[EntryManager] Telegram channel started for {target_type} '{target_id}'")
-    except Exception as e:
-        print(f"[EntryManager] Failed to start Telegram channel: {e}")
-
-
-def _start_discord(scene_id: str, config: dict, target_id: str, target_type: str):
-    try:
-        from channels.discord import DiscordChannel
-        ch = DiscordChannel()
-        ch.on_message = lambda msg: _route_to_agent(
-            target_id, "discord", msg.user_id, msg.content
-        )
-        ch.start(scene_id, config)
-        print(f"[EntryManager] Discord channel started for {target_type} '{target_id}'")
-    except Exception as e:
-        print(f"[EntryManager] Failed to start Discord channel: {e}")
-
-
-def _start_weixin(scene_id: str, config: dict, target_id: str, target_type: str):
-    """Start WeChat personal channel in background thread."""
-    try:
-        from channels.weixin import WeixinChannel
-        ch = WeixinChannel()
-        ch.on_message = lambda msg: _route_to_agent(
-            target_id, "weixin", msg.user_id, msg.content
-        )
-        ch.start(scene_id, config)
-        print(f"[EntryManager] Weixin channel started for {target_type} '{target_id}'")
-    except Exception as e:
-        print(f"[EntryManager] Failed to start Weixin channel: {e}")
-
-
-# Channel registry: name -> (start_func, daemon)
-_CHANNEL_REGISTRY: dict[str, tuple] = {
-    "feishu": (_start_feishu, True),
-    "weixin": (_start_weixin, True),
-    "telegram": (_start_telegram, True),
-    "discord": (_start_discord, True),
-}
-
-
-def _start_entry(channel: str, scene_or_agent_id: str, config: dict, target_agent: str, target_type: str):
-    """Start a single channel entry via registry."""
-    entry = _CHANNEL_REGISTRY.get(channel)
-    if entry is None:
-        if channel == "web_api":
-            return
-        print(f"[EntryManager] Unknown channel: {channel}")
-        return
-    start_func, daemon = entry
-    t = threading.Thread(target=start_func, args=(scene_or_agent_id, config, target_agent, target_type), daemon=daemon)
-    t.start()
+        print(f"[EntryManager] Failed to start {channel_type} channel: {e}")
 
 
 def start_agent_entries(agent_id: str):
@@ -206,11 +144,9 @@ def start_scene_entries(scene_id: str):
         # Route entry to all agents in the scene
         if channel == "web_api":
             print(f"[EntryManager] Web API entry for scene '{scene_id}' — handled by FastAPI routes")
-        elif channel in _CHANNEL_REGISTRY:
+        else:
             for target_agent in agents_in_scene:
                 _start_entry(channel, scene_id, config, target_agent, "scene")
-        else:
-            print(f"[EntryManager] Unknown channel: {channel}")
 
 
 def start_all_entries():
