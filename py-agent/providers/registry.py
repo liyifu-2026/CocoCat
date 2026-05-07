@@ -23,6 +23,7 @@ PROVIDERS: list[ProviderSpec] = [
     ProviderSpec("siliconflow", ("siliconflow",),        "SILICONFLOW_API_KEY", "SiliconFlow", "openai_compat", "https://api.siliconflow.cn/v1",              supports_streaming=True),
     ProviderSpec("dashscope",   ("qwen", "dashscope"),   "DASHSCOPE_API_KEY",   "DashScope",   "openai_compat", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
     ProviderSpec("zhipu",       ("zhipu", "glm"),        "ZHIPUAI_API_KEY",     "Zhipu",       "openai_compat", "https://open.bigmodel.cn/api/paas/v4"),
+    ProviderSpec("custom", ("custom",), "", "Custom", "openai_compat", ""),
 ]
 
 

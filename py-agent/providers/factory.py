@@ -28,7 +28,7 @@ def make_provider(model: str = "") -> LLMProvider:
     4. Ultimate fallback: first provider in registry
     """
     spec = find_by_model(model) if model else None
-    if spec and not _get_env(spec):
+    if spec and spec.env_key and not _get_env(spec):
         spec = None
     if not spec:
         spec = find_by_env()
@@ -38,8 +38,11 @@ def make_provider(model: str = "") -> LLMProvider:
         from .registry import PROVIDERS
         spec = PROVIDERS[0]
 
-    api_key = _get_env(spec) or os.environ.get("OPENAI_API_KEY", "")
-    base_url = os.environ.get("OPENAI_BASE_URL", spec.default_api_base)
+    from provider_config import get_provider as _get_provider_cfg, get_api_key
+
+    api_key = get_api_key(spec.name) or _get_env(spec) or os.environ.get("OPENAI_API_KEY", "")
+    cfg = _get_provider_cfg(spec.name)
+    base_url = cfg.get("api_base", "") or spec.default_api_base
 
     if spec.backend == "anthropic":
         from .anthropic import AnthropicProvider
@@ -47,3 +50,10 @@ def make_provider(model: str = "") -> LLMProvider:
 
     from .openai_compat import OpenAICompatProvider
     return OpenAICompatProvider(api_key=api_key, model=model, base_url=base_url)
+
+
+def ensure_model_catalog():
+    """Fetch and cache model catalog on first use."""
+    from provider_config import load_models, fetch_and_cache_models
+    if not load_models():
+        fetch_and_cache_models()
