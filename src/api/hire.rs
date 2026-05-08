@@ -232,3 +232,25 @@ pub async fn insert_candidate_handler(
 
     Ok(Json(serde_json::json!({"status": "inserted"})))
 }
+
+#[derive(Deserialize)]
+pub struct PlanCompleteRequest {
+    pub plan_uuid: String,
+    pub status: String,
+}
+
+pub async fn plan_complete_handler(
+    State(state): State<AppState>,
+    Json(req): Json<PlanCompleteRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    crate::db::hire::update_plan_status(
+        &state.db_pool,
+        &req.plan_uuid,
+        &req.status,
+    ).map_err(|e| {
+        tracing::error!("Failed to update plan status: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Json(serde_json::json!({"status": "updated"})))
+}

@@ -36,6 +36,7 @@ pub fn build(state: AppState) -> Router {
         .route("/api/mailbox/:agent_id/read", axum::routing::post(mailbox::mark_read_handler))
         .route("/api/hiring/plan", axum::routing::post(hire::plan_handler))
         .route("/api/hiring/candidate", axum::routing::post(hire::insert_candidate_handler))
+        .route("/api/hiring/plan/complete", axum::routing::post(hire::plan_complete_handler))
         .route("/api/hiring/pending", axum::routing::get(hire::list_candidates_handler))
         .route("/api/hiring/:request_uuid/approve", axum::routing::post(hire::approve_handler))
         .route("/api/hiring/:request_uuid/reject", axum::routing::post(hire::reject_handler))

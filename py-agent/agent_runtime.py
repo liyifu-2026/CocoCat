@@ -33,6 +33,116 @@ def handle_request(request: dict, agent_loop=None) -> dict:
             return result
         return {"response": str(result)}
 
+    elif method == "hire_plan":
+        if agent_loop is None:
+            return {"error": "agent loop not initialized"}
+
+        plan_uuid = params.get("plan_uuid", "")
+        position = params.get("position", "")
+        skills = params.get("skills", "")
+        responsibilities = params.get("responsibilities", "")
+        traits = params.get("traits", "")
+        count = int(params.get("count", 5))
+
+        if not plan_uuid or not position:
+            return {"error": "missing plan_uuid or position"}
+
+        prompt = (
+            f"You are a hiring specialist. Generate {count} candidate profiles for the position: {position}.\n\n"
+        )
+        if skills:
+            prompt += f"Required skills: {skills}\n"
+        if responsibilities:
+            prompt += f"Responsibilities: {responsibilities}\n"
+        if traits:
+            prompt += f"Desired traits: {traits}\n"
+
+        prompt += (
+            "\nFor each candidate, provide: name, role, objective, traits (array), background, rules (array).\n"
+            "Return ONLY valid JSON as an array of objects, no other text:\n"
+            '[\n'
+            '  {\n'
+            '    "name": "...",\n'
+            '    "role": "...",\n'
+            '    "objective": "...",\n'
+            '    "traits": ["..."],\n'
+            '    "background": "...",\n'
+            '    "rules": ["..."]\n'
+            '  }\n'
+            ']'
+        )
+
+        try:
+            import json as _json
+            llm = agent_loop.llm if hasattr(agent_loop, 'llm') and agent_loop.llm else None
+            if llm is None:
+                from providers.factory import make_provider
+                llm = make_provider()
+            if llm is None:
+                return {"error": "no LLM provider available"}
+
+            response = llm.chat(messages=[
+                {"role": "system", "content": "You are a hiring specialist that generates candidate profiles in JSON format."},
+                {"role": "user", "content": prompt},
+            ])
+
+            if not response or not response.content:
+                return {"error": "LLM returned empty response"}
+
+            content = response.content.strip()
+            if content.startswith("```"):
+                lines = content.split("\n", 1)
+                if len(lines) > 1:
+                    content = lines[1]
+                if "```" in content:
+                    content = content.rsplit("```", 1)[0]
+            content = content.strip()
+
+            candidates = _json.loads(content)
+            if not isinstance(candidates, list):
+                import re
+                match = re.search(r'\[.*\]', content, re.DOTALL)
+                if match:
+                    candidates = _json.loads(match.group(0))
+                else:
+                    return {"error": "LLM response is not a valid JSON array"}
+
+            import uuid
+            import httpx
+
+            inserted = 0
+            for cand in candidates[:count]:
+                cand_uuid = str(uuid.uuid4())
+                profile_json = _json.dumps(cand, ensure_ascii=False)
+                resp = httpx.post(
+                    "http://localhost:3000/api/hiring/candidate",
+                    json={
+                        "candidate_uuid": cand_uuid,
+                        "plan_uuid": plan_uuid,
+                        "name": cand.get("name", "Unknown"),
+                        "profile": profile_json,
+                    },
+                    timeout=10,
+                )
+                if resp.status_code == 200:
+                    inserted += 1
+
+            httpx.post(
+                "http://localhost:3000/api/hiring/plan/complete",
+                json={"plan_uuid": plan_uuid, "status": "completed"},
+                timeout=10,
+            )
+
+            return {
+                "status": "completed",
+                "candidates_generated": inserted,
+                "plan_uuid": plan_uuid,
+            }
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"error": f"failed to generate candidates: {str(e)}"}
+
     elif method == "shutdown":
         return {"shutdown": True}
 
