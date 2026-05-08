@@ -1,6 +1,14 @@
 use std::path::PathBuf;
 
 pub fn get_usage_log_path() -> PathBuf {
+    if let Ok(workspace) = std::env::var("COCOCAT_WORKSPACE") {
+        if !workspace.is_empty() {
+            let mut p = PathBuf::from(workspace);
+            p.push("agents");
+            p.push("_usage.jsonl");
+            return p;
+        }
+    }
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     p.push("agents");
     p.push("_usage.jsonl");
