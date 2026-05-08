@@ -12,8 +12,9 @@ def _get_env(spec: ProviderSpec) -> str:
 
 def _find_first_available() -> ProviderSpec | None:
     from .registry import PROVIDERS
+    from provider_config import get_api_key
     for spec in PROVIDERS:
-        if _get_env(spec):
+        if _get_env(spec) or get_api_key(spec.name):
             return spec
     return None
 
@@ -50,6 +51,31 @@ def make_provider(model: str = "") -> LLMProvider:
 
     from .openai_compat import OpenAICompatProvider
     return OpenAICompatProvider(api_key=api_key, model=model, base_url=base_url)
+
+
+def make_provider_by_name(name: str) -> LLMProvider:
+    """Create a provider by registry name, bypassing model-based matching.
+
+    Looks up the provider spec from the registry by name directly.
+    Config priority: auth.json → env var → config/providers.json.
+    """
+    from .registry import find_by_name
+    spec = find_by_name(name)
+    if not spec:
+        raise ValueError(f"Unknown provider: {name}")
+
+    from provider_config import get_provider as _get_provider_cfg, get_api_key
+
+    api_key = get_api_key(spec.name) or _get_env(spec) or os.environ.get("OPENAI_API_KEY", "")
+    cfg = _get_provider_cfg(spec.name)
+    base_url = cfg.get("api_base", "") or spec.default_api_base
+
+    if spec.backend == "anthropic":
+        from .anthropic import AnthropicProvider
+        return AnthropicProvider(api_key=api_key, model="", base_url=base_url)
+
+    from .openai_compat import OpenAICompatProvider
+    return OpenAICompatProvider(api_key=api_key, model="", base_url=base_url)
 
 
 def ensure_model_catalog():
