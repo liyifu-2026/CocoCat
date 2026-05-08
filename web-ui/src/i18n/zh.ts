@@ -330,6 +330,11 @@ const zh: Record<string, string> = {
   "component.new_scene": "新场景",
   "component.dark_mode": "深色模式",
   "component.light_mode": "浅色模式",
+  "component.edit_sidebar": "编辑侧边栏",
+  "component.done": "完成",
+  "component.show": "显示",
+  "component.hide": "隐藏",
+  "component.drag": "拖拽排序",
 
   // New Agent Dialog
   "agent_dialog.title": "创建新智能体",

@@ -330,6 +330,11 @@ const en: Record<string, string> = {
   "component.new_scene": "New Scene",
   "component.dark_mode": "Dark Mode",
   "component.light_mode": "Light Mode",
+  "component.edit_sidebar": "Edit Sidebar",
+  "component.done": "Done",
+  "component.show": "Show",
+  "component.hide": "Hide",
+  "component.drag": "Drag to reorder",
 
   // New Agent Dialog
   "agent_dialog.title": "Create New Agent",
