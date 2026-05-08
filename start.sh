@@ -14,7 +14,7 @@ cd "$(dirname "$0")"
 
 # 杀残留进程
 kill -9 $(lsof -ti:3000) 2>/dev/null || true
-kill -9 $(lsof -ti:8080) 2>/dev/null || true
+kill -9 $(lsof -ti:8000) 2>/dev/null || true
 echo "  端口已释放"
 
 # 加载 .env（忽略注释和空行）
@@ -36,13 +36,13 @@ else
 fi
 
 # 启动 Python 后端
-uvicorn web.main:app --host 0.0.0.0 --port 8080 > $LOG_DIR/python.log 2>&1 &
+uvicorn web.main:app --host 0.0.0.0 --port 8000 > $LOG_DIR/python.log 2>&1 &
 PYTHON_PID=$!
 sleep 2
-if curl -s http://localhost:8080/api/health > /dev/null 2>&1; then
-  echo "  Python 后端 ✅ (8080)"
+if curl -s http://localhost:8000/api/health > /dev/null 2>&1; then
+  echo "  Python 后端 ✅ (8000)"
 else
-  echo "  Python 后端 ❌ (8080) — tail -20 $LOG_DIR/python.log"
+  echo "  Python 后端 ❌ (8000) — tail -20 $LOG_DIR/python.log"
 fi
 
 # 启动前端
