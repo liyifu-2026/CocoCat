@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { chatApi } from "@/api/chat"
 import type { ChatGroup, ChatMessage, ReadByEntry } from "@/api/chat"
@@ -19,6 +19,8 @@ import remarkGfm from "remark-gfm"
 import {
   MessageSquare, Plus, Send, Hash, Users, X, Copy, Undo2, MoreHorizontal, Paperclip,
 } from "lucide-react"
+import { providersApi } from "@/api/providers"
+import { toast } from "sonner"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { useT } from "@/context/LanguageContext"
 import { knowledgeApi } from "@/api/knowledge"
@@ -102,7 +104,9 @@ export default function Chat() {
   const [mentionStart, setMentionStart] = useState(-1)
   const [toolLog, setToolLog] = useState<{ type: string; name: string; content: string; input?: string; result?: string }[]>([])
   const [reasoningExpanded, setReasoningExpanded] = useState(false)
-  const [, forceRender] = useState(0)
+  const [localStreaming, setLocalStreaming] = useState(false)
+  const localStreamTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [renderTick, forceRender] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -119,6 +123,13 @@ export default function Chat() {
     enabled: !!selectedGroup,
     refetchInterval: 15000,
   })
+
+  const { data: providersData } = useQuery({
+    queryKey: ["providers"],
+    queryFn: () => providersApi.list(),
+  })
+
+  const hasConfiguredProvider = (providersData?.providers ?? []).some(p => p.has_key)
 
   const groups = groupsData?.groups ?? []
   const currentGroup = groups.find(g => g.id === selectedGroup)
@@ -156,6 +167,50 @@ export default function Chat() {
     return () => { streamListeners.delete(handler) }
   }, [])
 
+  useEffect(() => {
+    if (!localStreaming) return
+    const hasRealStreaming = Array.from(streamState.values()).some(s => s.status === "streaming")
+    const hasCompletion = Array.from(streamState.values()).some(s => s.status === "completed" || s.status === "failed")
+    if (hasRealStreaming || hasCompletion) {
+      setLocalStreaming(false)
+      if (localStreamTimer.current) {
+        clearTimeout(localStreamTimer.current)
+        localStreamTimer.current = null
+      }
+    }
+  }, [renderTick, localStreaming])
+
+  useEffect(() => {
+    return () => {
+      if (localStreamTimer.current) {
+        clearTimeout(localStreamTimer.current)
+        localStreamTimer.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const stream = activeStreamState()
+    if (!stream) {
+      if (toolLog.length > 0) setToolLog([])
+      return
+    }
+    const se = stream.state.stream_event
+    if (se && (se.event_type === "stream_tool" || se.event_type === "stream_reasoning")) {
+      setToolLog(prev => {
+        const last = prev[prev.length - 1]
+        if (last?.type === se.event_type && last?.name === se.name) return prev
+        return [...prev, {
+          type: se.event_type,
+          name: se.name ?? "",
+          content: se.content ?? "",
+          input: se.input,
+          result: se.result,
+        }]
+      })
+    }
+  }, [renderTick, selectedGroup, messages.length])
+
   const agentNames: Record<string, string> = {}
   agents.forEach(a => { agentNames[a.id] = displayConfs[a.id]?.nickname || a.name })
   agentNames["admin"] = "Admin"
@@ -180,10 +235,24 @@ export default function Chat() {
       })
     )
 
+    setLocalStreaming(true)
+    if (localStreamTimer.current) clearTimeout(localStreamTimer.current)
+    localStreamTimer.current = setTimeout(() => setLocalStreaming(false), 60000)
+
     try {
       await chatApi.sendMessage(selectedGroup, content)
-    } catch {
+    } catch (e) {
+      setLocalStreaming(false)
+      if (localStreamTimer.current) clearTimeout(localStreamTimer.current)
       queryClient.setQueryData(["chat-messages", selectedGroup], prev)
+      const msg = e instanceof Error ? e.message : "发送失败"
+      toast.error(`❌ ${msg}`, {
+        description: !hasConfiguredProvider ? "请先配置 API Key" : undefined,
+        action: !hasConfiguredProvider ? {
+          label: "去设置",
+          onClick: () => window.location.href = "/settings",
+        } : undefined,
+      })
       return
     }
     queryClient.invalidateQueries({ queryKey: ["chat-messages", selectedGroup] })
@@ -261,7 +330,7 @@ export default function Chat() {
   }
 
   function activeStreamState(): { state: StreamState; agentName: string } | null {
-    if (!currentGroup || messages.length === 0) return null
+    if (!currentGroup) return null
     const agentId = selectedGroup?.startsWith("dm_")
       ? selectedGroup.replace("dm_", "")
       : currentGroup.members.find(m => m.id !== "admin")?.id
@@ -271,14 +340,32 @@ export default function Chat() {
         return { state: s, agentName: agentNames[agentId] ?? agentId }
       }
     }
+    if (localStreaming) {
+      return { state: { task_uuid: "", event: "", status: "streaming", updatedAt: Date.now() }, agentName: agentNames[agentId] ?? agentId }
+    }
     return null
   }
+
+  const failedMessages = useMemo(() => {
+    const failed: { id: number; content: string; timestamp: string }[] = []
+    for (const s of streamState.values()) {
+      if (s.status === "failed" && s.task_uuid) {
+        failed.push({
+          id: -Date.now() - Math.random(),
+          content: `❌ Agent 回复失败: ${(s as any).error || "请检查 API Key 配置"}`,
+          timestamp: new Date(s.updatedAt).toISOString(),
+        })
+      }
+    }
+    return failed
+  }, [renderTick])
 
   return (
     <div className="flex h-full">
       {/* Left sidebar: conversation list */}
-      <div className="stagger-item w-72 border-r border-border flex flex-col shrink-0" style={{animationDelay: "0s"}}>
-        <div className="p-4 border-b border-border flex items-center justify-between">
+      <div className="w-72 border-r border-border flex flex-col shrink-0">
+        {/* Sidebar header */}
+        <div className="stagger-item p-4 border-b border-border flex items-center justify-between" style={{animationDelay: "0s"}}>
           <h2 className="font-semibold">{t("chat.title")}</h2>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild><Button size="icon-xs" variant="ghost"><Plus className="size-4" /></Button></DialogTrigger>
@@ -293,7 +380,9 @@ export default function Chat() {
             </DialogContent>
           </Dialog>
         </div>
-        <ScrollArea className="flex-1">
+        {/* Sidebar content (channels + DM) */}
+        <div className="stagger-item flex-1 min-h-0" style={{animationDelay: "0.08s"}}>
+        <ScrollArea className="h-full">
           {/* Channels Section */}
           {channels.length > 0 && (
             <div className="px-3 pt-3 pb-1">
@@ -349,10 +438,11 @@ export default function Chat() {
             </>
           )}
         </ScrollArea>
+        </div>
       </div>
 
       {/* Right: Conversation */}
-      <div className="stagger-item flex-1 flex flex-col" style={{animationDelay: "0.08s"}}>
+      <div className="stagger-item flex-1 flex flex-col" style={{animationDelay: "0.24s"}}>
         {!selectedGroup ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center"><MessageSquare className="size-12 mx-auto mb-4 opacity-30" /><p>{t("chat.select_chat")}</p></div>
@@ -390,26 +480,17 @@ export default function Chat() {
                     msgIndex={msg.id} groupId={selectedGroup} agentNames={agentNames}
                     onRecall={recallMessage} />
                 ))}
+                {failedMessages.map(fm => (
+                  <div key={fm.id} className="flex justify-center py-2">
+                    <span className="text-xs text-red-500 bg-red-50 dark:bg-red-950/50 rounded px-3 py-1.5">
+                      {fm.content}
+                    </span>
+                  </div>
+                ))}
                 {(() => {
                   const stream = activeStreamState()
-                  if (!stream) {
-                    if (toolLog.length > 0) setToolLog([])
-                    return null
-                  }
+                  if (!stream) return null
                   const se = stream.state.stream_event
-                  if (se && (se.event_type === "stream_tool" || se.event_type === "stream_reasoning")) {
-                    setToolLog(prev => {
-                      const last = prev[prev.length - 1]
-                      if (last?.type === se.event_type && last?.name === se.name) return prev
-                      return [...prev, {
-                        type: se.event_type,
-                        name: se.name ?? "",
-                        content: se.content ?? "",
-                        input: se.input,
-                        result: se.result,
-                      }]
-                    })
-                  }
                   let label = "Processing..."
                   if (se) {
                     if (se.event_type === "stream_progress") label = se.content
@@ -460,6 +541,18 @@ export default function Chat() {
               </div>
             </ScrollArea>
 
+            {!hasConfiguredProvider && (
+              <div className="px-4 py-2 bg-amber-50 dark:bg-amber-950 border-t border-amber-200 dark:border-amber-800">
+                <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                  <span>⚠️</span>
+                  <span>
+                    API Key 未配置，请前往{" "}
+                    <a href="/settings" className="underline font-medium">设置页面</a>
+                    {" "}配置后再试
+                  </span>
+                </p>
+              </div>
+            )}
             <div className="p-4 border-t border-border relative">
               <div className="flex gap-2">
                 <div className="flex-1 relative">
@@ -491,7 +584,7 @@ export default function Chat() {
                 <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} variant="ghost" size="icon" className="shrink-0 self-end">
                   <Paperclip className="size-4" />
                 </Button>
-                <Button onClick={sendMessage} disabled={!message.trim()} className="shrink-0 self-end">
+                <Button onClick={sendMessage} disabled={!message.trim() || !hasConfiguredProvider} className="shrink-0 self-end">
                   <Send className="size-4" />
                 </Button>
               </div>
