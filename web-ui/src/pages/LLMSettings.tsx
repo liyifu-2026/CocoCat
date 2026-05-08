@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
   Loader2, CheckCircle, XCircle, RefreshCw, Eye, EyeOff,
-  Search, ChevronDown, Globe, Server, Cpu, Cloud,
+  Search, ChevronDown, Globe, Server, Cpu, Cloud, AlertCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -91,7 +91,7 @@ function groupProviders(providers: ProviderInfo[]) {
 
 export default function LLMSettings() {
   const queryClient = useQueryClient()
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["providers"],
     queryFn: () => providersApi.list(),
   })
@@ -189,6 +189,18 @@ export default function LLMSettings() {
     return (
       <div className="p-6 flex items-center justify-center h-64">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center h-64 gap-3">
+        <AlertCircle className="size-8 text-destructive opacity-50" />
+        <p className="text-sm text-muted-foreground">
+          {error instanceof Error ? error.message : "Failed to load providers. Is the backend running?"}
+        </p>
+        <Button size="sm" variant="outline" onClick={() => refetch()}>Retry</Button>
       </div>
     )
   }

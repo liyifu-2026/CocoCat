@@ -79,11 +79,11 @@ export default function SceneDetail() {
               {(scene.mounted_kbs ?? []).length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("scene.no_kbs")}</p>
               ) : (
-                scene.mounted_kbs.map((kb, i) => (
+                (scene.mounted_kbs ?? []).map((kb, i) => (
                   <div key={i} className="flex items-center justify-between text-sm">
                     <span>{kb}</span>
                     <button onClick={async () => {
-                      const updated = scene.mounted_kbs.filter((_, j) => j !== i)
+                      const updated = (scene.mounted_kbs ?? []).filter((_, j) => j !== i)
                       const res = await scenesApi.updateKbs(scene.id, updated)
                       queryClient.setQueryData(["scenes"], (old: any) => {
                         if (!old) return old
@@ -111,14 +111,14 @@ export default function SceneDetail() {
           <CardHeader><CardTitle>{t("scene.env_skills")}</CardTitle></CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-1 mb-2">
-              {scene.env_skills.length === 0 ? (
+              {(scene.env_skills ?? []).length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("scene.no_skills")}</p>
               ) : (
-                scene.env_skills.map((sk, i) => (
+                (scene.env_skills ?? []).map((sk, i) => (
                   <span key={i} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs">
                     {sk}
                     <button onClick={async () => {
-                      const updated = scene.env_skills.filter((_, j) => j !== i)
+                      const updated = (scene.env_skills ?? []).filter((_, j) => j !== i)
                       await scenesApi.updateSkills(scene.id, updated)
                       queryClient.invalidateQueries({ queryKey: ["scenes"] })
                     }} className="text-destructive hover:text-destructive/80">×</button>
@@ -130,7 +130,7 @@ export default function SceneDetail() {
               <Input size={1} placeholder={t("scene.add_skill")} value={newSkill} onChange={e => setNewSkill(e.target.value)} />
               <Button size="sm" variant="outline" onClick={async () => {
                 if (!newSkill.trim()) return
-                const updated = [...scene.env_skills, newSkill.trim()]
+                const updated = [...(scene.env_skills ?? []), newSkill.trim()]
                 await scenesApi.updateSkills(scene.id, updated)
                 queryClient.invalidateQueries({ queryKey: ["scenes"] })
                 setNewSkill("")
@@ -143,14 +143,14 @@ export default function SceneDetail() {
           <CardHeader><CardTitle>{t("scene.roster")}</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-1 mb-2">
-              {scene.roster.length === 0 ? (
+              {(scene.roster ?? []).length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("scene.no_agents")}</p>
               ) : (
-                scene.roster.map((a, i) => (
+                (scene.roster ?? []).map((a, i) => (
                   <div key={i} className="flex items-center justify-between text-sm">
                     <span>{a}</span>
                     <button onClick={async () => {
-                      const updated = scene.roster.filter((_, j) => j !== i)
+                      const updated = (scene.roster ?? []).filter((_, j) => j !== i)
                       await scenesApi.updateRoster(scene.id, updated)
                       queryClient.invalidateQueries({ queryKey: ["scenes"] })
                     }} className="text-destructive hover:text-destructive/80 text-xs">×</button>
@@ -159,9 +159,9 @@ export default function SceneDetail() {
               )}
             </div>
             <div className="flex flex-wrap gap-1">
-              {agentsData?.agents?.filter(a => !scene.roster.includes(a.id)).map(a => (
+              {agentsData?.agents?.filter(a => !(scene.roster ?? []).includes(a.id)).map(a => (
                 <Button key={a.id} size="xs" variant="outline" onClick={async () => {
-                  const updated = [...scene.roster, a.id]
+                  const updated = [...(scene.roster ?? []), a.id]
                   await scenesApi.updateRoster(scene.id, updated)
                   queryClient.invalidateQueries({ queryKey: ["scenes"] })
                 }}>
