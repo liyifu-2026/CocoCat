@@ -70,6 +70,7 @@ function SortableNavItem({
         {...attributes}
         {...listeners}
         className="flex items-center justify-center w-6 h-8 cursor-grab active:cursor-grabbing text-sidebar-foreground/50 hover:text-sidebar-foreground shrink-0"
+        title={t("component.drag")}
       >
         <GripVertical className="size-3.5" />
       </span>
@@ -203,6 +204,7 @@ export function Sidebar() {
           variant="ghost"
           size="sm"
           onClick={toggleEditMode}
+          title={collapsed ? (editMode ? t("component.done") : t("component.edit_sidebar")) : undefined}
           className={cn(
             "w-full flex items-center gap-3 justify-start text-sm font-medium transition-colors",
             editMode
