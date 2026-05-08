@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { agentsApi } from "@/api/agents"
 import type { UsageEntry } from "@/api/agents"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { BarChart3, Cpu } from "lucide-react"
@@ -14,6 +15,7 @@ export default function TokenUsage() {
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ["usage"], queryFn: () => agentsApi.usage(100) })
   const { data: agentsData } = useQuery({ queryKey: ["agents"], queryFn: () => agentsApi.list() })
 
+  if (isLoading) return <TableSkeleton rows={5} cols={6} />
   if (isError) return <ErrorState message={error?.message} onRetry={refetch} />
 
   const usage = data?.usage ?? []
@@ -64,11 +66,16 @@ export default function TokenUsage() {
           <CardTitle>{t("usage.history")}</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading && <TableSkeleton rows={5} cols={6} />}
-          {!isLoading && usage.length === 0 && (
+          {usage.length === 0 && (
             <div className="text-center py-10 text-muted-foreground">
               <Cpu className="size-12 mx-auto mb-4 opacity-30" />
               <p>{t("usage.no_data")}</p>
+              <p className="text-sm mt-2">
+                尚未产生用量数据。请先在 Chat 页面与 agent 对话，用量数据将自动记录。
+              </p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={() => window.location.href = "/chat"}>
+                前往 Chat
+              </Button>
             </div>
           )}
           {usage.length > 0 && (
