@@ -42,11 +42,11 @@ function useCountUp(target: number, duration = 1000): number {
   const rafRef = useRef(0)
 
   useEffect(() => {
-    if (target === prevTarget.current) return
+    if (target === prevTarget.current && valueRef.current === target) return
     prevTarget.current = target
 
     const startValue = valueRef.current
-    if (target === startValue) {
+    if (target === startValue && target > 0) {
       setValue(target)
       return
     }
