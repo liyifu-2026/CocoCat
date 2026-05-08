@@ -56,32 +56,46 @@ export function EntryManager({ title, targetType, targetId, entries, allChannels
     setStatusMap(prev => ({ ...prev, [entry.channel]: "connecting" }))
     try {
       if (ch.needs_qr_login) {
-        const qr = await entriesApi.getWeixinQr()
-        setQrData({ qrcode_url: qr.qrcode_url, channelId: entry.channel })
-        setQrDialogOpen(true)
-        setQrPolling(true)
+        // Start channel immediately (it will begin QR login in background thread)
+        entriesApi.connectChannel(targetType, targetId, entry.channel, entry.config).catch(() => {})
 
-        // Poll WeChat QR scan status via session token (handled server-side)
-        const pollInterval = setInterval(async () => {
+        // Poll for QR state from the channel
+        const pollQr = async () => {
           try {
-            const res = await entriesApi.pollWeixinQr(qr.session)
-            if (res.connected) {
-              clearInterval(pollInterval)
-              setQrPolling(false)
-              // QR scanned & credentials saved — now connect channel
-              await entriesApi.connectChannel(targetType, targetId, entry.channel, entry.config)
+            const qrStatus = await entriesApi.getWeixinQrStatus()
+            if (qrStatus.status === "waiting" || qrStatus.status === "scanned") {
+              // Fetch QR image and show dialog
+              if (!qrDialogOpen) {
+                const qr = await entriesApi.getWeixinQr()
+                if (qr.qrcode_url) {
+                  setQrData({ qrcode_url: qr.qrcode_url, channelId: entry.channel })
+                  setQrDialogOpen(true)
+                  setQrPolling(true)
+                }
+              }
+              return true // keep polling
+            }
+            if (qrStatus.connected) {
               setQrDialogOpen(false)
+              setQrPolling(false)
               setStatusMap(prev => ({ ...prev, [entry.channel]: "connected" }))
-            } else if (res.status === "scanned") {
-              // Show "scanned, confirming..." in UI
-            } else if (res.status === "expired" || res.status === "timeout") {
-              clearInterval(pollInterval)
+              return false // done
+            }
+            if (qrStatus.status === "expired" || qrStatus.status === "timeout" || qrStatus.status === "failed") {
               setQrDialogOpen(false)
               setQrPolling(false)
               setStatusMap(prev => ({ ...prev, [entry.channel]: "error" }))
+              return false
             }
-          } catch { /* continue polling */ }
-        }, 2000)
+            return true
+          } catch { return true }
+        }
+
+        let polling = true
+        while (polling) {
+          await new Promise(r => setTimeout(r, 2000))
+          polling = await pollQr()
+        }
         setConnecting(null)
         return
       }

@@ -2,7 +2,6 @@
 import json
 import os
 import sys
-import time
 import threading
 from pathlib import Path
 from fastapi import APIRouter, Query
@@ -98,8 +97,6 @@ def connect_channel(body: ChannelConnectRequest):
         runtime = mgr.get_or_create(body.target_id)
         if runtime is None:
             return JSONResponse({"error": "scene not found"}, status_code=404)
-        reply_url = os.environ.get("COCOCAT_REPLY_URL", "http://localhost:8080/api/channels/reply")
-
         from web.entry_manager import _route_to_scene
         ch.on_message = lambda msg, rt=runtime, ct=body.channel_type: _route_to_scene(
             rt, ct, msg.user_id, msg.content
@@ -210,24 +207,18 @@ def get_channel_status(target_type: str, target_id: str, channel_type: str):
 
 # ── WeChat QR login ────────────────────────────────────────────────────
 
-# In-memory QR session cache: session_token -> {qrcode_id, status, credentials}
-_QR_SESSIONS: dict[str, dict] = {}
-
-
 @router.get("/api/channels/weixin/qr")
 def get_weixin_qr_code():
-    """Get WeChat QR code image and start background polling for scan."""
+    """Get WeChat QR code image. The channel publishes QR state during login."""
     try:
-        from channels.weixin_session import fetch_qr, poll_qr, save_credentials
-        import qrcode, io, base64, uuid
+        from channels.weixin import get_qr_state
+        import qrcode, io, base64
 
-        qr = fetch_qr()
-        qrcode_id = qr.get("qrcode_id", "")
-        qrcode_url = qr.get("qrcode_url", "")
-        if not qrcode_id or not qrcode_url:
-            return JSONResponse({"error": "Failed to get QR code from WeChat API"}, status_code=500)
+        state = get_qr_state()
+        qrcode_url = state.get("qrcode_url", "")
+        if not qrcode_url:
+            return JSONResponse({"error": "No QR available — start the weixin channel first"}, status_code=404)
 
-        # Generate QR image from the login URL
         qr_img = qrcode.QRCode(border=2)
         qr_img.add_data(qrcode_url)
         qr_img.make(fit=True)
@@ -236,47 +227,17 @@ def get_weixin_qr_code():
         img.save(buf, format="PNG")
         data_uri = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
-        # Create session and start background poller
-        session_token = str(uuid.uuid4())[:12]
-        _QR_SESSIONS[session_token] = {"qrcode_id": qrcode_id, "status": "waiting", "token": "", "bot_id": ""}
-
-        def bg_poll(sid: str, qid: str):
-            for _ in range(180):  # poll up to 3 minutes
-                info = _QR_SESSIONS.get(sid)
-                if not info or info.get("status") in ("confirmed", "expired", "error"):
-                    return
-                try:
-                    status = poll_qr(qid)
-                    if status["status"] == "confirmed":
-                        save_credentials(status["bot_token"], status["bot_id"])
-                        _QR_SESSIONS[sid] = {"qrcode_id": qid, "status": "confirmed",
-                                              "token": status["bot_token"], "bot_id": status["bot_id"]}
-                        return
-                    elif status["status"] == "scaned":
-                        _QR_SESSIONS[sid]["status"] = "scanned"
-                    elif status["status"] == "expired":
-                        _QR_SESSIONS[sid]["status"] = "expired"
-                        return
-                except Exception:
-                    pass
-                time.sleep(1)
-            _QR_SESSIONS[sid]["status"] = "timeout"
-
-        threading.Thread(target=bg_poll, args=(session_token, qrcode_id), daemon=True).start()
-
-        return {"qrcode_url": data_uri, "qrcode": qrcode_id, "session": session_token}
+        return {"qrcode_url": data_uri, "qrcode": qrcode_url, "status": state.get("status", "idle")}
     except Exception as e:
         return JSONResponse({"error": f"Failed to get QR code: {e}"}, status_code=500)
 
 
-@router.get("/api/channels/weixin/qr/poll")
-def poll_weixin_qr(session: str = ""):
-    """Poll the QR scan status for a given session token."""
-    if not session or session not in _QR_SESSIONS:
-        return {"status": "not_found"}
-    info = _QR_SESSIONS[session]
-    status = info.get("status", "waiting")
-    return {"status": status, "connected": status == "confirmed"}
+@router.get("/api/channels/weixin/qr/status")
+def get_weixin_qr_status():
+    """Poll the weixin QR login status (published by the channel)."""
+    from channels.weixin import get_qr_state
+    state = get_qr_state()
+    return {"status": state.get("status", "idle"), "connected": state.get("status") == "confirmed"}
 
 
 # ── Available channel types ────────────────────────────────────────────

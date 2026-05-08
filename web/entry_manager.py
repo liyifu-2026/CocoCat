@@ -75,7 +75,7 @@ def _route_to_agent(agent_id: str, channel_type: str, user_id: str, content: str
 
     reply_url = os.environ.get(
         "COCOCAT_REPLY_URL",
-        "http://localhost:8080/api/channels/reply"
+        "http://localhost:8000/api/channels/reply"
     )
 
     entry = {
@@ -115,7 +115,7 @@ def _route_to_scene(runtime, channel_type: str, user_id: str, content: str):
         return
     reply_url = os.environ.get(
         "COCOCAT_REPLY_URL",
-        "http://localhost:8080/api/channels/reply"
+        "http://localhost:8000/api/channels/reply"
     )
     runtime.agent_handle.send_message(channel_type, user_id, content, reply_url=reply_url)
 

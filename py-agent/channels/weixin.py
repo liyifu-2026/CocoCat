@@ -12,6 +12,10 @@ CHANNEL_VERSION = "2.0.0"
 CLIENT_VERSION = "131072"
 CREDENTIALS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "agents", "_weixin_credentials.json")
 
+# Shared state: latest QR code data (set by channel, read by web API)
+_qr_state: dict = {"qrcode_url": "", "qrcode_id": "", "status": "idle"}  # idle / waiting / scanned / confirmed / failed
+_qr_lock = threading.Lock()
+
 
 def _random_wechat_uin() -> str:
     return base64.b64encode(str(random.randint(0, 0xFFFFFFFF)).encode()).decode()
@@ -28,6 +32,25 @@ def _build_headers(token: str = "") -> dict:
     if token:
         h["Authorization"] = f"Bearer {token}"
     return h
+
+
+def get_qr_state() -> dict:
+    with _qr_lock:
+        return dict(_qr_state)
+
+
+def save_credentials(token: str, bot_id: str):
+    creds = {"token": token, "bot_id": bot_id, "base_url": API_BASE}
+    os.makedirs(os.path.dirname(CREDENTIALS_FILE), exist_ok=True)
+    with open(CREDENTIALS_FILE, "w") as f:
+        json.dump(creds, f)
+
+
+def load_credentials() -> dict:
+    if os.path.exists(CREDENTIALS_FILE):
+        with open(CREDENTIALS_FILE) as f:
+            return json.load(f)
+    return {}
 
 
 class WeixinApi:
@@ -58,51 +81,75 @@ class WeixinChannel(ChatChannel):
         self._poll_thread = None
 
     def startup(self):
-        self._login()
+        # Try saved credentials first
+        creds = load_credentials()
+        if creds.get("token"):
+            self.api = WeixinApi(token=creds["token"], bot_id=creds.get("bot_id", ""))
+            logger.info("Weixin logged in from saved credentials")
+        else:
+            # Interactive QR login
+            if not self._do_qr_login():
+                logger.error("Weixin QR login failed, channel not started")
+                return
+
         self.report_startup_success()
         self._running = True
         self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._poll_thread.start()
 
-    def _login(self):
-        if os.path.exists(CREDENTIALS_FILE):
-            with open(CREDENTIALS_FILE) as f:
-                creds = json.load(f)
-            self.api = WeixinApi(token=creds.get("token", ""), bot_id=creds.get("bot_id", ""))
-            if self.api.token:
-                logger.info("Weixin logged in from saved credentials")
-                return
+    def _do_qr_login(self) -> bool:
+        """QR code login — publishes QR state for web UI, polls WeChat for scan."""
+        session = requests.Session()
+        session.headers.update(_build_headers())
 
-        # Fallback: terminal-based QR login (for CLI usage)
-        from channels.weixin_session import fetch_qr, poll_qr, save_credentials
-        import qrcode as qr_lib
-
-        qr = fetch_qr()
-        qrcode_id = qr["qrcode_id"]
-        qrcode_url = qr["qrcode_url"]
-        if not qrcode_id:
-            logger.error("Failed to fetch WeChat QR code")
-            return
-
-        # Print QR in terminal
+        # Fetch QR
         try:
-            qr_img = qr_lib.QRCode(border=1)
-            qr_img.add_data(qrcode_url)
-            qr_img.make(fit=True)
-            qr_img.print_ascii(invert=True)
-        except Exception:
-            print(f"\n  微信登录链接: {qrcode_url}\n")
-        print("  等待扫码...\n")
+            resp = session.get(f"{API_BASE}/ilink/bot/get_bot_qrcode", params={"bot_type": 3}, timeout=15)
+            data = resp.json()
+            qrcode_id = data.get("qrcode", "")
+            qrcode_url = data.get("qrcode_img_content", "") or qrcode_id
+            if not qrcode_id:
+                return False
+        except Exception as e:
+            logger.error(f"QR fetch failed: {e}")
+            return False
 
-        for _ in range(120):
-            status = poll_qr(qrcode_id)
-            if status["status"] == "confirmed":
-                save_credentials(status["bot_token"], status["bot_id"])
-                self.api = WeixinApi(token=status["bot_token"], bot_id=status["bot_id"])
-                logger.info("Weixin login successful!")
-                return
+        # Publish QR for web UI
+        with _qr_lock:
+            _qr_state["qrcode_url"] = qrcode_url
+            _qr_state["qrcode_id"] = qrcode_id
+            _qr_state["status"] = "waiting"
+
+        logger.info(f"Weixin QR ready, scan with WeChat: {qrcode_url[:60]}...")
+
+        # Poll for scan (up to 3 minutes)
+        for _ in range(180):
+            try:
+                r = session.get(f"{API_BASE}/ilink/bot/get_qrcode_status",
+                                params={"qrcode": qrcode_id}, timeout=30)
+                status = r.json()
+                s = status.get("status", "wait")
+                if s == "scanned":
+                    with _qr_lock:
+                        _qr_state["status"] = "scanned"
+                elif s == "confirmed":
+                    save_credentials(status["bot_token"], status["ilink_bot_id"])
+                    self.api = WeixinApi(token=status["bot_token"], bot_id=status["ilink_bot_id"])
+                    with _qr_lock:
+                        _qr_state["status"] = "confirmed"
+                    logger.info("Weixin login successful!")
+                    return True
+                elif s == "expired":
+                    with _qr_lock:
+                        _qr_state["status"] = "expired"
+                    return False
+            except Exception:
+                pass
             time.sleep(1)
-        logger.error("Weixin login timeout")
+
+        with _qr_lock:
+            _qr_state["status"] = "timeout"
+        return False
 
     def _poll_loop(self):
         buf = ""
@@ -125,9 +172,7 @@ class WeixinChannel(ChatChannel):
         if not from_user or not content:
             return
         cmsg = ChatMessage(channel_type="weixin", scene_id=self.scene_id, user_id=from_user, content=content)
-        context = self._compose_context(
-            ContextType.TEXT, content, msg=cmsg, session_id=from_user, receiver=from_user,
-        )
+        context = self._compose_context(ContextType.TEXT, content, msg=cmsg, session_id=from_user, receiver=from_user)
         if context:
             self.produce(context)
 
@@ -137,10 +182,7 @@ class WeixinChannel(ChatChannel):
         receiver = context.get("receiver", "")
         if not receiver:
             return
-        if reply.type == ReplyType.TEXT:
-            self.api.send_message(receiver, reply.content)
-        else:
-            self.api.send_message(receiver, str(reply.content))
+        self.api.send_message(receiver, reply.content if reply.type == ReplyType.TEXT else str(reply.content))
 
     def stop(self):
         self._running = False

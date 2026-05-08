@@ -63,10 +63,10 @@ class AgentHandle:
             "scene_id": self.scene_id,
             "channel": channel,
             "external_user": user_id,
-            "reply_url": reply_url or os.environ.get(
-                "COCOCAT_REPLY_URL",
-                "http://localhost:8080/api/channels/reply"
-            ),
+        "reply_url": reply_url or os.environ.get(
+            "COCOCAT_REPLY_URL",
+            "http://localhost:8000/api/channels/reply"
+        ),
         }
         with FileLock(inbox_path):
             with open(inbox_path, "a", encoding="utf-8") as f:

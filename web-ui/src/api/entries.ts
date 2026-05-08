@@ -30,7 +30,6 @@ export interface ChannelStatus {
 export interface QrCodeData {
   qrcode_url: string
   qrcode: string
-  session: string
 }
 
 export const entriesApi = {
@@ -60,7 +59,7 @@ export const entriesApi = {
 
   // WeChat QR
   getWeixinQr: () =>
-    api.get<QrCodeData>("/channels/weixin/qr"),
-  pollWeixinQr: (session: string) =>
-    api.get<{ status: string; connected: boolean }>(`/channels/weixin/qr/poll?session=${session}`),
+    api.get<{ qrcode_url: string; qrcode: string; status: string }>("/channels/weixin/qr"),
+  getWeixinQrStatus: () =>
+    api.get<{ status: string; connected: boolean }>("/channels/weixin/qr/status"),
 }
