@@ -1,7 +1,7 @@
-"""Personal WeChat channel via ilink bot API (CowAgent ChatChannel pattern)."""
+"""Personal WeChat channel via ilink bot API (ChatChannel pattern)."""
 import sys, os, json, time, threading, requests, logging, random, base64
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from channel import Channel, ChatMessage
+from channel import ChatMessage
 from channel_context import Context, ContextType, Reply, ReplyType
 from chat_channel import ChatChannel
 from channels.channel_factory import register_channel
@@ -9,16 +9,16 @@ from channels.channel_factory import register_channel
 logger = logging.getLogger("cococat.weixin")
 API_BASE = "https://ilinkai.weixin.qq.com"
 CHANNEL_VERSION = "2.0.0"
-CLIENT_VERSION = "131072"  # 2.0.0 → 0x00020000
+CLIENT_VERSION = "131072"
+CREDENTIALS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "agents", "_weixin_credentials.json")
 
 
 def _random_wechat_uin() -> str:
-    val = random.randint(0, 0xFFFFFFFF)
-    return base64.b64encode(str(val).encode("utf-8")).decode("utf-8")
+    return base64.b64encode(str(random.randint(0, 0xFFFFFFFF)).encode()).decode()
 
 
 def _build_headers(token: str = "") -> dict:
-    headers = {
+    h = {
         "Content-Type": "application/json",
         "AuthorizationType": "ilink_bot_token",
         "X-WECHAT-UIN": _random_wechat_uin(),
@@ -26,24 +26,17 @@ def _build_headers(token: str = "") -> dict:
         "iLink-App-ClientVersion": CLIENT_VERSION,
     }
     if token:
-        headers["Authorization"] = f"Bearer {token}"
-    return headers
+        h["Authorization"] = f"Bearer {token}"
+    return h
 
 
 class WeixinApi:
-    """Low-level ilink bot API wrapper."""
     def __init__(self, token="", bot_id="", base_url=API_BASE):
         self.token = token
         self.bot_id = bot_id
         self.base_url = base_url
         self.session = requests.Session()
         self.session.headers.update(_build_headers(token))
-
-    def fetch_qr(self):
-        return self.session.get(f"{self.base_url}/ilink/bot/get_bot_qrcode", params={"bot_type": 3}).json()
-
-    def poll_qr(self, qrcode):
-        return self.session.get(f"{self.base_url}/ilink/bot/get_qrcode_status", params={"qrcode": qrcode}).json()
 
     def get_updates(self, buf=""):
         return self.session.post(f"{self.base_url}/ilink/bot/getupdates", json={"buf": buf}, timeout=45).json()
@@ -63,12 +56,8 @@ class WeixinChannel(ChatChannel):
         self.api = None
         self._running = False
         self._poll_thread = None
-        self._credentials_file = ""
 
     def startup(self):
-        self._credentials_file = self._config.get("credentials_file", "") or os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "..", "..", "agents", "_weixin_credentials.json"
-        )
         self._login()
         self.report_startup_success()
         self._running = True
@@ -76,32 +65,44 @@ class WeixinChannel(ChatChannel):
         self._poll_thread.start()
 
     def _login(self):
-        if os.path.exists(self._credentials_file):
-            with open(self._credentials_file) as f:
+        if os.path.exists(CREDENTIALS_FILE):
+            with open(CREDENTIALS_FILE) as f:
                 creds = json.load(f)
             self.api = WeixinApi(token=creds.get("token", ""), bot_id=creds.get("bot_id", ""))
-            logger.info("Logged in from saved credentials")
+            if self.api.token:
+                logger.info("Weixin logged in from saved credentials")
+                return
+
+        # Fallback: terminal-based QR login (for CLI usage)
+        from channels.weixin_session import fetch_qr, poll_qr, save_credentials
+        import qrcode as qr_lib
+
+        qr = fetch_qr()
+        qrcode_id = qr["qrcode_id"]
+        qrcode_url = qr["qrcode_url"]
+        if not qrcode_id:
+            logger.error("Failed to fetch WeChat QR code")
             return
-        import qrcode
-        api = WeixinApi()
-        qr_data = api.fetch_qr()
-        qrcode_url = qr_data.get("qrcode", "")
-        if qrcode_url:
-            qr = qrcode.QRCode()
-            qr.add_data(qrcode_url)
-            qr.print_ascii()
-            for _ in range(120):
-                status = api.poll_qr(qrcode_url)
-                if status.get("status") == "confirmed":
-                    self.api = WeixinApi(token=status["bot_token"], bot_id=status["ilink_bot_id"])
-                    creds = {"token": status["bot_token"], "bot_id": status["ilink_bot_id"], "base_url": API_BASE}
-                    os.makedirs(os.path.dirname(self._credentials_file), exist_ok=True)
-                    with open(self._credentials_file, "w") as f:
-                        json.dump(creds, f)
-                    logger.info("Login successful!")
-                    return
-                time.sleep(1)
-        logger.error("Login timeout")
+
+        # Print QR in terminal
+        try:
+            qr_img = qr_lib.QRCode(border=1)
+            qr_img.add_data(qrcode_url)
+            qr_img.make(fit=True)
+            qr_img.print_ascii(invert=True)
+        except Exception:
+            print(f"\n  微信登录链接: {qrcode_url}\n")
+        print("  等待扫码...\n")
+
+        for _ in range(120):
+            status = poll_qr(qrcode_id)
+            if status["status"] == "confirmed":
+                save_credentials(status["bot_token"], status["bot_id"])
+                self.api = WeixinApi(token=status["bot_token"], bot_id=status["bot_id"])
+                logger.info("Weixin login successful!")
+                return
+            time.sleep(1)
+        logger.error("Weixin login timeout")
 
     def _poll_loop(self):
         buf = ""
@@ -115,7 +116,7 @@ class WeixinChannel(ChatChannel):
                 if "get_updates_buf" in data:
                     buf = data["get_updates_buf"]
             except Exception as e:
-                logger.warning(f"Poll error: {e}")
+                logger.warning(f"Weixin poll error: {e}")
                 time.sleep(5)
 
     def _handle_raw(self, raw: dict):
@@ -123,13 +124,9 @@ class WeixinChannel(ChatChannel):
         from_user = raw.get("from_username", "") or raw.get("from_user", "")
         if not from_user or not content:
             return
-        cmsg = ChatMessage(
-            channel_type="weixin", scene_id=self.scene_id,
-            user_id=from_user, content=content,
-        )
+        cmsg = ChatMessage(channel_type="weixin", scene_id=self.scene_id, user_id=from_user, content=content)
         context = self._compose_context(
-            ContextType.TEXT, content, msg=cmsg,
-            session_id=from_user, receiver=from_user,
+            ContextType.TEXT, content, msg=cmsg, session_id=from_user, receiver=from_user,
         )
         if context:
             self.produce(context)

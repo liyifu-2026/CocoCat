@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import time
 import threading
 from pathlib import Path
 from fastapi import APIRouter, Query
@@ -209,38 +210,73 @@ def get_channel_status(target_type: str, target_id: str, channel_type: str):
 
 # ── WeChat QR login ────────────────────────────────────────────────────
 
+# In-memory QR session cache: session_token -> {qrcode_id, status, credentials}
+_QR_SESSIONS: dict[str, dict] = {}
+
+
 @router.get("/api/channels/weixin/qr")
 def get_weixin_qr_code():
-    """Get WeChat QR code as a data URI image for web display."""
+    """Get WeChat QR code image and start background polling for scan."""
     try:
-        from channels.weixin import WeixinApi
-        import qrcode
-        import io
-        import base64
+        from channels.weixin_session import fetch_qr, poll_qr, save_credentials
+        import qrcode, io, base64, uuid
 
-        api = WeixinApi()
-        qr_data = api.fetch_qr()
-        qrcode_content = qr_data.get("qrcode", "") or qr_data.get("qrcode_img_content", "")
-
-        if not qrcode_content:
+        qr = fetch_qr()
+        qrcode_id = qr.get("qrcode_id", "")
+        qrcode_url = qr.get("qrcode_url", "")
+        if not qrcode_id or not qrcode_url:
             return JSONResponse({"error": "Failed to get QR code from WeChat API"}, status_code=500)
 
-        # Generate QR code image from the content string
-        qr = qrcode.QRCode(border=2)
-        qr.add_data(qrcode_content)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
+        # Generate QR image from the login URL
+        qr_img = qrcode.QRCode(border=2)
+        qr_img.add_data(qrcode_url)
+        qr_img.make(fit=True)
+        img = qr_img.make_image(fill_color="black", back_color="white")
         buf = io.BytesIO()
         img.save(buf, format="PNG")
-        img_b64 = base64.b64encode(buf.getvalue()).decode()
-        data_uri = f"data:image/png;base64,{img_b64}"
+        data_uri = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
-        return {
-            "qrcode_url": data_uri,
-            "qrcode": qrcode_content,
-        }
+        # Create session and start background poller
+        session_token = str(uuid.uuid4())[:12]
+        _QR_SESSIONS[session_token] = {"qrcode_id": qrcode_id, "status": "waiting", "token": "", "bot_id": ""}
+
+        def bg_poll(sid: str, qid: str):
+            for _ in range(180):  # poll up to 3 minutes
+                info = _QR_SESSIONS.get(sid)
+                if not info or info.get("status") in ("confirmed", "expired", "error"):
+                    return
+                try:
+                    status = poll_qr(qid)
+                    if status["status"] == "confirmed":
+                        save_credentials(status["bot_token"], status["bot_id"])
+                        _QR_SESSIONS[sid] = {"qrcode_id": qid, "status": "confirmed",
+                                              "token": status["bot_token"], "bot_id": status["bot_id"]}
+                        return
+                    elif status["status"] == "scaned":
+                        _QR_SESSIONS[sid]["status"] = "scanned"
+                    elif status["status"] == "expired":
+                        _QR_SESSIONS[sid]["status"] = "expired"
+                        return
+                except Exception:
+                    pass
+                time.sleep(1)
+            _QR_SESSIONS[sid]["status"] = "timeout"
+
+        threading.Thread(target=bg_poll, args=(session_token, qrcode_id), daemon=True).start()
+
+        return {"qrcode_url": data_uri, "qrcode": qrcode_id, "session": session_token}
     except Exception as e:
         return JSONResponse({"error": f"Failed to get QR code: {e}"}, status_code=500)
+
+
+@router.get("/api/channels/weixin/qr/poll")
+def poll_weixin_qr(session: str = ""):
+    """Poll the QR scan status for a given session token."""
+    if not session or session not in _QR_SESSIONS:
+        return {"status": "not_found"}
+    info = _QR_SESSIONS[session]
+    status = info.get("status", "waiting")
+    return {"status": status, "connected": status == "confirmed"}
 
 
 # ── Available channel types ────────────────────────────────────────────

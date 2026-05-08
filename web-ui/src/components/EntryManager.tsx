@@ -56,27 +56,32 @@ export function EntryManager({ title, targetType, targetId, entries, allChannels
     setStatusMap(prev => ({ ...prev, [entry.channel]: "connecting" }))
     try {
       if (ch.needs_qr_login) {
-        // Show QR dialog first
         const qr = await entriesApi.getWeixinQr()
         setQrData({ qrcode_url: qr.qrcode_url, channelId: entry.channel })
         setQrDialogOpen(true)
         setQrPolling(true)
 
-        // Start the channel in background (returns immediately, login polls in thread)
-        entriesApi.connectChannel(targetType, targetId, entry.channel, entry.config).catch(() => {})
-
-        // Poll for connection until login completes
+        // Poll WeChat QR scan status via session token (handled server-side)
         const pollInterval = setInterval(async () => {
           try {
-            const res = await entriesApi.getChannelStatus(targetType, targetId, entry.channel)
+            const res = await entriesApi.pollWeixinQr(qr.session)
             if (res.connected) {
+              clearInterval(pollInterval)
+              setQrPolling(false)
+              // QR scanned & credentials saved — now connect channel
+              await entriesApi.connectChannel(targetType, targetId, entry.channel, entry.config)
+              setQrDialogOpen(false)
+              setStatusMap(prev => ({ ...prev, [entry.channel]: "connected" }))
+            } else if (res.status === "scanned") {
+              // Show "scanned, confirming..." in UI
+            } else if (res.status === "expired" || res.status === "timeout") {
               clearInterval(pollInterval)
               setQrDialogOpen(false)
               setQrPolling(false)
-              setStatusMap(prev => ({ ...prev, [entry.channel]: "connected" }))
+              setStatusMap(prev => ({ ...prev, [entry.channel]: "error" }))
             }
           } catch { /* continue polling */ }
-        }, 3000)
+        }, 2000)
         setConnecting(null)
         return
       }
