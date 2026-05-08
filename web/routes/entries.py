@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import threading
 from pathlib import Path
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
@@ -89,6 +90,8 @@ def connect_channel(body: ChannelConnectRequest):
         return JSONResponse({"error": str(e)}, status_code=400)
 
     # Set up on_message and start
+    qr_login = getattr(ch, "channel_type", "") == "weixin"
+
     if body.target_type == "scene":
         mgr = SceneManager()
         runtime = mgr.get_or_create(body.target_id)
@@ -100,31 +103,42 @@ def connect_channel(body: ChannelConnectRequest):
         ch.on_message = lambda msg, rt=runtime, ct=body.channel_type: _route_to_scene(
             rt, ct, msg.user_id, msg.content
         )
-        ch.start(body.target_id, body.config)
+
+        if qr_login:
+            t = threading.Thread(target=lambda: ch.start(body.target_id, body.config), daemon=True)
+            t.start()
+        else:
+            ch.start(body.target_id, body.config)
+
         runtime.channels.append(ch)
 
-        # Update entries.json
         _append_entry(body.target_type, body.target_id, body.channel_type, body.config)
 
         CHANNEL_STATUS_CACHE[f"scene:{body.target_id}:{body.channel_type}"] = {
-            "status": "connected", "channel_type": body.channel_type
+            "status": "connecting" if qr_login else "connected", "channel_type": body.channel_type
         }
-        return {"status": "connected", "target_type": "scene", "target_id": body.target_id}
+        return {"status": "connecting" if qr_login else "connected", "target_type": "scene", "target_id": body.target_id}
 
     elif body.target_type == "agent":
         from web.entry_manager import register_agent_channel, _route_to_agent
         ch.on_message = lambda msg, aid=body.target_id, ct=body.channel_type: _route_to_agent(
             aid, ct, msg.user_id, msg.content
         )
-        ch.start(body.target_id, body.config)
+
+        if qr_login:
+            t = threading.Thread(target=lambda: ch.start(body.target_id, body.config), daemon=True)
+            t.start()
+        else:
+            ch.start(body.target_id, body.config)
+
         register_agent_channel(body.channel_type, body.target_id, ch)
 
         _append_entry(body.target_type, body.target_id, body.channel_type, body.config)
 
         CHANNEL_STATUS_CACHE[f"agent:{body.target_id}:{body.channel_type}"] = {
-            "status": "connected", "channel_type": body.channel_type
+            "status": "connecting" if qr_login else "connected", "channel_type": body.channel_type
         }
-        return {"status": "connected", "target_type": "agent", "target_id": body.target_id}
+        return {"status": "connecting" if qr_login else "connected", "target_type": "agent", "target_id": body.target_id}
 
     else:
         return JSONResponse({"error": f"unknown target_type: {body.target_type}"}, status_code=400)
@@ -164,10 +178,7 @@ def disconnect_channel(body: ChannelConnectRequest):
 
 @router.get("/api/channels/{target_type}/{target_id}/{channel_type}/status")
 def get_channel_status(target_type: str, target_id: str, channel_type: str):
-    """Get the connection status of a channel."""
-    cache_key = f"{target_type}:{target_id}:{channel_type}"
-    cached = CHANNEL_STATUS_CACHE.get(cache_key)
-
+    """Get the connection status of a channel (auto-refreshes cache from runtime)."""
     if target_type == "scene":
         from scene_manager import SceneManager
         mgr = SceneManager()
@@ -175,22 +186,22 @@ def get_channel_status(target_type: str, target_id: str, channel_type: str):
         if runtime:
             for ch in runtime.channels:
                 if getattr(ch, "channel_type", "") == channel_type:
-                    return {
-                        "status": "connected" if ch.is_running() else "disconnected",
-                        "channel_type": channel_type,
-                        "connected": ch.is_running(),
-                    }
+                    running = ch.is_running() if hasattr(ch, "is_running") else bool(getattr(ch, "_running", False))
+                    status = "connected" if running else "connecting"
+                    cache_key = f"{target_type}:{target_id}:{channel_type}"
+                    CHANNEL_STATUS_CACHE[cache_key] = {"status": status, "channel_type": channel_type}
+                    return {"status": status, "channel_type": channel_type, "connected": running}
         return {"status": "disconnected", "channel_type": channel_type, "connected": False}
 
     elif target_type == "agent":
         from web.entry_manager import get_agent_channel
         ch = get_agent_channel(channel_type, target_id)
         if ch:
-            return {
-                "status": "connected" if ch.is_running() else "disconnected",
-                "channel_type": channel_type,
-                "connected": ch.is_running(),
-            }
+            running = ch.is_running() if hasattr(ch, "is_running") else bool(getattr(ch, "_running", False))
+            status = "connected" if running else "connecting"
+            cache_key = f"{target_type}:{target_id}:{channel_type}"
+            CHANNEL_STATUS_CACHE[cache_key] = {"status": status, "channel_type": channel_type}
+            return {"status": status, "channel_type": channel_type, "connected": running}
         return {"status": "disconnected", "channel_type": channel_type, "connected": False}
 
     return JSONResponse({"error": "unknown target_type"}, status_code=400)
@@ -200,16 +211,33 @@ def get_channel_status(target_type: str, target_id: str, channel_type: str):
 
 @router.get("/api/channels/weixin/qr")
 def get_weixin_qr_code():
-    """Get WeChat QR code URL for channel login."""
+    """Get WeChat QR code as a data URI image for web display."""
     try:
         from channels.weixin import WeixinApi
+        import qrcode
+        import io
+        import base64
+
         api = WeixinApi()
         qr_data = api.fetch_qr()
-        qrcode_url = qr_data.get("qrcode", "")
-        qrcode_img = qr_data.get("qrcode_img_content", "")
+        qrcode_content = qr_data.get("qrcode", "") or qr_data.get("qrcode_img_content", "")
+
+        if not qrcode_content:
+            return JSONResponse({"error": "Failed to get QR code from WeChat API"}, status_code=500)
+
+        # Generate QR code image from the content string
+        qr = qrcode.QRCode(border=2)
+        qr.add_data(qrcode_content)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        img_b64 = base64.b64encode(buf.getvalue()).decode()
+        data_uri = f"data:image/png;base64,{img_b64}"
+
         return {
-            "qrcode_url": qrcode_url or qrcode_img,
-            "qrcode": qr_data.get("qrcode", ""),
+            "qrcode_url": data_uri,
+            "qrcode": qrcode_content,
         }
     except Exception as e:
         return JSONResponse({"error": f"Failed to get QR code: {e}"}, status_code=500)

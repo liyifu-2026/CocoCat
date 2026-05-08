@@ -1,5 +1,5 @@
 """Personal WeChat channel via ilink bot API (CowAgent ChatChannel pattern)."""
-import sys, os, json, time, threading, requests, logging
+import sys, os, json, time, threading, requests, logging, random, base64
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from channel import Channel, ChatMessage
 from channel_context import Context, ContextType, Reply, ReplyType
@@ -8,6 +8,26 @@ from channels.channel_factory import register_channel
 
 logger = logging.getLogger("cococat.weixin")
 API_BASE = "https://ilinkai.weixin.qq.com"
+CHANNEL_VERSION = "2.0.0"
+CLIENT_VERSION = "131072"  # 2.0.0 → 0x00020000
+
+
+def _random_wechat_uin() -> str:
+    val = random.randint(0, 0xFFFFFFFF)
+    return base64.b64encode(str(val).encode("utf-8")).decode("utf-8")
+
+
+def _build_headers(token: str = "") -> dict:
+    headers = {
+        "Content-Type": "application/json",
+        "AuthorizationType": "ilink_bot_token",
+        "X-WECHAT-UIN": _random_wechat_uin(),
+        "iLink-App-Id": "bot",
+        "iLink-App-ClientVersion": CLIENT_VERSION,
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
 
 
 class WeixinApi:
@@ -17,11 +37,7 @@ class WeixinApi:
         self.bot_id = bot_id
         self.base_url = base_url
         self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {token}",
-            "AuthorizationType": "ilink_bot_token",
-            "Content-Type": "application/json",
-        })
+        self.session.headers.update(_build_headers(token))
 
     def fetch_qr(self):
         return self.session.get(f"{self.base_url}/ilink/bot/get_bot_qrcode", params={"bot_type": 3}).json()

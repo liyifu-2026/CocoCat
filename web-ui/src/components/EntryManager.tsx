@@ -61,7 +61,11 @@ export function EntryManager({ title, targetType, targetId, entries, allChannels
         setQrData({ qrcode_url: qr.qrcode_url, channelId: entry.channel })
         setQrDialogOpen(true)
         setQrPolling(true)
-        // Poll for connection
+
+        // Start the channel in background (returns immediately, login polls in thread)
+        entriesApi.connectChannel(targetType, targetId, entry.channel, entry.config).catch(() => {})
+
+        // Poll for connection until login completes
         const pollInterval = setInterval(async () => {
           try {
             const res = await entriesApi.getChannelStatus(targetType, targetId, entry.channel)
