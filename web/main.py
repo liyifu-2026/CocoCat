@@ -78,7 +78,7 @@ async def auth_middleware(request: Request, call_next):
     if not path.startswith("/api/"):
         return await call_next(request)
 
-    public_paths = ["/api/auth/login", "/api/auth/verify"]
+    public_paths = ["/api/auth/login", "/api/auth/verify", "/api/channels/reply"]
     if path in public_paths:
         return await call_next(request)
 
