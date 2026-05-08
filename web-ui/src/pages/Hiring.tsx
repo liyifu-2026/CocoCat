@@ -45,16 +45,20 @@ export default function Hiring() {
     if (!position.trim()) return
     setSubmitting(true)
     try {
-      const resp = await fetch("/api/hiring/plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ position: position.trim(), skills, responsibilities, traits, count }),
+      await hiringApi.createPlan({
+        position: position.trim(),
+        skills,
+        responsibilities,
+        traits,
+        count,
       })
-      if (!resp.ok) throw new Error("submit failed")
       toast.success("Hiring plan submitted to Leader")
       setPosition(""); setSkills(""); setResponsibilities(""); setTraits("")
-    } catch { toast.error("Failed to submit plan") }
-    finally { setSubmitting(false) }
+    } catch {
+      toast.error("Failed to submit plan")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   async function confirmApprove(hire: PendingHire) {
