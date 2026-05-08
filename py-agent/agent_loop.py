@@ -220,6 +220,7 @@ class AgentLoop:
         self.scene_name = scene_name
         self.scene_context = scene_context
         self.scene_skills = scene_skills
+        self.reasoning_effort = ""
         self.permission_mode = permission_mode
         self.user_id = user_id
         self.hook_registry = HookRegistry()
@@ -242,6 +243,15 @@ class AgentLoop:
         self._skills_cache = None
         self._kbs_cache = None
         self._knowledge_cache = None
+
+    def update_scene(self, scene_id: str, context: str = "", skills: str = ""):
+        """Update scene context at runtime (called by AgentHandle.assign_to_scene)."""
+        self.scene_name = scene_id
+        self.scene_context = context
+        self.scene_skills = skills
+        self._invalidate_cache()
+        import logging
+        logging.getLogger("cococat.agent_loop").info(f"Scene updated: {scene_id}")
 
     def _build_system_prompt(self, user_id: str = "", knowledge_overview: str = None, agent_skills: str = None):
         from context import build_system_prompt, build_tool_descriptions, load_agent_memory, load_agent_profile, load_user_profile, load_mounted_kbs, load_knowledge_overview, load_agent_skills
@@ -357,8 +367,8 @@ class AgentLoop:
 
             if response and response.usage:
                 u = response.usage
-                total_usage["input"] += u.get("input_tokens", 0) or 0
-                total_usage["output"] += u.get("output_tokens", 0) or 0
+                total_usage["input"] += u.get("prompt_tokens", 0) or u.get("input_tokens", 0) or 0
+                total_usage["output"] += u.get("completion_tokens", 0) or u.get("output_tokens", 0) or 0
 
             if response and response.finish_reason == "length" and content.strip():
                 messages.append({"role": "assistant", "content": content})
