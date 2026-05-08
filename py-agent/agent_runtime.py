@@ -151,95 +151,72 @@ def handle_request(request: dict, agent_loop=None) -> dict:
 
 
 def _mailbox_poll_loop(agent_id: str, agent_loop):
-    """Background thread: poll mailbox inbox.jsonl and process messages."""
+    """Background thread: poll mailbox inbox.jsonl and dispatch to thread pool."""
     import os, json, time, requests as _requests, sys
     import threading
     import logging
+    from concurrent.futures import ThreadPoolExecutor
     logger = logging.getLogger("cococat.agent_runtime.mailbox")
 
     mailbox_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..",
         "agents", "mailbox", agent_id, "inbox.jsonl"
     )
-    # Track processed messages by unique key (from + content + timestamp) to avoid re-processing
     processed = set()
+    executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix=f"mailbox-{agent_id}")
+    sys.stderr.write(f"[mailbox_poll] Started for {agent_id}\n")
+    sys.stderr.flush()
+
+    def process_message(msg: dict):
+        content = msg.get("content", "")
+        user_id = msg.get("external_user", "")
+        reply_url = msg.get("reply_url", "")
+        if not content:
+            return
+        try:
+            sys.stderr.write(f"[mailbox_poll] {agent_id} processing: {user_id[:20]}: {content[:30]}\n")
+            sys.stderr.flush()
+
+            result = agent_loop.run(content, user_id=user_id)
+
+            reply_text = result.get("response", str(result)) if isinstance(result, dict) else str(result)
+
+            if reply_url and reply_text:
+                logger.info(f"Sending reply to {reply_url} for {user_id}")
+                for attempt in range(3):
+                    try:
+                        resp = _requests.post(reply_url, json={
+                            "reply": reply_text,
+                            "target_type": msg.get("target_type", "agent"),
+                            "target_id": msg.get("target_id", msg.get("scene_id", "")),
+                            "channel": msg.get("channel", ""),
+                            "user_id": user_id,
+                        }, timeout=10)
+                        if resp.status_code == 200:
+                            sys.stderr.write(f"[mailbox_poll] Reply sent OK to {user_id[:20]}\n")
+                            sys.stderr.flush()
+                            break
+                    except Exception as e:
+                        if attempt < 2:
+                            time.sleep(2 ** attempt)
+        except Exception as e:
+            sys.stderr.write(f"[mailbox_poll] Error processing {user_id}: {e}\n")
+            sys.stderr.flush()
 
     while True:
         try:
             if os.path.exists(mailbox_path):
                 with open(mailbox_path, "r", encoding="utf-8") as f:
                     lines = [l.strip() for l in f if l.strip()]
-                # Process newest messages first so fresh weixin messages get immediate attention
                 for line in reversed(lines):
                     msg = json.loads(line)
                     msg_key = f"{msg.get('from','')}|{msg.get('content','')}|{msg.get('timestamp','')}"
                     if msg_key in processed:
                         continue
                     processed.add(msg_key)
-                    logger.info(f"Processing message key={msg_key[:60]}...")
-                    sys.stderr.write(f"[mailbox_poll] Processing: {msg_key[:80]}\n")
-                    sys.stderr.flush()
-
-                    content = msg.get("content", "")
-                    user_id = msg.get("external_user", "")
-                    reply_url = msg.get("reply_url", "")
-
-                    if not content:
-                        continue
-
-                    # Process through agent loop
-                    sys.stderr.write(f"[mailbox_poll] Calling agent_loop.run for {user_id[:20]}...\n")
-                    sys.stderr.flush()
-
-                    def on_progress(p):
-                        _write_stream("progress", content=p)
-                    def on_tool(name, input_data, status, result=""):
-                        _write_stream("tool", name=name, input=str(input_data)[:500],
-                                      status=status, result=str(result)[:500])
-                    def on_reasoning(r):
-                        if r:
-                            _write_stream("reasoning", content=r)
-
-                    result = agent_loop.run(
-                        content,
-                        user_id=user_id,
-                        on_progress=on_progress,
-                        on_tool=on_tool,
-                        on_reasoning=on_reasoning,
-                    )
-
-                    sys.stderr.write(f"[mailbox_poll] agent_loop.run completed: {str(result)[:100]}\n")
-                    sys.stderr.flush()
-
-                    reply_text = ""
-                    if isinstance(result, dict):
-                        reply_text = result.get("response", str(result))
-                    else:
-                        reply_text = str(result)
-
-                    # Send reply via HTTP callback
-                    if reply_url:
-                        logger.info(f"Sending reply to {reply_url} for user {user_id}...")
-                        for attempt in range(3):
-                            try:
-                                resp = _requests.post(reply_url, json={
-                                    "reply": reply_text,
-                                    "target_type": msg.get("target_type", "agent"),
-                                    "target_id": msg.get("target_id", msg.get("scene_id", "")),
-                                    "channel": msg.get("channel", ""),
-                                    "user_id": user_id,
-                                }, timeout=10)
-                                logger.info(f"Reply HTTP {resp.status_code}: {resp.text[:100]}")
-                                if resp.status_code == 200:
-                                    break
-                            except Exception as e:
-                                logger.warning(f"Reply attempt {attempt+1} failed: {e}")
-                                if attempt < 2:
-                                    time.sleep(2 ** attempt)
-
+                    executor.submit(process_message, msg)
         except Exception:
             pass
-
         time.sleep(2)
 
 
