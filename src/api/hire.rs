@@ -206,3 +206,29 @@ pub async fn list_candidates_handler(
 
     Ok(Json(serde_json::json!({"pending": result})))
 }
+
+#[derive(Deserialize)]
+pub struct CandidateInsertRequest {
+    pub candidate_uuid: String,
+    pub plan_uuid: String,
+    pub name: String,
+    pub profile: String,
+}
+
+pub async fn insert_candidate_handler(
+    State(state): State<AppState>,
+    Json(req): Json<CandidateInsertRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    crate::db::hire::insert_candidate(
+        &state.db_pool,
+        &req.candidate_uuid,
+        &req.plan_uuid,
+        &req.name,
+        &req.profile,
+    ).map_err(|e| {
+        tracing::error!("Failed to insert candidate: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Json(serde_json::json!({"status": "inserted"})))
+}

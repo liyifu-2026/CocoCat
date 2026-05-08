@@ -181,6 +181,19 @@ pub fn create_plan(
     Ok(())
 }
 
+pub fn update_plan_status(
+    pool: &DbPool,
+    plan_uuid: &str,
+    status: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    conn.execute(
+        "UPDATE hire_plans SET status = ?1, completed_at = datetime('now') WHERE plan_uuid = ?2",
+        rusqlite::params![status, plan_uuid],
+    )?;
+    Ok(())
+}
+
 pub fn insert_candidate(
     pool: &DbPool,
     candidate_uuid: &str,
