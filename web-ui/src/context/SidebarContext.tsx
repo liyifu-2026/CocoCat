@@ -10,13 +10,23 @@ const STORAGE_KEY = "cococat-sidebar-nav-config"
 function loadConfig(): { order: string[]; hidden: string[] } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (
+        Array.isArray(parsed?.order) &&
+        Array.isArray(parsed?.hidden)
+      ) {
+        return { order: parsed.order, hidden: parsed.hidden }
+      }
+    }
   } catch { /* ignore */ }
   return { order: [...DEFAULT_PATHS], hidden: [] }
 }
 
 function saveConfig(order: string[], hidden: string[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ order, hidden }))
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ order, hidden }))
+  } catch { /* ignore */ }
 }
 
 const SidebarContext = createContext<{
@@ -35,7 +45,10 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
   const toggle = () => setCollapsed(c => !c)
 
-  const [config, setConfig] = useState(loadConfig)
+  const [config, setConfig] = useState(() => {
+    if (typeof localStorage === "undefined") return { order: [...DEFAULT_PATHS], hidden: [] }
+    return loadConfig()
+  })
   const [editMode, setEditMode] = useState(false)
 
   useEffect(() => {
