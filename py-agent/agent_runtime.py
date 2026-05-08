@@ -161,11 +161,8 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
         os.path.dirname(os.path.abspath(__file__)), "..",
         "agents", "mailbox", agent_id, "inbox.jsonl"
     )
-    # Track processed messages by "from" field to avoid re-processing
+    # Track processed messages by unique key (from + content + timestamp) to avoid re-processing
     processed = set()
-    logger.info(f"Mailbox poll started for {agent_id}, path={mailbox_path}")
-    sys.stderr.write(f"[mailbox_poll] Started for {agent_id}\n")
-    sys.stderr.flush()
 
     while True:
         try:
@@ -176,12 +173,12 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
                         if not line:
                             continue
                         msg = json.loads(line)
-                        msg_from = msg.get("from", "")
-                        if msg_from in processed:
+                        msg_key = f"{msg.get('from','')}|{msg.get('content','')}|{msg.get('timestamp','')}"
+                        if msg_key in processed:
                             continue
-                        processed.add(msg_from)
-                        logger.info(f"Processing message from {msg_from[:30]}...")
-                        sys.stderr.write(f"[mailbox_poll] Processing: {msg_from[:30]}: {content[:50]}\n")
+                        processed.add(msg_key)
+                        logger.info(f"Processing message key={msg_key[:60]}...")
+                        sys.stderr.write(f"[mailbox_poll] Processing: {msg_key[:80]}\n")
                         sys.stderr.flush()
 
                         content = msg.get("content", "")
