@@ -152,7 +152,7 @@ def handle_request(request: dict, agent_loop=None) -> dict:
 
 def _mailbox_poll_loop(agent_id: str, agent_loop):
     """Background thread: poll mailbox inbox.jsonl and process messages."""
-    import os, json, time, requests as _requests
+    import os, json, time, requests as _requests, sys
     import threading
     import logging
     logger = logging.getLogger("cococat.agent_runtime.mailbox")
@@ -164,7 +164,8 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
     # Track processed messages by "from" field to avoid re-processing
     processed = set()
     logger.info(f"Mailbox poll started for {agent_id}, path={mailbox_path}")
-    print(f"[mailbox_poll] Started for {agent_id}", flush=True)
+    sys.stderr.write(f"[mailbox_poll] Started for {agent_id}\n")
+    sys.stderr.flush()
 
     while True:
         try:
@@ -180,7 +181,8 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
                             continue
                         processed.add(msg_from)
                         logger.info(f"Processing message from {msg_from[:30]}...")
-                        print(f"[mailbox_poll] Processing: {msg_from[:30]}: {content[:50]}", flush=True)
+                        sys.stderr.write(f"[mailbox_poll] Processing: {msg_from[:30]}: {content[:50]}\n")
+                        sys.stderr.flush()
 
                         content = msg.get("content", "")
                         user_id = msg.get("external_user", "")
