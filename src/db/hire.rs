@@ -135,3 +135,117 @@ pub fn reject_request(
     )?;
     Ok(())
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HirePlan {
+    pub id: i64,
+    pub plan_uuid: String,
+    pub position: String,
+    pub skills: String,
+    pub responsibilities: String,
+    pub traits: String,
+    pub requested_count: i64,
+    pub status: String,
+    pub created_at: String,
+    pub completed_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HireCandidate {
+    pub id: i64,
+    pub candidate_uuid: String,
+    pub plan_uuid: String,
+    pub name: String,
+    pub profile: String,
+    pub status: String,
+    pub created_at: String,
+    pub decided_at: Option<String>,
+    pub reviewer: Option<String>,
+}
+
+pub fn create_plan(
+    pool: &DbPool,
+    plan_uuid: &str,
+    position: &str,
+    skills: &str,
+    responsibilities: &str,
+    traits: &str,
+    count: i64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    conn.execute(
+        "INSERT INTO hire_plans (plan_uuid, position, skills, responsibilities, traits, requested_count, status)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'generating')",
+        rusqlite::params![plan_uuid, position, skills, responsibilities, traits, count],
+    )?;
+    Ok(())
+}
+
+pub fn insert_candidate(
+    pool: &DbPool,
+    candidate_uuid: &str,
+    plan_uuid: &str,
+    name: &str,
+    profile: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    conn.execute(
+        "INSERT INTO hire_candidates (candidate_uuid, plan_uuid, name, profile, status)
+         VALUES (?1, ?2, ?3, ?4, 'pending')",
+        rusqlite::params![candidate_uuid, plan_uuid, name, profile],
+    )?;
+    Ok(())
+}
+
+pub fn list_pending_candidates(pool: &DbPool) -> Result<Vec<HireCandidate>, Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT id, candidate_uuid, plan_uuid, name, profile, status, created_at, decided_at, reviewer
+         FROM hire_candidates WHERE status = 'pending'
+         ORDER BY created_at ASC"
+    )?;
+    let candidates = stmt.query_map([], |row| {
+        Ok(HireCandidate {
+            id: row.get(0)?,
+            candidate_uuid: row.get(1)?,
+            plan_uuid: row.get(2)?,
+            name: row.get(3)?,
+            profile: row.get(4)?,
+            status: row.get(5)?,
+            created_at: row.get(6)?,
+            decided_at: row.get(7)?,
+            reviewer: row.get(8)?,
+        })
+    })?
+    .filter_map(|r| r.ok())
+    .collect();
+    Ok(candidates)
+}
+
+pub fn approve_candidate(
+    pool: &DbPool,
+    candidate_uuid: &str,
+    reviewer: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    conn.execute(
+        "UPDATE hire_candidates SET status = 'approved', reviewer = ?1, decided_at = datetime('now')
+         WHERE candidate_uuid = ?2",
+        rusqlite::params![reviewer, candidate_uuid],
+    )?;
+    Ok(())
+}
+
+pub fn reject_candidate(
+    pool: &DbPool,
+    candidate_uuid: &str,
+    reviewer: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    conn.execute(
+        "UPDATE hire_candidates SET status = 'rejected', reviewer = ?1, decided_at = datetime('now')
+         WHERE candidate_uuid = ?2",
+        rusqlite::params![reviewer, candidate_uuid],
+    )?;
+    Ok(())
+}

@@ -177,6 +177,33 @@ pub fn run_migrations(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
         );"
     )?;
 
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS hire_plans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            plan_uuid TEXT NOT NULL UNIQUE,
+            position TEXT NOT NULL,
+            skills TEXT DEFAULT '',
+            responsibilities TEXT DEFAULT '',
+            traits TEXT DEFAULT '',
+            requested_count INTEGER DEFAULT 5,
+            status TEXT DEFAULT 'generating',
+            created_at TEXT DEFAULT (datetime('now')),
+            completed_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS hire_candidates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_uuid TEXT NOT NULL UNIQUE,
+            plan_uuid TEXT NOT NULL,
+            name TEXT NOT NULL,
+            profile TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT DEFAULT (datetime('now')),
+            decided_at TEXT,
+            reviewer TEXT,
+            FOREIGN KEY (plan_uuid) REFERENCES hire_plans(plan_uuid)
+        );"
+    )?;
+
     Ok(())
 }
 
