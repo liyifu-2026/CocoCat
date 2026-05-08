@@ -21,12 +21,13 @@ pub struct CreateSceneRequest {
 pub async fn list_handler(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
-) -> Result<Json<Vec<Scene>>, StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     auth::verify_token(&headers, &state.jwt)?;
-    scenes::list_scenes(&state.db_pool).map_err(|e| {
+    let list = scenes::list_scenes(&state.db_pool).map_err(|e| {
         tracing::error!("scenes list: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
-    }).map(Json)
+    })?;
+    Ok(Json(serde_json::json!({"scenes": list})))
 }
 
 pub async fn get_handler(
