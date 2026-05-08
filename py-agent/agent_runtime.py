@@ -188,6 +188,9 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
                         continue
 
                     # Process through agent loop
+                    sys.stderr.write(f"[mailbox_poll] Calling agent_loop.run for {user_id[:20]}...\n")
+                    sys.stderr.flush()
+
                     def on_progress(p):
                         _write_stream("progress", content=p)
                     def on_tool(name, input_data, status, result=""):
@@ -204,6 +207,9 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
                         on_tool=on_tool,
                         on_reasoning=on_reasoning,
                     )
+
+                    sys.stderr.write(f"[mailbox_poll] agent_loop.run completed: {str(result)[:100]}\n")
+                    sys.stderr.flush()
 
                     reply_text = ""
                     if isinstance(result, dict):
