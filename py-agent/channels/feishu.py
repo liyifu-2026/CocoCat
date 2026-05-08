@@ -1,134 +1,142 @@
-"""Feishu (飞书) channel via WebSocket mode (CowAgent ChatChannel pattern)."""
-import sys, os, json, threading, logging, requests
+"""Feishu (飞书) channel via WebSocket + REST API (ChatChannel pattern)."""
+import sys, os, json, time, threading, requests, logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from channel import Channel, ChatMessage
+from channel import ChatMessage
 from channel_context import Context, ContextType, Reply, ReplyType
 from chat_channel import ChatChannel
-from channels.channel_base import ReconnectingChannel
 from channels.channel_factory import register_channel
 
 logger = logging.getLogger("cococat.feishu")
-TOKEN_REFRESH_INTERVAL = 5400
+API_BASE = "https://open.feishu.cn/open-apis"
+WS_URL = "wss://open.feishu.cn/open-apis/ws/bot"
 
 
-class FeishuChannel(ChatChannel, ReconnectingChannel):
+class FeishuChannel(ChatChannel):
     channel_type = "feishu"
 
     def __init__(self):
-        ChatChannel.__init__(self)
-        ReconnectingChannel.__init__(self)
-        self.app_id = ""
-        self.app_secret = ""
+        super().__init__()
+        self._app_id = ""
+        self._app_secret = ""
         self._token = ""
-        self._token_timer = None
+        self._running = False
         self._ws_thread = None
 
     def startup(self):
-        self.app_id = self._config.get("app_id", "")
-        self.app_secret = self._config.get("app_secret", "")
-        if not self.app_id or not self.app_secret:
-            raise RuntimeError("app_id and app_secret required")
-        self._get_token()
-        self._schedule_token_refresh()
-        self.connected_state = Channel.CONN_CONNECTING
+        self._app_id = self._config.get("app_id", "")
+        self._app_secret = self._config.get("app_secret", "")
+        if not self._app_id or not self._app_secret:
+            logger.error("Feishu app_id and app_secret not configured")
+            return
+        if not self._refresh_token():
+            return
+        self.report_startup_success()
+        self._running = True
         self._ws_thread = threading.Thread(target=self._ws_loop, daemon=True)
         self._ws_thread.start()
 
-    def _get_token(self):
-        r = requests.post(
-            "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/",
-            json={"app_id": self.app_id, "app_secret": self.app_secret},
-            timeout=10,
-        )
-        self._token = r.json().get("tenant_access_token", "")
-        if self._token:
-            logger.info("Token obtained/refreshed")
-
-    def _schedule_token_refresh(self):
-        self._token_timer = threading.Timer(TOKEN_REFRESH_INTERVAL, self._refresh_token)
-        self._token_timer.daemon = True
-        self._token_timer.start()
-
-    def _refresh_token(self):
-        self._get_token()
-        self._schedule_token_refresh()
+    def _refresh_token(self) -> bool:
+        try:
+            resp = requests.post(
+                f"{API_BASE}/auth/v3/tenant_access_token/internal",
+                json={"app_id": self._app_id, "app_secret": self._app_secret},
+                timeout=10,
+            )
+            data = resp.json()
+            self._token = data.get("tenant_access_token", "")
+            if self._token:
+                logger.info("Feishu tenant_access_token obtained")
+                return True
+            logger.error(f"Feishu auth failed: {data}")
+            return False
+        except Exception as e:
+            logger.error(f"Feishu token request error: {e}")
+            return False
 
     def _ws_loop(self):
-        try:
-            import lark_oapi as lark
-        except ImportError:
-            logger.error("lark_oapi not installed")
+        while self._running:
+            try:
+                import websocket
+                ws = websocket.create_connection(
+                    WS_URL,
+                    header={"Authorization": f"Bearer {self._token}"},
+                    timeout=60,
+                )
+                logger.info("Feishu WebSocket connected")
+                while self._running:
+                    try:
+                        data = json.loads(ws.recv())
+                        self._handle_ws(data)
+                    except websocket.WebSocketTimeoutException:
+                        continue
+                    except Exception as e:
+                        logger.warning(f"Feishu WS recv error: {e}")
+                        break
+                ws.close()
+            except ImportError:
+                logger.error("websocket-client not installed. Run: pip install websocket-client")
+                time.sleep(300)
+            except Exception as e:
+                logger.warning(f"Feishu WS connect error: {e}")
+                time.sleep(10)
+
+    def _handle_ws(self, data: dict):
+        header = data.get("header", {})
+        event_type = header.get("event_type", "")
+        if event_type != "im.message.receive_v1":
             return
-
-        def handle_message(msg):
-            event = json.loads(lark.JSON.marshal(msg))
-            self._handle_event(event)
-
-        event_handler = lark.EventDispatcherHandler.builder("", "") \
-            .register_p2_im_message_receive_v1(handle_message) \
-            .build()
-
-        ws_client = lark.ws.Client(
-            self.app_id, self.app_secret,
-            event_handler=event_handler,
-            log_level=lark.LogLevel.DEBUG,
-        )
-        self.connected_state = Channel.CONN_CONNECTED
-        self.report_startup_success()
-        ws_client.start()
-
-    def _handle_event(self, event: dict):
+        event = data.get("event", {})
+        msg = event.get("message", {})
+        if msg.get("message_type") != "text":
+            return
+        sender = event.get("sender", {})
+        sender_id = sender.get("sender_id", {}).get("open_id", "")
+        content_str = msg.get("content", "{}")
         try:
-            msg = event.get("event", {}).get("message", {})
-            sender = event.get("event", {}).get("sender", {})
-            msg_type = msg.get("message_type", "")
-            content = msg.get("content", "")
-            sender_id = sender.get("sender_id", {}).get("open_id", "")
-            if not sender_id or not content:
-                return
-            if msg_type == "text":
-                try:
-                    text_content = json.loads(content).get("text", "")
-                except Exception:
-                    text_content = content
-            else:
-                text_content = f"[{msg_type} message]"
-            cmsg = ChatMessage(
-                channel_type="feishu", scene_id=self.scene_id,
-                user_id=sender_id, content=text_content,
-            )
-            context = self._compose_context(
-                ContextType.TEXT, text_content, msg=cmsg,
-                session_id=sender_id, receiver=sender_id,
-            )
-            if context:
-                self.produce(context)
-        except Exception as e:
-            logger.error(f"Handle error: {e}")
+            content = json.loads(content_str).get("text", "")
+        except Exception:
+            content = content_str
+        message_id = msg.get("message_id", "")
+        chat_id = msg.get("chat_id", "")
+        if not content or (not sender_id and not chat_id):
+            return
+        user_id = sender_id or chat_id
+        cmsg = ChatMessage(channel_type="feishu", scene_id=self.scene_id, user_id=user_id, content=content)
+        context = self._compose_context(
+            ContextType.TEXT, content, msg=cmsg, session_id=user_id,
+            receiver=user_id, message_id=message_id, chat_id=chat_id,
+        )
+        if context:
+            self.produce(context)
 
     def send(self, reply: Reply, context: Context):
         if not self._token:
-            self._get_token()
+            if not self._refresh_token():
+                return
         receiver = context.get("receiver", "")
         if not receiver:
             return
-        url = "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id"
-        headers = {"Authorization": f"Bearer {self._token}", "Content-Type": "application/json"}
-        if reply.type == ReplyType.TEXT:
-            body = {"receive_id": receiver, "msg_type": "text", "content": json.dumps({"text": reply.content})}
-        else:
-            body = {"receive_id": receiver, "msg_type": "text", "content": json.dumps({"text": str(reply.content)})}
-        resp = requests.post(url, json=body, headers=headers, timeout=10)
-        if resp.status_code in (401, 403):
-            logger.warning("Token expired, refreshing and retrying")
-            self._refresh_token()
-            headers["Authorization"] = f"Bearer {self._token}"
-            requests.post(url, json=body, headers=headers, timeout=10)
+        content = reply.content if reply.type == ReplyType.TEXT else str(reply.content)
+        body = {
+            "receive_id": receiver,
+            "msg_type": "text",
+            "content": json.dumps({"text": content}),
+        }
+        try:
+            resp = requests.post(
+                f"{API_BASE}/im/v1/messages?receive_id_type=open_id",
+                json=body,
+                headers={"Authorization": f"Bearer {self._token}", "Content-Type": "application/json"},
+                timeout=15,
+            )
+            data = resp.json()
+            if data.get("code", -1) != 0:
+                logger.warning(f"Feishu send error: {data}")
+        except Exception as e:
+            logger.warning(f"Feishu send exception: {e}")
 
     def stop(self):
-        self.stop_reconnect()
-        if self._token_timer:
-            self._token_timer.cancel()
+        self._running = False
         super().stop()
 
 

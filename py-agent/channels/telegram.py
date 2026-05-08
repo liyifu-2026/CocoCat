@@ -1,12 +1,13 @@
-"""Telegram channel via Bot API polling (CowAgent ChatChannel pattern)."""
+"""Telegram channel via Bot API long-polling (ChatChannel pattern)."""
 import sys, os, json, time, threading, requests, logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from channel import Channel, ChatMessage
+from channel import ChatMessage
 from channel_context import Context, ContextType, Reply, ReplyType
 from chat_channel import ChatChannel
 from channels.channel_factory import register_channel
 
 logger = logging.getLogger("cococat.telegram")
+API_BASE = "https://api.telegram.org"
 
 
 class TelegramChannel(ChatChannel):
@@ -14,94 +15,89 @@ class TelegramChannel(ChatChannel):
 
     def __init__(self):
         super().__init__()
-        self.bot_token = ""
-        self.api_base = ""
+        self._token = ""
         self._running = False
         self._poll_thread = None
-        self._last_update_id = 0
 
     def startup(self):
-        self.bot_token = self._config.get("bot_token", "")
-        if not self.bot_token:
-            logger.error("No bot_token provided")
+        self._token = self._config.get("bot_token", "")
+        if not self._token:
+            logger.error("Telegram bot_token not configured")
             return
-        self.api_base = f"https://api.telegram.org/bot{self.bot_token}"
-        resp = requests.get(f"{self.api_base}/getMe", timeout=10)
-        if resp.status_code != 200:
-            raise RuntimeError(f"Invalid bot token: {resp.text}")
-        bot_name = resp.json().get("result", {}).get("first_name", "?")
-        logger.info(f"Bot '{bot_name}' started for scene '{self.scene_id}'")
+        logger.info("Telegram bot starting...")
         self.report_startup_success()
-
         self._running = True
         self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._poll_thread.start()
 
+    def _api(self, method: str, data: dict | None = None) -> dict:
+        url = f"{API_BASE}/bot{self._token}/{method}"
+        try:
+            if data:
+                resp = requests.post(url, json=data, timeout=30)
+            else:
+                resp = requests.get(url, timeout=30)
+            return resp.json()
+        except Exception as e:
+            logger.warning(f"Telegram API error ({method}): {e}")
+            return {}
+
     def _poll_loop(self):
+        offset = 0
         while self._running:
             try:
-                resp = requests.get(
-                    f"{self.api_base}/getUpdates",
-                    params={"timeout": 30, "offset": self._last_update_id + 1},
-                    timeout=35,
-                )
-                if resp.status_code != 200:
-                    time.sleep(5)
-                    continue
-                for update in resp.json().get("result", []):
-                    self._last_update_id = update.get("update_id", 0)
-                    msg = update.get("message", {})
-                    if "text" in msg:
+                updates = self._api("getUpdates", {"offset": offset, "timeout": 30})
+                if updates.get("ok"):
+                    for upd in updates.get("result", []):
+                        offset = upd["update_id"] + 1
+                        msg = upd.get("message") or upd.get("channel_post") or upd.get("edited_message")
+                        if not msg:
+                            continue
+                        text = msg.get("text") or msg.get("caption", "")
                         chat_id = str(msg["chat"]["id"])
-                        text = msg["text"]
-                        cmsg = ChatMessage(
-                            channel_type="telegram",
-                            scene_id=self.scene_id,
-                            user_id=chat_id,
-                            content=text,
-                        )
-                        context = self._compose_context(
-                            ContextType.TEXT, text, msg=cmsg,
-                            session_id=chat_id, receiver=chat_id,
-                        )
-                        if context:
-                            self.produce(context)
-            except requests.Timeout:
-                pass
+                        user_id = str(msg.get("from", {}).get("id", chat_id))
+                        if not text:
+                            continue
+                        self._handle_raw(text, user_id, chat_id)
             except Exception as e:
-                logger.warning(f"Poll error: {e}")
+                logger.warning(f"Telegram poll error: {e}")
                 time.sleep(5)
+
+    def _handle_raw(self, content: str, user_id: str, chat_id: str):
+        cmsg = ChatMessage(channel_type="telegram", scene_id=self.scene_id, user_id=user_id, content=content)
+        context = self._compose_context(ContextType.TEXT, content, msg=cmsg, session_id=user_id,
+                                         receiver=user_id, chat_id=chat_id)
+        if context:
+            self.produce(context)
 
     def send(self, reply: Reply, context: Context):
         receiver = context.get("receiver", "")
-        if not receiver:
-            logger.warning("No receiver in context")
+        chat_id = context.kwargs.get("chat_id", receiver) if hasattr(context, "kwargs") else receiver
+        if not chat_id:
             return
-        try:
-            if reply.type == ReplyType.TEXT:
-                requests.post(
-                    f"{self.api_base}/sendMessage",
-                    json={"chat_id": receiver, "text": reply.content},
-                    timeout=10,
-                )
-            elif reply.type == ReplyType.IMAGE_URL:
-                requests.post(
-                    f"{self.api_base}/sendPhoto",
-                    json={"chat_id": receiver, "photo": reply.content},
-                    timeout=10,
-                )
-            else:
-                requests.post(
-                    f"{self.api_base}/sendMessage",
-                    json={"chat_id": receiver, "text": str(reply.content)},
-                    timeout=10,
-                )
-        except Exception as e:
-            logger.error(f"Send error: {e}")
+        text = reply.content if reply.type == ReplyType.TEXT else str(reply.content)
+        # Split long messages for Telegram (4096 char limit)
+        for chunk in _split_long(text, 4000):
+            self._api("sendMessage", {"chat_id": chat_id, "text": chunk})
 
     def stop(self):
         self._running = False
         super().stop()
+
+
+def _split_long(text: str, limit: int) -> list[str]:
+    if len(text) <= limit:
+        return [text]
+    chunks = []
+    while len(text) > limit:
+        split_at = text.rfind("\n", 0, limit)
+        if split_at < limit // 2:
+            split_at = text.rfind(" ", 0, limit) if " " in text[:limit] else limit
+        chunks.append(text[:split_at])
+        text = text[split_at:].lstrip()
+    if text:
+        chunks.append(text)
+    return chunks
 
 
 register_channel("telegram", TelegramChannel)
