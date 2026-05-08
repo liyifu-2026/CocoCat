@@ -243,6 +243,7 @@ pub async fn send_message(
                 source: "chat".into(),
                 method: "chat".into(),
                 params: params.to_string(),
+                ..Default::default()
             },
         ) {
             tracing::error!("create_task for {}: {}", agent_id, e);

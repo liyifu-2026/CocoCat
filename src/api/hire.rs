@@ -156,6 +156,7 @@ pub async fn plan_handler(
             source: "web".into(),
             method: "hire_plan".into(),
             params: params.to_string(),
+            ..Default::default()
         },
     ).map_err(|e| {
         tracing::error!("Failed to create hire task: {}", e);

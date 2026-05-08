@@ -41,9 +41,24 @@ pub struct Task {
     pub error: Option<String>,
     pub retry_count: i32,
     pub max_retries: i32,
+    pub task_type: String,
+    pub recurrence: Option<String>,
+    pub parent_task_id: Option<i64>,
     pub created_at: String,
     pub started_at: Option<String>,
     pub completed_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct NewTask {
+    pub task_uuid: String,
+    pub target_agent: String,
+    pub source: String,
+    pub method: String,
+    pub params: String,
+    pub task_type: Option<String>,
+    pub recurrence: Option<String>,
+    pub parent_task_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,13 +71,4 @@ pub struct NewMessage {
     pub scene_id: String,
     pub chat_group: String,
     pub metadata: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NewTask {
-    pub task_uuid: String,
-    pub target_agent: String,
-    pub source: String,
-    pub method: String,
-    pub params: String,
 }

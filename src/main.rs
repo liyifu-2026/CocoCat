@@ -6,6 +6,7 @@ mod auth;
 mod config;
 mod db;
 mod dispatch;
+mod scheduler;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -73,6 +74,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         task_rx,
         event_tx.clone(),
     );
+
+    // Start the scheduler service for recurring tasks
+    scheduler::SchedulerService::start(db_pool.clone(), task_tx.clone());
 
     let app_state = api::router::AppState {
         db_pool: db_pool.clone(),

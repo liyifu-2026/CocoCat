@@ -8,6 +8,7 @@ use serde::Deserialize;
 use crate::auth;
 use crate::db::models::NewTask;
 use crate::db::tasks;
+use crate::dispatch::engine::TaskEvent;
 
 use super::router::AppState;
 
@@ -15,6 +16,8 @@ use super::router::AppState;
 pub struct CreateTaskRequest {
     task: String,
     assigned_to: String,
+    task_type: Option<String>,     // "one_time" (default) | "recurring_template"
+    recurrence: Option<i64>,       // interval in minutes, required if recurring
 }
 
 #[derive(Deserialize)]
@@ -41,30 +44,52 @@ pub async fn create_schedule_handler(
     Json(req): Json<CreateTaskRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     auth::verify_token(&headers, &state.jwt)?;
+
+    let is_recurring = req.task_type.as_deref() == Some("recurring_template");
+    let task_type = if is_recurring { "recurring_template" } else { "one_time" };
+    let recurrence = req.recurrence.map(|m| serde_json::json!({"interval": m}).to_string());
+
     let task_uuid = uuid::Uuid::new_v4().to_string();
     let params = serde_json::json!({ "task": req.task }).to_string();
+
     let new_task = NewTask {
         task_uuid,
         target_agent: req.assigned_to,
         source: "user".into(),
         method: "schedule".into(),
         params,
+        task_type: Some(task_type.into()),
+        recurrence,
+        ..Default::default()
     };
     let task = tasks::create_task(&state.db_pool, &new_task).map_err(|e| {
         tracing::error!("schedule create: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
+
+    // Notify dispatch engine only for one_time tasks
+    if !is_recurring {
+        if state.task_tx.send(TaskEvent::NewTask {
+            task_uuid: task.task_uuid.clone(),
+        }).await.is_err() {
+            tracing::warn!("Dispatch engine not listening, task will not be processed");
+        }
+    }
+
     let agent_name = crate::db::agents::get_agent(&state.db_pool, &task.target_agent)
         .ok()
         .flatten()
         .map(|a| a.name)
         .unwrap_or_else(|| task.target_agent.clone());
+
     Ok(Json(serde_json::json!({
         "task": {
             "id": task.id,
             "task": req.task,
             "assigned_to": agent_name,
             "status": task.status,
+            "task_type": task.task_type,
+            "recurrence": task.recurrence,
             "created_at": task.created_at,
             "result": task.result,
         }

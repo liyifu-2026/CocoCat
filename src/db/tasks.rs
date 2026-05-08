@@ -8,21 +8,26 @@ pub fn create_task(
 ) -> Result<Task, Box<dyn std::error::Error>> {
     let conn = pool.get()?;
     conn.execute(
-        "INSERT INTO tasks (task_uuid, target_agent, source, method, params, status)
-         VALUES (?1, ?2, ?3, ?4, ?5, 'pending')",
+        "INSERT INTO tasks (task_uuid, target_agent, source, method, params, status, task_type, recurrence, parent_task_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6, ?7, ?8)",
         params![
             task.task_uuid,
             task.target_agent,
             task.source,
             task.method,
             task.params,
+            task.task_type.as_deref().unwrap_or("one_time"),
+            task.recurrence,
+            task.parent_task_id,
         ],
     )?;
 
     let id = conn.last_insert_rowid();
     let mut stmt = conn.prepare(
         "SELECT id, task_uuid, target_agent, source, method, params, status,
-                result, error, retry_count, max_retries, created_at, started_at, completed_at
+                result, error, retry_count, max_retries,
+                task_type, recurrence, parent_task_id,
+                created_at, started_at, completed_at
          FROM tasks WHERE id = ?1"
     )?;
 
@@ -39,9 +44,12 @@ pub fn create_task(
             error: row.get(8)?,
             retry_count: row.get(9)?,
             max_retries: row.get(10)?,
-            created_at: row.get(11)?,
-            started_at: row.get(12)?,
-            completed_at: row.get(13)?,
+            task_type: row.get(11)?,
+            recurrence: row.get(12)?,
+            parent_task_id: row.get(13)?,
+            created_at: row.get(14)?,
+            started_at: row.get(15)?,
+            completed_at: row.get(16)?,
         })
     })?)
 }
@@ -55,11 +63,14 @@ pub fn claim_pending_task(
          WHERE task_uuid = (
              SELECT task_uuid FROM tasks
              WHERE status = 'pending'
+               AND (task_type IS NULL OR task_type != 'recurring_template')
              ORDER BY created_at ASC
              LIMIT 1
          )
          RETURNING id, task_uuid, target_agent, source, method, params, status,
-                   result, error, retry_count, max_retries, created_at, started_at, completed_at"
+                   result, error, retry_count, max_retries,
+                   task_type, recurrence, parent_task_id,
+                   created_at, started_at, completed_at"
     )?;
 
     let result = stmt.query_row([], |row| {
@@ -75,9 +86,12 @@ pub fn claim_pending_task(
             error: row.get(8)?,
             retry_count: row.get(9)?,
             max_retries: row.get(10)?,
-            created_at: row.get(11)?,
-            started_at: row.get(12)?,
-            completed_at: row.get(13)?,
+            task_type: row.get(11)?,
+            recurrence: row.get(12)?,
+            parent_task_id: row.get(13)?,
+            created_at: row.get(14)?,
+            started_at: row.get(15)?,
+            completed_at: row.get(16)?,
         })
     });
 
@@ -95,7 +109,9 @@ pub fn get_task_by_uuid(
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
         "SELECT id, task_uuid, target_agent, source, method, params, status,
-                result, error, retry_count, max_retries, created_at, started_at, completed_at
+                result, error, retry_count, max_retries,
+                task_type, recurrence, parent_task_id,
+                created_at, started_at, completed_at
          FROM tasks WHERE task_uuid = ?1"
     )?;
     let mut rows = stmt.query_map(params![task_uuid], |row| {
@@ -111,9 +127,12 @@ pub fn get_task_by_uuid(
             error: row.get(8)?,
             retry_count: row.get(9)?,
             max_retries: row.get(10)?,
-            created_at: row.get(11)?,
-            started_at: row.get(12)?,
-            completed_at: row.get(13)?,
+            task_type: row.get(11)?,
+            recurrence: row.get(12)?,
+            parent_task_id: row.get(13)?,
+            created_at: row.get(14)?,
+            started_at: row.get(15)?,
+            completed_at: row.get(16)?,
         })
     })?;
     Ok(rows.next().and_then(|r| r.ok()))
@@ -153,7 +172,9 @@ pub fn list_all_tasks(
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
         "SELECT t.id, t.task_uuid, t.target_agent, t.source, t.method, t.params,
-                t.status, t.result, t.error, t.created_at, t.started_at, t.completed_at,
+                t.status, t.result, t.error,
+                t.task_type, t.recurrence, t.parent_task_id,
+                t.created_at, t.started_at, t.completed_at,
                 COALESCE(a.name, t.target_agent) AS agent_name
          FROM tasks t
          LEFT JOIN agents a ON a.id = t.target_agent
@@ -169,10 +190,13 @@ pub fn list_all_tasks(
         Ok(serde_json::json!({
             "id": row.get::<_, i64>(0)?,
             "task": task_desc,
-            "assigned_to": row.get::<_, String>(12)?,
+            "assigned_to": row.get::<_, String>(15)?,
             "status": row.get::<_, String>(6)?,
-            "created_at": row.get::<_, String>(9)?,
+            "task_type": row.get::<_, Option<String>>(9)?,
+            "recurrence": row.get::<_, Option<String>>(10)?,
+            "created_at": row.get::<_, String>(12)?,
             "result": row.get::<_, Option<String>>(7)?,
+            "error": row.get::<_, Option<String>>(8)?,
         }))
     })?;
     let mut tasks = Vec::new();
@@ -189,7 +213,9 @@ pub fn get_task_by_id(
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
         "SELECT id, task_uuid, target_agent, source, method, params, status,
-                result, error, retry_count, max_retries, created_at, started_at, completed_at
+                result, error, retry_count, max_retries,
+                task_type, recurrence, parent_task_id,
+                created_at, started_at, completed_at
          FROM tasks WHERE id = ?1"
     )?;
     let mut rows = stmt.query_map(rusqlite::params![task_id], |row| {
@@ -205,9 +231,12 @@ pub fn get_task_by_id(
             error: row.get(8)?,
             retry_count: row.get(9)?,
             max_retries: row.get(10)?,
-            created_at: row.get(11)?,
-            started_at: row.get(12)?,
-            completed_at: row.get(13)?,
+            task_type: row.get(11)?,
+            recurrence: row.get(12)?,
+            parent_task_id: row.get(13)?,
+            created_at: row.get(14)?,
+            started_at: row.get(15)?,
+            completed_at: row.get(16)?,
         })
     })?;
     Ok(rows.next().and_then(|r| r.ok()))
@@ -288,6 +317,86 @@ pub fn list_transfer_edges(
     Ok(edges)
 }
 
+pub fn list_recurring_templates(
+    pool: &DbPool,
+) -> Result<Vec<Task>, Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT id, task_uuid, target_agent, source, method, params, status,
+                result, error, retry_count, max_retries,
+                task_type, recurrence, parent_task_id,
+                created_at, started_at, completed_at
+         FROM tasks
+         WHERE task_type = 'recurring_template' AND status != 'cancelled'
+         ORDER BY created_at ASC"
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(Task {
+            id: row.get(0)?,
+            task_uuid: row.get(1)?,
+            target_agent: row.get(2)?,
+            source: row.get(3)?,
+            method: row.get(4)?,
+            params: row.get(5)?,
+            status: row.get(6)?,
+            result: row.get(7)?,
+            error: row.get(8)?,
+            retry_count: row.get(9)?,
+            max_retries: row.get(10)?,
+            task_type: row.get(11)?,
+            recurrence: row.get(12)?,
+            parent_task_id: row.get(13)?,
+            created_at: row.get(14)?,
+            started_at: row.get(15)?,
+            completed_at: row.get(16)?,
+        })
+    })?;
+    let mut tasks = Vec::new();
+    for row in rows {
+        tasks.push(row?);
+    }
+    Ok(tasks)
+}
+
+pub fn get_last_recurring_instance(
+    pool: &DbPool,
+    template_id: i64,
+) -> Result<Option<Task>, Box<dyn std::error::Error>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT id, task_uuid, target_agent, source, method, params, status,
+                result, error, retry_count, max_retries,
+                task_type, recurrence, parent_task_id,
+                created_at, started_at, completed_at
+         FROM tasks
+         WHERE parent_task_id = ?1 AND status = 'completed'
+         ORDER BY completed_at DESC
+         LIMIT 1"
+    )?;
+    let mut rows = stmt.query_map(rusqlite::params![template_id], |row| {
+        Ok(Task {
+            id: row.get(0)?,
+            task_uuid: row.get(1)?,
+            target_agent: row.get(2)?,
+            source: row.get(3)?,
+            method: row.get(4)?,
+            params: row.get(5)?,
+            status: row.get(6)?,
+            result: row.get(7)?,
+            error: row.get(8)?,
+            retry_count: row.get(9)?,
+            max_retries: row.get(10)?,
+            task_type: row.get(11)?,
+            recurrence: row.get(12)?,
+            parent_task_id: row.get(13)?,
+            created_at: row.get(14)?,
+            started_at: row.get(15)?,
+            completed_at: row.get(16)?,
+        })
+    })?;
+    Ok(rows.next().and_then(|r| r.ok()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -310,6 +419,7 @@ mod tests {
             source: "test".into(),
             method: "chat".into(),
             params: "{}".into(),
+            ..Default::default()
         };
 
         create_task(&pool, &task).unwrap();
@@ -337,6 +447,7 @@ mod tests {
             source: "test".into(),
             method: "chat".into(),
             params: "{}".into(),
+            ..Default::default()
         };
 
         create_task(&pool, &task).unwrap();

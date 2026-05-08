@@ -1,10 +1,6 @@
-# Team Heartbeat
+# HEARTBEAT.md — Informational Reference Only
 
-Agents periodically check this schedule for pending work.
+All tasks (including recurring) are now managed through the central task system.
+See the Schedule page in the CocoCat UI for all task management.
 
-## Process
-1. Wake up every N minutes
-2. Check schedule.json for tasks assigned to you
-3. Execute pending tasks
-4. Update status to completed/failed
-5. Log results
+This file is retained for agent reference but is no longer actively polled.

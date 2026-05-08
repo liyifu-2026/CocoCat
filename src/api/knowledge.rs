@@ -119,6 +119,7 @@ pub async fn upload_handler(
             source: "kb".into(),
             method: "process_kb_source".into(),
             params: params.to_string(),
+            ..Default::default()
         },
     ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -159,6 +160,7 @@ pub async fn process_handler(
             source: "kb".into(),
             method: "process_kb_source".into(),
             params: params.to_string(),
+            ..Default::default()
         },
     ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 

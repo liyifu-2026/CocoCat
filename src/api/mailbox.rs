@@ -7,6 +7,9 @@ use serde::Deserialize;
 
 use crate::auth;
 use crate::db::mailbox::{self, MailMessage, NewMailMessage};
+use crate::db::models::NewTask;
+use crate::db::tasks;
+use crate::dispatch::engine::TaskEvent;
 
 use super::router::AppState;
 
@@ -58,19 +61,39 @@ pub async fn send_handler(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
     Json(req): Json<SendRequest>,
-) -> Result<Json<MailMessage>, StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     auth::verify_token(&headers, &state.jwt)?;
     let msg = NewMailMessage {
         msg_uuid: uuid::Uuid::new_v4().to_string(),
-        from_agent: req.from_agent,
-        to_agent: req.to_agent,
-        subject: req.subject,
-        body: req.body,
+        from_agent: req.from_agent.clone(),
+        to_agent: req.to_agent.clone(),
+        subject: req.subject.clone(),
+        body: req.body.clone(),
     };
-    mailbox::send_message(&state.db_pool, &msg).map(Json).map_err(|e| {
+    let saved = mailbox::send_message(&state.db_pool, &msg).map_err(|e| {
         tracing::error!("mailbox send: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
-    })
+    })?;
+
+    // Create a task to deliver this mailbox message to the target agent
+    let task_uuid = uuid::Uuid::new_v4().to_string();
+    let task = NewTask {
+        task_uuid: task_uuid.clone(),
+        target_agent: req.to_agent,
+        source: req.from_agent,
+        method: "mailbox".into(),
+        params: serde_json::json!({
+            "mailbox_msg_id": saved.msg_uuid,
+            "subject": req.subject,
+            "content": req.body,
+        }).to_string(),
+        ..Default::default()
+    };
+    if tasks::create_task(&state.db_pool, &task).is_ok() {
+        let _ = state.task_tx.send(TaskEvent::NewTask { task_uuid }).await;
+    }
+
+    Ok(Json(serde_json::json!(saved)))
 }
 
 pub async fn mark_read_handler(

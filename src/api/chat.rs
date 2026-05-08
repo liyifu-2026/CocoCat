@@ -78,6 +78,7 @@ pub async fn chat_handler(
             source: "web".into(),
             method: "chat".into(),
             params: params.to_string(),
+            ..Default::default()
         },
     )
     .map_err(|e| {

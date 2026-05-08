@@ -80,8 +80,31 @@ pub fn run_migrations(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
         CREATE INDEX IF NOT EXISTS idx_tasks_status_target
             ON tasks(status, target_agent)
             WHERE status IN ('pending','running');
+        "
+    )?;
 
-        CREATE TABLE IF NOT EXISTS mailbox (
+    // Safe migration: add columns if they don't exist
+    for col in &["task_type", "recurrence", "parent_task_id"] {
+        let exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM pragma_table_info('tasks') WHERE name = ?1",
+                [col],
+                |row| row.get(0),
+            )
+            .unwrap_or(false);
+        if !exists {
+            let sql = match *col {
+                "task_type" => "ALTER TABLE tasks ADD COLUMN task_type TEXT NOT NULL DEFAULT 'one_time'",
+                "recurrence" => "ALTER TABLE tasks ADD COLUMN recurrence TEXT",
+                "parent_task_id" => "ALTER TABLE tasks ADD COLUMN parent_task_id INTEGER REFERENCES tasks(id)",
+                _ => unreachable!(),
+            };
+            conn.execute_batch(sql).ok();
+        }
+    }
+
+    conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS mailbox (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             msg_uuid TEXT UNIQUE NOT NULL,
             from_agent TEXT NOT NULL REFERENCES agents(id),
