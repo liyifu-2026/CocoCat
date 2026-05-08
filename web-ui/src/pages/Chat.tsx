@@ -245,11 +245,11 @@ export default function Chat() {
       setLocalStreaming(false)
       if (localStreamTimer.current) clearTimeout(localStreamTimer.current)
       queryClient.setQueryData(["chat-messages", selectedGroup], prev)
-      const msg = e instanceof Error ? e.message : "发送失败"
+      const msg = e instanceof Error ? e.message : t("chat.send_failed")
       toast.error(`❌ ${msg}`, {
-        description: !hasConfiguredProvider ? "请先配置 API Key" : undefined,
+        description: !hasConfiguredProvider ? t("chat.toast.api_key_required") : undefined,
         action: !hasConfiguredProvider ? {
-          label: "去设置",
+          label: t("chat.toast.go_to_settings"),
           onClick: () => window.location.href = "/settings",
         } : undefined,
       })
@@ -352,7 +352,7 @@ export default function Chat() {
       if (s.status === "failed" && s.task_uuid) {
         failed.push({
           id: -Date.now() - Math.random(),
-          content: `❌ Agent 回复失败: ${(s as any).error || "请检查 API Key 配置"}`,
+          content: `❌ ${t("chat.agent_reply_failed")}${s.error || t("chat.check_api_key")}`,
           timestamp: new Date(s.updatedAt).toISOString(),
         })
       }
@@ -546,9 +546,9 @@ export default function Chat() {
                 <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1">
                   <span>⚠️</span>
                   <span>
-                    API Key 未配置，请前往{" "}
-                    <a href="/settings" className="underline font-medium">设置页面</a>
-                    {" "}配置后再试
+                    {t("chat.api_key_warning_before")}
+                    <a href="/settings" className="underline font-medium">{t("chat.api_key_warning_link")}</a>
+                    {t("chat.api_key_warning_after")}
                   </span>
                 </p>
               </div>

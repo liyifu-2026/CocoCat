@@ -16,6 +16,7 @@ export type StreamState = {
   content?: string
   stream_event?: { event_type: string; content: string; name?: string; input?: string; status?: string; result?: string }
   updatedAt: number
+  error?: string
 }
 export const streamState = new Map<string, StreamState>()
 export const streamListeners = new Set<() => void>()

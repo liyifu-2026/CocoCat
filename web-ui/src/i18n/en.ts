@@ -167,6 +167,14 @@ const en: Record<string, string> = {
   "chat.busy": "Busy",
   "chat.offline": "Offline",
   "chat.error": "Error",
+  "chat.api_key_warning_before": "API Key not configured, go to ",
+  "chat.api_key_warning_link": "settings page",
+  "chat.api_key_warning_after": " to configure it",
+  "chat.toast.api_key_required": "Please configure API Key first",
+  "chat.toast.go_to_settings": "Go to Settings",
+  "chat.send_failed": "Failed to send",
+  "chat.agent_reply_failed": "Agent reply failed: ",
+  "chat.check_api_key": "Please check API Key configuration",
 
   // Knowledge
   "knowledge.title": "Knowledge Bases",

@@ -167,6 +167,14 @@ const zh: Record<string, string> = {
   "chat.busy": "忙碌中",
   "chat.offline": "离线",
   "chat.error": "异常",
+  "chat.api_key_warning_before": "API Key 未配置，请前往 ",
+  "chat.api_key_warning_link": "设置页面",
+  "chat.api_key_warning_after": " 配置后再试",
+  "chat.toast.api_key_required": "请先配置 API Key",
+  "chat.toast.go_to_settings": "去设置",
+  "chat.send_failed": "发送失败",
+  "chat.agent_reply_failed": "Agent 回复失败：",
+  "chat.check_api_key": "请检查 API Key 配置",
 
   // Knowledge
   "knowledge.title": "知识库",
