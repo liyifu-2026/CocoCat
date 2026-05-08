@@ -3,6 +3,7 @@ import { api } from "./client"
 export interface ProviderInfo {
   name: string
   keywords: string[]
+  display_name?: string
   api_base: string
   default_model: string
   has_key: boolean
@@ -32,6 +33,10 @@ export const providersApi = {
 
   test: (name: string) =>
     api.post<{ status: string; models?: string[]; message?: string }>(`/providers/${name}/test`, {}),
+
+  // Fetch models live from a specific provider
+  fetchProviderModels: (name: string) =>
+    api.get<{ models: ModelInfo[]; source: string; error?: string }>(`/providers/${name}/models/fetch`),
 
   // Model catalog
   listModels: (provider?: string) =>

@@ -41,6 +41,7 @@ def list_providers():
         key = get_api_key(spec.name)
         result.append({
             "name": spec.name,
+            "display_name": spec.display_name or spec.name,
             "keywords": list(spec.keywords),
             "api_base": cfg.get("api_base", spec.default_api_base or ""),
             "default_model": cfg.get("default_model", ""),
@@ -165,6 +166,48 @@ def refresh_model_catalog():
     from provider_config import fetch_and_cache_models
     ok = fetch_and_cache_models()
     return {"status": "ok" if ok else "failed"}
+
+
+@router.get("/api/providers/{name}/models/fetch")
+def fetch_provider_models(name: str):
+    """Query the provider's API directly for available models."""
+    from providers.registry import PROVIDERS
+    from providers.factory import make_provider_by_name
+
+    spec = next((p for p in PROVIDERS if p.name == name), None)
+    if not spec:
+        return JSONResponse({"error": f"provider '{name}' not found"}, status_code=404)
+
+    try:
+        provider = make_provider_by_name(name)
+        if not provider or not provider.api_key:
+            return {"models": [], "error": "no API key configured"}
+
+        import httpx
+        api_base = provider.api_base.rstrip("/")
+
+        if spec.backend == "anthropic":
+            # Anthropic doesn't have a list-models endpoint, provide curated list
+            return {"models": [
+                {"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4"},
+                {"id": "claude-opus-4-20250514", "name": "Claude Opus 4"},
+                {"id": "claude-3.5-sonnet-20241022", "name": "Claude 3.5 Sonnet"},
+                {"id": "claude-3.5-haiku-20241022", "name": "Claude 3.5 Haiku"},
+                {"id": "claude-3-opus-20240229", "name": "Claude 3 Opus"},
+            ], "source": "curated"}
+        elif spec.name == "azure":
+            return {"models": [], "error": "Azure OpenAI models must be configured manually — set AZURE_RESOURCE_NAME env var"}
+        else:
+            headers = {"Authorization": f"Bearer {provider.api_key}"}
+            resp = httpx.get(f"{api_base}/models", headers=headers, timeout=15)
+            if resp.status_code == 200:
+                data = resp.json()
+                model_list = data.get("data", []) or data.get("models", [])
+                models = [{"id": m.get("id", ""), "name": m.get("id", "")} for m in model_list if m.get("id")]
+                return {"models": models, "source": "live"}
+            return {"models": [], "error": f"HTTP {resp.status_code}: {resp.text[:200]}"}
+    except Exception as e:
+        return {"models": [], "error": str(e)}
 
 
 # ── Agent model assignments ───────────────────────────────────────────

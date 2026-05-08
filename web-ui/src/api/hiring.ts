@@ -12,6 +12,7 @@ export interface PendingHire {
     rules: string[]
   }
   status: string
+  created_at?: string
 }
 
 export interface HirePlanRequest {
@@ -23,16 +24,18 @@ export interface HirePlanRequest {
 }
 
 export interface HirePlanResponse {
-  plan_uuid: string
   status: string
+  task_uuid: string
 }
 
 export const hiringApi = {
   listPending: () => api.get<{ pending: PendingHire[] }>("/hiring/pending"),
+  listApproved: () => api.get<{ approved: PendingHire[] }>("/hiring/approved"),
+  listRejected: () => api.get<{ rejected: PendingHire[] }>("/hiring/rejected"),
   approve: (hireId: string, profile?: Record<string, unknown>) =>
-    api.post<{ status: string; hire_id: string }>(`/hiring/${hireId}/approve`, profile ?? {}),
+    api.post<{ status: string; hire_id: string }>(`/hiring/pending/${hireId}/approve`, profile ?? {}),
   reject: (hireId: string) =>
-    api.post<{ status: string; hire_id: string }>(`/hiring/${hireId}/reject`, {}),
+    api.post<{ status: string; hire_id: string }>(`/hiring/pending/${hireId}/reject`, {}),
   createPlan: (data: HirePlanRequest) =>
     api.post<HirePlanResponse>("/hiring/plan", data),
 }

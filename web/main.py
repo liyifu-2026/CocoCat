@@ -281,7 +281,7 @@ def list_knowledge():
         for d in kb_dir.iterdir():
             if d.is_dir():
                 kbs.append({"id": d.name, "path": str(d)})
-    return kbs
+    return {"kbs": kbs}
 
 
 def _read_roster_agents(scene_id: str) -> list[str]:
@@ -573,6 +573,36 @@ def reject_hire(hire_id: str):
     dst = rejected_dir / f"{hire_id}.json"
     shutil.move(str(src), str(dst))
     return {"status": "rejected", "hire_id": hire_id}
+
+
+@app.get("/api/hiring/approved")
+def list_approved_hires():
+    approved_dir = BASE_DIR / "agents" / "hire_requests" / "approved"
+    if not approved_dir.exists():
+        return {"approved": []}
+    hires = []
+    for f in sorted(approved_dir.iterdir(), reverse=True):
+        if f.suffix == ".json":
+            try:
+                hires.append(json.loads(f.read_text(encoding="utf-8")))
+            except Exception:
+                pass
+    return {"approved": hires}
+
+
+@app.get("/api/hiring/rejected")
+def list_rejected_hires():
+    rejected_dir = BASE_DIR / "agents" / "hire_requests" / "rejected"
+    if not rejected_dir.exists():
+        return {"rejected": []}
+    hires = []
+    for f in sorted(rejected_dir.iterdir(), reverse=True):
+        if f.suffix == ".json":
+            try:
+                hires.append(json.loads(f.read_text(encoding="utf-8")))
+            except Exception:
+                pass
+    return {"rejected": hires}
 
 
 # Delivery endpoints — proxies to Rust core

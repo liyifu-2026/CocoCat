@@ -64,12 +64,12 @@ export default function Scenes() {
                 <CardContent className="text-sm text-muted-foreground space-y-2">
                   <p className="line-clamp-2">{s.context}</p>
                   <div className="flex flex-wrap gap-1">
-                    {s.env_skills.map(sk => (
+                    {(s.env_skills || []).map(sk => (
                       <Badge key={sk} variant="outline">{sk}</Badge>
                     ))}
                   </div>
                   <div className="text-xs">
-                    {`${t("common.knowledge")}: ${s.mounted_kbs.length} | ${t("common.agents")}: ${s.roster.length}`}
+                    {`${t("common.knowledge")}: ${(s.mounted_kbs || []).length} | ${t("common.agents")}: ${(s.roster || []).length}`}
                   </div>
                 </CardContent>
               </Card>
