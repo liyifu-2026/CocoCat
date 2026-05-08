@@ -154,6 +154,8 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
     """Background thread: poll mailbox inbox.jsonl and process messages."""
     import os, json, time, requests as _requests
     import threading
+    import logging
+    logger = logging.getLogger("cococat.agent_runtime.mailbox")
 
     mailbox_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..",
@@ -161,6 +163,7 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
     )
     # Track processed messages by "from" field to avoid re-processing
     processed = set()
+    logger.info(f"Mailbox poll started for {agent_id}, path={mailbox_path}")
 
     while True:
         try:
@@ -175,6 +178,7 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
                         if msg_from in processed:
                             continue
                         processed.add(msg_from)
+                        logger.info(f"Processing message from {msg_from[:30]}...")
 
                         content = msg.get("content", "")
                         user_id = msg.get("external_user", "")
@@ -209,6 +213,7 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
 
                         # Send reply via HTTP callback
                         if reply_url:
+                            logger.info(f"Sending reply to {reply_url} for user {user_id}...")
                             for attempt in range(3):
                                 try:
                                     resp = _requests.post(reply_url, json={
@@ -218,9 +223,11 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
                                         "channel": msg.get("channel", ""),
                                         "user_id": user_id,
                                     }, timeout=10)
+                                    logger.info(f"Reply HTTP {resp.status_code}: {resp.text[:100]}")
                                     if resp.status_code == 200:
                                         break
-                                except Exception:
+                                except Exception as e:
+                                    logger.warning(f"Reply attempt {attempt+1} failed: {e}")
                                     if attempt < 2:
                                         time.sleep(2 ** attempt)
 
