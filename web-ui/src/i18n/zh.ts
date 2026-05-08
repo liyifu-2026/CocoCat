@@ -263,6 +263,8 @@ const zh: Record<string, string> = {
   "usage.output_tokens": "输出 Token",
   "usage.total": "总计",
   "usage.iterations": "轮次",
+  "usage.no_data_hint": "尚未产生用量数据。请先在 Chat 页面与 agent 对话，用量数据将自动记录。",
+  "usage.go_to_chat": "前往 Chat",
 
   // Collaboration
   "collab.title": "协作图",

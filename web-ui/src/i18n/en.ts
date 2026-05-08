@@ -263,6 +263,8 @@ const en: Record<string, string> = {
   "usage.output_tokens": "Output Tokens",
   "usage.total": "Total",
   "usage.iterations": "Iterations",
+  "usage.no_data_hint": "No usage data yet. Start a conversation in Chat to generate usage data.",
+  "usage.go_to_chat": "Go to Chat",
 
   // Collaboration
   "collab.title": "Collaboration Graph",

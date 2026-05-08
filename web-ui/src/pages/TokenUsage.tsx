@@ -71,10 +71,10 @@ export default function TokenUsage() {
               <Cpu className="size-12 mx-auto mb-4 opacity-30" />
               <p>{t("usage.no_data")}</p>
               <p className="text-sm mt-2">
-                尚未产生用量数据。请先在 Chat 页面与 agent 对话，用量数据将自动记录。
+                {t("usage.no_data_hint")}
               </p>
               <Button variant="outline" size="sm" className="mt-4" onClick={() => window.location.href = "/chat"}>
-                前往 Chat
+                {t("usage.go_to_chat")}
               </Button>
             </div>
           )}
