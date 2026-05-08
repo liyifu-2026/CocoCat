@@ -104,18 +104,22 @@ def update_provider(name: str, body: ProviderUpdate):
 def test_provider(name: str):
     """Test provider connectivity by listing models."""
     from providers.registry import PROVIDERS
-    from providers.factory import make_provider
+    from providers.factory import make_provider_by_name
 
     spec = next((p for p in PROVIDERS if p.name == name), None)
     if not spec:
         return JSONResponse({"error": f"provider '{name}' not found"}, status_code=404)
 
+    if not spec.default_api_base:
+        return {"status": "error", "message": "provider has no default API base URL"}
+
     try:
-        provider = make_provider(f"{name}/test")
+        provider = make_provider_by_name(name)
         if provider is None:
             return {"status": "error", "message": "provider creation failed"}
+        if not provider.api_key:
+            return {"status": "error", "message": "no API key configured"}
 
-        # Try a simple models list call
         import httpx
         api_base = provider.api_base.rstrip("/")
         headers = {"Authorization": f"Bearer {provider.api_key}"}
