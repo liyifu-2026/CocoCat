@@ -201,6 +201,8 @@ class WeixinChannel(ChatChannel):
         if not receiver:
             return
         text = reply.content if reply.type == ReplyType.TEXT else str(reply.content)
+        # WeChat doesn't support Markdown — strip formatting
+        text = _strip_markdown(text)
         ctx_token = self._context_tokens.get(receiver, "")
         self.api.send_text(receiver, text, ctx_token)
 
@@ -216,6 +218,30 @@ def _extract_text(item_list: list) -> str:
         if item.get("type") == 1:
             parts.append(item.get("text_item", {}).get("text", ""))
     return "".join(parts)
+
+
+def _strip_markdown(text: str) -> str:
+    """Remove basic Markdown formatting for plain-text channels like WeChat."""
+    import re
+    # Bold/italic: **text** __text__ *text* _text_
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'__(.+?)__', r'\1', text)
+    text = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'\1', text)
+    text = re.sub(r'_(.+?)_', r'\1', text)
+    # Code blocks and inline code
+    text = re.sub(r'```[\s\S]*?```', '', text)
+    text = re.sub(r'`(.+?)`', r'\1', text)
+    # Headers: # ## ### etc
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    # Links: [text](url)
+    text = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', text)
+    # Horizontal rules
+    text = re.sub(r'^[-*_]{3,}\s*$', '', text, flags=re.MULTILINE)
+    # Blockquotes
+    text = re.sub(r'^>\s+', '', text, flags=re.MULTILINE)
+    # Remove excessive blank lines
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
 
 
 register_channel("weixin", WeixinChannel)

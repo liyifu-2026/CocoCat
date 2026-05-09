@@ -76,9 +76,9 @@ class TelegramChannel(ChatChannel):
         if not chat_id:
             return
         text = reply.content if reply.type == ReplyType.TEXT else str(reply.content)
-        # Split long messages for Telegram (4096 char limit)
-        for chunk in _split_long(text, 4000):
-            self._api("sendMessage", {"chat_id": chat_id, "text": chunk})
+        # Telegram supports MarkdownV2, so keep as-is
+        for chunk in _split_long(text, 3800):
+            self._api("sendMessage", {"chat_id": chat_id, "text": chunk, "parse_mode": "Markdown"})
 
     def stop(self):
         self._running = False

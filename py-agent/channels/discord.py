@@ -147,6 +147,7 @@ class DiscordChannel(ChatChannel):
         if not channel_id:
             return
         content = reply.content if reply.type == ReplyType.TEXT else str(reply.content)
+        # Discord supports Markdown natively
         for chunk in _split_long(content, 1900):
             self._api_post(f"/channels/{channel_id}/messages", {"content": chunk})
 
