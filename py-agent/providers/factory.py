@@ -44,6 +44,8 @@ def make_provider(model: str = "") -> LLMProvider:
     api_key = get_api_key(spec.name) or _get_env(spec) or os.environ.get("OPENAI_API_KEY", "")
     cfg = _get_provider_cfg(spec.name)
     base_url = cfg.get("api_base", "") or spec.default_api_base
+    if not cfg.get("api_base") and spec.name in ("openai", "deepseek"):
+        base_url = os.environ.get(f"{spec.name.upper()}_BASE_URL", "") or os.environ.get("OPENAI_BASE_URL", "") or base_url
 
     if spec.backend == "anthropic":
         from .anthropic import AnthropicProvider
@@ -69,6 +71,8 @@ def make_provider_by_name(name: str) -> LLMProvider:
     api_key = get_api_key(spec.name) or _get_env(spec) or os.environ.get("OPENAI_API_KEY", "")
     cfg = _get_provider_cfg(spec.name)
     base_url = cfg.get("api_base", "") or spec.default_api_base
+    if not cfg.get("api_base") and spec.name in ("openai", "deepseek"):
+        base_url = os.environ.get(f"{spec.name.upper()}_BASE_URL", "") or os.environ.get("OPENAI_BASE_URL", "") or base_url
 
     if spec.backend == "anthropic":
         from .anthropic import AnthropicProvider
