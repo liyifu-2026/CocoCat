@@ -173,7 +173,7 @@ def consolidate(messages: list[dict], llm, budget: int = 131072, depth: int = 0)
 
     summary = ""
     try:
-        response = llm.chat_with_retry(messages=[{"role": "user", "content": prompt}], max_tokens=256, temperature=0.3, retry_mode="persistent")
+        response = llm.chat_with_retry(messages=[{"role": "user", "content": prompt}], max_tokens=4096, temperature=0.3, retry_mode="standard")
         summary = (response.get("content") or "").strip()
     except Exception:
         pass
@@ -355,7 +355,7 @@ class AgentLoop:
                     response = self.llm.chat_with_retry(
                         messages=messages,
                         tools=tool_defs if tool_defs else None,
-                        retry_mode="persistent",
+                        retry_mode="standard",
                     )
                     content = response.content or ""
                     tool_calls = response.tool_calls or []
@@ -377,7 +377,7 @@ class AgentLoop:
                     response = self.llm.chat_with_retry(
                         messages=messages,
                         tools=tool_defs if tool_defs else None,
-                        retry_mode="persistent",
+                        retry_mode="standard",
                     )
                     content += (response.content or "")
                     if response.finish_reason != "length":
