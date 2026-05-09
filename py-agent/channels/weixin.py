@@ -212,6 +212,10 @@ class WeixinChannel(ChatChannel):
         self._running = False
         with _qr_lock:
             _qr_state["status"] = "idle"
+        # Clear credentials on disconnect so re-connect forces fresh QR
+        if os.path.exists(CREDENTIALS_FILE):
+            os.remove(CREDENTIALS_FILE)
+            logger.info("Weixin credentials cleared on disconnect")
         super().stop()
 
 
