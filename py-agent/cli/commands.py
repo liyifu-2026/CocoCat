@@ -949,22 +949,6 @@ def onboard():
 
 
 # ===========================================================================
-# TUI command
-# ===========================================================================
-
-@app.command()
-def tui(
-    agent_id: str = typer.Argument("leader", help="Agent ID to chat with"),
-    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
-    workspace: str | None = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
-):
-    """Open full-screen TUI (Textual) chat interface."""
-    from .tui.app import ChatApp
-    chat_app = ChatApp(agent_id=agent_id)
-    chat_app.run()
-
-
-# ===========================================================================
 # Doctor & Upgrade commands
 # ===========================================================================
 
@@ -997,11 +981,6 @@ def doctor():
         table.add_row("Cargo", f"[green]{result.stdout.strip()}[/green]" if result.returncode == 0 else "[red]not found[/red]")
     except Exception:
         table.add_row("Cargo", "[red]not found[/red]")
-
-    tui_debug = Path("target/debug/cococat-tui")
-    tui_release = Path("target/release/cococat-tui")
-    tui_exists = tui_debug.exists() or tui_release.exists()
-    table.add_row("TUI binary", "[green]built[/green]" if tui_exists else "[yellow]not built (run cargo build)[/yellow]")
 
     pid_file = Path.home() / ".cococat" / "cococat.pid"
     if pid_file.exists():
@@ -1036,7 +1015,7 @@ def upgrade():
             else:
                 print_success("Updated. Rebuilding...")
                 build = subprocess.run(
-                    ["cargo", "build", "--bin", "cococat-tui", "--release"],
+                    ["cargo", "build", "--release"],
                     capture_output=True, text=True, timeout=300,
                 )
                 if build.returncode == 0:

@@ -108,6 +108,20 @@ class SceneManager:
             return False
         return runtime.unassign_agent()
 
+    def is_agent_busy(self, agent_id: str) -> bool:
+        """Check if an agent is already assigned to any active scene."""
+        for rt in self._runtimes.values():
+            if rt.agent_handle and rt.agent_handle.agent_id == agent_id and rt.state == SceneState.ACTIVE:
+                return True
+        return False
+
+    def get_free_agent(self, roster: list[str]) -> str | None:
+        """Return the first agent in roster that is not busy in another scene."""
+        for agent_id in roster:
+            if not self.is_agent_busy(agent_id):
+                return agent_id
+        return None
+
     def list_active(self) -> list[str]:
         return [s for s, r in self._runtimes.items() if r.state == SceneState.ACTIVE]
 

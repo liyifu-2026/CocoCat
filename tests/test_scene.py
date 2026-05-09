@@ -137,18 +137,5 @@ def test_agent_handle_send_message_with_reply_url():
     h.release()
 
 
-def test_agent_direct_target_type():
-    """_route_to_agent should set target_type='agent' for agent-direct messages."""
-    import os, json
-    import sys as _sys
-    _sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "web"))
-    from web.entry_manager import _route_to_agent
-    _route_to_agent("test_direct_agent", "weixin", "user1", "hello")
-    inbox = os.path.join(os.path.dirname(__file__), "..", "agents", "mailbox", "test_direct_agent", "inbox.jsonl")
-    assert os.path.exists(inbox)
-    with open(inbox, "r") as f:
-        line = json.loads(f.readline().strip())
-    assert line["target_type"] == "agent"
-    assert line["target_id"] == "test_direct_agent"
-    assert line["channel"] == "weixin"
-    print("agent-direct target_type OK")
+# (test_agent_direct_target_type removed — web/ module deleted in v2)
+

@@ -1,9 +1,0 @@
-pub mod autocomplete;
-pub mod chat_panel;
-pub mod header;
-pub mod input_bar;
-pub mod markdown;
-pub mod reply_dialog;
-pub mod sidebar;
-pub mod status_bar;
-pub mod dialogs;
