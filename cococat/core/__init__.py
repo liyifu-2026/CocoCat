@@ -1,0 +1,1 @@
+"""CocoCat core modules."""
