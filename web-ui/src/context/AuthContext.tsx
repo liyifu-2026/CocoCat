@@ -24,8 +24,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
     if (!resp.ok) throw new Error("Invalid password")
     const data = await resp.json()
-    localStorage.setItem("cococat_token", data.token)
-    setToken(data.token)
+    localStorage.setItem("cococat_token", data.access_token ?? data.token)
+    setToken(data.access_token ?? data.token)
   }, [])
 
   const logout = useCallback(() => {
