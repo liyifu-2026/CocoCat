@@ -162,9 +162,18 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
         os.path.dirname(os.path.abspath(__file__)), "..",
         "agents", "mailbox", agent_id, "inbox.jsonl"
     )
+    cursor_path = os.path.join(os.path.dirname(mailbox_path), ".cursor")
+    # Load last processed timestamp to skip old messages on restart
+    last_ts = ""
+    if os.path.exists(cursor_path):
+        try:
+            with open(cursor_path) as f:
+                last_ts = f.read().strip()
+        except Exception:
+            pass
     processed = set()
     executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix=f"mailbox-{agent_id}")
-    sys.stderr.write(f"[mailbox_poll] Started for {agent_id}\n")
+    sys.stderr.write(f"[mailbox_poll] Started for {agent_id}, cursor={last_ts[:19]}\n")
     sys.stderr.flush()
 
     def process_message(msg: dict):
@@ -208,13 +217,28 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
             if os.path.exists(mailbox_path):
                 with open(mailbox_path, "r", encoding="utf-8") as f:
                     lines = [l.strip() for l in f if l.strip()]
+                newest_ts = last_ts
                 for line in reversed(lines):
                     msg = json.loads(line)
+                    ts = msg.get("timestamp", "")
+                    if ts > newest_ts:
+                        newest_ts = ts
+                    # Skip messages already processed in this session or from before last restart
                     msg_key = f"{msg.get('from','')}|{msg.get('content','')}|{msg.get('timestamp','')}"
                     if msg_key in processed:
                         continue
+                    if last_ts and ts <= last_ts:
+                        continue
                     processed.add(msg_key)
                     executor.submit(process_message, msg)
+                # Persist cursor so restarts don't re-process old messages
+                if newest_ts > last_ts:
+                    last_ts = newest_ts
+                    try:
+                        with open(cursor_path, "w") as f:
+                            f.write(last_ts)
+                    except Exception:
+                        pass
         except Exception:
             pass
         time.sleep(2)
