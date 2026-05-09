@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { scenesApi } from "@/api/scenes"
+
 import { SceneAvatar } from "./SceneAvatar"
 import { useTheme } from "@/context/ThemeContext"
 import { useSidebar } from "@/context/SidebarContext"
@@ -25,8 +25,8 @@ export function SceneRail() {
     navigate(to)
   }
 
-  const { data } = useQuery({ queryKey: ["scenes"], queryFn: () => scenesApi.list() })
-  const scenes = data?.scenes ?? []
+  const { data } = useQuery({ queryKey: ["scenes"], queryFn: () => fetch("/api/scenes").then(r => r.json()) })
+  const scenes: any[] = (data as any)?.scenes ?? []
 
   const activeSceneId = location.pathname.match(/^\/scenes\/([^/]+)/)?.[1]
 
