@@ -6,7 +6,7 @@ from cococat.core.agent import Agent, AgentState, AgentRole
 class FakeLLM:
     """Mock LLM that returns a fixed response."""
     async def chat(self, messages, tools=None, **kwargs):
-        return "I'm the agent's response."
+        return {"content": "I'm the agent's response."}
 
 
 @pytest.fixture

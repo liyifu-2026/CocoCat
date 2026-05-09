@@ -66,3 +66,10 @@ class AgentPool:
         agent = self._agents.get(agent_id)
         if agent:
             agent.unbind()
+
+    def get_scene_agent(self, scene_id: str) -> Agent | None:
+        """Find the agent currently bound to a scene."""
+        for a in self._agents.values():
+            if a.bound_scene == scene_id:
+                return a
+        return None

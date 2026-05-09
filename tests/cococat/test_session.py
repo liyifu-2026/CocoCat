@@ -90,3 +90,25 @@ async def test_multiple_sessions_independent(tmp_dir, session_mgr):
     assert any(m["content"] == "S1 message" for m in m1)
     assert any(m["content"] == "S2 message" for m in m2)
     assert not any(m["content"] == "S2 message" for m in m1)
+
+
+@pytest.mark.asyncio
+async def test_session_append_after_close_raises(tmp_dir, session_mgr):
+    session = await session_mgr.create(tmp_dir)
+    await session.close()
+    with pytest.raises(RuntimeError, match="closed"):
+        await session.append("user", "should fail")
+
+
+@pytest.mark.asyncio
+async def test_session_read_on_nonexistent_file(tmp_dir):
+    from cococat.core.session import Session
+    s = Session("nonexistent", tmp_dir)
+    messages = await s.read()
+    assert messages == []
+
+
+@pytest.mark.asyncio
+async def test_session_manager_open_nonexistent(tmp_dir, session_mgr):
+    with pytest.raises(FileNotFoundError):
+        await session_mgr.open("bad_id", tmp_dir)

@@ -6,7 +6,7 @@ from cococat.core.agent import Agent, AgentState, AgentRole
 
 class FakeLLM:
     async def chat(self, messages, tools=None, **kwargs):
-        return "response"
+        return {"content": "response"}
 
 
 @pytest.fixture
@@ -73,3 +73,48 @@ async def test_pool_get_free_after_bind(pool):
     pool.bind_to_scene("agent_a", "scene-1")
     free_after = len(pool.get_free_sub_agents())
     assert free_after == free_before - 1
+
+
+@pytest.mark.asyncio
+async def test_get_scene_agent(pool):
+    pool.bind_to_scene("agent_a", "customer-service")
+    agent = pool.get_scene_agent("customer-service")
+    assert agent is not None
+    assert agent.id == "agent_a"
+    assert agent.state == AgentState.WORKING
+
+
+@pytest.mark.asyncio
+async def test_get_scene_agent_none(pool):
+    agent = pool.get_scene_agent("nonexistent")
+    assert agent is None
+
+
+@pytest.mark.asyncio
+async def test_get_agent_nonexistent(pool):
+    agent = pool.get_agent("nonexistent")
+    assert agent is None
+
+
+@pytest.mark.asyncio
+async def test_bind_nonexistent_agent(pool):
+    ok = pool.bind_to_scene("nonexistent", "scene-1")
+    assert ok is False
+
+
+@pytest.mark.asyncio
+async def test_unbind_nonexistent_agent(pool):
+    # Should not raise
+    pool.unbind("nonexistent")
+
+
+@pytest.mark.asyncio
+async def test_add_agent_overwrites_existing(pool):
+    """Adding an agent with same ID replaces the old one."""
+    bus = pool._bus
+    old = Agent("agent_a", "Old Name", AgentRole.SUB, FakeLLM())
+    new = Agent("agent_a", "New Name", AgentRole.SUB, FakeLLM())
+    pool.add_agent(old)
+    pool.add_agent(new)
+    agent = pool.get_agent("agent_a")
+    assert agent.name == "New Name"

@@ -8,7 +8,6 @@ license = {text = "MIT"}
 dependencies = [
     "typer>=0.20.0",
     "rich>=14.0.0",
-    "textual>=2.0.0",
 ]
 
 [project.scripts]

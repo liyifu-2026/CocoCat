@@ -40,7 +40,13 @@ async def chat(body: ChatRequest, request: Request):
         return {"reply": "Main AI not connected", "msg_uuid": reply_uuid}
 
     try:
-        reply = await main_ai.run(body.content)
+        async def on_text(delta: str):
+            await request.app.state.ws_manager.broadcast("text_delta", {
+                "content": delta,
+                "agent_id": "main",
+            })
+
+        reply = await main_ai.run(body.content, on_text=on_text)
     except Exception as e:
         reply = f"Error: {e}"
 
