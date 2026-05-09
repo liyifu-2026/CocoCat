@@ -188,7 +188,7 @@ def _mailbox_poll_loop(agent_id: str, agent_loop):
 
             result = agent_loop.run(content, user_id=user_id)
 
-            reply_text = result.get("response", str(result)) if isinstance(result, dict) else str(result)
+            reply_text = result.get("content") or result.get("response") or ""
 
             if reply_url and reply_text:
                 logger.info(f"Sending reply to {reply_url} for {user_id}")
