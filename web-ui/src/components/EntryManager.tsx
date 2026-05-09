@@ -63,8 +63,13 @@ export function EntryManager({ title, targetType, targetId, entries, allChannels
         const pollQr = async () => {
           try {
             const qrStatus = await entriesApi.getWeixinQrStatus()
+            if (qrStatus.connected) {
+              setQrDialogOpen(false)
+              setQrPolling(false)
+              setStatusMap(prev => ({ ...prev, [entry.channel]: "connected" }))
+              return false
+            }
             if (qrStatus.status === "waiting" || qrStatus.status === "scanned") {
-              // Fetch QR image and show dialog
               if (!qrDialogOpen) {
                 const qr = await entriesApi.getWeixinQr()
                 if (qr.qrcode_url) {
@@ -73,13 +78,17 @@ export function EntryManager({ title, targetType, targetId, entries, allChannels
                   setQrPolling(true)
                 }
               }
-              return true // keep polling
+              return true
             }
-            if (qrStatus.connected) {
-              setQrDialogOpen(false)
-              setQrPolling(false)
-              setStatusMap(prev => ({ ...prev, [entry.channel]: "connected" }))
-              return false // done
+            // Also check actual channel status as fallback (credentials may already exist)
+            if (qrStatus.status === "idle") {
+              const chStatus = await entriesApi.getChannelStatus(targetType, targetId, entry.channel)
+              if (chStatus.connected) {
+                setQrDialogOpen(false)
+                setQrPolling(false)
+                setStatusMap(prev => ({ ...prev, [entry.channel]: "connected" }))
+                return false
+              }
             }
             if (qrStatus.status === "expired" || qrStatus.status === "timeout" || qrStatus.status === "failed") {
               setQrDialogOpen(false)

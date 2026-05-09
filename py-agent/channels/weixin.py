@@ -104,6 +104,8 @@ class WeixinChannel(ChatChannel):
         creds = load_credentials()
         if creds.get("token"):
             self.api = WeixinApi(token=creds["token"])
+            with _qr_lock:
+                _qr_state["status"] = "confirmed"
             logger.info("Weixin logged in from saved credentials")
         else:
             if not self._do_qr_login():
@@ -208,6 +210,8 @@ class WeixinChannel(ChatChannel):
 
     def stop(self):
         self._running = False
+        with _qr_lock:
+            _qr_state["status"] = "idle"
         super().stop()
 
 
