@@ -14,6 +14,9 @@ cd "$(dirname "$0")"
 
 # Kill stale processes
 kill -9 $(lsof -ti:8000) 2>/dev/null || true
+kill -9 $(lsof -ti:5173) 2>/dev/null || true
+kill -9 $(lsof -ti:5174) 2>/dev/null || true
+kill -9 $(lsof -ti:5175) 2>/dev/null || true
 
 # Load .env
 set -a
