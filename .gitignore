@@ -1,3 +1,91 @@
+# ===== Environment & Secrets =====
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+auth.json
+credentials.json
+config/auth.json
+config/credentials.json
+
+# ===== Python =====
 __pycache__/
-.worktrees/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+.eggs/
+dist/
+build/
+develop-eggs/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+*.so
+venv/
+.venv/
+*.whl
+
+# ===== Rust =====
 target/
+debug/
+*.rs.bk
+*.pdb
+
+# ===== Node / Web UI =====
+node_modules/
+.pnpm-store/
+.next/
+.nuxt/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== IDE & Editor =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-*
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Logs =====
+*.log
+logs/
+
+# ===== Database & Storage =====
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== Temp & Cache =====
+*.tmp
+*.bak
+*.cache
+.cache/
+
+# ===== Docker =====
+.docker/
+
+# ===== Git Worktrees =====
+.worktrees/
+
+# ===== Coverage =====
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
