@@ -10,10 +10,9 @@ const TYPE_CONFIG: Record<string, { icon: typeof Users; label: string; color: st
 
 interface FrontmatterPanelProps {
   frontmatter: Record<string, string>
-  onNavigate?: (path: string) => void
 }
 
-export function FrontmatterPanel({ frontmatter, onNavigate }: FrontmatterPanelProps) {
+export function FrontmatterPanel({ frontmatter }: FrontmatterPanelProps) {
   const type = frontmatter.type?.toLowerCase() ?? ""
   const typeStyle = TYPE_CONFIG[type] ?? { icon: FileText, label: type || "Page", color: "text-muted-foreground" }
   const TypeIcon = typeStyle.icon

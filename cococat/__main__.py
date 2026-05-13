@@ -49,26 +49,41 @@ def _load_agents_from_db(app, args) -> None:
 
     rows = db.execute("SELECT id, name, role, model FROM agents WHERE status = 'running'")
 
-    # Create provider factory and wire agents with real LLMs
     from cococat.providers.credentials import CredentialManager
     from cococat.providers.factory import ProviderFactory
+    from cococat.core.sandbox import SandboxProvider
+    from cococat.core.sub_agent import SubAgentExecutor
+    from cococat.core.tools import create_core_tools
 
     creds = CredentialManager(args.auth)
     factory = ProviderFactory(credential_manager=creds)
+
+    sandbox_provider = SandboxProvider()
+    app.state.sandbox_provider = sandbox_provider
+
+    sub_executor = SubAgentExecutor(
+        bus=app.state.bus,
+        pool=pool,
+        sandbox_provider=sandbox_provider,
+    )
+    app.state.sub_executor = sub_executor
+
+    tools = create_core_tools(
+        sub_agent_executor=sub_executor.dispatch,
+    )
 
     for r in rows:
         role_str = r[2]
         try:
             role = AgentRole(role_str)
         except ValueError:
-            # Map legacy roles
             role_map = {"worker": AgentRole.SUB, "leader": AgentRole.MAIN, "employee": AgentRole.SUB}
             role = role_map.get(role_str)
             if not role:
                 logger.warning("Skipping agent %s with unknown role '%s'", r[1], role_str)
                 continue
 
-        provider = factory.create_sync(r[3])  # r[3] = model
+        provider = factory.create_sync(r[3])
         if not provider:
             logger.warning("No provider for agent %s (model=%s), using stub", r[1], r[3])
 
@@ -83,6 +98,7 @@ def _load_agents_from_db(app, args) -> None:
             name=r[1],
             role=role,
             llm=provider,
+            tools=tools,
             agent_dir=f"agents/{r[0]}",
         )
         pool.add_agent(agent)

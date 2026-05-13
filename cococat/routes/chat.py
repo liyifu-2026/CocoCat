@@ -40,13 +40,37 @@ async def chat(body: ChatRequest, request: Request):
         return {"reply": "Main AI not connected", "msg_uuid": reply_uuid}
 
     try:
+        ws = request.app.state.ws_manager
+
         async def on_text(delta: str):
-            await request.app.state.ws_manager.broadcast("text_delta", {
+            await ws.broadcast("text_delta", {
                 "content": delta,
                 "agent_id": "main",
             })
 
-        reply = await main_ai.run(body.content, on_text=on_text)
+        async def on_reasoning(content: str):
+            await ws.broadcast("stream_reasoning", {
+                "content": content,
+                "agent_id": "main",
+            })
+
+        async def on_tool(name: str, status: str):
+            await ws.broadcast("stream_tool", {
+                "name": name,
+                "status": status,
+                "agent_id": "main",
+            })
+
+        reply = await main_ai.run(
+            body.content,
+            on_text=on_text,
+            on_reasoning=on_reasoning,
+            on_tool=on_tool,
+        )
+
+        # Persist session for next conversation continuity
+        from cococat.core.agent import _save_session_pair
+        _save_session_pair(main_ai._session_path(), body.content, reply)
     except Exception as e:
         reply = f"Error: {e}"
 

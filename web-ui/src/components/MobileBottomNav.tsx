@@ -49,7 +49,7 @@ export function MobileBottomNav({ visible }: MobileBottomNavProps) {
           onClick={() => navigate("/scenes")}
           className="flex flex-col items-center gap-0.5 px-4 py-1 text-[10px] font-medium text-muted-foreground"
         >
-          <div className="size-10 rounded-full bg-primary flex items-center justify-center -mt-3">
+          <div className="size-10 rounded-full bg-primary flex items-center justify-center -mt-3 shadow-sm">
             <Plus className="size-5 text-primary-foreground" />
           </div>
         </button>

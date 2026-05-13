@@ -2,7 +2,11 @@ import { createContext, useContext, useEffect, useRef, type ReactNode } from "re
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-interface LiveUpdatesValue {}
+interface LiveUpdatesValue {
+  onTextDelta: (cb: (text: string) => void) => () => void
+  onReasoning: (cb: (content: string) => void) => () => void
+  onToolEvent: (cb: (name: string, status: string) => void) => () => void
+}
 
 const LiveUpdatesContext = createContext<LiveUpdatesValue | null>(null)
 
@@ -21,6 +25,10 @@ export type StreamState = {
 export const streamState = new Map<string, StreamState>()
 export const streamListeners = new Set<() => void>()
 
+const textDeltaListeners = new Set<(text: string) => void>()
+const reasoningListeners = new Set<(text: string) => void>()
+const toolEventListeners = new Set<(name: string, status: string) => void>()
+
 const toastDedupe = new Map<string, number>()
 
 function dedupedToast(key: string, message: string) {
@@ -34,14 +42,12 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectIndexRef = useRef(0)
-  const reconnectTimerRef = useRef<number | undefined>(undefined)
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const mountedRef = useRef(true)
 
   const connect = () => {
-    const token = localStorage.getItem("cococat_token")
-    if (!token) return // skip if not authenticated
     const protocol = location.protocol === "https:" ? "wss:" : "ws:"
-    const ws = new WebSocket(`${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`)
+    const ws = new WebSocket(`${protocol}//${location.host}/ws`)
     wsRef.current = ws
 
     const qc = queryClient
@@ -55,6 +61,15 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
         const data = JSON.parse(event.data)
         const eventType = data.type || data.event
         switch (eventType) {
+          case "text_delta":
+            textDeltaListeners.forEach(cb => cb(data.data?.content ?? ""))
+            break
+          case "stream_reasoning":
+            reasoningListeners.forEach(cb => cb(data.data?.content ?? ""))
+            break
+          case "stream_tool":
+            toolEventListeners.forEach(cb => cb(data.data?.name ?? "", data.data?.status ?? ""))
+            break
           case "agent.status":
             qc.invalidateQueries({ queryKey: ["agents"] })
             if (data.status === "error") {
@@ -78,26 +93,29 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
             streamListeners.forEach(fn => fn())
             break
           case "stream_progress":
-          case "stream_tool":
           case "stream_reasoning":
-            streamState.set(data.task_uuid, { ...data, updatedAt: Date.now() })
+            streamState.set(data.task_uuid || "main", { ...data, updatedAt: Date.now() })
+            streamListeners.forEach(fn => fn())
+            break
+          case "stream_tool":
+            streamState.set(data.task_uuid || "main", { ...data, updatedAt: Date.now() })
             streamListeners.forEach(fn => fn())
             break
         }
-      } catch (err) {
-        console.warn("LiveUpdates: failed to parse message", err)
+      } catch {
+        // ignore parse errors
       }
+    }
+
+    ws.onerror = () => {
+      ws.close()
     }
 
     ws.onclose = () => {
       if (!mountedRef.current) return
       const delay = RECONNECT_DELAYS[Math.min(reconnectIndexRef.current, RECONNECT_DELAYS.length - 1)]
       reconnectIndexRef.current++
-      reconnectTimerRef.current = window.setTimeout(connect, delay)
-    }
-
-    ws.onerror = () => {
-      ws.close()
+      reconnectTimerRef.current = setTimeout(connect, delay)
     }
   }
 
@@ -115,7 +133,20 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
   }, [queryClient])
 
   return (
-    <LiveUpdatesContext.Provider value={{}}>
+    <LiveUpdatesContext.Provider value={{
+      onTextDelta: (cb: (text: string) => void) => {
+        textDeltaListeners.add(cb)
+        return () => { textDeltaListeners.delete(cb) }
+      },
+      onReasoning: (cb: (content: string) => void) => {
+        reasoningListeners.add(cb)
+        return () => { reasoningListeners.delete(cb) }
+      },
+      onToolEvent: (cb: (name: string, status: string) => void) => {
+        toolEventListeners.add(cb)
+        return () => { toolEventListeners.delete(cb) }
+      },
+    }}>
       {children}
     </LiveUpdatesContext.Provider>
   )

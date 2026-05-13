@@ -1,16 +1,16 @@
 """Sub-agent executor — async fire-and-forget task delegation."""
-
 from __future__ import annotations
 
 import asyncio
 import logging
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from cococat.core.event_bus import EventBus
     from cococat.core.agent_pool import AgentPool
     from cococat.core.agent import Agent
+    from cococat.core.sandbox import SandboxProvider
 
 logger = logging.getLogger("cococat.sub_agent")
 
@@ -18,20 +18,40 @@ logger = logging.getLogger("cococat.sub_agent")
 class SubAgentExecutor:
     """Manages async sub-agent task dispatch and result delivery.
 
+    Two modes:
+    1. AgentPool mode (legacy): finds free sub agents from pool
+    2. SandboxProvider mode (target architecture): create-per-task via SandboxProvider
+
     Fire-and-forget pattern:
     1. Main AI calls dispatch(task, from_agent="main")
-    2. Free sub agent is found and runs agent.run(task)
+    2. Free sub agent is found or sandbox is created → agent runs task
     3. Result published to EventBus as sub_agent_complete event
-    4. Sub agent returns to available pool
+    4. Sub agent returns to pool or sandbox is destroyed
     """
 
-    def __init__(self, bus: EventBus, pool: AgentPool):
+    def __init__(
+        self,
+        bus: EventBus,
+        pool: AgentPool | None = None,
+        sandbox_provider: SandboxProvider | None = None,
+    ):
         self._bus = bus
         self._pool = pool
-        self._busy: set[str] = set()  # agent IDs currently executing a task
+        self._sandbox = sandbox_provider
+        self._busy: set[str] = set()
 
     async def dispatch(self, task: str, from_agent: str = "main") -> str | None:
-        """Dispatch a task to a free sub agent. Returns task_id or None if no free agents."""
+        """Dispatch a task. Uses sandbox_provider if available, otherwise pool."""
+        if self._sandbox:
+            return await self._dispatch_via_sandbox(task, from_agent)
+
+        if self._pool:
+            return await self._dispatch_via_pool(task, from_agent)
+
+        logger.warning("No executor configured for dispatch from %s", from_agent)
+        return None
+
+    async def _dispatch_via_pool(self, task: str, from_agent: str) -> str | None:
         free = [
             a for a in self._pool.get_free_sub_agents()
             if a.id not in self._busy
@@ -63,6 +83,33 @@ class SubAgentExecutor:
                 })
             finally:
                 self._busy.discard(agent.id)
+
+        asyncio.create_task(_run())
+        return task_id
+
+    async def _dispatch_via_sandbox(self, task: str, from_agent: str) -> str | None:
+        task_id = uuid.uuid4().hex[:12]
+
+        async def _run():
+            try:
+                result = await self._sandbox.run_once(
+                    prompt=task,
+                    agent_id=f"sub-{task_id}",
+                )
+                await self._bus.publish("sub_agent_complete", {
+                    "task_id": task_id,
+                    "from_agent": from_agent,
+                    "agent_id": f"sub-{task_id}",
+                    "result": result,
+                })
+            except Exception as e:
+                logger.exception("Sub-agent sandbox task %s failed", task_id)
+                await self._bus.publish("sub_agent_complete", {
+                    "task_id": task_id,
+                    "from_agent": from_agent,
+                    "agent_id": f"sub-{task_id}",
+                    "error": str(e),
+                })
 
         asyncio.create_task(_run())
         return task_id

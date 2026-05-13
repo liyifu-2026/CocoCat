@@ -12,14 +12,14 @@ interface MetricCardProps {
 
 export function MetricCard({ label, value, icon: Icon, loading, delay = 0 }: MetricCardProps) {
   return (
-    <Card className="fade-in" style={{ animationDelay: `${delay}ms` }}>
+    <Card className="stagger-1 border-border/50 hover:shadow-sm transition-all duration-200" style={{ animationDelay: `${delay}ms` }}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-        <Icon className="size-4 text-muted-foreground/60" />
+        <CardTitle className="text-xs font-medium text-muted-foreground">{label}</CardTitle>
+        <Icon className="size-4 text-muted-foreground/40" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold tracking-tight">
-          {loading ? <Skeleton className="h-8 w-16" /> : value}
+        <div className="text-2xl font-display text-foreground">
+          {loading ? <Skeleton className="h-8 w-16 rounded-lg" /> : value}
         </div>
       </CardContent>
     </Card>

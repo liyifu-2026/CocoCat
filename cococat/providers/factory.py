@@ -69,13 +69,6 @@ class ProviderFactory:
 
     def create_sync(self, model: str, **overrides) -> BaseProvider | None:
         """Synchronous version — skips async initialization."""
-        import asyncio
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            return None
-        # Can't run async in running loop synchronously
-        # Fallback: directly create
         spec = (
             self._registry.find_by_name(model)
             or self._registry.find_by_model(model)

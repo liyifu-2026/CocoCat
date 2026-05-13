@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Optional
 
-from cococat.core.sandbox import PathSandbox, wrap_tool_with_sandbox
+from cococat.core.sandbox_path import PathSandbox, wrap_tool_with_sandbox
 from cococat.kb import inject_kb_context
 from cococat.prompt import build_system_prompt, load_memory_from_agent_dir
 from cococat.skills import load_scene_skills
 from cococat.profile import load_agent_system_prompt
+from cococat.core.tools import create_core_tools
 
 
 class AgentState(Enum):
@@ -67,7 +70,7 @@ class Agent:
             pinned_facts=pinned,
         )
         self._default_system_prompt = self._system_prompt
-        self._base_tools = tools or self._default_tools()
+        self._base_tools = tools or create_core_tools()
         self._scene_tools: list[dict] = []
         self._sandbox: Optional[PathSandbox] = None
 
@@ -133,6 +136,7 @@ class Agent:
         context: Optional[dict] = None,
         on_text: Optional[Callable[[str], Any]] = None,
         on_tool: Optional[Callable[[str, str], Any]] = None,
+        on_reasoning: Optional[Callable[[str], Any]] = None,
         max_iterations: int = 20,
     ) -> str:
         """Run the agent on a message using ReAct loop.
@@ -144,31 +148,66 @@ class Agent:
 
         If on_text is provided, it will be called for each streaming text delta.
         If on_tool is provided, it will be called as on_tool(tool_name, status).
+        If on_reasoning is provided, it will be called for reasoning content.
         """
         context = context or {}
+        context.setdefault("agent_id", self.id)
+        context.setdefault("agent_dir", self._agent_dir or f"agents/{self.id}")
+        context.setdefault("bound_scene", self.bound_scene)
+        context.setdefault("role", self.role.value)
         tools = self.get_tools()
         llm = self._llm
 
-        messages: list[dict] = [
-            {"role": "system", "content": self._system_prompt},
-            {"role": "user", "content": message},
-        ]
+        messages: list[dict] = [{"role": "system", "content": self._system_prompt}]
+
+        session_path = self._session_path()
+        history = _load_session(session_path)
+        messages.extend(history)
+
+        messages.append({"role": "user", "content": message})
 
         final_text: list[str] = []
 
         for iteration in range(max_iterations):
-            # Use non-streaming for tool-use loop (simpler)
-            resp = await llm.chat(
-                messages=messages,
-                tools=tools if tools else None,
-                **context,
-            )
+            use_stream = iteration == 0 and hasattr(llm, "chat_stream")
 
-            content = resp.get("content", "") if isinstance(resp, dict) else str(resp)
-            tool_calls = resp.get("tool_calls") if isinstance(resp, dict) else None
+            if use_stream:
+                collected_content = []
+                collected_tool_calls = []
+
+                async for event in llm.chat_stream(
+                    messages=messages,
+                    tools=tools if tools else None,
+                ):
+                    if event["type"] == "delta" and on_text:
+                        r = on_text(event["content"])
+                        if callable(getattr(r, "__await__", None)):
+                            await r
+                    if event["type"] == "reasoning" and on_reasoning:
+                        r = on_reasoning(event["content"])
+                        if callable(getattr(r, "__await__", None)):
+                            await r
+                    if event["type"] == "delta":
+                        collected_content.append(event["content"])
+                    if event["type"] == "tool_call":
+                        collected_tool_calls.append({
+                            "id": event.get("id", ""),
+                            "name": event.get("name", ""),
+                            "arguments": event.get("arguments", ""),
+                        })
+
+                content = "".join(collected_content)
+                tool_calls = collected_tool_calls if collected_tool_calls else None
+            else:
+                resp = await llm.chat(
+                    messages=messages,
+                    tools=tools if tools else None,
+                    **context,
+                )
+                content = resp.get("content", "") if isinstance(resp, dict) else str(resp)
+                tool_calls = resp.get("tool_calls") if isinstance(resp, dict) else None
 
             if tool_calls:
-                # Append assistant message with tool calls
                 assistant_msg: dict = {"role": "assistant", "content": content}
                 assistant_msg["tool_calls"] = [
                     {"id": tc["id"], "type": "function",
@@ -177,17 +216,15 @@ class Agent:
                 ]
                 messages.append(assistant_msg)
 
-                # Execute each tool
                 for tc in tool_calls:
                     if on_tool:
                         await on_tool(tc["name"], "start")
                     try:
                         import json
                         params = json.loads(tc["arguments"]) if isinstance(tc["arguments"], str) else tc["arguments"]
-                        # Execute tool
                         tool = next((t for t in tools if t["name"] == tc["name"]), None)
                         if tool:
-                            result = tool["execute"](params, {})
+                            result = tool["execute"](params, context)
                             if callable(getattr(result, "__await__", None)):
                                 result = await result
                             result_str = str(result)
@@ -204,7 +241,6 @@ class Agent:
                     if on_tool:
                         await on_tool(tc["name"], "done")
             else:
-                # Text response — done
                 if content:
                     final_text.append(content)
                 break
@@ -224,16 +260,64 @@ class Agent:
             {
                 "name": "read_file",
                 "description": "Read a file",
-                "parameters": {"file_path": "string"},
+                "parameters": {
+                    "type": "object",
+                    "properties": {"file_path": {"type": "string", "description": "Path to file"}},
+                    "required": ["file_path"],
+                },
             },
             {
                 "name": "bash",
                 "description": "Execute a shell command",
-                "parameters": {"command": "string"},
+                "parameters": {
+                    "type": "object",
+                    "properties": {"command": {"type": "string", "description": "Shell command"}},
+                    "required": ["command"],
+                },
             },
             {
                 "name": "sub_agent",
                 "description": "Spawn a sub-agent for a task",
-                "parameters": {"task": "string", "agent_id": "string"},
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "task": {"type": "string", "description": "Task description"},
+                        "agent_id": {"type": "string", "description": "Agent ID"},
+                    },
+                    "required": ["task", "agent_id"],
+                },
             },
         ]
+
+    def _session_path(self) -> str:
+        agent_dir = self._agent_dir or f"agents/{self.id}"
+        os.makedirs(agent_dir, exist_ok=True)
+        return os.path.join(agent_dir, "session.jsonl")
+
+
+def _load_session(path: str, max_lines: int = 30) -> list[dict]:
+    if not os.path.exists(path):
+        return []
+    messages = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    msg = json.loads(line)
+                    if msg.get("role") in ("user", "assistant"):
+                        messages.append({"role": msg["role"], "content": msg.get("content", "")})
+                except json.JSONDecodeError:
+                    continue
+    except OSError:
+        return []
+    return messages[-max_lines:]
+
+
+def _save_session_pair(path: str, user_msg: str, assistant_reply: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"role": "user", "content": user_msg}, ensure_ascii=False) + "\n")
+        f.write(json.dumps({"role": "assistant", "content": assistant_reply}, ensure_ascii=False) + "\n")

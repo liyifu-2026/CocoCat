@@ -13,6 +13,23 @@ from cococat.providers.base import BaseProvider
 logger = logging.getLogger("cococat.providers.openai_compat")
 
 
+def _tool_to_openai(tool: dict) -> dict:
+    """Convert CocoCat flat tool format to OpenAI function schema."""
+    params = tool.get("parameters", {})
+    properties = {}
+    for name, ptype in params.items():
+        properties[name] = {"type": ptype, "description": ""}
+    return {
+        "name": tool["name"],
+        "description": tool.get("description", ""),
+        "parameters": {
+            "type": "object",
+            "properties": properties,
+            "required": list(params.keys()),
+        },
+    }
+
+
 class OpenAICompatProvider(BaseProvider):
     """Provider for any OpenAI-compatible API (OpenAI, DeepSeek, Groq, Ollama, etc.)."""
 
@@ -45,7 +62,7 @@ class OpenAICompatProvider(BaseProvider):
         }
         if tools:
             body["tools"] = [
-                {"type": "function", "function": t} for t in tools
+                {"type": "function", "function": _tool_to_openai(t)} for t in tools
             ]
         return body
 
@@ -90,11 +107,12 @@ class OpenAICompatProvider(BaseProvider):
         tools: list[dict] | None = None,
         **kwargs,
     ) -> AsyncIterator[dict]:
-        """Send a streaming chat request. Yields {'type': 'delta'|'done', 'content': ...}."""
+        """Send a streaming chat request. Yields {'type': 'delta'|'tool_call'|'reasoning'|'done', ...}."""
         body = self._build_request(messages, tools, stream=True)
         body["stream_options"] = {"include_usage": True}
 
         accumulated = []
+        tc_buffer: dict[int, dict] = {}  # index → {id, name, arguments}
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             async with client.stream(
@@ -114,11 +132,39 @@ class OpenAICompatProvider(BaseProvider):
                             break
                         try:
                             chunk = json.loads(data_str)
-                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            choice = chunk.get("choices", [{}])[0]
+                            delta = choice.get("delta", {})
                             content = delta.get("content", "")
+                            reasoning = delta.get("reasoning_content", "")
+                            tool_calls = delta.get("tool_calls")
+
                             if content:
                                 accumulated.append(content)
                                 yield {"type": "delta", "content": content}
+                            if reasoning:
+                                yield {"type": "reasoning", "content": reasoning}
+                            if tool_calls:
+                                for tc in tool_calls:
+                                    idx = tc.get("index", 0)
+                                    if idx not in tc_buffer:
+                                        tc_buffer[idx] = {"id": "", "name": "", "arguments": ""}
+                                    entry = tc_buffer[idx]
+                                    if "id" in tc and tc["id"]:
+                                        entry["id"] = tc["id"]
+                                    func = tc.get("function", {})
+                                    if func.get("name"):
+                                        entry["name"] = func["name"]
+                                    if func.get("arguments"):
+                                        entry["arguments"] += func["arguments"]
+                                    # Emit tool_call when we have a complete one
+                                    if entry["name"] and entry["arguments"]:
+                                        try:
+                                            json.loads(entry["arguments"])  # validate
+                                            yield {"type": "tool_call", "id": entry["id"], "name": entry["name"], "arguments": entry["arguments"]}
+                                            # Reset for potential next call
+                                            tc_buffer[idx] = {"id": "", "name": "", "arguments": ""}
+                                        except json.JSONDecodeError:
+                                            pass  # wait for more chunks
                         except json.JSONDecodeError:
                             continue
 

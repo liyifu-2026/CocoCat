@@ -19,11 +19,21 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         from cococat.worker import TaskWorker
+        from cococat.core.cron_worker import CronWorker
+
         worker = TaskWorker(db, pool, poll_interval=10)
         await worker.start()
         app.state.worker = worker
+
+        sub_exec = getattr(app.state, "sub_executor", None)
+        cron_worker = CronWorker(pool, sub_executor=sub_exec)
+        await cron_worker.start()
+        app.state.cron_worker = cron_worker
+
         yield
+
         await worker.stop()
+        await cron_worker.stop()
 
     app = FastAPI(title="CocoCat", version="2.0.0", lifespan=lifespan)
 
@@ -41,6 +51,8 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     from cococat.routes.scene_mgmt import router as scene_mgmt_router
     from cococat.routes.providers import router as providers_router
     from cococat.routes.channels import router as channels_router
+    from cococat.routes.dag import router as dag_router
+    from cococat.routes.settings import router as settings_router
 
     app.include_router(agents_router)
     app.include_router(scenes_router)
@@ -51,6 +63,8 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     app.include_router(scene_mgmt_router)
     app.include_router(providers_router)
     app.include_router(channels_router)
+    app.include_router(dag_router)
+    app.include_router(settings_router)
 
     @app.get("/api/health")
     async def health():

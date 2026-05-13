@@ -1,33 +1,54 @@
-import { createContext, useContext, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
+import en from "@/i18n/en"
+import zh from "@/i18n/zh"
 
-const translations: Record<string, string> = {
-  "component.no_data": "No data",
-  "component.dashboard": "Dashboard",
-  "component.show_sidebar": "Show sidebar",
-  "component.new_scene": "New scene",
-  "component.dark_mode": "Dark mode",
-  "component.light_mode": "Light mode",
-  "component.failed_load": "Failed to load",
-  "component.retry": "Retry",
-  "component.something_wrong": "Something went wrong",
-  "component.unexpected_error": "An unexpected error occurred",
-  "component.try_again": "Try again",
-  "import_create.title": "Import or create",
-}
+type Lang = "en" | "zh"
 
-const LanguageContext = createContext<((key: string) => string) | null>(null)
+const STORAGE_KEY = "cococat-lang"
+
+const translations: Record<Lang, Record<string, string>> = { en, zh }
+
+const LanguageContext = createContext<{
+  t: (key: string) => string
+  lang: Lang
+  setLang: (lang: Lang) => void
+} | null>(null)
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const t = (key: string) => translations[key] ?? key
+  const [lang, setLangState] = useState<Lang>(() => {
+    if (typeof localStorage === "undefined") return "en"
+    return (localStorage.getItem(STORAGE_KEY) as Lang) || "en"
+  })
+
+  useEffect(() => {
+    document.documentElement.lang = lang
+  }, [lang])
+
+  const setLang = useCallback((lang: Lang) => {
+    localStorage.setItem(STORAGE_KEY, lang)
+    setLangState(lang)
+  }, [])
+
+  const t = useCallback(
+    (key: string) => translations[lang]?.[key] ?? key,
+    [lang],
+  )
+
   return (
-    <LanguageContext.Provider value={t}>
+    <LanguageContext.Provider value={{ t, lang, setLang }}>
       {children}
     </LanguageContext.Provider>
   )
 }
 
 export function useT() {
-  const t = useContext(LanguageContext)
-  if (!t) throw new Error("useT must be used within LanguageProvider")
-  return t
+  const ctx = useContext(LanguageContext)
+  if (!ctx) throw new Error("useT must be used within LanguageProvider")
+  return ctx.t
+}
+
+export function useLang() {
+  const ctx = useContext(LanguageContext)
+  if (!ctx) throw new Error("useLang must be used within LanguageProvider")
+  return { lang: ctx.lang, setLang: ctx.setLang }
 }

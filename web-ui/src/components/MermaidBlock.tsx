@@ -37,7 +37,7 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
   }
 
   return (
-    <div className="my-2 flex justify-center bg-muted/30 rounded-md p-2 overflow-x-auto">
+    <div className="my-2 flex justify-center bg-muted/20 rounded-xl p-3 overflow-x-auto">
       <div ref={ref} className="mermaid">
         {code}
       </div>

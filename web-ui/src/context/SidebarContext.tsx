@@ -1,8 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
 
 const DEFAULT_PATHS = [
-  "/dashboard", "/chat", "/agents", "/scenes", "/hiring", "/mailbox",
-  "/usage", "/schedule", "/collaboration", "/knowledge", "/skills", "/settings",
+  "/dashboard", "/chat", "/agents", "/scenes",
 ]
 
 const STORAGE_KEY = "cococat-sidebar-nav-config"

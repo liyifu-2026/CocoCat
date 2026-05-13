@@ -8,6 +8,15 @@ license = {text = "MIT"}
 dependencies = [
     "typer>=0.20.0",
     "rich>=14.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=5.0",
+    "httpx>=0.24.0",
+    "playwright>=1.40.0",
+    "tavily-python>=0.3.0",
+    "e2b>=2.0.0",
+    "e2b-code-interpreter>=2.0.0",
 ]
 
 [project.scripts]

@@ -16,10 +16,10 @@ export function PropertiesPanel() {
       )}
     >
       <div className="flex items-center justify-between border-b border-border px-4 h-12 shrink-0">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Properties</span>
+        <span className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">Properties</span>
         <button
           onClick={closePanel}
-          className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-all duration-200"
         >
           <X className="size-3.5" />
         </button>

@@ -7,6 +7,7 @@ import { AuthProvider } from "@/context/AuthContext"
 import { DialogProvider } from "@/context/DialogContext"
 import { LanguageProvider } from "@/context/LanguageContext"
 import { LiveUpdatesProvider } from "@/context/LiveUpdatesContext"
+import { PanelProvider } from "@/context/PanelContext"
 import { Toaster } from "sonner"
 import App from "./App"
 import "./index.css"
@@ -33,8 +34,10 @@ createRoot(document.getElementById("root")!).render(
             <DialogProvider>
               <LanguageProvider>
               <LiveUpdatesProvider>
-                <App />
-                <Toaster richColors closeButton position="top-right" />
+                <PanelProvider>
+                  <App />
+                  <Toaster richColors closeButton position="top-right" />
+                </PanelProvider>
               </LiveUpdatesProvider>
               </LanguageProvider>
             </DialogProvider>

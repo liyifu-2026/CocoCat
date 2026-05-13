@@ -1,10 +1,12 @@
 """Tests for sub-agent executor."""
 import asyncio
 import pytest
+from unittest.mock import AsyncMock
 from cococat.core.event_bus import EventBus
 from cococat.core.agent import Agent, AgentState, AgentRole
 from cococat.core.agent_pool import AgentPool
 from cococat.core.sub_agent import SubAgentExecutor
+from cococat.core.sandbox import SandboxProvider, LocalExecutor
 
 
 class FakeLLM:
@@ -93,3 +95,54 @@ async def test_multiple_dispatches(executor, pool):
     assert len(results) == 2
     assert t1 in results
     assert t2 in results
+
+
+class TestSubAgentViaSandbox:
+    @pytest.mark.asyncio
+    async def test_dispatch_via_sandbox_provider(self, bus):
+        """SubAgentExecutor with sandbox_provider dispatches through SandboxProvider.run_once."""
+        provider = SandboxProvider(executor=LocalExecutor())
+        executor = SubAgentExecutor(bus, sandbox_provider=provider)
+        results = []
+
+        async def on_complete(data):
+            results.append(data)
+
+        bus.subscribe("sub_agent_complete", on_complete)
+
+        task_id = await executor.dispatch("say hello", from_agent="main")
+        assert task_id is not None
+        assert len(task_id) == 12  # hex task id
+
+        await asyncio.sleep(2.0)
+
+        assert len(results) == 1
+        assert results[0]["task_id"] == task_id
+        assert results[0]["from_agent"] == "main"
+        # Result may be error string (no LLM) but should be present
+        assert "result" in results[0] or "error" in results[0]
+
+    @pytest.mark.asyncio
+    async def test_dispatch_via_sandbox_error_handling(self, bus):
+        """SubAgentExecutor with sandbox provider handles errors gracefully."""
+
+        class FailingProvider:
+            async def run_once(self, **kwargs):
+                raise RuntimeError("sandbox crash")
+
+        executor = SubAgentExecutor(bus, sandbox_provider=FailingProvider())
+        results = []
+
+        async def on_complete(data):
+            results.append(data)
+
+        bus.subscribe("sub_agent_complete", on_complete)
+
+        task_id = await executor.dispatch("boom", from_agent="main")
+        assert task_id is not None
+
+        await asyncio.sleep(0.1)
+
+        assert len(results) == 1
+        assert "error" in results[0]
+        assert "sandbox crash" in results[0]["error"]

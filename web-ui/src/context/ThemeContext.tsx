@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 
 type Theme = "light" | "dark"
 
+const STORAGE_KEY = "cococat-theme"
+
 const ThemeContext = createContext<{
   theme: Theme
   toggleTheme: () => void
@@ -9,13 +11,16 @@ const ThemeContext = createContext<{
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof document === "undefined") return "light"
+    if (typeof localStorage === "undefined") return "light"
+    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null
+    if (stored === "light" || stored === "dark") return stored
     return document.documentElement.classList.contains("dark") ? "dark" : "light"
   })
 
   useEffect(() => {
     const root = document.documentElement
     root.classList.toggle("dark", theme === "dark")
+    localStorage.setItem(STORAGE_KEY, theme)
   }, [theme])
 
   const toggleTheme = () => setTheme(t => (t === "light" ? "dark" : "light"))
