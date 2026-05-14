@@ -1,6 +1,9 @@
 """Agent routes."""
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from cococat.app import get_ctx
+from cococat.context import AppContext
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -18,9 +21,8 @@ class AgentUpdate(BaseModel):
 
 
 @router.get("")
-async def list_agents(request: Request):
-    db = request.app.state.db
-    rows = db.execute(
+async def list_agents(ctx: AppContext = Depends(get_ctx)):
+    rows = ctx.db.execute(
         "SELECT id, name, role, status, scene_id, model, created_at FROM agents"
     )
     return {
@@ -36,9 +38,8 @@ async def list_agents(request: Request):
 
 
 @router.post("")
-async def create_agent(body: AgentCreate, request: Request):
-    db = request.app.state.db
-    db.execute_insert(
+async def create_agent(body: AgentCreate, ctx: AppContext = Depends(get_ctx)):
+    ctx.db.execute_insert(
         "INSERT INTO agents (id, name, role, model, status) VALUES (?, ?, ?, ?, 'stopped')",
         (body.id, body.name, body.role, body.model),
     )
@@ -46,9 +47,8 @@ async def create_agent(body: AgentCreate, request: Request):
 
 
 @router.get("/{agent_id}")
-async def get_agent(agent_id: str, request: Request):
-    db = request.app.state.db
-    rows = db.execute(
+async def get_agent(agent_id: str, ctx: AppContext = Depends(get_ctx)):
+    rows = ctx.db.execute(
         "SELECT id, name, role, status, scene_id, model FROM agents WHERE id = ?",
         (agent_id,),
     )
@@ -62,11 +62,10 @@ async def get_agent(agent_id: str, request: Request):
 
 
 @router.patch("/{agent_id}")
-async def update_agent(agent_id: str, body: AgentUpdate, request: Request):
-    db = request.app.state.db
+async def update_agent(agent_id: str, body: AgentUpdate, ctx: AppContext = Depends(get_ctx)):
     if body.name:
-        db.execute("UPDATE agents SET name = ? WHERE id = ?", (body.name, agent_id))
+        ctx.db.execute("UPDATE agents SET name = ? WHERE id = ?", (body.name, agent_id))
     if body.model:
-        db.execute("UPDATE agents SET model = ? WHERE id = ?", (body.model, agent_id))
-    db.commit()
+        ctx.db.execute("UPDATE agents SET model = ? WHERE id = ?", (body.model, agent_id))
+    ctx.db.commit()
     return {"status": "updated"}

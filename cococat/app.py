@@ -1,10 +1,11 @@
 """CocoCat FastAPI application."""
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from cococat.db import Database
 from cococat.core.event_bus import EventBus
 from cococat.core.agent_pool import AgentPool
 from cococat.routes.ws import WsManager
+from cococat.context import AppContext
 
 
 def create_app(db_path: str = "cococat.db") -> FastAPI:
@@ -16,6 +17,8 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     bus = EventBus()
     pool = AgentPool(bus)
 
+    ctx = AppContext(db=db, bus=bus, pool=pool, ws_manager=WsManager())
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         from cococat.worker import TaskWorker
@@ -23,12 +26,12 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
 
         worker = TaskWorker(db, pool, poll_interval=10)
         await worker.start()
-        app.state.worker = worker
+        app.state.ctx.worker = worker
 
-        sub_exec = getattr(app.state, "sub_executor", None)
+        sub_exec = getattr(app.state.ctx, "sub_executor", None)
         cron_worker = CronWorker(pool, sub_executor=sub_exec)
         await cron_worker.start()
-        app.state.cron_worker = cron_worker
+        app.state.ctx.cron_worker = cron_worker
 
         yield
 
@@ -37,10 +40,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
 
     app = FastAPI(title="CocoCat", version="2.0.0", lifespan=lifespan)
 
-    app.state.db = db
-    app.state.bus = bus
-    app.state.pool = pool
-    app.state.ws_manager = WsManager()
+    app.state.ctx = ctx
 
     from cococat.routes.agents import router as agents_router
     from cococat.routes.scenes import router as scenes_router
@@ -71,6 +71,11 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
         return {"status": "ok"}
 
     return app
+
+
+async def get_ctx(request: Request) -> AppContext:
+    """FastAPI dependency — returns the typed AppContext."""
+    return request.app.state.ctx
 
 
 def _seed_defaults(db: Database) -> None:

@@ -1,9 +1,11 @@
 """Scene routes — reads from filesystem (scene.yaml) + DB fallback."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from cococat.scene.config import load_scene_config, list_scenes as list_fs_scenes
+from cococat.app import get_ctx
+from cococat.context import AppContext
 
 router = APIRouter(prefix="/api/scenes", tags=["scenes"])
 
@@ -21,8 +23,7 @@ class SceneUpdate(BaseModel):
 
 
 @router.get("")
-async def list_scenes(request: Request):
-    # Filesystem first, DB fallback
+async def list_scenes(ctx: AppContext = Depends(get_ctx)):
     fs_scenes = list_fs_scenes()
     if fs_scenes:
         return {
@@ -36,8 +37,7 @@ async def list_scenes(request: Request):
             ]
         }
 
-    db = request.app.state.db
-    rows = db.execute("SELECT id, name, description, created_at FROM scenes")
+    rows = ctx.db.execute("SELECT id, name, description, created_at FROM scenes")
     return {
         "scenes": [
             {"id": r[0], "name": r[1], "description": r[2], "created_at": r[3]}
@@ -47,9 +47,8 @@ async def list_scenes(request: Request):
 
 
 @router.post("")
-async def create_scene(body: SceneCreate, request: Request):
-    db = request.app.state.db
-    db.execute_insert(
+async def create_scene(body: SceneCreate, ctx: AppContext = Depends(get_ctx)):
+    ctx.db.execute_insert(
         "INSERT INTO scenes (id, name) VALUES (?, ?)",
         (body.id, body.name),
     )
@@ -57,8 +56,7 @@ async def create_scene(body: SceneCreate, request: Request):
 
 
 @router.get("/{scene_id}")
-async def get_scene(scene_id: str, request: Request):
-    # Try filesystem first
+async def get_scene(scene_id: str, ctx: AppContext = Depends(get_ctx)):
     config = load_scene_config(scene_id)
     if config:
         return {
@@ -68,9 +66,7 @@ async def get_scene(scene_id: str, request: Request):
             "channels": config.channels,
         }
 
-    # DB fallback
-    db = request.app.state.db
-    rows = db.execute(
+    rows = ctx.db.execute(
         "SELECT id, name, description, roster FROM scenes WHERE id = ?",
         (scene_id,),
     )
@@ -81,8 +77,7 @@ async def get_scene(scene_id: str, request: Request):
 
 
 @router.delete("/{scene_id}")
-async def delete_scene(scene_id: str, request: Request):
-    db = request.app.state.db
-    db.execute("DELETE FROM scenes WHERE id = ?", (scene_id,))
-    db.commit()
+async def delete_scene(scene_id: str, ctx: AppContext = Depends(get_ctx)):
+    ctx.db.execute("DELETE FROM scenes WHERE id = ?", (scene_id,))
+    ctx.db.commit()
     return {"status": "deleted"}

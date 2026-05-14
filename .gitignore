@@ -90,3 +90,4 @@ htmlcov/
 coverage.xml
 *.cover
 web-ui/tsconfig.tsbuildinfo
+agents/main/session.jsonl

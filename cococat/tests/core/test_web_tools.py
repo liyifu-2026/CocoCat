@@ -42,7 +42,7 @@ class TestWebSearch:
             ]
         }
 
-        with patch("cococat.core.tools.TavilyClient", return_value=mock_client):
+        with patch("cococat.core.tools.web.TavilyClient", return_value=mock_client):
             tools = create_core_tools(tavily_api_key="tvly-test-key")
             reg = ToolRegistry(tools)
 
@@ -58,7 +58,7 @@ class TestWebSearch:
         mock_client = MagicMock()
         mock_client.search.side_effect = Exception("API rate limited")
 
-        with patch("cococat.core.tools.TavilyClient", return_value=mock_client):
+        with patch("cococat.core.tools.web.TavilyClient", return_value=mock_client):
             tools = create_core_tools(tavily_api_key="tvly-bad-key")
             reg = ToolRegistry(tools)
 

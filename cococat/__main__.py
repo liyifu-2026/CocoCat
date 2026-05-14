@@ -44,8 +44,9 @@ def main():
 
 def _load_agents_from_db(app, args) -> None:
     """Load agents from DB into the AgentPool."""
-    db = app.state.db
-    pool = app.state.pool
+    ctx = app.state.ctx
+    db = ctx.db
+    pool = ctx.pool
 
     rows = db.execute("SELECT id, name, role, model FROM agents WHERE status = 'running'")
 
@@ -59,14 +60,15 @@ def _load_agents_from_db(app, args) -> None:
     factory = ProviderFactory(credential_manager=creds)
 
     sandbox_provider = SandboxProvider()
-    app.state.sandbox_provider = sandbox_provider
+    ctx.sandbox_provider = sandbox_provider
+    ctx.creds = creds
 
     sub_executor = SubAgentExecutor(
-        bus=app.state.bus,
+        bus=ctx.bus,
         pool=pool,
         sandbox_provider=sandbox_provider,
     )
-    app.state.sub_executor = sub_executor
+    ctx.sub_executor = sub_executor
 
     tools = create_core_tools(
         sub_agent_executor=sub_executor.dispatch,

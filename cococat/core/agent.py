@@ -208,38 +208,8 @@ class Agent:
                 tool_calls = resp.get("tool_calls") if isinstance(resp, dict) else None
 
             if tool_calls:
-                assistant_msg: dict = {"role": "assistant", "content": content}
-                assistant_msg["tool_calls"] = [
-                    {"id": tc["id"], "type": "function",
-                     "function": {"name": tc["name"], "arguments": tc["arguments"]}}
-                    for tc in tool_calls
-                ]
-                messages.append(assistant_msg)
-
-                for tc in tool_calls:
-                    if on_tool:
-                        await on_tool(tc["name"], "start")
-                    try:
-                        import json
-                        params = json.loads(tc["arguments"]) if isinstance(tc["arguments"], str) else tc["arguments"]
-                        tool = next((t for t in tools if t["name"] == tc["name"]), None)
-                        if tool:
-                            result = tool["execute"](params, context)
-                            if callable(getattr(result, "__await__", None)):
-                                result = await result
-                            result_str = str(result)
-                        else:
-                            result_str = f"Unknown tool: {tc['name']}"
-                    except Exception as e:
-                        result_str = f"Tool error: {e}"
-
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tc["id"],
-                        "content": result_str,
-                    })
-                    if on_tool:
-                        await on_tool(tc["name"], "done")
+                messages.append(self._make_assistant_msg(content, tool_calls))
+                await self._execute_tool_calls(tool_calls, messages, tools, context, on_tool)
             else:
                 if content:
                     final_text.append(content)
@@ -248,6 +218,52 @@ class Agent:
             final_text.append("[ReAct loop exceeded max iterations]")
 
         return "".join(final_text)
+
+    @staticmethod
+    def _make_assistant_msg(content: str, tool_calls: list[dict]) -> dict:
+        """Build the assistant message with tool_calls in OpenAI format."""
+        msg: dict = {"role": "assistant", "content": content}
+        msg["tool_calls"] = [
+            {"id": tc["id"], "type": "function",
+             "function": {"name": tc["name"], "arguments": tc["arguments"]}}
+            for tc in tool_calls
+        ]
+        return msg
+
+    @staticmethod
+    async def _execute_tool_calls(
+        tool_calls: list[dict],
+        messages: list[dict],
+        tools: list[dict],
+        context: dict,
+        on_tool: Callable | None = None,
+    ) -> None:
+        """Execute a batch of tool calls and append results to messages."""
+        import json
+
+        for tc in tool_calls:
+            if on_tool:
+                await on_tool(tc["name"], "start")
+            try:
+                params = json.loads(tc["arguments"]) if isinstance(tc["arguments"], str) else tc["arguments"]
+                tool = next((t for t in tools if t["name"] == tc["name"]), None)
+                if tool:
+                    result = tool["execute"](params, context)
+                    if callable(getattr(result, "__await__", None)):
+                        result = await result
+                    result_str = str(result)
+                else:
+                    result_str = f"Unknown tool: {tc['name']}"
+            except Exception as e:
+                result_str = f"Tool error: {e}"
+
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tc["id"],
+                "content": result_str,
+            })
+            if on_tool:
+                await on_tool(tc["name"], "done")
 
     async def init(self):
         """One-time setup. Load tools compile system prompt, etc."""

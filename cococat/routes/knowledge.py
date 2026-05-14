@@ -1,6 +1,8 @@
 """KB upload route — handles file upload and ingest task creation."""
-from fastapi import APIRouter, Request, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File
 from cococat.db import new_uuid
+from cococat.app import get_ctx
+from cococat.context import AppContext
 
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 
@@ -8,7 +10,7 @@ router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 @router.post("/{kb_name}/upload")
 async def upload_file(
     kb_name: str,
-    request: Request,
+    ctx: AppContext = Depends(get_ctx),
     file: UploadFile = File(...),
 ):
     """Upload a file to a knowledge base for ingestion."""
@@ -19,16 +21,13 @@ async def upload_file(
     raw_dir = os.path.join(kb_dir, "raw", "sources")
     os.makedirs(raw_dir, exist_ok=True)
 
-    # Save uploaded file
     content = await file.read()
     file_path = os.path.join(raw_dir, file.filename or "upload.bin")
     with open(file_path, "wb") as f:
         f.write(content)
 
-    # Create ingest task
-    db = request.app.state.db
     task_uuid = new_uuid()
-    db.execute_insert(
+    ctx.db.execute_insert(
         "INSERT INTO tasks (task_uuid, target_agent, source, method, params, status) "
         "VALUES (?, ?, ?, ?, ?, ?)",
         (task_uuid, "main", "kb", "process_kb_source",

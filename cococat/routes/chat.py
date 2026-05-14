@@ -1,8 +1,10 @@
 """Chat routes."""
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from cococat.db import new_uuid
+from cococat.app import get_ctx
+from cococat.context import AppContext
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -14,10 +16,9 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/chat")
-async def chat(body: ChatRequest, request: Request):
-    """Send a message to Main AI."""
-    db = request.app.state.db
-    pool = request.app.state.pool
+async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
+    """Send a message to Main AI via SandboxProvider."""
+    db = ctx.db
 
     msg_uuid = new_uuid()
     db.execute_insert(
@@ -26,21 +27,23 @@ async def chat(body: ChatRequest, request: Request):
         (msg_uuid, "main", body.user_id, "user", body.content, body.scene_id, "web"),
     )
 
-    main_ai = pool.get_agent("main")
-    if not main_ai:
-        # Fallback: return static response if agent pool not populated
+    sandbox_provider = ctx.sandbox_provider
+    if not sandbox_provider:
         reply_uuid = new_uuid()
         db.execute_insert(
             "INSERT INTO messages (msg_uuid, agent_id, user_id, role, content, scene_id) "
             "VALUES (?, ?, ?, ?, ?, ?)",
             (reply_uuid, "main", body.user_id, "assistant",
-             f"[System] Main AI not connected. Received: {body.content[:200]}",
+             f"[System] SandboxProvider not available. Received: {body.content[:200]}",
              body.scene_id),
         )
-        return {"reply": "Main AI not connected", "msg_uuid": reply_uuid}
+        return {"reply": "SandboxProvider not available", "msg_uuid": reply_uuid}
 
     try:
-        ws = request.app.state.ws_manager
+        ws = ctx.ws_manager
+
+        async def on_event(event_type: str, data: dict):
+            await ws.broadcast(event_type, data)
 
         async def on_text(delta: str):
             await ws.broadcast("text_delta", {
@@ -61,16 +64,23 @@ async def chat(body: ChatRequest, request: Request):
                 "agent_id": "main",
             })
 
-        reply = await main_ai.run(
-            body.content,
-            on_text=on_text,
-            on_reasoning=on_reasoning,
-            on_tool=on_tool,
+        from cococat.core.tools import create_main_ai_tools
+
+        sub_executor = ctx.sub_executor
+        main_ai_tools = create_main_ai_tools(
+            sub_agent_executor=sub_executor.dispatch if sub_executor else None,
         )
 
-        # Persist session for next conversation continuity
+        reply = await sandbox_provider.run_once(
+            prompt=body.content,
+            agent_id="main",
+            tools=main_ai_tools,
+            on_event=on_event,
+        )
+
         from cococat.core.agent import _save_session_pair
-        _save_session_pair(main_ai._session_path(), body.content, reply)
+        import os
+        _save_session_pair(os.path.join("agents/main", "session.jsonl"), body.content, reply)
     except Exception as e:
         reply = f"Error: {e}"
 
@@ -84,8 +94,8 @@ async def chat(body: ChatRequest, request: Request):
 
 
 @router.get("/chat/history")
-async def chat_history(request: Request, scene_id: str = "default", limit: int = 50):
-    db = request.app.state.db
+async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "default", limit: int = 50):
+    db = ctx.db
     rows = db.execute(
         "SELECT role, content, created_at FROM messages "
         "WHERE scene_id = ? AND chat_group = 'general' "

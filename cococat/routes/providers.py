@@ -4,8 +4,11 @@ import os
 import logging
 
 import httpx
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from cococat.app import get_ctx
+from cococat.context import AppContext
 
 from cococat.providers.registry import create_builtin_registry
 
@@ -60,10 +63,10 @@ def _load_user_models() -> dict[str, list[str]]:
 
 
 @router.get("/providers")
-async def list_providers(request: Request):
+async def list_providers(ctx: AppContext = Depends(get_ctx)):
     """List configured LLM providers."""
     reg = create_builtin_registry()
-    creds = request.app.state.creds if hasattr(request.app.state, "creds") else None
+    creds = ctx.creds
 
     result = []
     for spec in reg.list_all():

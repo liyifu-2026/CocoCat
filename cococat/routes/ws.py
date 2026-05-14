@@ -36,7 +36,7 @@ class WsManager:
 @router.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     """WebSocket endpoint — receives real-time events from EventBus."""
-    manager = ws.app.state.ws_manager
+    manager: WsManager = ws.app.state.ctx.ws_manager
     await manager.connect(ws)
     await ws.send_text(json.dumps({"type": "connected", "data": {"session_id": "ws"}}))
 

@@ -1,10 +1,32 @@
 """Channel management routes."""
 import json
 import os
-from fastapi import APIRouter, Request
+import sys
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from cococat.app import get_ctx
+from cococat.context import AppContext
+
 router = APIRouter(prefix="/api/channels", tags=["channels"])
+
+
+CHANNEL_FACTORY_PATH = os.environ.get("CHANNEL_FACTORY_PATH", "py-agent")
+
+
+def _get_channel_factory():
+    """Lazily load channel_factory from the configured path."""
+    factory_path = CHANNEL_FACTORY_PATH
+    if factory_path not in sys.path:
+        sys.path.insert(0, factory_path)
+    try:
+        from channels.channel_factory import create_channel
+        return create_channel
+    except ImportError as e:
+        raise RuntimeError(
+            f"Cannot import channel_factory from '{factory_path}'. "
+            f"Set CHANNEL_FACTORY_PATH or ensure py-agent is installed."
+        ) from e
 
 
 class ChannelConnect(BaseModel):
@@ -18,7 +40,7 @@ CHANNEL_STATUS: dict[str, dict] = {}
 
 
 @router.get("")
-async def list_channels(request: Request):
+async def list_channels():
     """List all configured channels."""
     result = []
     scenes_dir = "scenes"
@@ -43,22 +65,17 @@ async def list_channels(request: Request):
 
 
 @router.post("/connect")
-async def connect_channel(body: ChannelConnect, request: Request):
+async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ctx)):
     """Connect/start a channel."""
     key = f"{body.target_type}:{body.target_id}:{body.channel_type}"
 
     try:
-        # Try to create and start the channel via old channel factory
-        import sys
-        sys.path.insert(0, "py-agent")
-        from channels.channel_factory import create_channel
-
+        create_channel = _get_channel_factory()
         ch = create_channel(body.channel_type)
 
-        # Set up message routing
         if body.target_type == "scene":
-            pool = request.app.state.pool
-            bus = request.app.state.bus
+            pool = ctx.pool
+            bus = ctx.bus
 
             async def route(msg, scene_id=body.target_id, ct=body.channel_type):
                 agent = pool.get_scene_agent(scene_id)
@@ -83,7 +100,7 @@ async def connect_channel(body: ChannelConnect, request: Request):
 
 
 @router.post("/disconnect")
-async def disconnect_channel(body: ChannelConnect, request: Request):
+async def disconnect_channel(body: ChannelConnect):
     """Disconnect/stop a channel."""
     key = f"{body.target_type}:{body.target_id}:{body.channel_type}"
     CHANNEL_STATUS.pop(key, None)

@@ -37,7 +37,7 @@ class TestCubeSandboxExecutor:
             create_kwargs.update(kwargs)
             return FakeAsyncSandbox("sbx-abc123")
 
-        with patch("cococat.core.sandbox.AsyncSandbox") as MockAsyncSandbox:
+        with patch("cococat.core.sandbox.cubesandbox.AsyncSandbox") as MockAsyncSandbox:
             MockAsyncSandbox.create = fake_create
 
             from cococat.core.sandbox import CubeSandboxExecutor
@@ -52,7 +52,7 @@ class TestCubeSandboxExecutor:
         """CubeSandboxExecutor calls sandbox.kill() to destroy."""
         sbx = FakeAsyncSandbox("sbx-xyz")
 
-        with patch("cococat.core.sandbox.AsyncSandbox") as MockAsyncSandbox:
+        with patch("cococat.core.sandbox.cubesandbox.AsyncSandbox") as MockAsyncSandbox:
             from cococat.core.sandbox import CubeSandboxExecutor
             executor = CubeSandboxExecutor()
             executor._sandbox_instances = {"sbx-xyz": sbx}
@@ -68,7 +68,7 @@ class TestCubeSandboxExecutor:
         """CubeSandboxExecutor.run() executes the prompt as code in the sandbox."""
         sbx = FakeAsyncSandbox("sbx-run")
 
-        with patch("cococat.core.sandbox.AsyncSandbox") as MockAsyncSandbox:
+        with patch("cococat.core.sandbox.cubesandbox.AsyncSandbox") as MockAsyncSandbox:
             from cococat.core.sandbox import CubeSandboxExecutor
             executor = CubeSandboxExecutor()
             executor._sandbox_instances = {"sbx-run": sbx}
@@ -89,7 +89,7 @@ class TestCubeSandboxExecutor:
         async def fake_create(**kwargs):
             raise RuntimeError("Connection refused")
 
-        with patch("cococat.core.sandbox.AsyncSandbox") as MockAsyncSandbox:
+        with patch("cococat.core.sandbox.cubesandbox.AsyncSandbox") as MockAsyncSandbox:
             MockAsyncSandbox.create = fake_create
 
             from cococat.core.sandbox import CubeSandboxExecutor
@@ -120,7 +120,7 @@ class TestCubeSandboxExecutor:
         async def fake_create(**kwargs):
             return FakeAsyncSandbox("sbx-test")
 
-        with patch("cococat.core.sandbox.AsyncSandbox") as MockAsyncSandbox:
+        with patch("cococat.core.sandbox.cubesandbox.AsyncSandbox") as MockAsyncSandbox:
             MockAsyncSandbox.create = fake_create
 
             from cococat.core.sandbox import CubeSandboxExecutor, SandboxProvider
