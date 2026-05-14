@@ -89,3 +89,4 @@ htmlcov/
 .coverage.*
 coverage.xml
 *.cover
+web-ui/tsconfig.tsbuildinfo
