@@ -1,9 +1,8 @@
 """Personal WeChat channel via ilink bot API (ChatChannel pattern, CowAgent-compatible API format)."""
 import sys, os, json, time, threading, requests, logging, random, base64, uuid as _uuid
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from channel import ChatMessage
+from channel import Channel, ChatMessage
 from channel_context import Context, ContextType, Reply, ReplyType
-from chat_channel import ChatChannel
 from channels.channel_factory import register_channel
 
 logger = logging.getLogger("cococat.weixin")
@@ -90,7 +89,7 @@ class WeixinApi:
         })
 
 
-class WeixinChannel(ChatChannel):
+class WeixinChannel(Channel):
     channel_type = "weixin"
 
     def __init__(self):
@@ -194,7 +193,9 @@ class WeixinChannel(ChatChannel):
         cmsg = ChatMessage(channel_type="weixin", scene_id=self.scene_id, user_id=from_user, content=content)
         context = self._compose_context(ContextType.TEXT, content, msg=cmsg, session_id=from_user, receiver=from_user)
         if context:
-            self.produce(context)
+            reply = self._generate_reply(context)
+            if reply and reply.content:
+                self.send(reply, context)
 
     def send(self, reply: Reply, context: Context):
         if not self.api:

@@ -4,6 +4,8 @@ from __future__ import annotations
 import threading
 import uuid
 
+from channel_context import Context, Reply, ReplyType
+
 
 class ChatMessage:
     """Unified message format across all channels.
@@ -80,6 +82,20 @@ class Channel:
         if self._startup_error:
             return False, self._startup_error
         return True, ""
+
+    def _compose_context(self, ctype, content, **kwargs):
+        """Build a Context with channel metadata injected."""
+        return Context(ctype, content, channel_type=self.channel_type, origin_ctype=ctype, **kwargs)
+
+    def _generate_reply(self, ctx):
+        """Generate a Reply via on_message callback, or echo stub if no callback."""
+        if self.on_message:
+            msg = ctx.get("msg")
+            result = self.on_message(msg) if msg else self.on_message(ctx)
+            if result:
+                return Reply(ReplyType.TEXT, result)
+            return Reply(ReplyType.TEXT, "")
+        return Reply(ReplyType.TEXT, ctx.content)
 
     def send(self, reply, context):
         """Send a Reply object through this channel.

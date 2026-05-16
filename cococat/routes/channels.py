@@ -1,9 +1,7 @@
 """Channel management routes."""
+import asyncio
 import json
-import datetime
 import os
-import sys
-import yaml
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
@@ -13,21 +11,14 @@ from cococat.context import AppContext
 router = APIRouter(prefix="/api/channels", tags=["channels"])
 
 
-CHANNEL_FACTORY_PATH = os.environ.get("CHANNEL_FACTORY_PATH", "py-agent")
-
-
 def _get_channel_factory():
-    """Lazily load channel_factory from the configured path."""
-    factory_path = CHANNEL_FACTORY_PATH
-    if factory_path not in sys.path:
-        sys.path.insert(0, factory_path)
+    """Lazily load channel_factory from channels package."""
     try:
-        from channels.channel_factory import create_channel
+        from cococat.core.channels.factory import create_channel
         return create_channel
     except ImportError as e:
         raise RuntimeError(
-            f"Cannot import channel_factory from '{factory_path}'. "
-            f"Set CHANNEL_FACTORY_PATH or ensure py-agent is installed."
+            "Cannot import channel_factory. Ensure cococat is installed."
         ) from e
 
 
@@ -44,6 +35,16 @@ class MainChannelConfig(BaseModel):
 
 
 CHANNEL_STATUS: dict[str, dict] = {}
+
+
+def _schedule_coro(coro):
+    """Schedule a coroutine from a non-async context onto the running event loop."""
+    try:
+        loop = asyncio.get_running_loop()
+        asyncio.run_coroutine_threadsafe(coro, loop)
+    except RuntimeError:
+        pass
+
 
 # ── Channel type metadata (static) ──
 
@@ -268,17 +269,19 @@ async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ct
             pool = ctx.pool
             bus = ctx.bus
 
-            async def route(msg, scene_id=body.target_id, ct=body.channel_type):
-                agent = pool.get_scene_agent(scene_id)
-                if agent:
-                    reply = await agent.run(msg.content)
-                    await ch.send(reply, msg.user_id)
-                await bus.publish("scene_message", {
-                    "scene_id": scene_id,
-                    "channel": ct,
-                    "user_id": msg.user_id,
-                    "content": msg.content,
-                })
+            def route(msg, scene_id=body.target_id, ct=body.channel_type):
+                async def _handle():
+                    agent = pool.get_scene_agent(scene_id)
+                    if agent:
+                        reply = await agent.run(msg.content)
+                        await ch.send(reply, msg.user_id)
+                    await bus.publish("scene_message", {
+                        "scene_id": scene_id,
+                        "channel": ct,
+                        "user_id": msg.user_id,
+                        "content": msg.content,
+                    })
+                _schedule_coro(_handle())
 
             ch.on_message = route
             ch.start(body.target_id, body.config)
@@ -286,12 +289,14 @@ async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ct
         elif body.target_type == "main":
             bus = ctx.bus
 
-            async def main_route(msg, ct=body.channel_type):
-                await bus.publish("main_message", {
-                    "channel": ct,
-                    "user_id": msg.user_id,
-                    "content": msg.content,
-                })
+            def main_route(msg, ct=body.channel_type):
+                async def _handle():
+                    await bus.publish("main_message", {
+                        "channel": ct,
+                        "user_id": msg.user_id,
+                        "content": msg.content,
+                    })
+                _schedule_coro(_handle())
 
             ch.on_message = main_route
             ch.start(body.target_id, body.config)

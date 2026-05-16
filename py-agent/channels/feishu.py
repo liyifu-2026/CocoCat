@@ -1,9 +1,8 @@
 """Feishu (飞书) channel via WebSocket + REST API (ChatChannel pattern)."""
 import sys, os, json, time, threading, requests, logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from channel import ChatMessage
+from channel import Channel, ChatMessage
 from channel_context import Context, ContextType, Reply, ReplyType
-from chat_channel import ChatChannel
 from channels.channel_factory import register_channel
 
 logger = logging.getLogger("cococat.feishu")
@@ -11,7 +10,7 @@ API_BASE = "https://open.feishu.cn/open-apis"
 WS_URL = "wss://open.feishu.cn/open-apis/ws/bot"
 
 
-class FeishuChannel(ChatChannel):
+class FeishuChannel(Channel):
     channel_type = "feishu"
 
     def __init__(self):
@@ -107,7 +106,9 @@ class FeishuChannel(ChatChannel):
             receiver=user_id, message_id=message_id, chat_id=chat_id,
         )
         if context:
-            self.produce(context)
+            reply = self._generate_reply(context)
+            if reply and reply.content:
+                self.send(reply, context)
 
     def send(self, reply: Reply, context: Context):
         if not self._token:

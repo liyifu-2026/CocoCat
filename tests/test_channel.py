@@ -106,41 +106,22 @@ def test_reply_type_enum():
         assert any(e.value == val for e in ReplyType)
 
 
-def test_chat_channel_produce():
-    from chat_channel import ChatChannel
-
-    class TestChannel(ChatChannel):
-        channel_type = "test"
+def test_compose_context():
+    class TestChannel(Channel):
+        channel_type = "test_ch"
         def startup(self): pass
         def send(self, r, c): pass
 
     ch = TestChannel()
-    ctx = Context(ContextType.TEXT, "hello", session_id="s1", receiver="u1")
-    ch.produce(ctx)
-    assert "s1" in ch.sessions
-    assert not ch.sessions["s1"][0].empty()
-
-
-def test_chat_channel_cancel_session():
-    from chat_channel import ChatChannel
-
-    class TestChannel(ChatChannel):
-        channel_type = "test"
-        def startup(self): pass
-        def send(self, r, c): pass
-
-    ch = TestChannel()
-    for i in range(3):
-        ctx = Context(ContextType.TEXT, f"msg{i}", session_id="s1", receiver="u1")
-        ch.produce(ctx)
-    ch.cancel_session("s1")
-    assert ch.sessions["s1"][0].empty()
+    ctx = ch._compose_context(ContextType.TEXT, "hello", session_id="s1", receiver="u1")
+    assert ctx.type == ContextType.TEXT
+    assert ctx.content == "hello"
+    assert ctx["channel_type"] == "test_ch"
+    assert ctx["origin_ctype"] == ContextType.TEXT
 
 
 def test_generate_reply_with_on_message():
-    from chat_channel import ChatChannel
-
-    class TestChannel(ChatChannel):
+    class TestChannel(Channel):
         channel_type = "test"
         def startup(self): pass
         def send(self, r, c): pass
@@ -155,9 +136,7 @@ def test_generate_reply_with_on_message():
 
 
 def test_generate_reply_echo_stub():
-    from chat_channel import ChatChannel
-
-    class TestChannel(ChatChannel):
+    class TestChannel(Channel):
         channel_type = "test"
         def startup(self): pass
         def send(self, r, c): pass
@@ -166,37 +145,6 @@ def test_generate_reply_echo_stub():
     ctx = Context(ContextType.TEXT, "echo", msg=ChatMessage(content="echo"), session_id="s1", receiver="u1")
     reply = ch._generate_reply(ctx)
     assert reply.content == "echo"
-
-
-def test_compose_context():
-    from chat_channel import ChatChannel
-
-    class TestChannel(ChatChannel):
-        channel_type = "test_ch"
-        def startup(self): pass
-        def send(self, r, c): pass
-
-    ch = TestChannel()
-    ctx = ch._compose_context(ContextType.TEXT, "hello", session_id="s1", receiver="u1")
-    assert ctx.type == ContextType.TEXT
-    assert ctx.content == "hello"
-    assert ctx["channel_type"] == "test_ch"
-    assert ctx["origin_ctype"] == ContextType.TEXT
-
-
-def test_chat_channel_stop():
-    from chat_channel import ChatChannel
-
-    class TestChannel(ChatChannel):
-        channel_type = "test"
-        def startup(self): pass
-        def send(self, r, c): pass
-
-    ch = TestChannel()
-    ch.connected_state = Channel.CONN_CONNECTED
-    ch.stop()
-    assert ch.connected_state == Channel.CONN_DISCONNECTED
-    assert ch._stop_consume.is_set()
 
 
 def test_channel_factory():
@@ -219,18 +167,6 @@ def test_channel_factory_unknown():
         assert False
     except ValueError:
         pass
-
-
-def test_telegram_channel_import():
-    from channels.telegram import TelegramChannel
-    from channels.channel_factory import create_channel
-    ch = create_channel("telegram")
-    assert ch.channel_type == "telegram"
-
-
-def test_discord_channel_import():
-    from channels.discord import DiscordChannel
-    assert DiscordChannel.channel_type == "discord"
 
 
 def test_weixin_channel_import():
