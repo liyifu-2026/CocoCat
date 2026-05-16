@@ -227,16 +227,17 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                 (() => {
                   const raw = qrState.qrcode_url
                   let src: string
-                  if (raw.startsWith("http")) {
+                  // Direct image formats
+                  if (raw.startsWith("data:image/")) {
                     src = raw
-                  } else if (raw.startsWith("data:")) {
+                  } else if (/\.(png|jpg|jpeg|gif|svg|webp)(\?|$)/i.test(raw)) {
                     src = raw
-                  } else if (raw.length < 200) {
-                    // Looks like an ID, generate QR via external API
-                    src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(raw)}`
-                  } else {
+                  } else if (raw.length > 200 && !raw.startsWith("http")) {
                     // Raw base64, prepend data URI
                     src = `data:image/png;base64,${raw}`
+                  } else {
+                    // URL, ID, or short string — generate QR code via external API
+                    src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(raw)}`
                   }
                   return (
                     <>
