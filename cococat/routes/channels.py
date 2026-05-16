@@ -381,9 +381,9 @@ def _connect_scene_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
 
 
 def _connect_main_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
-    """Wire a main-AI channel: on_message → sandbox.run_once → send reply → publish to bus."""
+    """Wire a main-AI channel: on_message → agent.run → send reply → publish to bus."""
+    pool = ctx.pool
     bus = ctx.bus
-    sandbox_provider = ctx.sandbox_provider
     loop = asyncio.get_running_loop()
 
     def on_message(msg, ct=body.channel_type):
@@ -391,10 +391,15 @@ def _connect_main_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
             try:
                 logger.info("Main channel handler: msg from %s/%s: %s", ct, msg.user_id, msg.content[:50])
 
+                agent = pool.get_agent("main")
+                if not agent:
+                    logger.warning("Main agent not available for channel %s", ct)
+                    return
+
                 # Thinking indicator
                 await _send_thinking(ch, msg)
 
-                reply_text = await sandbox_provider.run_once(msg.content, agent_id="main")
+                reply_text = await agent.run(msg.content)
                 reply = Reply(ReplyType.TEXT, reply_text)
                 user_ctx = Context(ContextType.TEXT, msg.content,
                                    user_id=msg.user_id, receiver=msg.user_id)
