@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from cococat.channel_adapter import Channel
+from cococat.core.channels.base import Channel
 
 logger = logging.getLogger("cococat.scene_keeper")
 

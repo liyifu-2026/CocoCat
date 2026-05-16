@@ -8,7 +8,12 @@ from cococat.core.dag_store import DagStore
 from cococat.core.types import ToolContext
 
 
+def _resolve(ctx) -> ToolContext:
+    return ToolContext.from_dict(ctx)
+
+
 def _define_dag(yaml_str: str, ctx: ToolContext) -> str:
+    ctx = _resolve(ctx)
     if not yaml_str:
         return "Error: 'yaml' is required"
     try:
@@ -16,7 +21,7 @@ def _define_dag(yaml_str: str, ctx: ToolContext) -> str:
     except yaml.YAMLError as e:
         return f"Error parsing YAML: {e}"
 
-    store = ctx.get("dag_store")
+    store = ctx.dag.store
     if store is None:
         return "Error: dag_store not configured"
 
@@ -24,8 +29,8 @@ def _define_dag(yaml_str: str, ctx: ToolContext) -> str:
     data["run_id"] = run_id
     data.setdefault("created_by", "main")
     data.setdefault("status", "running")
-    if ctx.get("session_id"):
-        data["session_id"] = ctx["session_id"]
+    if ctx.session_id:
+        data["session_id"] = ctx.session_id
     for stage in data.get("stages", []):
         for task in stage.get("tasks", []):
             task.setdefault("status", "pending")
@@ -46,12 +51,13 @@ def _save_dag(run_id: str, data: dict, store: DagStore) -> None:
 
 
 def _append_stage(run_id: str, stage_yaml: str, ctx: ToolContext) -> str:
+    ctx = _resolve(ctx)
     if not run_id:
         return "Error: 'run_id' is required"
     if not stage_yaml:
         return "Error: 'stage_yaml' is required"
 
-    store = ctx.get("dag_store")
+    store = ctx.dag.store
     if store is None:
         return "Error: dag_store not configured"
 
@@ -74,6 +80,7 @@ def _append_stage(run_id: str, stage_yaml: str, ctx: ToolContext) -> str:
 
 
 def _update_dag(run_id: str, path: str, value: str, ctx: ToolContext) -> str:
+    ctx = _resolve(ctx)
     if not run_id:
         return "Error: 'run_id' is required"
     if not path:
@@ -81,7 +88,7 @@ def _update_dag(run_id: str, path: str, value: str, ctx: ToolContext) -> str:
     if not value:
         return "Error: 'value' is required"
 
-    store = ctx.get("dag_store")
+    store = ctx.dag.store
     if store is None:
         return "Error: dag_store not configured"
 
@@ -117,6 +124,7 @@ def _update_dag(run_id: str, path: str, value: str, ctx: ToolContext) -> str:
 
 
 async def _dispatch_task(run_id: str, task_id: str, prompt: str, ctx: ToolContext) -> str:
+    ctx = _resolve(ctx)
     if not run_id:
         return "Error: 'run_id' is required"
     if not task_id:
@@ -124,11 +132,11 @@ async def _dispatch_task(run_id: str, task_id: str, prompt: str, ctx: ToolContex
     if not prompt:
         return "Error: 'prompt' is required"
 
-    store = ctx.get("dag_store")
+    store = ctx.dag.store
     if store is None:
         return "Error: dag_store not configured"
 
-    executor = ctx.get("sub_agent_executor")
+    executor = ctx.dag.executor
     if not executor:
         return "Error: sub_agent_executor not configured"
 
@@ -221,16 +229,17 @@ def _check_dag_tasks(store: DagStore) -> str:
 
 
 def _check_tasks(ctx: ToolContext) -> str:
-    store = ctx.get("dag_store")
+    ctx = _resolve(ctx)
+    store = ctx.dag.store
     if store is not None:
         return _check_dag_tasks(store)
 
-    # Legacy fallback: tasks.json (no dag_store configured)
-    dag_dir = ctx.get("dag_dir")
+    # Legacy fallback: dag_dir (no dag_store configured)
+    dag_dir = ctx.dag.dag_dir
     if dag_dir and os.path.isdir(dag_dir):
         return _check_dag_tasks_via_fs(dag_dir)
 
-    tasks_path = ctx.get("tasks_path", "runs")
+    tasks_path = ctx.dag.tasks_path
     tasks_file = os.path.join(tasks_path, "tasks.json")
     if not os.path.exists(tasks_file):
         return "No pending tasks"
@@ -287,9 +296,10 @@ def _check_dag_tasks_via_fs(dag_dir: str) -> str:
 
 
 def _stop_task(task_id: str, ctx: ToolContext) -> str:
+    ctx = _resolve(ctx)
     if not task_id:
         return "Error: 'task_id' is required"
-    cancel_dir = ctx.get("cancel_dir", "runs/cancellations")
+    cancel_dir = ctx.dag.cancel_dir
     try:
         os.makedirs(cancel_dir, exist_ok=True)
         marker = os.path.join(cancel_dir, f"{task_id}.cancel")

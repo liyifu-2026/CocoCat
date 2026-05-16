@@ -37,13 +37,13 @@ async def list_scenes(ctx: AppContext = Depends(get_ctx)):
             ]
         }
 
-    rows = ctx.db.list_scenes()
+    rows = ctx.db.scenes.list_all()
     return {"scenes": rows}
 
 
 @router.post("")
 async def create_scene(body: SceneCreate, ctx: AppContext = Depends(get_ctx)):
-    ctx.db.create_scene(body.id, body.name)
+    ctx.db.scenes.create(body.id, body.name)
     return {"status": "created", "id": body.id}
 
 
@@ -58,7 +58,7 @@ async def get_scene(scene_id: str, ctx: AppContext = Depends(get_ctx)):
             "channels": config.channels,
         }
 
-    row = ctx.db.get_scene(scene_id)
+    row = ctx.db.scenes.get(scene_id)
     if not row:
         return {"error": "not found"}, 404
     return row
@@ -66,5 +66,5 @@ async def get_scene(scene_id: str, ctx: AppContext = Depends(get_ctx)):
 
 @router.delete("/{scene_id}")
 async def delete_scene(scene_id: str, ctx: AppContext = Depends(get_ctx)):
-    ctx.db.delete_scene(scene_id)
+    ctx.db.scenes.delete(scene_id)
     return {"status": "deleted"}

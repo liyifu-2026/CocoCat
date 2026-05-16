@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-def _search_kb(params: dict, ctx: dict) -> str:
+def _search_kb(params: dict, ctx: Any) -> str:
     """Search a knowledge base."""
     from cococat.kb.service import get_kb_service
     kb_name = params.get("kb_name", "")
@@ -23,7 +23,7 @@ def _search_kb(params: dict, ctx: dict) -> str:
     return "\n".join(lines)
 
 
-def _read_wiki(params: dict, ctx: dict) -> str:
+def _read_wiki(params: dict, ctx: Any) -> str:
     """Read a wiki page."""
     from cococat.kb.service import get_kb_service
     kb_name = params.get("kb_name", "")
@@ -38,7 +38,7 @@ def _read_wiki(params: dict, ctx: dict) -> str:
     return f"# {page['name']} ({page['type']})\n\n{page['content']}"
 
 
-def _write_wiki(params: dict, ctx: dict) -> str:
+def _write_wiki(params: dict, ctx: Any) -> str:
     """Write a wiki page (kb-agent only)."""
     from cococat.kb.service import get_kb_service
     kb_name = params.get("kb_name", "")
@@ -53,14 +53,14 @@ def _write_wiki(params: dict, ctx: dict) -> str:
     return f"Page '{slug}' written to KB '{kb_name}' ({page_type})."
 
 
-def _run_dedup(params: dict, ctx: dict) -> str:
+def _run_dedup(params: dict, ctx: Any) -> str:
     """Run dedup pipeline (kb-agent only)."""
     import asyncio
     from cococat.kb.service import get_kb_service
     kb_name = params.get("kb_name", "")
     if not kb_name:
         return "Error: kb_name is required"
-    llm = ctx.get("_llm")
+    llm = ctx._llm if hasattr(ctx, "_llm") else None
     if not llm:
         return "Error: LLM not available for dedup"
     service = get_kb_service()
@@ -68,7 +68,7 @@ def _run_dedup(params: dict, ctx: dict) -> str:
     return f"Dedup complete for KB '{kb_name}': {result}"
 
 
-def _run_lint(params: dict, ctx: dict) -> str:
+def _run_lint(params: dict, ctx: Any) -> str:
     """Run health check (kb-agent only)."""
     from cococat.kb.service import get_kb_service
     kb_name = params.get("kb_name", "")
@@ -87,20 +87,20 @@ def _run_lint(params: dict, ctx: dict) -> str:
     return "\n".join(lines)
 
 
-def _gen_overview(params: dict, ctx: dict) -> str:
+def _gen_overview(params: dict, ctx: Any) -> str:
     """Generate overview (kb-agent only)."""
     import asyncio
     from cococat.kb.service import get_kb_service
     kb_name = params.get("kb_name", "")
     if not kb_name:
         return "Error: kb_name is required"
-    llm = ctx.get("_llm")
+    llm = ctx._llm if hasattr(ctx, "_llm") else None
     service = get_kb_service()
     overview = asyncio.run(service.gen_overview(kb_name, llm))
     return f"Overview generated for KB '{kb_name}':\n\n{overview[:2000]}"
 
 
-def _cascade_del(params: dict, ctx: dict) -> str:
+def _cascade_del(params: dict, ctx: Any) -> str:
     """Cascade delete a source file (kb-agent only)."""
     import asyncio
     from cococat.kb.service import get_kb_service
@@ -113,7 +113,7 @@ def _cascade_del(params: dict, ctx: dict) -> str:
     return f"Cascade delete complete for '{source_filename}' in KB '{kb_name}'. Modified {len(modified)} page(s)."
 
 
-def _get_graph(params: dict, ctx: dict) -> str:
+def _get_graph(params: dict, ctx: Any) -> str:
     """Get knowledge graph data (kb-agent only)."""
     import json
     from cococat.kb.service import get_kb_service
@@ -133,20 +133,21 @@ def _get_graph(params: dict, ctx: dict) -> str:
     return "\n".join(lines)
 
 
-def _call_worker(params: dict, ctx: dict) -> str:
+def _call_worker(params: dict, ctx: Any) -> str:
     """Call a worker agent for heavy execution (all resident agents)."""
     import asyncio
     task = params.get("task", "")
     if not task:
         return "Error: task is required"
-    sub_executor = ctx.get("sub_agent_executor")
+    sub_executor = ctx.dag.executor if hasattr(ctx, "dag") else None
     if not sub_executor:
         return "Error: No worker executor available"
-    result = asyncio.run(sub_executor(task, ctx.get("agent_id", "unknown")))
+    agent_id = ctx.agent_id if hasattr(ctx, "agent_id") else "unknown"
+    result = asyncio.run(sub_executor(task, agent_id))
     return str(result) if result else "Worker completed, no output."
 
 
-def _list_kbs(params: dict, ctx: dict) -> str:
+def _list_kbs(params: dict, ctx: Any) -> str:
     """List all available knowledge bases."""
     import os
     kb_dir = "knowledge"

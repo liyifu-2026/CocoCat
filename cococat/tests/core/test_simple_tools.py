@@ -63,6 +63,7 @@ def test_todo_write_to_db():
     """_todo_write should use DB when db is in ctx."""
     from cococat.db.database import Database
     from cococat.core.tools.meta import _todo_write
+    from cococat.core.types import ToolContext
     import tempfile, os
 
     with tempfile.TemporaryDirectory() as d:
@@ -71,12 +72,12 @@ def test_todo_write_to_db():
         db.migrate()
         try:
             todos = [{"id": "1", "content": "Add tests", "status": "pending"}]
-            ctx = {"db": db, "agent_id": "test-agent"}
+            ctx = ToolContext(db=db, agent_id="test-agent")
             result = _todo_write(todos, ctx)
             assert "Saved" in result
             assert "DB" in result
 
-            loaded = db.load_todos("test-agent")
+            loaded = db.todos.load("test-agent")
             assert len(loaded) == 1
             assert loaded[0]["content"] == "Add tests"
         finally:
@@ -85,12 +86,13 @@ def test_todo_write_to_db():
 def test_todo_write_fallback_to_file():
     """_todo_write should fallback to file when no db in ctx."""
     from cococat.core.tools.meta import _todo_write
+    from cococat.core.types import ToolContext
     import tempfile, os, json
 
     with tempfile.TemporaryDirectory() as d:
         path = os.path.join(d, "todos.json")
         todos = [{"id": "1", "content": "Test", "status": "done"}]
-        ctx = {"todos_path": path}
+        ctx = ToolContext(todos_path=path)
         result = _todo_write(todos, ctx)
         assert "Saved" in result
         assert "todos.json" in result

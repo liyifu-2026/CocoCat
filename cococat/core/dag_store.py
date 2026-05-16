@@ -1,7 +1,6 @@
 """DAG persistence — unified store interface replacing dual db/filesystem paths."""
 from __future__ import annotations
 
-import json
 import os
 from abc import ABC, abstractmethod
 
@@ -107,22 +106,19 @@ class FileDagStore(DagStore):
 
 
 class SqliteDagStore(DagStore):
-    """SQLite-backed DAG store using the dag_runs table."""
+    """SQLite-backed DAG store delegating to DagRunStore."""
 
     def __init__(self, db):
-        self._db = db
+        self._store = db.dag_runs
 
     def save(self, run_id: str, data: dict) -> None:
-        self._db.save_dag(run_id, data)
+        self._store.save(run_id, data)
 
     def load(self, run_id: str) -> dict | None:
-        return self._db.load_dag(run_id)
+        return self._store.load(run_id)
 
     def get_pending_task(self) -> dict | None:
-        return self._db.get_pending_dag_task()
+        return self._store.get_pending_task()
 
     def list_all(self) -> list[dict]:
-        rows = self._db.execute(
-            "SELECT id, data FROM dag_runs ORDER BY created_at"
-        )
-        return [json.loads(r[1]) for r in rows]
+        return self._store.list_all()

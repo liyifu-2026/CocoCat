@@ -8,11 +8,15 @@ except ImportError:
     TavilyClient = None
 
 
-def _web_search(query: str, ctx: ToolContext | None = None) -> str:
+def _resolve(ctx) -> ToolContext:
+    return ToolContext.from_dict(ctx)
+
+
+def _web_search(query: str, ctx: ToolContext) -> str:
+    ctx = _resolve(ctx)
     if not query:
         return "Error: 'query' is required"
-    ctx = ctx or {}
-    api_key = ctx.get("tavily_api_key")
+    api_key = ctx.web.tavily_api_key
     if not api_key:
         return ("Web search requires a search API key (e.g. Tavily, SerpAPI). "
                 f"Configure it to enable live search. Query was: {query}")

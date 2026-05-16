@@ -1,0 +1,40 @@
+<h2>设计 Section 7：测试策略</h2>
+<p class="subtitle">最后一部分</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+
+  <div style="border:1px solid #a6e3a1;border-radius:8px;padding:14px;">
+    <div class="label" style="color:#a6e3a1;">单元测试（无 LLM）</div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:6px;">
+      <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">KBService.search</td><td style="padding:4px 6px;">创建临时 KB 目录，写测试页面，验证搜索命中</td></tr>
+      <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">KBService.write_page</td><td style="padding:4px 6px;">写页面后验证 index.md 和 log.md 更新</td></tr>
+      <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">KBService.run_lint</td><td style="padding:4px 6px;">构造孤儿页面 + 断链 + 缺 frontmatter，验证全部检出</td></tr>
+      <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">KBService.cascade_delete</td><td style="padding:4px 6px;">验证删除源文件后关联页面清理 + 交叉引用更新</td></tr>
+      <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">KBService.get_graph</td><td style="padding:4px 6px;">验证图谱节点、边、洞察正确性</td></tr>
+      <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">CronTaskRunner</td><td style="padding:4px 6px;">验证 cron 表达式解析 + is_due 判断</td></tr>
+      <tr><td style="padding:4px 6px;color:#89b4fa;">Agent 工具注册</td><td style="padding:4px 6px;">验证 kb-agent 拿到 9 个工具，Worker 拿到 2 个只读工具</td></tr>
+    </table>
+  </div>
+
+  <div style="border:1px solid #89b4fa;border-radius:8px;padding:14px;">
+    <div class="label" style="color:#89b4fa;">集成测试（Mock LLM）</div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:6px;">
+      <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">端到端 ingest</td><td style="padding:4px 6px;">上传文件 → Worker ingest → 验证 wiki 页面写入 + index 更新（已有测试可扩展）</td></tr>
+      <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">kb-agent 对话</td><td style="padding:4px 6px;">模拟用户问「搜索 XX」→ kb-agent 调用 search_kb → 返回结果</td></tr>
+      <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">Worker 只读权限</td><td style="padding:4px 6px;">Worker 调 search_kb 成功，调 write_wiki 被拒绝</td></tr>
+      <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">Cron lint 流程</td><td style="padding:4px 6px;">CronTaskRunner 触发 → kb-agent 调 run_lint → 返回 lint 报告</td></tr>
+      <tr><td style="padding:4px 6px;color:#89b4fa;">Cron dedup 流程</td><td style="padding:4px 6px;">构造重复页面 → cron 触发 dedup → 验证合并</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<div style="margin-top:16px;background:#1e1e2e;border-radius:8px;padding:14px;color:#cdd6f4;font-family:monospace;font-size:12px;">
+<strong style="color:#a6e3a1;">测试文件位置</strong><br/>
+<table style="width:100%;margin-top:6px;border-collapse:collapse;">
+  <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">tests/cococat/test_kb_service.py</td><td style="padding:4px 6px;">KBService 单元测试（新建）</td></tr>
+  <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">tests/cococat/test_kb_integration.py</td><td style="padding:4px 6px;">扩展已有测试，加 kb-agent 工具测试</td></tr>
+  <tr style="border-bottom:1px solid #45475a;"><td style="padding:4px 6px;color:#89b4fa;">tests/cococat/test_cron_runner.py</td><td style="padding:4px 6px;">CronTaskRunner 测试（新建）</td></tr>
+  <tr><td style="padding:4px 6px;color:#89b4fa;">tests/cococat/test_agent_roles.py</td><td style="padding:4px 6px;">Resident/Worker 角色权限测试（新建）</td></tr>
+</table>
+</div>

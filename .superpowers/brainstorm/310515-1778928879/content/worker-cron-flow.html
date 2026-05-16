@@ -1,0 +1,83 @@
+<h2>设计 Section 6：Worker 调用 & Cron 调度</h2>
+<p class="subtitle">Resident agent 如何调用 Worker 池 + 定时巡检机制</p>
+
+<div style="margin-top:16px;">
+
+<div style="margin-bottom:20px;">
+  <div class="label" style="color:#89b4fa;margin-bottom:8px;">Resident agent 调用 Worker 池</div>
+  <div style="background:#1e1e2e;border-radius:8px;padding:14px;font-family:monospace;font-size:12px;color:#cdd6f4;line-height:1.6;">
+<pre style="margin:0;">
+<span style="color:#6c7086;"># kb-agent 需要执行耗时任务时（如 ingest、大量文件处理），
+# 不自己扛，而是调用 Worker 池</span>
+
+<span style="color:#89b4fa;">call_worker</span>(task: str, context: dict) → WorkerResult
+
+<span style="color:#6c7086;"># 示例：kb-agent 收到上传文件，触发 ingest</span>
+kb-agent → call_worker(
+    task=<span style="color:#a6e3a1;">"ingest source file {filename} into KB {kb_name}"</span>,
+    context={<span style="color:#a6e3a1;">"kb"</span>: kb_name, <span style="color:#a6e3a1;">"file"</span>: path}
+)
+→ Worker Pool 分配空闲 Worker 执行
+→ Worker 调用 IngestPipeline
+→ 返回结果给 kb-agent
+
+<span style="color:#6c7086;"># Coco 也一样用 call_worker</span>
+Coco → call_worker(task=<span style="color:#a6e3a1;">"create React component..."</span>, ...)
+→ Worker Pool 执行
+→ 返回结果
+</pre>
+  </div>
+</div>
+
+<div style="margin-bottom:20px;">
+  <div class="label" style="color:#f9e2af;margin-bottom:8px;">Cron 定时巡检</div>
+  <div style="background:#1e1e2e;border-radius:8px;padding:14px;font-family:monospace;font-size:12px;color:#cdd6f4;line-height:1.6;">
+<pre style="margin:0;">
+<span style="color:#6c7086;"># 内置 CronTaskRunner，与现有 TaskWorker 合并</span>
+
+<span style="color:#cba6f7;">class</span> <span style="color:#89b4fa;">CronTaskRunner</span>:
+    <span style="color:#6c7086;">"""每个 Resident agent 可注册 cron 表达式，Runner 触发时直接调用 agent"""</span>
+
+    <span style="color:#cba6f7;">def</span> <span style="color:#89b4fa;">tick</span>(self):
+        <span style="color:#cba6f7;">for</span> resident <span style="color:#cba6f7;">in</span> self.residents:
+            <span style="color:#cba6f7;">for</span> job <span style="color:#cba6f7;">in</span> resident.cron_jobs:
+                <span style="color:#cba6f7;">if</span> job.is_due():
+                    resident.handle_cron(job)  <span style="color:#6c7086;"># 直接调用，不进 tasks 表</span>
+
+<span style="color:#6c7086;"># kb-agent 的 cron 配置</span>
+cron:
+  - name: lint
+    <span style="color:#cba6f7;">schedule</span>: <span style="color:#a6e3a1;">"@daily"</span>        <span style="color:#6c7086;"># 每天健康检查</span>
+  - name: dedup
+    schedule: <span style="color:#a6e3a1;">"@weekly"</span>       <span style="color:#6c7086;"># 每周去重</span>
+  - name: overview
+    schedule: <span style="color:#a6e3a1;">"@weekly"</span>       <span style="color:#6c7086;"># 每周刷新概览</span>
+</pre>  
+  </div>
+</div>
+
+<div>
+  <div class="label" style="color:#a6e3a1;margin-bottom:8px;">完整数据流</div>
+  <div style="background:#1e1e2e;border-radius:8px;padding:14px;font-family:monospace;font-size:12px;color:#cdd6f4;line-height:1.6;">
+<pre style="margin:0;">
+用户上传文件到 /api/knowledge/{kb}/upload
+  → 保存到 raw/sources/
+  → 推送事件给 kb-agent: {event: "source_uploaded", file: "..."}
+  → kb-agent 评估：是简单文件 → call_worker(ingest)
+                    是复杂材料 → 亲自处理（加载 skill，拆解，注入）
+
+用户在前端和小窗对话
+  → HTTP/WS 直接发给 kb-agent
+  → kb-agent 自行决定：自己回答 / call_worker / 调用 KB 工具
+
+Cron 触发
+  → CronTaskRunner tick → kb-agent.handle_cron("lint")
+  → kb-agent 调用 run_lint 工具 → 有问题则 call_worker 修复
+
+Worker agent 需要查 KB
+  → 调用 search_kb / read_wiki（只读）→ 获取 KB 知识辅助决策
+</pre>
+  </div>
+</div>
+
+</div>

@@ -29,6 +29,7 @@ class FactsExtractor:
             return 0
 
         count = 0
+        fact_store = self._db.facts
         for fname in os.listdir(summaries_dir):
             if not fname.endswith(".json"):
                 continue
@@ -48,14 +49,12 @@ class FactsExtractor:
             new_facts = await self._extract(data["summary"], session_id)
             if new_facts:
                 for fact in new_facts:
-                    self._db.execute_insert(
-                        "INSERT INTO facts (id, agent_id, fact, search_text, tags, session_id) "
-                        "VALUES (?, ?, ?, ?, ?, ?)",
-                        (f"{session_id}-{fact['hash'][:8]}", "main",
-                         fact["text"], fact["text"], fact.get("tags", ""),
-                         session_id),
+                    fact_store.insert(
+                        f"{session_id}-{fact['hash'][:8]}", "main",
+                        fact["text"], fact["text"], fact.get("tags", ""),
+                        session_id,
                     )
-                self._db.execute("INSERT INTO facts_fts(facts_fts) VALUES('rebuild')")
+                fact_store.rebuild_index()
                 count += len(new_facts)
 
             self._snapshots[session_id] = fp

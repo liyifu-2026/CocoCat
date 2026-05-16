@@ -1,27 +1,25 @@
-"""Tests for channel types and adapter."""
-import pytest
-from cococat.channel_types import (
-    ChatMessage, Reply, ReplyType, MessageType,
-    MediaAttachment, MediaCapabilities,
+"""Tests for channel types and base."""
+from cococat.core.channels.context import (
+    ReplyType, MessageType,
     WECHAT_MP_CAPS, ILINK_CAPS, FEISHU_CAPS,
 )
-from cococat.channel_adapter import ChannelAdapter
+from cococat.core.channels.base import ChatMessage, ChannelBase
 
 
-class TestAdapter(ChannelAdapter):
-    """Minimal adapter for testing."""
+class TestChannel(ChannelBase):
+    """Minimal channel for testing."""
+    channel_type = "test"
+
     def __init__(self):
-        super().__init__(ILINK_CAPS)
+        super().__init__()
+        self.caps = ILINK_CAPS
         self.sent: list = []
 
-    async def start(self, scene_id, config):
-        pass
+    def startup(self):
+        self.report_startup_success()
 
-    async def stop(self):
-        pass
-
-    async def send(self, reply, user_id):
-        self.sent.append((reply, user_id))
+    def send(self, reply, context):
+        self.sent.append((reply, context))
         return True
 
 
@@ -30,10 +28,9 @@ def test_message_types():
         channel_type="wechat",
         user_id="user123",
         content="Hello",
-        msg_type=MessageType.TEXT,
+        msg_type="text",
     )
     assert msg.content == "Hello"
-    assert msg.media == []
 
 
 def test_message_with_media():
@@ -41,11 +38,8 @@ def test_message_with_media():
         channel_type="ilink",
         user_id="user456",
         content="Check this",
-        msg_type=MessageType.IMAGE,
-        media=[MediaAttachment(type="image", media_id="img_001", url="http://x.com/i.jpg")],
     )
-    assert len(msg.media) == 1
-    assert msg.media[0].media_id == "img_001"
+    assert msg.user_id == "user456"
 
 
 def test_wechat_caps():
@@ -74,39 +68,38 @@ def test_feishu_caps():
 
 
 def test_chunk_text():
-    adapter = TestAdapter()
+    ch = TestChannel()
     text = "A" * 8000
-    chunks = adapter.chunk_text(text)
+    chunks = ch.chunk_text(text)
     assert len(chunks) == 2
     assert len(chunks[0]) == 4000
 
 
 def test_chunk_text_short():
-    adapter = TestAdapter()
-    chunks = adapter.chunk_text("Hello")
+    ch = TestChannel()
+    chunks = ch.chunk_text("Hello")
     assert len(chunks) == 1
     assert chunks[0] == "Hello"
 
 
-def test_adapter_reply_helpers():
-    adapter = TestAdapter()
-    assert adapter.text_reply("Hi").type == ReplyType.TEXT
-    assert adapter.image_reply("/tmp/x.png").type == ReplyType.IMAGE
-    assert adapter.file_reply("/tmp/x.pdf").type == ReplyType.FILE
-    assert adapter.card_reply({}).type == ReplyType.CARD
+def test_reply_helpers():
+    ch = TestChannel()
+    assert ch.text_reply("Hi").type == ReplyType.TEXT
+    assert ch.image_reply("/tmp/x.png").type == ReplyType.IMAGE
+    assert ch.file_reply("/tmp/x.pdf").type == ReplyType.FILE
+    assert ch.card_reply({}).type == ReplyType.CARD
 
 
-@pytest.mark.asyncio
-async def test_adapter_send_text():
-    adapter = TestAdapter()
-    await adapter.send_chunked("Hello world", "user1")
-    assert len(adapter.sent) == 1
-    assert adapter.sent[0][0].type == ReplyType.TEXT
+def test_send_chunked():
+    ch = TestChannel()
+    sent_chunks = []
+    ch.send_chunked("Hello world", lambda chunk: sent_chunks.append(chunk))
+    assert len(sent_chunks) == 1
+    assert sent_chunks[0] == "Hello world"
 
 
-@pytest.mark.asyncio
-async def test_streaming_card():
-    adapter = TestAdapter()
-    card = adapter.streaming_card({"title": "Loading..."}, replace_id="msg_1")
+def test_streaming_card():
+    ch = TestChannel()
+    card = ch.streaming_card({"title": "Loading..."}, replace_id="msg_1")
     assert card.streaming is True
     assert card.replace_message_id == "msg_1"

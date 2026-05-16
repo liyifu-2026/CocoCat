@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 from typing import Any, Callable, Optional
 
@@ -155,12 +155,12 @@ class Agent:
           data = {tool_call_id, arguments?|result?, elapsed?}.
         If on_reasoning is provided, it will be called for reasoning content.
         """
-        context = context or {}
-        context.setdefault("agent_id", self.id)
-        context.setdefault("agent_dir", self._agent_dir or f"agents/{self.id}")
-        context.setdefault("bound_scene", self.bound_scene)
-        context.setdefault("role", self.role.value)
-        session_id = context.get("session_id")
+        context = ToolContext(**(context if isinstance(context, dict) else {})) if context is not None and not isinstance(context, ToolContext) else (context or ToolContext())
+        context.agent_id = self.id
+        context.agent_dir = self._agent_dir or f"agents/{self.id}"
+        context.bound_scene = self.bound_scene
+        context.role = self.role.value
+        session_id = context.session_id
         tools = self.get_tools()
         llm = self._llm
 
@@ -211,7 +211,7 @@ class Agent:
                 resp = await llm.chat(
                     messages=messages,
                     tools=tools if tools else None,
-                    **context,
+                    **asdict(context),
                 )
                 content = resp.content or ""
                 tool_calls = resp.tool_calls or None

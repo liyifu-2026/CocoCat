@@ -5,7 +5,12 @@ import os
 from cococat.core.types import ToolContext
 
 
+def _resolve(ctx) -> ToolContext:
+    return ToolContext.from_dict(ctx)
+
+
 def _cron(schedule: str, task: str, ctx: ToolContext) -> str:
+    ctx = _resolve(ctx)
     if not schedule:
         return "Error: 'schedule' is required"
     if not task:
@@ -19,19 +24,14 @@ def _cron(schedule: str, task: str, ctx: ToolContext) -> str:
         "created_at": str(__import__("datetime").datetime.now()),
         "status": "active",
     }
-    db = ctx.get("db")
-    if db is not None:
+    if ctx.db is not None:
         try:
-            import json as _json
-            db.execute_insert(
-                "INSERT OR REPLACE INTO dag_runs (id, data, status) VALUES (?, ?, ?)",
-                (f"cron:{entry_id}", _json.dumps(entry, ensure_ascii=False), "active"),
-            )
+            ctx.db.dag_runs.save(f"cron:{entry_id}", entry)
             return f"Scheduled task '{task}' with schedule '{schedule}' (id: {entry_id})"
         except Exception as e:
             return f"Error scheduling task to DB: {e}"
 
-    cron_path = ctx.get("cron_path", "runs/cron")
+    cron_path = ctx.cron_path
     try:
         os.makedirs(cron_path, exist_ok=True)
         fname = f"{entry_id}.json"
@@ -56,31 +56,32 @@ async def _wait(seconds: float) -> str:
 
 
 def _current_status(ctx: ToolContext) -> str:
+    ctx = _resolve(ctx)
     parts = []
-    if ctx.get("agent_id"):
-        parts.append(f"agent_id: {ctx['agent_id']}")
-    if ctx.get("bound_scene"):
-        parts.append(f"bound_scene: {ctx['bound_scene']}")
-    if ctx.get("role"):
-        parts.append(f"role: {ctx['role']}")
+    if ctx.agent_id:
+        parts.append(f"agent_id: {ctx.agent_id}")
+    if ctx.bound_scene:
+        parts.append(f"bound_scene: {ctx.bound_scene}")
+    if ctx.role:
+        parts.append(f"role: {ctx.role}")
     parts.append("tools: 20 core tools loaded")
     return "\n".join(parts)
 
 
 def _todo_write(todos, ctx: ToolContext) -> str:
+    ctx = _resolve(ctx)
     if todos is None:
         return "Error: 'todos' is required"
 
-    db = ctx.get("db")
-    if db is not None:
+    if ctx.db is not None:
         try:
-            agent_id = ctx.get("agent_id", "main")
-            db.save_todos(todos, agent_id=agent_id)
+            agent_id = ctx.agent_id or "main"
+            ctx.db.todos.save(todos, agent_id=agent_id)
             return f"Saved {len(todos)} todo items (DB)"
         except Exception as e:
             return f"Error saving todos to DB: {e}"
 
-    path = ctx.get("todos_path", "todos.json")
+    path = ctx.todos_path
     try:
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:

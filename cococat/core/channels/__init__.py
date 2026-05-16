@@ -1,6 +1,10 @@
 """Channel package — platform channel adapters."""
-from .base import ChannelBase, ChatMessage  # noqa: F401 — re-exports
-from .context import Context, Reply, ReplyType, ContextType  # noqa: F401
+from .base import ChannelBase, Channel, ChatMessage  # noqa: F401
+from .context import (  # noqa: F401
+    Context, Reply, ReplyType, ContextType,
+    MessageType, MediaAttachment, MediaCapabilities, CardData,
+    WECHAT_MP_CAPS, ILINK_CAPS, FEISHU_CAPS, WEB_API_CAPS,
+)
 from .factory import create_channel, register_channel  # noqa: F401
 from .reconnecting import ReconnectingChannel  # noqa: F401
 

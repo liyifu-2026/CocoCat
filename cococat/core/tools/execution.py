@@ -1,4 +1,4 @@
-"""Execution tools — bash, browser, sub_agent."""
+"""Execution tools — bash, browser."""
 import json
 import os
 import subprocess
@@ -6,12 +6,16 @@ import subprocess
 from cococat.core.types import ToolContext
 
 
-async def _bash(command: str, ctx: ToolContext | None = None) -> str:
+def _resolve(ctx) -> ToolContext:
+    return ToolContext.from_dict(ctx)
+
+
+async def _bash(command: str, ctx: ToolContext) -> str:
+    ctx = _resolve(ctx)
     if not command:
         return "Error: 'command' is required"
 
-    ctx = ctx or {}
-    sandbox_run = ctx.get("sandbox_run")
+    sandbox_run = ctx.sandbox.run
 
     if sandbox_run:
         code = (

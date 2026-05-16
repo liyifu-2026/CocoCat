@@ -23,7 +23,7 @@ def _write_lines(path, n):
 def _run(mock_llm, session_path):
     from cococat.core.dream import try_auto_dream
     import asyncio
-    with patch("cococat.core.dream._get_dream_llm", return_value=mock_llm):
+    with patch("cococat.memory.store.MemoryStore._get_llm", return_value=mock_llm):
         asyncio.run(try_auto_dream(None, str(session_path)))
 
 
@@ -119,7 +119,7 @@ class TestDreamFailure:
         _, session, memory = ctx
         _write_lines(session, 60)
         original = session.read_text()
-        with patch("cococat.core.dream._get_dream_llm", return_value=None):
+        with patch("cococat.memory.store.MemoryStore._get_llm", return_value=None):
             import asyncio
             from cococat.core.dream import try_auto_dream
             asyncio.run(try_auto_dream(None, str(session)))
@@ -142,15 +142,15 @@ class TestDreamFailure:
 
 class TestDreamPrompt:
     def test_includes_existing_memory(self):
-        from cococat.core.dream import _build_prompt
-        prompt = _build_prompt("session", "fact1\nfact2\n")
+        from cococat.memory.store import MemoryStore
+        prompt = MemoryStore._dream_prompt("session", "fact1\nfact2\n")
         assert "已有记忆" in prompt
         assert "fact1" in prompt
         assert "不要重复输出" in prompt
 
     def test_no_memory_blocks_when_empty(self):
-        from cococat.core.dream import _build_prompt
-        prompt = _build_prompt("session", "")
+        from cococat.memory.store import MemoryStore
+        prompt = MemoryStore._dream_prompt("session", "")
         assert "已有记忆" not in prompt
         assert "不要重复输出" not in prompt
 

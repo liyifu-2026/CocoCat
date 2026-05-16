@@ -42,6 +42,7 @@ class MainChannelConfig(BaseModel):
 
 
 CHANNEL_STATUS: dict[str, dict] = {}
+CHANNEL_INSTANCES: dict[str, object] = {}
 
 
 def _schedule_coro(coro, loop):
@@ -270,6 +271,15 @@ async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ct
 
     try:
         create_channel = _get_channel_factory()
+
+        # Stop any existing channel with this key
+        old = CHANNEL_INSTANCES.pop(key, None)
+        if old:
+            try:
+                old.stop()
+            except Exception:
+                pass
+
         ch = create_channel(body.channel_type)
 
         if body.target_type == "scene":
@@ -294,6 +304,11 @@ async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ct
                     }
                 else:
                     CHANNEL_STATUS.pop(key, None)
+                    CHANNEL_INSTANCES.pop(key, None)
+                    try:
+                        ch.stop()
+                    except Exception:
+                        pass
             threading.Thread(target=_watch_startup, daemon=True).start()
 
         CHANNEL_STATUS[key] = {
@@ -381,6 +396,12 @@ async def disconnect_channel(body: ChannelConnect):
     """Disconnect/stop a channel."""
     key = f"{body.target_type}:{body.target_id}:{body.channel_type}"
     CHANNEL_STATUS.pop(key, None)
+    ch = CHANNEL_INSTANCES.pop(key, None)
+    if ch:
+        try:
+            ch.stop()
+        except Exception:
+            pass
     return {"status": "disconnected"}
 
 

@@ -84,4 +84,4 @@ async def get_ctx(request: Request) -> AppContext:
 
 def _seed_defaults(db: Database) -> None:
     """Seed default data if tables are empty."""
-    db.seed_main_agent()
+    db.agents.seed_main()
