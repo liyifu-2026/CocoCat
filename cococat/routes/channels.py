@@ -219,18 +219,23 @@ async def list_main_channels():
 
     for ct, info in channels.items():
         key = f"main:main:{ct}"
-            status = CHANNEL_STATUS.get(key, {}).get("status", "stopped")
-            if status == "connected":
-                ch_status = "connected"
-            elif status == "connecting":
-                ch_status = "connecting"
-            elif info.get("enabled"):
-                ch_status = "configured"
-            else:
-                ch_status = "unconfigured"
-            result.append({
-                "channel_type": ct,
-                "display_name": display_name,
+        status = CHANNEL_STATUS.get(key, {}).get("status", "stopped")
+        if status == "connected":
+            ch_status = "connected"
+        elif status == "connecting":
+            ch_status = "connecting"
+        elif info.get("enabled"):
+            ch_status = "configured"
+        else:
+            ch_status = "unconfigured"
+        display_name = ct
+        for t in CHANNEL_TYPES:
+            if t["channel_type"] == ct:
+                display_name = t["display_name"]
+                break
+        result.append({
+            "channel_type": ct,
+            "display_name": display_name,
                 "enabled": info.get("enabled", False),
                 "status": ch_status,
                 "connected_since": CHANNEL_STATUS.get(key, {}).get("connected_since"),
