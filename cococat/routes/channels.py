@@ -211,7 +211,7 @@ async def list_channels():
 async def list_main_channels():
     """List Main AI configured channels with runtime status."""
     cfg = _load_main_config()
-    channels = cfg.get("channels", {})
+    channels = cfg["channels"]
     result = []
 
     for ct, info in channels.items():
@@ -248,7 +248,7 @@ async def save_main_channel_config(body: MainChannelConfig):
         channels[body.channel_type] = {"enabled": False, "config": {}}
 
     channels[body.channel_type]["config"] = body.config
-    channels[body.channel_type]["enabled"] = bool(body.config)
+    channels[body.channel_type]["enabled"] = True
 
     _save_main_config(cfg)
     return {"status": "ok"}
