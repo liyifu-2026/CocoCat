@@ -341,15 +341,28 @@ def _connect_scene_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
 
 
 def _connect_main_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
-    """Wire a main-AI channel: on_message → publish to event bus."""
+    """Wire a main-AI channel: on_message → agent.run → send reply → publish to bus."""
+    pool = ctx.pool
     bus = ctx.bus
 
     def on_message(msg, ct=body.channel_type):
         async def _handle():
+            agent = pool.get_agent("main")
+            if not agent:
+                logger.warning("Main agent not available")
+                return
+
+            reply_text = await agent.run(msg.content)
+            reply = Reply(ReplyType.TEXT, reply_text)
+            user_ctx = Context(ContextType.TEXT, msg.content,
+                               user_id=msg.user_id, receiver=msg.user_id)
+            await ch.send(reply, user_ctx)
+
             await bus.publish("main_message", {
                 "channel": ct,
                 "user_id": msg.user_id,
                 "content": msg.content,
+                "reply": reply_text,
             })
         _schedule_coro(_handle())
 
