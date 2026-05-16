@@ -70,7 +70,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       2: "/api/scenes",
       3: "/api/skills",
       4: "/api/knowledge",
-      5: "/api/channels",
       7: "/api/settings",
     }
     const url = endpoints[tab]
@@ -106,7 +105,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <SettingsContent tab={tab} data={data} onUpdate={() => {
               const endpoints: Record<number, string> = {
                 0: "/api/agents", 2: "/api/scenes", 3: "/api/skills",
-                4: "/api/knowledge", 5: "/api/channels", 7: "/api/settings",
+                4: "/api/knowledge", 7: "/api/settings",
               }
               const url = endpoints[tab]
               if (url) fetch(url).then(r => r.json()).then(setData)
