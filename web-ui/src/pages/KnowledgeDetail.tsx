@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { transformWikilinks } from "@/lib/wikilink-transform"
 import { cn } from "@/lib/utils"
+import KbChatPanel from "@/components/KbChatPanel"
 
 export default function KnowledgeDetailPage() {
   const { kb } = useParams<{ kb: string }>()
@@ -141,6 +142,9 @@ export default function KnowledgeDetailPage() {
           </div>
         )}
       </main>
+      <div className="w-72 shrink-0">
+        <KbChatPanel kbName={kb!} />
+      </div>
     </div>
   )
 }
