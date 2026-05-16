@@ -1,5 +1,6 @@
 """Channel management routes."""
 import json
+import datetime
 import os
 import sys
 import yaml
@@ -282,7 +283,25 @@ async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ct
             ch.on_message = route
             ch.start(body.target_id, body.config)
 
-        CHANNEL_STATUS[key] = {"status": "connected", "channel_type": body.channel_type}
+        elif body.target_type == "main":
+            bus = ctx.bus
+
+            async def main_route(msg, ct=body.channel_type):
+                await bus.publish("main_message", {
+                    "channel": ct,
+                    "user_id": msg.user_id,
+                    "content": msg.content,
+                })
+
+            ch.on_message = main_route
+            ch.start(body.target_id, body.config)
+
+        CHANNEL_STATUS[key] = {
+            "status": "connected",
+            "channel_type": body.channel_type,
+            "connected_since": datetime.datetime.now().isoformat(),
+            "message_count": 0,
+        }
         return {"status": "connected"}
 
     except Exception as e:
