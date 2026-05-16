@@ -38,6 +38,133 @@ class ChannelConnect(BaseModel):
 
 CHANNEL_STATUS: dict[str, dict] = {}
 
+# ── Channel type metadata (static) ──
+
+CHANNEL_TYPES = [
+    {
+        "channel_type": "feishu",
+        "display_name": "飞书",
+        "english_name": "Feishu / Lark",
+        "description": "飞书机器人，支持富文本卡片、流式输出、多线程对话",
+        "capabilities": {
+            "receive": ["text", "image", "voice", "file", "video", "sticker", "link", "post"],
+            "send": ["text", "card", "image", "voice", "file", "video"],
+            "streaming": True,
+            "cards": True,
+            "reactions": True,
+            "threads": True,
+        },
+        "config_fields": [
+            {"key": "app_id", "label": "App ID", "required": True, "type": "text", "placeholder": "cli_a6b..."},
+            {"key": "app_secret", "label": "App Secret", "required": True, "type": "password", "placeholder": ""},
+        ],
+        "notes": None,
+        "icon_type": "hand",
+    },
+    {
+        "channel_type": "wechat",
+        "display_name": "微信公众",
+        "english_name": "WeChat Official",
+        "description": "微信公众号，通过被动回复 XML 消息与用户交互",
+        "capabilities": {
+            "receive": ["text", "image", "voice", "location", "link", "event"],
+            "send": ["text", "image", "voice", "card"],
+            "streaming": False,
+            "cards": True,
+            "reactions": False,
+            "threads": False,
+        },
+        "config_fields": [
+            {"key": "app_id", "label": "App ID", "required": True, "type": "text", "placeholder": "wxXXXXXXXXXXXXXXXX"},
+            {"key": "token", "label": "Token", "required": True, "type": "text", "placeholder": "从微信后台获取"},
+            {"key": "encoding_aes_key", "label": "Encoding AES Key", "required": False, "type": "text", "placeholder": "消息加解密密钥（可选）"},
+        ],
+        "notes": "需要公网 IP 和已备案域名以接收微信回调",
+        "icon_type": "simple",
+    },
+    {
+        "channel_type": "weixin",
+        "display_name": "个人微信",
+        "english_name": "iLink Bot",
+        "description": "个人微信机器人，通过 ilink 接口实现消息收发，扫码登录无需手动填配置",
+        "capabilities": {
+            "receive": ["text", "image", "voice", "file", "video", "sticker"],
+            "send": ["text", "image", "file", "video", "card"],
+            "streaming": False,
+            "cards": True,
+            "reactions": False,
+            "threads": False,
+        },
+        "config_fields": [],
+        "notes": "自动通过二维码扫码登录，无需手动填写凭证",
+        "icon_type": "hand",
+    },
+    {
+        "channel_type": "telegram",
+        "display_name": "Telegram",
+        "english_name": "Telegram Bot",
+        "description": "Telegram Bot，通过 Bot API 收发消息，支持 Markdown 格式",
+        "capabilities": {
+            "receive": ["text", "image", "voice", "file", "video", "sticker"],
+            "send": ["text", "image", "file", "video"],
+            "streaming": False,
+            "cards": False,
+            "reactions": False,
+            "threads": False,
+        },
+        "config_fields": [
+            {"key": "bot_token", "label": "Bot Token", "required": True, "type": "password", "placeholder": "从 @BotFather 获取"},
+        ],
+        "notes": None,
+        "icon_type": "simple",
+    },
+    {
+        "channel_type": "discord",
+        "display_name": "Discord",
+        "english_name": "Discord Bot",
+        "description": "Discord 机器人，支持频道消息收发和 Embed 卡片",
+        "capabilities": {
+            "receive": ["text", "image", "voice", "file", "video"],
+            "send": ["text", "image", "file", "video", "card"],
+            "streaming": False,
+            "cards": True,
+            "reactions": False,
+            "threads": False,
+        },
+        "config_fields": [
+            {"key": "bot_token", "label": "Bot Token", "required": True, "type": "password", "placeholder": "从 Discord Developer Portal 获取"},
+        ],
+        "notes": None,
+        "icon_type": "simple",
+    },
+    {
+        "channel_type": "web_api",
+        "display_name": "Web API",
+        "english_name": "HTTP REST",
+        "description": "通用 HTTP API 渠道，通过 REST 接口收发消息，可用于嵌入第三方应用",
+        "capabilities": {
+            "receive": ["text"],
+            "send": ["text"],
+            "streaming": False,
+            "cards": False,
+            "reactions": False,
+            "threads": False,
+        },
+        "config_fields": [
+            {"key": "endpoint", "label": "Endpoint URL", "required": True, "type": "text", "placeholder": "https://example.com/api/chat"},
+            {"key": "api_key", "label": "API Key", "required": False, "type": "password", "placeholder": "可选认证密钥"},
+        ],
+        "notes": None,
+        "icon_type": "hand",
+    },
+]
+
+
+@router.get("/types")
+async def list_channel_types():
+    """Return metadata for all supported channel types."""
+    return {"types": CHANNEL_TYPES}
+
 
 @router.get("")
 async def list_channels():
