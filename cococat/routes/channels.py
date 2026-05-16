@@ -50,7 +50,7 @@ def _schedule_coro(coro):
         loop = asyncio.get_running_loop()
         asyncio.run_coroutine_threadsafe(coro, loop)
     except RuntimeError:
-        pass
+        logger.warning("Cannot schedule coroutine: no running event loop")
 
 
 # ── Channel type metadata (static) ──
@@ -347,23 +347,26 @@ def _connect_main_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
 
     def on_message(msg, ct=body.channel_type):
         async def _handle():
-            agent = pool.get_agent("main")
-            if not agent:
-                logger.warning("Main agent not available")
-                return
+            try:
+                agent = pool.get_agent("main")
+                if not agent:
+                    logger.warning("Main agent not available for channel %s", ct)
+                    return
 
-            reply_text = await agent.run(msg.content)
-            reply = Reply(ReplyType.TEXT, reply_text)
-            user_ctx = Context(ContextType.TEXT, msg.content,
-                               user_id=msg.user_id, receiver=msg.user_id)
-            await ch.send(reply, user_ctx)
+                reply_text = await agent.run(msg.content)
+                reply = Reply(ReplyType.TEXT, reply_text)
+                user_ctx = Context(ContextType.TEXT, msg.content,
+                                   user_id=msg.user_id, receiver=msg.user_id)
+                await ch.send(reply, user_ctx)
 
-            await bus.publish("main_message", {
-                "channel": ct,
-                "user_id": msg.user_id,
-                "content": msg.content,
-                "reply": reply_text,
-            })
+                await bus.publish("main_message", {
+                    "channel": ct,
+                    "user_id": msg.user_id,
+                    "content": msg.content,
+                    "reply": reply_text,
+                })
+            except Exception as e:
+                logger.exception("Main channel message handler failed for %s", ct)
         _schedule_coro(_handle())
 
     ch.on_message = on_message
