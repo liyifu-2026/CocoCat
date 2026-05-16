@@ -22,7 +22,11 @@ export function ChannelsTab() {
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selectedType, setSelectedType] = useState<ChannelTypeInfo | null>(null)
-  const [selectedMain, setSelectedMain] = useState<MainChannelInfo | undefined>(undefined)
+
+  // Derive current status from latest mainChannels (not stale snapshot)
+  const selectedMain = selectedType
+    ? mainChannels.find(m => m.channel_type === selectedType.channel_type)
+    : undefined
 
   const loadTypes = useCallback(async () => {
     setTypesLoading(true)
@@ -53,16 +57,14 @@ export function ChannelsTab() {
   // Fetch on mount
   useEffect(() => { loadTypes(); loadMain() }, [loadTypes, loadMain])
 
-  const handleCardClick = (typeInfo: ChannelTypeInfo, mainInfo?: MainChannelInfo) => {
+  const handleCardClick = (typeInfo: ChannelTypeInfo, _mainInfo?: MainChannelInfo) => {
     setSelectedType(typeInfo)
-    setSelectedMain(mainInfo)
     setDrawerOpen(true)
   }
 
   const handleClose = () => {
     setDrawerOpen(false)
     setSelectedType(null)
-    setSelectedMain(undefined)
   }
 
   const handleSave = async (channelType: string, config: Record<string, string>) => {
