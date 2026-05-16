@@ -100,8 +100,9 @@ class WeixinChannel(ChannelBase):
         self._context_tokens: dict[str, str] = {}
 
     def startup(self):
-        logger.info("WeixinChannel startup begin, credentials=%s", bool(creds.get("token")))
+        logger.info("WeixinChannel startup begin")
         creds = load_credentials()
+        logger.info("WeixinChannel credentials=%s", bool(creds.get("token")))
         if creds.get("token"):
             self.api = WeixinApi(token=creds["token"])
             with _qr_lock:
