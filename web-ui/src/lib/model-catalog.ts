@@ -68,6 +68,36 @@ export function isProviderSupported(cocoName: string): boolean {
   return MODELPEDIA_IDS.has(mpId)
 }
 
+/** Regex for dated snapshot model IDs like "deepseek-chat-2025-12-01". */
+const DATED_SUFFIX_RE = /-\d{4}-\d{2}-\d{2}$/
+
+/**
+ * Filter out dated snapshot models when a non-dated alias exists.
+ * e.g. if "deepseek-chat" exists, hide "deepseek-chat-2025-12-01".
+ */
+function removeDatedSnapshots(models: Model[]): Model[] {
+  const baseIds = new Set<string>()
+  const datedToBase = new Map<string, string>()
+
+  for (const m of models) {
+    const match = m.id.match(DATED_SUFFIX_RE)
+    if (match) {
+      const base = m.id.slice(0, match.index)
+      datedToBase.set(m.id, base)
+    } else {
+      baseIds.add(m.id)
+    }
+  }
+
+  if (datedToBase.size === 0) return models
+
+  return models.filter((m) => {
+    const base = datedToBase.get(m.id)
+    if (base && baseIds.has(base)) return false
+    return true
+  })
+}
+
 /**
  * Get all non-deprecated models for a CocoCat provider from modelpedia.
  * Sorted: active → preview → undefined status.
@@ -79,13 +109,14 @@ export function getCatalogModels(cocoName: string): Model[] {
   if (!all || all.length === 0) return []
 
   const filtered = all.filter((m) => m.status !== "deprecated")
+  const deduped = removeDatedSnapshots(filtered)
   const order: Record<string, number> = { active: 0, preview: 1 }
-  filtered.sort((a, b) => {
+  deduped.sort((a, b) => {
     const oa = order[a.status || ""] ?? 2
     const ob = order[b.status || ""] ?? 2
     return oa - ob
   })
-  return filtered
+  return deduped
 }
 
 /**
