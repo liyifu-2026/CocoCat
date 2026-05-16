@@ -6,7 +6,7 @@ cron:
 - name: overview
   schedule: '@weekly'
 id: kb-agent
-model: deepseek-chat
+model: deepseek-v4-pro
 name: 知识库管理员
 page: /knowledge
 role: resident

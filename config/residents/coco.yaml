@@ -1,6 +1,6 @@
 cron: []
 id: main
-model: deepseek-chat
+model: deepseek-v4-pro
 name: Coco
 page: /chat
 role: resident
