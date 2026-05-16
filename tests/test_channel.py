@@ -174,3 +174,45 @@ def test_weixin_channel_import():
 def test_feishu_channel_import():
     from cococat.core.channels.feishu import FeishuChannel
     assert FeishuChannel.channel_type == "feishu"
+
+
+def test_telegram_channel_import():
+    from cococat.core.channels.telegram import TelegramChannel
+    assert TelegramChannel.channel_type == "telegram"
+
+
+def test_discord_channel_import():
+    from cococat.core.channels.discord import DiscordChannel
+    assert DiscordChannel.channel_type == "discord"
+
+
+def test_wechat_channel_import():
+    from cococat.core.channels.wechat import WeChatChannel
+    assert WeChatChannel.channel_type == "wechat"
+
+
+def test_factory_all_channels_registered():
+    from cococat.core.channels.factory import create_channel
+    expected = {"weixin", "feishu", "telegram", "discord", "wechat"}
+    for ct in expected:
+        ch = create_channel(ct)
+        assert ch.channel_type == ct
+
+
+def test_weixin_qr_state():
+    from cococat.core.channels.weixin import get_qr_state
+    state = get_qr_state()
+    assert "qrcode_url" in state
+    assert "qrcode_id" in state
+    assert "status" in state
+    assert state["status"] in ("idle", "waiting", "scanned", "confirmed", "expired", "timeout")
+
+
+def test_wechat_passive_reply():
+    from cococat.core.channels.wechat import WeChatChannel
+    ch = WeChatChannel()
+    try:
+        ch.send(None, None)
+        assert False, "Should have raised NotImplementedError"
+    except NotImplementedError:
+        pass
