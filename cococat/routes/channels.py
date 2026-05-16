@@ -37,6 +37,11 @@ class ChannelConnect(BaseModel):
     config: dict = {}
 
 
+class MainChannelConfig(BaseModel):
+    channel_type: str
+    config: dict = {}
+
+
 CHANNEL_STATUS: dict[str, dict] = {}
 
 # ── Channel type metadata (static) ──
@@ -200,6 +205,53 @@ async def list_channels():
                 })
 
     return {"channels": result}
+
+
+@router.get("/main")
+async def list_main_channels():
+    """List Main AI configured channels with runtime status."""
+    cfg = _load_main_config()
+    channels = cfg.get("channels", {})
+    result = []
+
+    for ct, info in channels.items():
+        key = f"main:main:{ct}"
+        status = CHANNEL_STATUS.get(key, {}).get("status", "stopped")
+        display_name = ct
+        for t in CHANNEL_TYPES:
+            if t["channel_type"] == ct:
+                display_name = t["display_name"]
+                break
+        result.append({
+            "channel_type": ct,
+            "display_name": display_name,
+            "enabled": info.get("enabled", False),
+            "status": "connected" if status == "connected" else (
+                "configured" if info.get("config") else "unconfigured"
+            ),
+            "connected_since": CHANNEL_STATUS.get(key, {}).get("connected_since"),
+            "message_count": CHANNEL_STATUS.get(key, {}).get("message_count", 0),
+        })
+
+    return {"channels": result}
+
+
+@router.post("/main/config")
+async def save_main_channel_config(body: MainChannelConfig):
+    """Save or update a channel's configuration in main.yaml."""
+    cfg = _load_main_config()
+    if "channels" not in cfg:
+        cfg["channels"] = {}
+    channels = cfg["channels"]
+
+    if body.channel_type not in channels:
+        channels[body.channel_type] = {"enabled": False, "config": {}}
+
+    channels[body.channel_type]["config"] = body.config
+    channels[body.channel_type]["enabled"] = bool(body.config)
+
+    _save_main_config(cfg)
+    return {"status": "ok"}
 
 
 @router.post("/connect")
