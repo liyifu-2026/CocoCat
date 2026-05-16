@@ -1,8 +1,5 @@
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "py-agent"))
-
-from channel import Channel, ChatMessage
-from channel_context import Context, Reply, ContextType, ReplyType
+from cococat.core.channels.base import ChannelBase, ChatMessage
+from cococat.core.channels.context import Context, Reply, ContextType, ReplyType
 
 
 def test_chat_message_creation():
@@ -25,36 +22,36 @@ def test_chat_message_extra_kwargs():
 
 
 def test_channel_4_state_constants():
-    assert Channel.CONN_DISCONNECTED == "disconnected"
-    assert Channel.CONN_CONNECTING == "connecting"
-    assert Channel.CONN_CONNECTED == "connected"
-    assert Channel.CONN_RECONNECTING == "reconnecting"
+    assert ChannelBase.CONN_DISCONNECTED == "disconnected"
+    assert ChannelBase.CONN_CONNECTING == "connecting"
+    assert ChannelBase.CONN_CONNECTED == "connected"
+    assert ChannelBase.CONN_RECONNECTING == "reconnecting"
 
 
 def test_channel_initial_state():
-    ch = Channel()
-    assert ch.connected_state == Channel.CONN_DISCONNECTED
+    ch = ChannelBase()
+    assert ch.connected_state == ChannelBase.CONN_DISCONNECTED
 
 
 def test_channel_is_running():
-    ch = Channel()
+    ch = ChannelBase()
     assert ch.is_running() == False
-    for state in (Channel.CONN_CONNECTED, Channel.CONN_CONNECTING, Channel.CONN_RECONNECTING):
+    for state in (ChannelBase.CONN_CONNECTED, ChannelBase.CONN_CONNECTING, ChannelBase.CONN_RECONNECTING):
         ch.connected_state = state
         assert ch.is_running() == True
-    ch.connected_state = Channel.CONN_DISCONNECTED
+    ch.connected_state = ChannelBase.CONN_DISCONNECTED
     assert ch.is_running() == False
 
 
 def test_channel_stop():
-    ch = Channel()
-    ch.connected_state = Channel.CONN_CONNECTED
+    ch = ChannelBase()
+    ch.connected_state = ChannelBase.CONN_CONNECTED
     ch.stop()
-    assert ch.connected_state == Channel.CONN_DISCONNECTED
+    assert ch.connected_state == ChannelBase.CONN_DISCONNECTED
 
 
 def test_channel_send_raises():
-    ch = Channel()
+    ch = ChannelBase()
     try:
         ch.send("reply", "user1")
         assert False, "Should have raised NotImplementedError"
@@ -63,7 +60,7 @@ def test_channel_send_raises():
 
 
 def test_wait_startup_timeout():
-    ch = Channel()
+    ch = ChannelBase()
     success, error = ch.wait_startup(timeout=0.01)
     assert success == False
     assert error == "timeout"
@@ -107,7 +104,7 @@ def test_reply_type_enum():
 
 
 def test_compose_context():
-    class TestChannel(Channel):
+    class TestChannel(ChannelBase):
         channel_type = "test_ch"
         def startup(self): pass
         def send(self, r, c): pass
@@ -121,7 +118,7 @@ def test_compose_context():
 
 
 def test_generate_reply_with_on_message():
-    class TestChannel(Channel):
+    class TestChannel(ChannelBase):
         channel_type = "test"
         def startup(self): pass
         def send(self, r, c): pass
@@ -136,7 +133,7 @@ def test_generate_reply_with_on_message():
 
 
 def test_generate_reply_echo_stub():
-    class TestChannel(Channel):
+    class TestChannel(ChannelBase):
         channel_type = "test"
         def startup(self): pass
         def send(self, r, c): pass
@@ -148,9 +145,9 @@ def test_generate_reply_echo_stub():
 
 
 def test_channel_factory():
-    from channels.channel_factory import register_channel, create_channel
+    from cococat.core.channels.factory import register_channel, create_channel
 
-    class FakeChannel(Channel):
+    class FakeChannel(ChannelBase):
         channel_type = "fake"
         def startup(self): pass
         def send(self, r, c): pass
@@ -161,7 +158,7 @@ def test_channel_factory():
 
 
 def test_channel_factory_unknown():
-    from channels.channel_factory import create_channel
+    from cococat.core.channels.factory import create_channel
     try:
         create_channel("nonexistent")
         assert False
@@ -170,10 +167,10 @@ def test_channel_factory_unknown():
 
 
 def test_weixin_channel_import():
-    from channels.weixin import WeixinChannel
+    from cococat.core.channels.weixin import WeixinChannel
     assert WeixinChannel.channel_type == "weixin"
 
 
 def test_feishu_channel_import():
-    from channels.feishu import FeishuChannel
+    from cococat.core.channels.feishu import FeishuChannel
     assert FeishuChannel.channel_type == "feishu"
