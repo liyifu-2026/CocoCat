@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Callable, Awaitable
 
 if TYPE_CHECKING:
     from cococat.db import Database
@@ -12,6 +13,64 @@ if TYPE_CHECKING:
     from cococat.core.dag_store import DagStore
 
 logger = logging.getLogger("cococat.worker")
+
+
+class CronJob:
+    """A single cron job with last-run tracking."""
+
+    def __init__(self, agent_id: str, name: str, schedule: str):
+        self.agent_id = agent_id
+        self.name = name
+        self.schedule = schedule
+        self._last_run: float = 0
+        self._interval = self._parse_schedule(schedule)
+
+    @staticmethod
+    def _parse_schedule(schedule: str) -> float:
+        mapping = {
+            "@hourly": 3600,
+            "@daily": 86400,
+            "@weekly": 604800,
+        }
+        if schedule in mapping:
+            return mapping[schedule]
+        try:
+            return float(schedule)
+        except ValueError:
+            return 86400
+
+    def is_due(self) -> bool:
+        now = time.time()
+        if now - self._last_run >= self._interval:
+            return True
+        return False
+
+    def mark_run(self) -> None:
+        self._last_run = time.time()
+
+
+class CronTaskRunner:
+    """Checks registered cron jobs and fires handlers when due."""
+
+    def __init__(self):
+        self._jobs: list[CronJob] = []
+        self._handler: Callable[[str, str], Awaitable[None]] | None = None
+
+    def register(self, agent_id: str, name: str, schedule: str) -> None:
+        self._jobs.append(CronJob(agent_id, name, schedule))
+
+    def set_handler(self, handler: Callable[[str, str], Awaitable[None]]) -> None:
+        self._handler = handler
+
+    def tick(self) -> list[CronJob]:
+        """Check all jobs, return list of due jobs."""
+        due = [j for j in self._jobs if j.is_due()]
+        for job in due:
+            job.mark_run()
+        return due
+
+    def get_jobs(self) -> list[CronJob]:
+        return list(self._jobs)
 
 
 class TaskWorker:
@@ -61,6 +120,7 @@ class TaskWorker:
             try:
                 await self._process_kb()
                 await self._process_dag()
+                await self._process_cron()
             except Exception:
                 logger.exception("TaskWorker error")
             await asyncio.sleep(self._poll_interval)
@@ -110,7 +170,7 @@ class TaskWorker:
 
     async def _process_kb(self) -> None:
         """Claim and process one pending KB task."""
-        row = self._db.claim_pending_kb_task()
+        row = self._db.tasks.claim_pending_kb()
         if not row:
             return
 
@@ -125,7 +185,7 @@ class TaskWorker:
 
         agent = self._pool.get_agent(target_agent)
         if not agent:
-            self._db.fail_task(task_uuid, f"Agent '{target_agent}' not found")
+            self._db.tasks.fail(task_uuid, f"Agent '{target_agent}' not found")
             return
 
         kb_name = params.get("kb_name", "unknown")
@@ -144,6 +204,21 @@ class TaskWorker:
             else:
                 summary = f"Ingested {filename} -> {len(ingest_result.written_files)} wiki pages"
 
-            self._db.complete_task(task_uuid, summary)
+            self._db.tasks.complete(task_uuid, summary)
         except Exception as e:
-            self._db.fail_task(task_uuid, str(e)[:500])
+            self._db.tasks.fail(task_uuid, str(e)[:500])
+
+    async def _process_cron(self) -> None:
+        """Fire due cron jobs."""
+        cron_runner = getattr(self, '_cron_runner', None)
+        if not cron_runner:
+            return
+        due = cron_runner.tick()
+        handler = getattr(cron_runner, '_handler', None)
+        if not handler:
+            return
+        for job in due:
+            try:
+                await handler(job.agent_id, job.name)
+            except Exception:
+                logger.exception("Cron job %s/%s failed", job.agent_id, job.name)
