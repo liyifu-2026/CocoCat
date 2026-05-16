@@ -113,7 +113,7 @@ async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
 
 @router.post("/kb-chat")
 async def kb_chat(body: KbChatRequest, ctx: AppContext = Depends(get_ctx)):
-    """Send a message to kb-agent."""
+    """Send a message to kb-agent via sandbox (same pattern as Coco)."""
     msg_uuid = new_uuid()
     msg_store = ctx.db.messages
     msg_store.save(
@@ -122,37 +122,37 @@ async def kb_chat(body: KbChatRequest, ctx: AppContext = Depends(get_ctx)):
         scene_id="knowledge", channel_type="web",
     )
 
-    pool = ctx.pool
-    agent = pool.get_resident("kb-agent")
-    if not agent:
+    sandbox_provider = ctx.sandbox_provider
+    if not sandbox_provider:
+        reply = "kb-agent sandbox not available"
         reply_uuid = new_uuid()
-        error_msg = "kb-agent is not available"
-        msg_store.save(
-            msg_uuid=reply_uuid, agent_id="kb-agent", user_id=body.user_id,
-            role="assistant", content=error_msg, scene_id="knowledge",
-        )
-        return {"reply": error_msg, "msg_uuid": reply_uuid}
+        msg_store.save(msg_uuid=reply_uuid, agent_id="kb-agent", user_id=body.user_id,
+                       role="assistant", content=reply, scene_id="knowledge")
+        return {"reply": reply, "msg_uuid": reply_uuid}
+
+    from cococat.core.tools import create_resident_tools
+    sub_executor = ctx.sub_executor
+    kb_tools = create_resident_tools(
+        sub_agent_executor=sub_executor.dispatch if sub_executor else None,
+        dag_store=ctx.dag_store,
+        is_kb_agent=True,
+    )
 
     ws = ctx.ws_manager
-    on_text, on_reasoning, on_tool = _make_stream_callbacks(ws, "kb-agent", body.session_id)
+    async def on_event(event_type: str, data: dict):
+        await ws.broadcast(event_type, {
+            **(data or {}),
+            "agent_id": "kb-agent",
+            "session_id": body.session_id,
+        })
 
     try:
-        # Ensure kb-agent has a real LLM provider (bootstrap may have used stub)
-        if hasattr(agent._llm, "chat") and type(agent._llm).__name__ == "StubLLM":
-            factory = ctx.provider_factory
-            if factory:
-                model = ctx.db.agents.get("kb-agent")
-                model_name = model.get("model", "deepseek-v4-pro") if model else "deepseek-v4-pro"
-                new_llm = await factory.create(model_name)
-                if new_llm:
-                    agent._llm = new_llm
-
-        message = f"[KB: {body.kb_name}] {body.content}"
-        reply = await agent.run(
-            message=message,
-            on_text=on_text,
-            on_reasoning=on_reasoning,
-            on_tool=on_tool,
+        reply = await sandbox_provider.run_once(
+            prompt=f"[KB: {body.kb_name}] {body.content}",
+            agent_id="kb-agent",
+            tools=kb_tools,
+            on_event=on_event,
+            session_id=body.session_id,
         )
     except Exception as e:
         import traceback, logging
