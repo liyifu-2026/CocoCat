@@ -29,20 +29,21 @@ export default function KbChatPanel({ kbName }: { kbName: string }) {
 
     const onMessage = (event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data)
-        if (data.agent_id !== "kb-agent") return
+        const msg = JSON.parse(event.data)
+        const payload = msg.data || msg
+        if (payload.agent_id !== "kb-agent") return
 
-        if (data.type === "text_delta" || data.type === "stream_delta") {
-          ctx.appendToLast(data.content || "")
-        } else if (data.type === "stream_tool" || data.type === "tool_call") {
+        if (msg.type === "text_delta" || msg.type === "stream_delta") {
+          ctx.appendToLast(payload.content || "")
+        } else if (msg.type === "stream_tool" || msg.type === "tool_call") {
           ctx.addToolMessage({
             type: "tool" as const,
-            id: data.tool_call_id || Date.now().toString(),
-            name: data.name || data.tool_name || "tool",
-            status: data.status || "running",
-            arguments: data.arguments,
-            result: data.result,
-            elapsed: data.elapsed,
+            id: payload.tool_call_id || Date.now().toString(),
+            name: payload.name || payload.tool_name || "tool",
+            status: payload.status || "running",
+            arguments: payload.arguments,
+            result: payload.result,
+            elapsed: payload.elapsed,
           })
         }
       } catch {}
@@ -74,15 +75,12 @@ export default function KbChatPanel({ kbName }: { kbName: string }) {
         body: JSON.stringify({ content: text, kb_name: kbName }),
       })
       const data = await res.json()
-      // If streaming didn't fill the message, use the reply
+      // If streaming hasn't filled the message, use REST reply
       if (data.reply) {
-        const last = ctx?.messages[ctx.messages.length - 1]
-        if (last && last.type === "chat" && last.role === "assistant") {
-          if (!last.content) {
-            ctx?.finalizeLast(data.reply)
-          } else if (last.content !== data.reply) {
-            ctx?.appendToLast(data.reply)
-          }
+        const msgs = ctx?.messages
+        const last = msgs?.[msgs.length - 1]
+        if (last && last.type === "chat" && last.role === "assistant" && !last.content) {
+          ctx?.finalizeLast(data.reply)
         }
       }
     } catch {
