@@ -100,6 +100,7 @@ class WeixinChannel(ChannelBase):
         self._context_tokens: dict[str, str] = {}
 
     def startup(self):
+        logger.info("WeixinChannel startup begin, credentials=%s", bool(creds.get("token")))
         creds = load_credentials()
         if creds.get("token"):
             self.api = WeixinApi(token=creds["token"])
@@ -111,6 +112,7 @@ class WeixinChannel(ChannelBase):
                 logger.error("Weixin QR login failed, channel not started")
                 return
         self.report_startup_success()
+        logger.info("Weixin startup OK, starting poll thread")
         self._running = True
         self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._poll_thread.start()
@@ -161,6 +163,7 @@ class WeixinChannel(ChannelBase):
         return False
 
     def _poll_loop(self):
+        logger.info("Weixin poll loop started")
         buf = ""
         while self._running:
             try:
@@ -169,6 +172,7 @@ class WeixinChannel(ChannelBase):
                     time.sleep(5)
                     continue
                 if "msgs" in data:
+                    logger.info("Weixin got %d msgs", len(data["msgs"]))
                     for raw in data["msgs"]:
                         if raw.get("message_type") == 1:
                             self._handle_raw(raw)
@@ -190,6 +194,7 @@ class WeixinChannel(ChannelBase):
         content = _extract_text(raw.get("item_list", []))
         if not from_user or not content:
             return
+        logger.info("Weixin msg from %s: %s", from_user, content[:50])
         cmsg = ChatMessage(channel_type="weixin", scene_id=self.scene_id, user_id=from_user, content=content)
         context = self._compose_context(ContextType.TEXT, content, msg=cmsg, session_id=from_user, receiver=from_user)
         if context:

@@ -348,6 +348,7 @@ def _connect_main_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
     def on_message(msg, ct=body.channel_type):
         async def _handle():
             try:
+                logger.info("Main channel handler: msg from %s/%s: %s", ct, msg.user_id, msg.content[:50])
                 agent = pool.get_agent("main")
                 if not agent:
                     logger.warning("Main agent not available for channel %s", ct)
