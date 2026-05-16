@@ -125,10 +125,8 @@ class OpenAICompatProvider(BaseProvider):
                 json=body,
             )
             if resp.status_code >= 400:
-                err_body = resp.text[:1000]
-                logger.error("DeepSeek 400: status=%s body=%s request_body=%s",
-                           resp.status_code, err_body, json.dumps(body, ensure_ascii=False)[:2000])
-            resp.raise_for_status()
+                err_body = resp.text[:500]
+                raise RuntimeError(f"DeepSeek {resp.status_code}: {err_body}")
             data = resp.json()
 
         choice = data["choices"][0]
