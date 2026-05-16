@@ -159,13 +159,6 @@ CHANNEL_TYPES = [
     },
 ]
 
-
-@router.get("/types")
-async def list_channel_types():
-    """Return metadata for all supported channel types."""
-    return {"types": CHANNEL_TYPES}
-
-
 @router.get("")
 async def list_channels():
     """List all configured channels."""
@@ -232,3 +225,9 @@ async def disconnect_channel(body: ChannelConnect):
     key = f"{body.target_type}:{body.target_id}:{body.channel_type}"
     CHANNEL_STATUS.pop(key, None)
     return {"status": "disconnected"}
+
+
+@router.get("/types")
+async def list_channel_types():
+    """Return metadata for all supported channel types."""
+    return {"types": CHANNEL_TYPES}
