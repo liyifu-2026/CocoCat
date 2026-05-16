@@ -44,13 +44,12 @@ class MainChannelConfig(BaseModel):
 CHANNEL_STATUS: dict[str, dict] = {}
 
 
-def _schedule_coro(coro):
-    """Schedule a coroutine from a non-async context onto the running event loop."""
+def _schedule_coro(coro, loop):
+    """Schedule a coroutine from a non-async context onto the given event loop."""
     try:
-        loop = asyncio.get_running_loop()
         asyncio.run_coroutine_threadsafe(coro, loop)
-    except RuntimeError:
-        logger.warning("Cannot schedule coroutine: no running event loop")
+    except Exception:
+        logger.warning("Cannot schedule coroutine")
 
 
 # ── Channel type metadata (static) ──
@@ -314,6 +313,7 @@ def _connect_scene_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
     """Wire a scene-bound channel: on_message → agent.run → send reply."""
     pool = ctx.pool
     bus = ctx.bus
+    loop = asyncio.get_running_loop()
 
     def on_message(msg, scene_id=body.target_id, ct=body.channel_type):
         async def _handle():
@@ -334,7 +334,8 @@ def _connect_scene_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
                 "user_id": msg.user_id,
                 "content": msg.content,
             })
-        _schedule_coro(_handle())
+        _schedule_coro(_handle(), loop)
+        _schedule_coro(_handle(), loop)
 
     ch.on_message = on_message
     ch.start(body.target_id, body.config)
@@ -344,6 +345,7 @@ def _connect_main_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
     """Wire a main-AI channel: on_message → agent.run → send reply → publish to bus."""
     pool = ctx.pool
     bus = ctx.bus
+    loop = asyncio.get_running_loop()
 
     def on_message(msg, ct=body.channel_type):
         async def _handle():
@@ -368,7 +370,7 @@ def _connect_main_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
                 })
             except Exception as e:
                 logger.exception("Main channel message handler failed for %s", ct)
-        _schedule_coro(_handle())
+        _schedule_coro(_handle(), loop)
 
     ch.on_message = on_message
     ch.start(body.target_id, body.config)
