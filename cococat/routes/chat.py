@@ -160,6 +160,9 @@ async def kb_chat(body: KbChatRequest, ctx: AppContext = Depends(get_ctx)):
             on_tool=on_tool,
         )
     except Exception as e:
+        import traceback, logging
+        logger = logging.getLogger("cococat.routes.chat")
+        logger.error("kb-chat error: %s\n%s", e, traceback.format_exc())
         reply = f"Error: {e}"
 
     reply_uuid = new_uuid()

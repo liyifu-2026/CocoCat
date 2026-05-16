@@ -20,6 +20,7 @@ from cococat.core.tools.kb_tools import (
     _search_kb, _read_wiki, _write_wiki, _run_dedup,
     _run_lint, _gen_overview, _cascade_del, _get_graph, _call_worker, _list_kbs,
 )
+from cococat.core.types import ToolContext, DagEnv, SandboxEnv, WebEnv
 
 
 @dataclass
@@ -79,7 +80,7 @@ def _make_file_tools() -> list[dict]:
 def _make_execution_tools(sandbox_run=None) -> list[dict]:
     return [
         _make("bash", "Execute shell command", {"command": "string"},
-              lambda p, ctx: _bash(p.get("command", ""), {**(ctx or {}), "sandbox_run": sandbox_run}),
+              lambda p, ctx: _bash(p.get("command", ""), _merge_ctx(ctx, sandbox=SandboxEnv(run=sandbox_run))),
               requires_sandbox=True, sandbox_operation="exec"),
         _make("browser", "Browser control — navigate, get_text, get_content, screenshot, click, type, scroll, execute_js, go_back",
               {"action": "string"},
@@ -91,7 +92,7 @@ def _make_execution_tools(sandbox_run=None) -> list[dict]:
 def _make_web_tools(tavily_api_key: str | None = None) -> list[dict]:
     return [
         _make("web_search", "Search the web", {"query": "string"},
-              lambda p, ctx: _web_search(p.get("query", ""), {**(ctx or {}), "tavily_api_key": tavily_api_key})),
+              lambda p, ctx: _web_search(p.get("query", ""), _merge_ctx(ctx, web=WebEnv(tavily_api_key=tavily_api_key)))),
         _make("web_fetch", "Fetch URL content", {"url": "string"},
               lambda p, ctx: _web_fetch(p.get("url", ""))),
     ]
@@ -100,45 +101,44 @@ def _make_web_tools(tavily_api_key: str | None = None) -> list[dict]:
 def _make_dag_tools(dag_store=None, sub_agent_executor=None) -> list[dict]:
     return [
         _make("define_dag", "Define a DAG task graph", {"yaml": "string"},
-              lambda p, ctx: _define_dag(p.get("yaml", ""), {**(ctx or {}), "dag_store": dag_store})),
+              lambda p, ctx: _define_dag(p.get("yaml", ""), _merge_ctx(ctx, dag=DagEnv(store=dag_store)))),
         _make("append_stage", "Append a stage to an existing DAG run", {"run_id": "string", "stage_yaml": "string"},
-              lambda p, ctx: _append_stage(p.get("run_id", ""), p.get("stage_yaml", ""), {**(ctx or {}), "dag_store": dag_store})),
+              lambda p, ctx: _append_stage(p.get("run_id", ""), p.get("stage_yaml", ""), _merge_ctx(ctx, dag=DagEnv(store=dag_store)))),
         _make("update_dag", "Update a node in dag.yaml by dot-path", {"run_id": "string", "path": "string", "value": "string"},
-              lambda p, ctx: _update_dag(p.get("run_id", ""), p.get("path", ""), p.get("value", ""), {**(ctx or {}), "dag_store": dag_store})),
+              lambda p, ctx: _update_dag(p.get("run_id", ""), p.get("path", ""), p.get("value", ""), _merge_ctx(ctx, dag=DagEnv(store=dag_store)))),
         _make("dispatch_task", "Dispatch a task in a DAG run", {"run_id": "string", "task_id": "string", "prompt": "string"},
-              lambda p, ctx: _dispatch_task(p.get("run_id", ""), p.get("task_id", ""), p.get("prompt", ""), {
-                  **(ctx or {}), "dag_store": dag_store, "sub_agent_executor": sub_agent_executor,
-              })),
+              lambda p, ctx: _dispatch_task(p.get("run_id", ""), p.get("task_id", ""), p.get("prompt", ""),
+                  _merge_ctx(ctx, dag=DagEnv(store=dag_store, executor=sub_agent_executor)))),
         _make("check_tasks", "Check pending task status", {},
-              lambda p, ctx: _check_tasks({**(ctx or {}), "dag_store": dag_store})),
+              lambda p, ctx: _check_tasks(_merge_ctx(ctx, dag=DagEnv(store=dag_store)))),
         _make("stop_task", "Cancel a running task", {"task_id": "string"},
-              lambda p, ctx: _stop_task(p.get("task_id", ""), ctx or {})),
+              lambda p, ctx: _stop_task(p.get("task_id", ""), _ensure_tool_context(ctx))),
     ]
 
 
 def _make_memory_tools() -> list[dict]:
     return [
         _make("recall", "Search memory by keyword (FTS5)", {"query": "string"},
-              lambda p, ctx: _recall(p.get("query", ""), ctx or {})),
+              lambda p, ctx: _recall(p.get("query", ""), _ensure_tool_context(ctx))),
         _make("pin", "Pin a fact to persistent context", {"fact": "string"},
-              lambda p, ctx: _pin(p.get("fact", ""), ctx or {})),
+              lambda p, ctx: _pin(p.get("fact", ""), _ensure_tool_context(ctx))),
         _make("unpin", "Unpin a fact", {"keyword": "string"},
-              lambda p, ctx: _unpin(p.get("keyword", ""), ctx or {})),
+              lambda p, ctx: _unpin(p.get("keyword", ""), _ensure_tool_context(ctx))),
         _make("record_experience", "Record a categorized experience", {"category": "string", "entry": "string"},
-              lambda p, ctx: _record_experience(p.get("category", ""), p.get("entry", ""), ctx or {})),
+              lambda p, ctx: _record_experience(p.get("category", ""), p.get("entry", ""), _ensure_tool_context(ctx))),
         _make("recall_experience", "Recall experiences by category", {"category": "string"},
-              lambda p, ctx: _recall_experience(p.get("category", ""), ctx or {})),
+              lambda p, ctx: _recall_experience(p.get("category", ""), _ensure_tool_context(ctx))),
     ]
 
 
 def _make_meta_tools() -> list[dict]:
     return [
         _make("todo_write", "Structured task list", {"todos": "array"},
-              lambda p, ctx: _todo_write(p.get("todos"), ctx or {})),
+              lambda p, ctx: _todo_write(p.get("todos"), _ensure_tool_context(ctx))),
         _make("cron", "Schedule a recurring task", {"schedule": "string", "task": "string"},
-              lambda p, ctx: _cron(p.get("schedule", ""), p.get("task", ""), ctx or {})),
+              lambda p, ctx: _cron(p.get("schedule", ""), p.get("task", ""), _ensure_tool_context(ctx))),
         _make("current_status", "Agent runtime introspection", {},
-              lambda p, ctx: _current_status(ctx or {})),
+              lambda p, ctx: _current_status(_ensure_tool_context(ctx))),
         _make("wait", "Sleep for seconds", {"seconds": "number"},
               lambda p, ctx: _wait(p.get("seconds", 0))),
     ]
@@ -157,11 +157,11 @@ def _make_kb_tools() -> list[dict]:
     """KB tools for all agents (read-only)."""
     return [
         _make("search_kb", "Search a knowledge base wiki", {"kb_name": "string", "query": "string"},
-              lambda p, ctx: _search_kb(p, ctx)),
+              lambda p, ctx: _search_kb(p, _ensure_tool_context(ctx))),
         _make("read_wiki", "Read a wiki page", {"kb_name": "string", "type": "string", "slug": "string"},
-              lambda p, ctx: _read_wiki(p, ctx)),
+              lambda p, ctx: _read_wiki(p, _ensure_tool_context(ctx))),
         _make("list_kbs", "List available knowledge bases", {},
-              lambda p, ctx: _list_kbs(p, ctx)),
+              lambda p, ctx: _list_kbs(p, _ensure_tool_context(ctx))),
     ]
 
 
@@ -169,17 +169,17 @@ def _make_kb_admin_tools() -> list[dict]:
     """KB admin tools (write + maintenance) for kb-agent only."""
     return [
         _make("write_wiki", "Write a wiki page", {"kb_name": "string", "type": "string", "slug": "string", "content": "string", "title": "string"},
-              lambda p, ctx: _write_wiki(p, ctx)),
+              lambda p, ctx: _write_wiki(p, _ensure_tool_context(ctx))),
         _make("run_dedup", "Run KB dedup pipeline", {"kb_name": "string"},
-              lambda p, ctx: _run_dedup(p, ctx)),
+              lambda p, ctx: _run_dedup(p, _ensure_tool_context(ctx))),
         _make("run_lint", "Run KB health check", {"kb_name": "string"},
-              lambda p, ctx: _run_lint(p, ctx)),
+              lambda p, ctx: _run_lint(p, _ensure_tool_context(ctx))),
         _make("gen_overview", "Generate KB overview", {"kb_name": "string"},
-              lambda p, ctx: _gen_overview(p, ctx)),
+              lambda p, ctx: _gen_overview(p, _ensure_tool_context(ctx))),
         _make("cascade_del", "Cascade delete source file from KB", {"kb_name": "string", "source_filename": "string"},
-              lambda p, ctx: _cascade_del(p, ctx)),
+              lambda p, ctx: _cascade_del(p, _ensure_tool_context(ctx))),
         _make("get_graph", "Get KB knowledge graph", {"kb_name": "string"},
-              lambda p, ctx: _get_graph(p, ctx)),
+              lambda p, ctx: _get_graph(p, _ensure_tool_context(ctx))),
     ]
 
 
@@ -189,8 +189,23 @@ def _make_call_worker_tool(sub_agent_executor=None) -> list[dict]:
         _make("call_worker", "Call a worker agent for execution", {"task": "string"},
               (lambda p, ctx: f"[call_worker] {p.get('task', '')} — stub")
               if sub_agent_executor is None else
-              (lambda p, ctx: _call_worker(p, {**(ctx or {}), "sub_agent_executor": sub_agent_executor}))),
+              (lambda p, ctx: _call_worker(p, _merge_ctx(ctx, dag=DagEnv(executor=sub_agent_executor))))),
     ]
+
+
+# ── Context helpers ────────────────────────────────────────
+
+def _ensure_tool_context(ctx: dict | ToolContext | None) -> ToolContext:
+    """Convert a dict or None to a ToolContext safely."""
+    return ToolContext.from_dict(ctx)
+
+
+def _merge_ctx(ctx: dict | ToolContext | None, **overrides) -> ToolContext:
+    """Merge overrides into ctx, returning a new ToolContext."""
+    base = _ensure_tool_context(ctx)
+    for key, val in overrides.items():
+        setattr(base, key, val)
+    return base
 
 
 # ── Public API ────────────────────────────────────────────
@@ -242,13 +257,20 @@ def create_resident_tools(
     Coco: DAG + memory + meta + call_worker + kb_read
     kb-agent: KB tools (read+write+admin) + call_worker + meta
     """
-    tools = (
-        _make_dag_tools(dag_store, sub_agent_executor) +
-        _make_memory_tools() +
-        _make_meta_tools() +
-        _make_call_worker_tool(sub_agent_executor) +
-        _make_kb_tools()
-    )
     if is_kb_agent:
-        tools += _make_kb_admin_tools()
+        tools = (
+            _make_memory_tools() +
+            _make_meta_tools() +
+            _make_call_worker_tool(sub_agent_executor) +
+            _make_kb_tools() +
+            _make_kb_admin_tools()
+        )
+    else:
+        tools = (
+            _make_dag_tools(dag_store, sub_agent_executor) +
+            _make_memory_tools() +
+            _make_meta_tools() +
+            _make_call_worker_tool(sub_agent_executor) +
+            _make_kb_tools()
+        )
     return tools
