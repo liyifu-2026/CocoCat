@@ -1,0 +1,19 @@
+channels:
+  discord:
+    config: {}
+    enabled: false
+  feishu:
+    config: {}
+    enabled: false
+  telegram:
+    config: {}
+    enabled: false
+  web_api:
+    config: {}
+    enabled: false
+  wechat:
+    config: {}
+    enabled: false
+  weixin:
+    config: {}
+    enabled: false

@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import yaml
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
@@ -159,6 +160,24 @@ CHANNEL_TYPES = [
     },
 ]
 
+MAIN_CONFIG_PATH = os.path.join("config", "main.yaml")
+
+
+def _load_main_config() -> dict:
+    """Load main.yaml channel config."""
+    if not os.path.exists(MAIN_CONFIG_PATH):
+        return {"channels": {}}
+    with open(MAIN_CONFIG_PATH, encoding="utf-8") as f:
+        return yaml.safe_load(f) or {"channels": {}}
+
+
+def _save_main_config(data: dict):
+    """Write main.yaml channel config."""
+    os.makedirs(os.path.dirname(MAIN_CONFIG_PATH), exist_ok=True)
+    with open(MAIN_CONFIG_PATH, "w", encoding="utf-8") as f:
+        yaml.safe_dump(data, f, allow_unicode=True, default_flow_style=False)
+
+
 @router.get("")
 async def list_channels():
     """List all configured channels."""
@@ -169,7 +188,6 @@ async def list_channels():
             path = os.path.join(scenes_dir, scene_id, "scene.yaml")
             if not os.path.exists(path):
                 continue
-            import yaml
             with open(path, encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
             for ch in data.get("channels", []):
