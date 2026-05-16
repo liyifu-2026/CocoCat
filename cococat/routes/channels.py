@@ -343,3 +343,15 @@ async def disconnect_channel(body: ChannelConnect):
 async def list_channel_types():
     """Return metadata for all supported channel types."""
     return {"types": CHANNEL_TYPES}
+
+
+@router.get("/qr/{channel_type}")
+async def get_qr_state(channel_type: str):
+    """Get QR code login state for weixin channel."""
+    if channel_type != "weixin":
+        return {"error": "QR login only supported for weixin"}
+    try:
+        from cococat.core.channels.weixin import get_qr_state as _get_qr
+        return _get_qr()
+    except ImportError:
+        return {"error": "weixin module not available"}

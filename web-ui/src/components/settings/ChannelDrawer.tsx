@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { X, Circle, Eye, EyeOff, Loader2 } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { X, Circle, Eye, EyeOff, Loader2, QrCode } from "lucide-react"
 import type { ChannelTypeInfo, MainChannelInfo, ChannelConfigField } from "@/types/settings"
 import { CHANNEL_ICONS } from "@/lib/channel-icons"
 
@@ -13,9 +13,23 @@ interface ChannelDrawerProps {
   onDisconnect: (channelType: string) => Promise<void>
 }
 
+interface QrState {
+  qrcode_url: string
+  qrcode_id: string
+  status: string
+}
+
 const CAP_LABELS: Record<string, string> = {
   text: "文字", image: "图片", voice: "语音", file: "文件", video: "视频",
   card: "卡片", sticker: "表情", link: "链接", post: "富文本", event: "事件", location: "位置",
+}
+
+const QR_STATUS_LABELS: Record<string, string> = {
+  waiting: "等待扫码",
+  scanned: "已扫码, 确认中...",
+  confirmed: "登录成功",
+  expired: "二维码已过期",
+  timeout: "二维码已超时",
 }
 
 function FieldInput({ field, value, onChange }: {
@@ -63,6 +77,49 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
   const [disconnecting, setDisconnecting] = useState(false)
   const [error, setError] = useState("")
 
+  // QR polling state
+  const [qrState, setQrState] = useState<QrState | null>(null)
+  const [qrPolling, setQrPolling] = useState(false)
+  const qrTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Cleanup QR polling on unmount or close
+  useEffect(() => {
+    return () => {
+      if (qrTimerRef.current) clearInterval(qrTimerRef.current)
+    }
+  }, [])
+
+  const stopQrPolling = () => {
+    if (qrTimerRef.current) {
+      clearInterval(qrTimerRef.current)
+      qrTimerRef.current = null
+    }
+    setQrPolling(false)
+  }
+
+  const startQrPolling = () => {
+    stopQrPolling()
+    setQrPolling(true)
+    const poll = async () => {
+      try {
+        const resp = await fetch(`/api/channels/qr/${typeInfo.channel_type}`)
+        const data = await resp.json() as QrState
+        setQrState(data)
+        if (data.status === "confirmed") {
+          stopQrPolling()
+          setTimeout(() => onClose(), 1500)
+        } else if (data.status === "expired" || data.status === "timeout") {
+          stopQrPolling()
+          setError(data.status === "expired" ? "二维码已过期，请重试" : "二维码已超时，请重试")
+        }
+      } catch {
+        // ignore poll errors
+      }
+    }
+    poll()
+    qrTimerRef.current = setInterval(poll, 2000)
+  }
+
   const handleSaveAndConnect = async () => {
     setError("")
     setSaving(true)
@@ -76,7 +133,15 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
     setSaving(false)
 
     if (typeInfo.config_fields.length === 0) {
-      onClose()
+      // Weixin: save config then directly connect + show QR
+      setConnecting(true)
+      try {
+        await onConnect(typeInfo.channel_type)
+        startQrPolling()
+      } catch (e: any) {
+        setError(e?.message || "连接失败")
+      }
+      setConnecting(false)
       return
     }
 
@@ -94,6 +159,9 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
     setConnecting(true)
     try {
       await onConnect(typeInfo.channel_type)
+      if (typeInfo.channel_type === "weixin") {
+        startQrPolling()
+      }
     } catch (e: any) {
       setError(e?.message || "连接失败")
     }
@@ -105,6 +173,8 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
     setDisconnecting(true)
     try {
       await onDisconnect(typeInfo.channel_type)
+      stopQrPolling()
+      setQrState(null)
     } catch (e: any) {
       setError(e?.message || "断开失败")
     }
@@ -131,7 +201,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
             <h3 className="text-sm font-semibold text-foreground">{typeInfo.display_name}</h3>
             <p className="text-[10px] text-muted-foreground">{typeInfo.english_name}</p>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+          <button onClick={() => { stopQrPolling(); onClose() }} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
             <X className="size-4" />
           </button>
         </div>
@@ -149,8 +219,35 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
             ))}
           </div>
 
+          {/* QR Code display */}
+          {qrState && (
+            <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border p-4">
+              <QrCode className="size-6 text-foreground" />
+              {qrState.qrcode_url ? (
+                <>
+                  <img
+                    src={qrState.qrcode_url}
+                    alt="登录二维码"
+                    className="w-48 h-48 rounded-lg border border-border"
+                  />
+                  <p className="text-xs text-muted-foreground">请使用微信扫描二维码</p>
+                </>
+              ) : (
+                <Loader2 className="size-8 animate-spin text-muted-foreground" />
+              )}
+              <span className={`px-3 py-1 rounded-full text-[11px] font-medium ${
+                qrState.status === "confirmed" ? "bg-green-100 text-green-700" :
+                qrState.status === "expired" || qrState.status === "timeout" ? "bg-red-100 text-red-700" :
+                "bg-blue-100 text-blue-700"
+              }`}>
+                {qrPolling && qrState.status !== "confirmed" && <Loader2 className="size-3 animate-spin inline mr-1.5" />}
+                {QR_STATUS_LABELS[qrState.status] || qrState.status}
+              </span>
+            </div>
+          )}
+
           {/* Status bar */}
-          {status === "connected" && (
+          {status === "connected" && !qrState && (
             <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs">
               <Circle className="size-2 text-green-500 fill-green-500" />
               <span className="font-semibold text-green-700">已连接</span>
@@ -159,7 +256,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
               )}
             </div>
           )}
-          {status === "configured" && (
+          {status === "configured" && !qrState && (
             <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs">
               <Circle className="size-2 text-amber-500 fill-amber-500" />
               <span className="font-semibold text-amber-700">凭证已保存，等待连接</span>
@@ -174,7 +271,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
           )}
 
           {/* Config form */}
-          {hasConfigFields && (
+          {hasConfigFields && !qrState && (
             <div>
               <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-3">配置</div>
               {typeInfo.config_fields.map(f => (
@@ -189,59 +286,61 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
           )}
 
           {/* Notes */}
-          {typeInfo.notes && (
+          {typeInfo.notes && !qrState && (
             <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-700">
               {typeInfo.notes}
             </div>
           )}
 
           {/* Action buttons */}
-          <div className="space-y-2 pt-2">
-            {status === "unconfigured" && (
-              <button
-                onClick={handleSaveAndConnect}
-                disabled={saving || connecting}
-                className="w-full rounded-lg bg-indigo-600 text-white px-4 py-2.5 text-xs font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {(saving || connecting) && <Loader2 className="size-3 animate-spin" />}
-                {saving ? "保存中..." : connecting ? "连接中..." : "保存并连接"}
-              </button>
-            )}
-
-            {status === "configured" && (
-              <button
-                onClick={handleConnect}
-                disabled={connecting}
-                className="w-full rounded-lg bg-green-600 text-white px-4 py-2.5 text-xs font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {connecting && <Loader2 className="size-3 animate-spin" />}
-                {typeInfo.channel_type === "weixin" ? "扫码连接" : "连接"}
-              </button>
-            )}
-
-            {status === "connected" && (
-              <div className="space-y-2">
+          {!qrState && (
+            <div className="space-y-2 pt-2">
+              {status === "unconfigured" && (
                 <button
-                  onClick={handleDisconnect}
-                  disabled={disconnecting}
-                  className="w-full rounded-lg border border-red-300 text-red-600 bg-white px-4 py-2.5 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  onClick={handleSaveAndConnect}
+                  disabled={saving || connecting}
+                  className="w-full rounded-lg bg-indigo-600 text-white px-4 py-2.5 text-xs font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {disconnecting && <Loader2 className="size-3 animate-spin" />}
-                  断开连接
+                  {(saving || connecting) && <Loader2 className="size-3 animate-spin" />}
+                  {saving ? "保存中..." : connecting ? "连接中..." : "保存并连接"}
                 </button>
-                {hasConfigFields && (
+              )}
+
+              {status === "configured" && (
+                <button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="w-full rounded-lg bg-green-600 text-white px-4 py-2.5 text-xs font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {connecting && <Loader2 className="size-3 animate-spin" />}
+                  {typeInfo.channel_type === "weixin" ? "扫码连接" : "连接"}
+                </button>
+              )}
+
+              {status === "connected" && (
+                <div className="space-y-2">
                   <button
-                    onClick={handleSaveAndConnect}
-                    disabled={saving}
-                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-xs hover:bg-accent transition-colors flex items-center justify-center gap-2"
+                    onClick={handleDisconnect}
+                    disabled={disconnecting}
+                    className="w-full rounded-lg border border-red-300 text-red-600 bg-white px-4 py-2.5 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {saving && <Loader2 className="size-3 animate-spin" />}
-                    更新凭证
+                    {disconnecting && <Loader2 className="size-3 animate-spin" />}
+                    断开连接
                   </button>
-                )}
-              </div>
-            )}
-          </div>
+                  {hasConfigFields && (
+                    <button
+                      onClick={handleSaveAndConnect}
+                      disabled={saving}
+                      className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-xs hover:bg-accent transition-colors flex items-center justify-center gap-2"
+                    >
+                      {saving && <Loader2 className="size-3 animate-spin" />}
+                      更新凭证
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
