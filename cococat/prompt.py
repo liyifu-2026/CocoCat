@@ -6,7 +6,7 @@ import datetime
 import os
 from typing import Optional
 
-from cococat.kb import load_kb_overview
+from cococat.kb.service import get_kb_service
 
 STATIC_PREFIX = """You are Coco — a task orchestrator. You have NO execution tools. You plan and dispatch. You NEVER fake actions.
 
@@ -149,7 +149,8 @@ def build_system_prompt(
         parts.append(f"\n## Scene Context\n{scene_context}")
 
     if scene_kbs:
-        kb_overview = load_kb_overview(scene_kbs)
+        service = get_kb_service()
+        kb_overview = service.get_overview_context(scene_kbs)
         if kb_overview:
             parts.append(kb_overview)
 

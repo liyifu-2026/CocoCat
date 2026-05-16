@@ -26,8 +26,8 @@ async def upload_file(
         f.write(content)
 
     task_uuid = new_uuid()
-    ctx.db.create_task(
-        task_uuid=task_uuid, target_agent="main", source="kb",
+    ctx.db.tasks.create(
+        task_uuid=task_uuid,         target_agent="kb-agent", source="kb",
         method="process_kb_source",
         params=f'{{"kb_name": "{kb_name}", "filename": "{file.filename}"}}',
     )
