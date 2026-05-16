@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query"
-import { Loader2, Bot, Cpu } from "lucide-react"
+import { useState } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { Loader2, Bot, Cpu, Pencil, Check, X } from "lucide-react"
 
 interface Agent {
   id: string
@@ -10,11 +11,31 @@ interface Agent {
   scene_id?: string | null
 }
 
+const MODELS = ["deepseek-chat", "deepseek-v4-flash", "deepseek-v4-pro", "gpt-4o", "claude-3.5-sonnet"]
+
 export default function AgentsPage() {
+  const queryClient = useQueryClient()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editModel, setEditModel] = useState("")
+
   const { data, isLoading } = useQuery({
     queryKey: ["agents"],
     queryFn: () => fetch("/api/agents").then(r => r.json()),
     refetchInterval: 5000,
+  })
+
+  const updateModel = useMutation({
+    mutationFn: async ({ id, model }: { id: string; model: string }) => {
+      await fetch(`/api/agents/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agents"] })
+      setEditingId(null)
+    },
   })
 
   const agents: Agent[] = (data as any)?.agents ?? []
@@ -31,7 +52,7 @@ export default function AgentsPage() {
       </div>
 
       {agents.length === 0 && (
-        <p className="text-sm text-muted-foreground">没有运行中的智能体</p>
+        <p className="text-sm text-muted-foreground">暂无智能体。请先启动应用。</p>
       )}
 
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
@@ -64,12 +85,40 @@ export default function AgentsPage() {
                   {agent.role === "resident" ? "常驻" : agent.role === "worker" ? "执行者" : agent.role}
                 </span>
               </div>
-              {agent.model && (
-                <div className="flex justify-between">
-                  <span>模型</span>
-                  <span className="font-mono">{agent.model}</span>
-                </div>
-              )}
+              <div className="flex justify-between items-center group">
+                <span>模型</span>
+                {editingId === agent.id ? (
+                  <div className="flex items-center gap-1">
+                    <select
+                      value={editModel}
+                      onChange={e => setEditModel(e.target.value)}
+                      className="text-xs font-mono bg-background border border-border rounded px-1 py-0.5"
+                    >
+                      {MODELS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <button
+                      onClick={() => updateModel.mutate({ id: agent.id, model: editModel })}
+                      disabled={updateModel.isPending}
+                      className="p-0.5 hover:bg-accent rounded"
+                    >
+                      <Check className="size-3 text-emerald-500" />
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="p-0.5 hover:bg-accent rounded">
+                      <X className="size-3 text-muted-foreground" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono">{agent.model || "-"}</span>
+                    <button
+                      onClick={() => { setEditingId(agent.id); setEditModel((agent.model ?? MODELS[0]) as string) }}
+                      className="p-0.5 hover:bg-accent rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Pencil className="size-3 text-muted-foreground" />
+                    </button>
+                  </div>
+                )}
+              </div>
               {agent.scene_id && (
                 <div className="flex justify-between">
                   <span>绑定场景</span>
