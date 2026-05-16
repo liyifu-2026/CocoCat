@@ -17,7 +17,7 @@ def agent():
     return Agent(
         id="test-agent",
         name="Test Agent",
-        role=AgentRole.SUB,
+        role=AgentRole.WORKER,
         llm=FakeLLM(),
         agent_dir=None,
     )

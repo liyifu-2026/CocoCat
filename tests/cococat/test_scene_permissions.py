@@ -15,7 +15,7 @@ class FakeLLM:
 
 @pytest.fixture
 def agent():
-    return Agent("agent_c", "Agent C", AgentRole.SUB, FakeLLM(),
+    return Agent("agent_c", "Agent C", AgentRole.WORKER, FakeLLM(),
                  tools=create_core_tools(),
                  system_prompt="Default context.")
 
@@ -158,6 +158,6 @@ def test_agent_write_only_workspace(agent, scene, tmp_path):
 
 
 def test_main_ai_cannot_bind_to_scene(tmp_path):
-    main = Agent("main", "Main AI", AgentRole.MAIN, FakeLLM())
+    main = Agent("main", "Main AI", AgentRole.RESIDENT, FakeLLM())
     with pytest.raises(ValueError):
         main.bind_to_scene(SceneConfig(id="cs", name="CS"))

@@ -42,7 +42,7 @@ async def _make_and_run_agent(
     agent = Agent(
         id=agent_id,
         name=agent_id,
-        role=AgentRole.SUB,
+        role=AgentRole.WORKER,
         llm=llm,
         tools=tools,
         agent_dir=agent_dir if _os.path.isdir(agent_dir) else None,

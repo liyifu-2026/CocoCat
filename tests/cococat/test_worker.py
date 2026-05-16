@@ -30,7 +30,7 @@ def db():
 def pool():
     bus = EventBus()
     p = AgentPool(bus)
-    p.add_agent(Agent("main", "Main AI", AgentRole.MAIN, FakeLLM()))
+    p.add_agent(Agent("main", "Main AI", AgentRole.RESIDENT, FakeLLM()))
     return p
 
 

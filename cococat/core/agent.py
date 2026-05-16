@@ -24,8 +24,8 @@ class AgentState(Enum):
 
 
 class AgentRole(Enum):
-    MAIN = "main"
-    SUB = "sub"
+    RESIDENT = "resident"   # Permanent, page-bound, peer-level
+    WORKER = "worker"       # Ephemeral pool, created/destroyed per task
 
 
 @dataclass
@@ -38,8 +38,8 @@ class Agent:
     """An AI agent — Python object, not a subprocess.
 
     Key properties:
-    - Main AI: never binds to a scene. Global tools and KBs.
-    - Sub AI: can bind to one scene at a time. When bound, tools are scene-scoped.
+    - Resident: permanent, page-bound, peer-level. Global tools and KBs.
+    - Worker: ephemeral pool, can bind to one scene at a time. Scene-scoped tools when bound.
     """
 
     def __init__(
@@ -78,8 +78,8 @@ class Agent:
 
     def bind_to_scene(self, scene) -> None:
         """Bind this agent to a scene. Accepts SceneConfig object or scene_id string."""
-        if self.role == AgentRole.MAIN:
-            raise ValueError("Main AI cannot bind to a scene.")
+        if self.role == AgentRole.RESIDENT:
+            raise ValueError("Resident agents cannot bind to a scene (they are page-bound).")
 
         # Try to load SceneConfig if string passed
         scene_id = scene

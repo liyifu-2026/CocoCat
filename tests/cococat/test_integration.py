@@ -22,9 +22,9 @@ async def test_full_chat_flow():
     bus = EventBus()
     pool = AgentPool(bus)
 
-    main = Agent("main", "Main AI", AgentRole.MAIN, FakeLLM("Dispatched to agent_a"))
-    sub_a = Agent("agent_a", "Agent A", AgentRole.SUB, FakeLLM("task completed"))
-    sub_b = Agent("agent_b", "Agent B", AgentRole.SUB, FakeLLM("task completed"))
+    main = Agent("main", "Main AI", AgentRole.RESIDENT, FakeLLM("Dispatched to agent_a"))
+    sub_a = Agent("agent_a", "Agent A", AgentRole.WORKER, FakeLLM("task completed"))
+    sub_b = Agent("agent_b", "Agent B", AgentRole.WORKER, FakeLLM("task completed"))
 
     pool.add_agent(main)
     pool.add_agent(sub_a)
@@ -55,7 +55,7 @@ async def test_scene_channel_flow():
     bus = EventBus()
     pool = AgentPool(bus)
 
-    sub = Agent("agent_c", "Agent C", AgentRole.SUB, FakeLLM("退款流程：1.申请 2.审核 3.打款"))
+    sub = Agent("agent_c", "Agent C", AgentRole.WORKER, FakeLLM("退款流程：1.申请 2.审核 3.打款"))
     pool.add_agent(sub)
     pool.bind_to_scene("agent_c", "customer-service")
 
@@ -83,7 +83,7 @@ async def test_scene_channel_queue():
             await asyncio.sleep(0.05)
             return LLMResponse(content=f"Reply to: {content}")
 
-    sub = Agent("agent_c", "Agent C", AgentRole.SUB, OrderTrackingLLM())
+    sub = Agent("agent_c", "Agent C", AgentRole.WORKER, OrderTrackingLLM())
     pool.add_agent(sub)
     pool.bind_to_scene("agent_c", "customer-service")
 
@@ -105,8 +105,8 @@ async def test_agent_pool_full():
     bus = EventBus()
     pool = AgentPool(bus, max_agents=2)
 
-    sub1 = Agent("a", "A", AgentRole.SUB, FakeLLM())
-    sub2 = Agent("b", "B", AgentRole.SUB, FakeLLM())
+    sub1 = Agent("a", "A", AgentRole.WORKER, FakeLLM())
+    sub2 = Agent("b", "B", AgentRole.WORKER, FakeLLM())
     pool.add_agent(sub1)
     pool.add_agent(sub2)
 

@@ -25,9 +25,9 @@ def bus():
 @pytest.fixture
 def pool(bus):
     p = AgentPool(bus)
-    p.add_agent(Agent("main", "Main AI", AgentRole.MAIN, FakeLLM("ok")))
-    p.add_agent(Agent("agent_a", "Agent A", AgentRole.SUB, FakeLLM("sub done")))
-    p.add_agent(Agent("agent_b", "Agent B", AgentRole.SUB, FakeLLM("sub done")))
+    p.add_agent(Agent("main", "Main AI", AgentRole.RESIDENT, FakeLLM("ok")))
+    p.add_agent(Agent("agent_a", "Agent A", AgentRole.WORKER, FakeLLM("sub done")))
+    p.add_agent(Agent("agent_b", "Agent B", AgentRole.WORKER, FakeLLM("sub done")))
     return p
 
 

@@ -40,11 +40,29 @@ class AgentPool:
         return self._agents.get(agent_id)
 
     def get_free_sub_agents(self) -> list[Agent]:
-        """Return all idle sub agents."""
+        """Return all idle worker agents (backward compat wrapper)."""
+        return self.get_free_workers()
+
+    def get_free_workers(self) -> list[Agent]:
+        """Return all idle worker agents."""
         return [
             a for a in self._agents.values()
-            if a.role == AgentRole.SUB and a.state == AgentState.IDLE
+            if a.role == AgentRole.WORKER and a.state == AgentState.IDLE
         ]
+
+    def get_residents(self) -> list[Agent]:
+        """Return all resident agents."""
+        return [
+            a for a in self._agents.values()
+            if a.role == AgentRole.RESIDENT
+        ]
+
+    def get_resident(self, agent_id: str) -> Agent | None:
+        """Get a resident agent by ID."""
+        agent = self._agents.get(agent_id)
+        if agent and agent.role == AgentRole.RESIDENT:
+            return agent
+        return None
 
     def list_agents(self) -> list[Agent]:
         """List all agents in the pool."""

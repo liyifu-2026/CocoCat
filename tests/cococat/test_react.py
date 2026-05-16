@@ -33,7 +33,7 @@ def react_agent():
     agent = Agent(
         id="test",
         name="Test Agent",
-        role=AgentRole.SUB,
+        role=AgentRole.WORKER,
         llm=ReActMockLLM(),
         tools=create_core_tools(),
     )
@@ -81,7 +81,7 @@ async def test_react_loop_max_iterations():
                 )],
             )
 
-    agent = Agent("loop", "Loop", AgentRole.SUB, InfiniteToolLLM(), create_core_tools())
+    agent = Agent("loop", "Loop", AgentRole.WORKER, InfiniteToolLLM(), create_core_tools())
     result = await agent.run("loop", max_iterations=3)
     assert "exceeded max iterations" in result
 
@@ -108,7 +108,7 @@ async def test_react_on_tool_callback():
                 )
             return LLMResponse(content="completed")
 
-    agent = Agent("track", "Tracker", AgentRole.SUB, ToolTrackingLLM(), create_core_tools())
+    agent = Agent("track", "Tracker", AgentRole.WORKER, ToolTrackingLLM(), create_core_tools())
 
     async def on_tool(name, status, data=None):
         tool_events.append((name, status))
@@ -128,7 +128,7 @@ async def test_react_on_text_callback():
         async def chat(self, messages, tools=None, **kwargs):
             return LLMResponse(content="final answer")
 
-    agent = Agent("stream", "Streamer", AgentRole.SUB, StreamingLLM(), create_core_tools())
+    agent = Agent("stream", "Streamer", AgentRole.WORKER, StreamingLLM(), create_core_tools())
 
     async def on_text(delta):
         deltas.append(delta)
@@ -159,6 +159,6 @@ async def test_react_unknown_tool():
                 )
             return LLMResponse(content="I tried but the tool didn't exist.")
 
-    agent = Agent("unknown", "Unknown", AgentRole.SUB, UnknownToolLLM(), create_core_tools())
+    agent = Agent("unknown", "Unknown", AgentRole.WORKER, UnknownToolLLM(), create_core_tools())
     result = await agent.run("do unknown")
     assert "didn't exist" in result

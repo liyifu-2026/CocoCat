@@ -49,7 +49,7 @@ def load_agents(app, args) -> None:
     def get_llm(agent_id: str):
         model = _load_worker_default_model()
         try:
-            stored_model = db.get_agent_model(agent_id)
+            stored_model = db.agents.get_model(agent_id)
             if stored_model:
                 model = stored_model
         except Exception:
@@ -88,13 +88,14 @@ def load_agents(app, args) -> None:
     )
 
     # ── Load agents ──
-    rows = db.list_running_agents()
+    rows = db.agents.list_running()
     for r in rows:
         role_str = r["role"]
         try:
             role = AgentRole(role_str)
         except ValueError:
-            role_map = {"worker": AgentRole.SUB, "leader": AgentRole.MAIN, "employee": AgentRole.SUB}
+            role_map = {"worker": AgentRole.WORKER, "leader": AgentRole.RESIDENT, "employee": AgentRole.WORKER,
+                        "main": AgentRole.RESIDENT, "sub": AgentRole.WORKER}
             role = role_map.get(role_str)
             if not role:
                 logger.warning("Skipping agent %s with unknown role '%s'", r["name"], role_str)

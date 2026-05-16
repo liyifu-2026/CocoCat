@@ -171,7 +171,7 @@ class TestAgentDreamTrigger:
         agent = Agent(
             id="test-agent",
             name="Test Agent",
-            role=AgentRole.SUB,
+            role=AgentRole.WORKER,
             llm=StubLLM(),
             agent_dir=str(agents_dir),
         )

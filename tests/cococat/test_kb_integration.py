@@ -78,7 +78,7 @@ async def test_full_kb_ingest_flow():
 
             bus = EventBus()
             pool = AgentPool(bus)
-            agent = Agent("main", "Main AI", AgentRole.MAIN, KBLLM())
+            agent = Agent("main", "Main AI", AgentRole.RESIDENT, KBLLM())
             pool.add_agent(agent)
 
             worker = TaskWorker(db, pool, poll_interval=0.05)

@@ -23,7 +23,7 @@ def main_agent(fake_llm):
     return Agent(
         id="main",
         name="Main AI",
-        role=AgentRole.MAIN,
+        role=AgentRole.RESIDENT,
         llm=fake_llm,
     )
 
@@ -33,7 +33,7 @@ def sub_agent(fake_llm):
     return Agent(
         id="agent_a",
         name="Agent A",
-        role=AgentRole.SUB,
+        role=AgentRole.WORKER,
         llm=fake_llm,
     )
 
@@ -52,7 +52,7 @@ def session_mgr():
 @pytest.mark.asyncio
 async def test_agent_initial_state(main_agent):
     assert main_agent.id == "main"
-    assert main_agent.role == AgentRole.MAIN
+    assert main_agent.role == AgentRole.RESIDENT
     assert main_agent.state == AgentState.IDLE
     assert main_agent.bound_scene is None
 
@@ -89,8 +89,8 @@ async def test_agent_bind_twice_overwrites(sub_agent):
 
 
 @pytest.mark.asyncio
-async def test_main_ai_cannot_bind_to_scene(main_agent):
-    with pytest.raises(ValueError, match="Main AI cannot bind to a scene"):
+async def test_resident_agent_cannot_bind_to_scene(main_agent):
+    with pytest.raises(ValueError, match="Resident agents cannot bind to a scene"):
         main_agent.bind_to_scene("customer-service")
 
 
@@ -183,7 +183,7 @@ async def test_agent_run_loads_history_from_session(main_agent, tmp_dir, session
 async def test_agent_saves_to_session(tmp_dir, session_mgr, fake_llm):
     """Agent.run() with a Session should save messages to the session."""
     session = await session_mgr.create(tmp_dir)
-    agent = Agent(id="test", name="Test", role=AgentRole.SUB, llm=fake_llm)
+    agent = Agent(id="test", name="Test", role=AgentRole.WORKER, llm=fake_llm)
 
     result = await agent.run("Hello", session=session)
     assert len(result) > 0

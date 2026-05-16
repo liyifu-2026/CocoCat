@@ -19,9 +19,9 @@ def bus():
 def pool(bus):
     from cococat.core.agent_pool import AgentPool
     p = AgentPool(bus, max_agents=5)
-    p.add_agent(Agent("main", "Main AI", AgentRole.MAIN, FakeLLM()))
-    p.add_agent(Agent("agent_a", "Agent A", AgentRole.SUB, FakeLLM()))
-    p.add_agent(Agent("agent_b", "Agent B", AgentRole.SUB, FakeLLM()))
+    p.add_agent(Agent("main", "Main AI", AgentRole.RESIDENT, FakeLLM()))
+    p.add_agent(Agent("agent_a", "Agent A", AgentRole.WORKER, FakeLLM()))
+    p.add_agent(Agent("agent_b", "Agent B", AgentRole.WORKER, FakeLLM()))
     return p
 
 
@@ -63,9 +63,9 @@ async def test_pool_max_agents():
     from cococat.core.agent_pool import AgentPool
     bus = EventBus()
     p = AgentPool(bus, max_agents=2)
-    p.add_agent(Agent("a", "A", AgentRole.SUB, FakeLLM()))
-    p.add_agent(Agent("b", "B", AgentRole.SUB, FakeLLM()))
-    assert not p.add_agent(Agent("c", "C", AgentRole.SUB, FakeLLM()))
+    p.add_agent(Agent("a", "A", AgentRole.WORKER, FakeLLM()))
+    p.add_agent(Agent("b", "B", AgentRole.WORKER, FakeLLM()))
+    assert not p.add_agent(Agent("c", "C", AgentRole.WORKER, FakeLLM()))
 
 
 @pytest.mark.asyncio
@@ -113,8 +113,8 @@ async def test_unbind_nonexistent_agent(pool):
 async def test_add_agent_overwrites_existing(pool):
     """Adding an agent with same ID replaces the old one."""
     bus = pool._bus
-    old = Agent("agent_a", "Old Name", AgentRole.SUB, FakeLLM())
-    new = Agent("agent_a", "New Name", AgentRole.SUB, FakeLLM())
+    old = Agent("agent_a", "Old Name", AgentRole.WORKER, FakeLLM())
+    new = Agent("agent_a", "New Name", AgentRole.WORKER, FakeLLM())
     pool.add_agent(old)
     pool.add_agent(new)
     agent = pool.get_agent("agent_a")
