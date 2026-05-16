@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from collections import defaultdict, Counter
+from collections import Counter
 from typing import Any
 
 from cococat.ingest.merge import parse_frontmatter

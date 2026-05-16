@@ -1,6 +1,5 @@
 """Test pin/unpin memory tools."""
 import pytest
-import os
 
 
 @pytest.fixture

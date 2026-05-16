@@ -50,7 +50,7 @@ async def update_overview(kb_dir: str, llm: Any | None = None) -> str:
         prompt = f"Write a 2-5 paragraph global summary of this knowledge base:\n\n{catalog}"
         try:
             result = await llm.chat(messages=[{"role": "user", "content": prompt}])
-            content = result.get("content", "") if isinstance(result, dict) else str(result)
+            content = result.content or ""
         except Exception:
             content = f"# Overview\n\nKnowledge base with {len(pages)} pages."
     else:

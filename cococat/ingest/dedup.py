@@ -7,7 +7,7 @@ import logging
 import os
 from typing import Any
 
-from cococat.ingest.merge import parse_frontmatter, write_frontmatter, backup_page
+from cococat.ingest.merge import parse_frontmatter, backup_page
 
 logger = logging.getLogger("cococat.ingest.dedup")
 
@@ -115,7 +115,7 @@ Return empty array [] if no duplicates found."""
             result = await self._llm.chat(
                 messages=[{"role": "user", "content": prompt}],
             )
-            content = result.get("content", "") if isinstance(result, dict) else str(result)
+            content = result.content or ""
 
             json_start = content.find("[")
             json_end = content.rfind("]") + 1
@@ -201,7 +201,7 @@ MERGED:"""
             result = await self._llm.chat(
                 messages=[{"role": "user", "content": prompt}],
             )
-            return result.get("content", "") if isinstance(result, dict) else str(result)
+            return result.content or ""
         except Exception:
             return page1 + "\n\n## From merged page\n" + page2
 

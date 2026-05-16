@@ -37,21 +37,13 @@ async def list_scenes(ctx: AppContext = Depends(get_ctx)):
             ]
         }
 
-    rows = ctx.db.execute("SELECT id, name, description, created_at FROM scenes")
-    return {
-        "scenes": [
-            {"id": r[0], "name": r[1], "description": r[2], "created_at": r[3]}
-            for r in rows
-        ]
-    }
+    rows = ctx.db.list_scenes()
+    return {"scenes": rows}
 
 
 @router.post("")
 async def create_scene(body: SceneCreate, ctx: AppContext = Depends(get_ctx)):
-    ctx.db.execute_insert(
-        "INSERT INTO scenes (id, name) VALUES (?, ?)",
-        (body.id, body.name),
-    )
+    ctx.db.create_scene(body.id, body.name)
     return {"status": "created", "id": body.id}
 
 
@@ -66,18 +58,13 @@ async def get_scene(scene_id: str, ctx: AppContext = Depends(get_ctx)):
             "channels": config.channels,
         }
 
-    rows = ctx.db.execute(
-        "SELECT id, name, description, roster FROM scenes WHERE id = ?",
-        (scene_id,),
-    )
-    if not rows:
+    row = ctx.db.get_scene(scene_id)
+    if not row:
         return {"error": "not found"}, 404
-    r = rows[0]
-    return {"id": r[0], "name": r[1], "description": r[2], "roster": r[3]}
+    return row
 
 
 @router.delete("/{scene_id}")
 async def delete_scene(scene_id: str, ctx: AppContext = Depends(get_ctx)):
-    ctx.db.execute("DELETE FROM scenes WHERE id = ?", (scene_id,))
-    ctx.db.commit()
+    ctx.db.delete_scene(scene_id)
     return {"status": "deleted"}

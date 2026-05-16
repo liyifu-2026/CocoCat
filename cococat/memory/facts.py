@@ -75,7 +75,7 @@ Return JSON array: [{{"text": "...", "tags": "..."}}]"""
             result = await self._llm.chat(
                 messages=[{"role": "user", "content": prompt}],
             )
-            content = result.get("content", "") if isinstance(result, dict) else str(result)
+            content = result.content or ""
 
             # Try to parse JSON from the response
             json_start = content.find("[")

@@ -4,9 +4,12 @@ import pytest
 from cococat.core.agent import Agent, AgentRole
 
 
+from cococat.providers.base import LLMResponse
+
+
 class FakeLLM:
-    async def chat(self, messages, **kwargs):
-        return {"content": "ok"}
+    async def chat(self, messages, tools=None, **kwargs):
+        return LLMResponse(content="ok")
 
 
 @pytest.fixture

@@ -3,7 +3,7 @@ import json
 import os
 import time
 import pytest
-from cococat.core.cron_worker import CronWorker, _parse_schedule, CRON_DIR
+from cococat.core.cron_worker import CronWorker, _parse_schedule
 
 
 class TestCron:

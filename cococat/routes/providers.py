@@ -2,7 +2,6 @@
 import json
 import os
 import logging
-from datetime import datetime
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -125,13 +124,6 @@ def _load_default_models() -> dict[str, str]:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, dict):
-                    defaults = {}
-                    for k, v in data.items():
-                        if isinstance(v, list) and v:
-                            # Check adjacent metadata key
-                            meta_key = f"__defaults__"
-                            pass
-                    # Check for __defaults__ key
                     return data.get("__defaults__", {})
         except (json.JSONDecodeError, OSError):
             pass

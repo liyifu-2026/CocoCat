@@ -1,7 +1,8 @@
-"""Settings routes — API key configuration."""
+"""Settings routes — API key and workspace configuration."""
 import os
-import re
 import logging
+import subprocess
+import shutil
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -77,7 +78,8 @@ class SetKeyRequest(BaseModel):
 
 @router.get("/settings")
 async def get_settings():
-    """Return API key status for known services."""
+    """Return API key status and current workspace."""
+    from cococat.core.workspace import WorkspaceManager
     env_vars = _read_env()
 
     keys = []
@@ -91,7 +93,11 @@ async def get_settings():
             "has_key": has_key,
         })
 
-    return {"keys": keys}
+    ws = WorkspaceManager()
+    return {
+        "keys": keys,
+        "workspace": str(ws.path),
+    }
 
 
 @router.put("/settings/key")
@@ -108,3 +114,81 @@ async def set_api_key(req: SetKeyRequest):
     os.environ[env_key] = req.value
 
     return {"saved": True, "name": req.name}
+
+
+class SetWorkspaceRequest(BaseModel):
+    value: str
+
+
+@router.put("/settings/workspace")
+async def set_workspace(req: SetWorkspaceRequest):
+    """Save workspace path to .env and reload WorkspaceManager."""
+    value = req.value.strip()
+    if not value:
+        raise HTTPException(status_code=422, detail="Workspace path is required")
+
+    _write_env({"COCOCAT_WORKSPACE": value})
+    os.environ["COCOCAT_WORKSPACE"] = value
+
+    from cococat.core.workspace import WorkspaceManager
+    WorkspaceManager().reload()
+
+    return {"saved": True, "workspace": value}
+
+
+def _open_folder_picker() -> str | None:
+    """Open a native folder picker dialog. Returns path or None if cancelled."""
+    # Try tkinter first (available on most Python installs)
+    try:
+        import tkinter.filedialog
+        import tkinter
+        root = tkinter.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        path = tkinter.filedialog.askdirectory(title="选择工作区目录")
+        root.destroy()
+        if path:
+            return path
+        return None
+    except Exception:
+        pass
+
+    # Fallback: zenity on Linux
+    if shutil.which("zenity"):
+        r = subprocess.run(
+            ["zenity", "--file-selection", "--directory", "--title=选择工作区目录"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if r.returncode == 0:
+            return r.stdout.strip()
+        return None
+
+    # Fallback: kdialog on KDE
+    if shutil.which("kdialog"):
+        r = subprocess.run(
+            ["kdialog", "--getexistingdirectory"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if r.returncode == 0:
+            return r.stdout.strip()
+        return None
+
+    # Fallback: osascript on macOS
+    if shutil.which("osascript"):
+        r = subprocess.run(
+            ["osascript", "-e",
+             'POSIX path of (choose folder with prompt "选择工作区目录")'],
+            capture_output=True, text=True, timeout=30,
+        )
+        if r.returncode == 0:
+            return r.stdout.strip()
+        return None
+
+    return None
+
+
+@router.post("/settings/workspace/picker")
+async def pick_workspace():
+    """Open native folder picker and return selected path."""
+    path = _open_folder_picker()
+    return {"path": path}

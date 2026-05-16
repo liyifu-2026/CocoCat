@@ -68,10 +68,7 @@ Summary:"""
             result = await self._llm.chat(
                 messages=[{"role": "user", "content": prompt}],
             )
-            if isinstance(result, dict):
-                summary_text = result.get("content", "")
-            else:
-                summary_text = str(result)
+            summary_text = result.content or ""
         except Exception:
             logger.exception("Summarization failed for session %s", session.id)
             return

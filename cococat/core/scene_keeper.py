@@ -9,21 +9,11 @@ Each Scene has one SceneKeeper (not AI). It:
 from __future__ import annotations
 
 import logging
-from typing import Any, Protocol
+from typing import Any
+
+from cococat.channel_adapter import Channel
 
 logger = logging.getLogger("cococat.scene_keeper")
-
-
-class Channel(Protocol):
-    """Protocol for scene channel backends (WeChat, Feishu, API, etc.)."""
-
-    async def parse_identity(self, raw_msg: dict) -> str:
-        """Extract user identity from raw channel message."""
-        ...
-
-    async def send(self, user_id: str, text: str) -> None:
-        """Send a reply to a user through the channel."""
-        ...
 
 
 class SceneKeeper:

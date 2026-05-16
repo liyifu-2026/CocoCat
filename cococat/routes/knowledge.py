@@ -15,7 +15,6 @@ async def upload_file(
 ):
     """Upload a file to a knowledge base for ingestion."""
     import os
-    import shutil
 
     kb_dir = os.path.join("knowledge", kb_name)
     raw_dir = os.path.join(kb_dir, "raw", "sources")
@@ -27,12 +26,10 @@ async def upload_file(
         f.write(content)
 
     task_uuid = new_uuid()
-    ctx.db.execute_insert(
-        "INSERT INTO tasks (task_uuid, target_agent, source, method, params, status) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (task_uuid, "main", "kb", "process_kb_source",
-         f'{{"kb_name": "{kb_name}", "filename": "{file.filename}"}}',
-         "pending"),
+    ctx.db.create_task(
+        task_uuid=task_uuid, target_agent="main", source="kb",
+        method="process_kb_source",
+        params=f'{{"kb_name": "{kb_name}", "filename": "{file.filename}"}}',
     )
 
     return {

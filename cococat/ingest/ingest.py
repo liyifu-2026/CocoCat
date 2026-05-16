@@ -111,7 +111,7 @@ Analysis:"""
             result = await self._llm.chat(
                 messages=[{"role": "user", "content": prompt}],
             )
-            return result.get("content", "") if isinstance(result, dict) else str(result)
+            return result.content or ""
         except Exception:
             logger.exception("Phase 1 analysis failed")
             return ""
@@ -140,7 +140,7 @@ Generate wiki pages:"""
             result = await self._llm.chat(
                 messages=[{"role": "user", "content": prompt}],
             )
-            return result.get("content", "") if isinstance(result, dict) else str(result)
+            return result.content or ""
         except Exception:
             logger.exception("Phase 2 generation failed")
             return ""

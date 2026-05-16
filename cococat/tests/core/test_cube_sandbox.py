@@ -1,8 +1,9 @@
 """Test CubeSandboxExecutor — wraps e2b_code_interpreter SDK."""
 import os
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from cococat.core.sandbox import SandboxProvider, Sandbox
+from unittest.mock import patch
+from cococat.core.sandbox import Sandbox
+from cococat.providers.base import LLMResponse
 
 
 class FakeAsyncSandbox:
@@ -64,24 +65,40 @@ class TestCubeSandboxExecutor:
             assert "sbx-xyz" not in executor._sandbox_instances
 
     @pytest.mark.asyncio
-    async def test_runs_code_in_sandbox(self):
-        """CubeSandboxExecutor.run() executes the prompt as code in the sandbox."""
+    async def test_run_creates_agent_and_returns_result(self):
+        """CubeSandboxExecutor.run() creates Agent, runs ReAct, returns result."""
         sbx = FakeAsyncSandbox("sbx-run")
 
-        with patch("cococat.core.sandbox.cubesandbox.AsyncSandbox") as MockAsyncSandbox:
-            from cococat.core.sandbox import CubeSandboxExecutor
-            executor = CubeSandboxExecutor()
+        class StubLLM:
+            async def chat(self, messages, tools=None, **kwargs):
+                return LLMResponse(content="hello from agent")
+
+        with patch("cococat.core.sandbox.cubesandbox.AsyncSandbox"):
+            from cococat.core.sandbox import CubeSandboxExecutor, Sandbox
+            executor = CubeSandboxExecutor(get_llm=lambda aid: StubLLM())
             executor._sandbox_instances = {"sbx-run": sbx}
 
             sandbox_obj = Sandbox(id="sbx-run", template="default", permissions={})
             result = await executor.run(sandbox_obj, {
-                "prompt": "print('hello from sandbox')",
+                "prompt": "run this task",
                 "agent_id": "main",
             })
 
+            assert "hello from agent" in result
+
+    @pytest.mark.asyncio
+    async def test_sandbox_run_executes_code(self):
+        """_sandbox_run executes raw code in the MicroVM."""
+        sbx = FakeAsyncSandbox("sbx-run")
+
+        with patch("cococat.core.sandbox.cubesandbox.AsyncSandbox"):
+            from cococat.core.sandbox import CubeSandboxExecutor
+            executor = CubeSandboxExecutor()
+            executor._sandbox_instances = {"sbx-run": sbx}
+
+            result = await executor._sandbox_run("sbx-run", "print('hello')")
             assert "hello from sandbox" in result
-            # Verify the code was passed through, not a fake message
-            assert "print('hello from sandbox')" in sbx._code
+            assert "print('hello')" in sbx._code
 
     @pytest.mark.asyncio
     async def test_handles_sdk_unavailable(self):

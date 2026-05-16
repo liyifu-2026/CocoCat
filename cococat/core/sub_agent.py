@@ -4,12 +4,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from cococat.core.event_bus import EventBus
     from cococat.core.agent_pool import AgentPool
-    from cococat.core.agent import Agent
     from cococat.core.sandbox import SandboxProvider
 
 logger = logging.getLogger("cococat.sub_agent")
@@ -19,14 +18,11 @@ class SubAgentExecutor:
     """Manages async sub-agent task dispatch and result delivery.
 
     Two modes:
-    1. AgentPool mode (legacy): finds free sub agents from pool
-    2. SandboxProvider mode (target architecture): create-per-task via SandboxProvider
+    1. AgentPool mode: finds free sub agents from pool, runs synchronously
+    2. SandboxProvider mode: create-per-task via SandboxProvider
 
-    Fire-and-forget pattern:
-    1. Main AI calls dispatch(task, from_agent="main")
-    2. Free sub agent is found or sandbox is created → agent runs task
-    3. Result published to EventBus as sub_agent_complete event
-    4. Sub agent returns to pool or sandbox is destroyed
+    Fire-and-forget pattern for tools; synchronous for DAG worker.
+    Returns the task result string (not task_id) for caller convenience.
     """
 
     def __init__(
@@ -40,10 +36,10 @@ class SubAgentExecutor:
         self._sandbox = sandbox_provider
         self._busy: set[str] = set()
 
-    async def dispatch(self, task: str, from_agent: str = "main") -> str | None:
-        """Dispatch a task. Uses sandbox_provider if available, otherwise pool."""
+    async def dispatch(self, task: str, from_agent: str = "main", session_id: str | None = None) -> str | None:
+        """Dispatch a task. Returns the result string. Uses sandbox_provider if available, otherwise pool."""
         if self._sandbox:
-            return await self._dispatch_via_sandbox(task, from_agent)
+            return await self._dispatch_via_sandbox(task, from_agent, session_id)
 
         if self._pool:
             return await self._dispatch_via_pool(task, from_agent)
@@ -64,55 +60,52 @@ class SubAgentExecutor:
         self._busy.add(agent.id)
         task_id = uuid.uuid4().hex[:12]
 
-        async def _run():
-            try:
-                result = await agent.run(task)
-                await self._bus.publish("sub_agent_complete", {
-                    "task_id": task_id,
-                    "from_agent": from_agent,
-                    "agent_id": agent.id,
-                    "result": result,
-                })
-            except Exception as e:
-                logger.exception("Sub-agent task %s failed", task_id)
-                await self._bus.publish("sub_agent_complete", {
-                    "task_id": task_id,
-                    "from_agent": from_agent,
-                    "agent_id": agent.id,
-                    "error": str(e),
-                })
-            finally:
-                self._busy.discard(agent.id)
+        try:
+            result = await agent.run(task)
+            await self._bus.publish("sub_agent_complete", {
+                "task_id": task_id,
+                "from_agent": from_agent,
+                "agent_id": agent.id,
+                "result": result,
+            })
+            return result
+        except Exception as e:
+            logger.exception("Sub-agent task %s failed", task_id)
+            await self._bus.publish("sub_agent_complete", {
+                "task_id": task_id,
+                "from_agent": from_agent,
+                "agent_id": agent.id,
+                "error": str(e),
+            })
+            return f"Error: {e}"
+        finally:
+            self._busy.discard(agent.id)
 
-        asyncio.create_task(_run())
-        return task_id
-
-    async def _dispatch_via_sandbox(self, task: str, from_agent: str) -> str | None:
+    async def _dispatch_via_sandbox(self, task: str, from_agent: str, session_id: str | None = None) -> str | None:
         task_id = uuid.uuid4().hex[:12]
 
-        async def _run():
-            try:
-                result = await self._sandbox.run_once(
-                    prompt=task,
-                    agent_id=f"sub-{task_id}",
-                )
-                await self._bus.publish("sub_agent_complete", {
-                    "task_id": task_id,
-                    "from_agent": from_agent,
-                    "agent_id": f"sub-{task_id}",
-                    "result": result,
-                })
-            except Exception as e:
-                logger.exception("Sub-agent sandbox task %s failed", task_id)
-                await self._bus.publish("sub_agent_complete", {
-                    "task_id": task_id,
-                    "from_agent": from_agent,
-                    "agent_id": f"sub-{task_id}",
-                    "error": str(e),
-                })
-
-        asyncio.create_task(_run())
-        return task_id
+        try:
+            result = await self._sandbox.run_once(
+                prompt=task,
+                agent_id=f"sub-{task_id}",
+                session_id=session_id,
+            )
+            await self._bus.publish("sub_agent_complete", {
+                "task_id": task_id,
+                "from_agent": from_agent,
+                "agent_id": f"sub-{task_id}",
+                "result": result,
+            })
+            return result
+        except Exception as e:
+            logger.exception("Sub-agent sandbox task %s failed", task_id)
+            await self._bus.publish("sub_agent_complete", {
+                "task_id": task_id,
+                "from_agent": from_agent,
+                "agent_id": f"sub-{task_id}",
+                "error": str(e),
+            })
+            return f"Error: {e}"
 
     async def get_pending_tasks(self) -> list[str]:
         """Return list of active task IDs (stub — real impl tracks tasks)."""

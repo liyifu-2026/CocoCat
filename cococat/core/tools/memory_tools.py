@@ -1,8 +1,10 @@
 """Memory tools — pin, unpin, recall, experience recording."""
 import os
 
+from cococat.core.types import ToolContext
 
-def _memory_path(ctx: dict) -> str:
+
+def _memory_path(ctx: ToolContext) -> str:
     if "memory_path" in ctx:
         return ctx["memory_path"]
     agent_dir = ctx.get("agent_dir", "agents/main")
@@ -11,7 +13,7 @@ def _memory_path(ctx: dict) -> str:
     return path
 
 
-def _pin(fact: str, ctx: dict) -> str:
+def _pin(fact: str, ctx: ToolContext) -> str:
     if not fact:
         return "Error: 'fact' is required"
     path = _memory_path(ctx)
@@ -24,7 +26,7 @@ def _pin(fact: str, ctx: dict) -> str:
         return f"Error pinning fact: {e}"
 
 
-def _unpin(keyword: str, ctx: dict) -> str:
+def _unpin(keyword: str, ctx: ToolContext) -> str:
     if not keyword:
         return "Error: 'keyword' is required"
     path = _memory_path(ctx)
@@ -43,7 +45,7 @@ def _unpin(keyword: str, ctx: dict) -> str:
         return f"Error unpinning fact: {e}"
 
 
-def _recall(query: str, ctx: dict) -> str:
+def _recall(query: str, ctx: ToolContext) -> str:
     if not query:
         return "Error: 'query' is required"
     q = query.lower()
@@ -73,7 +75,7 @@ def _recall(query: str, ctx: dict) -> str:
     return "\n---\n".join(f"[{src}] {text}" for src, text in results)
 
 
-def _record_experience(category: str, entry: str, ctx: dict) -> str:
+def _record_experience(category: str, entry: str, ctx: ToolContext) -> str:
     if not category:
         return "Error: 'category' is required"
     if not entry:
@@ -92,7 +94,7 @@ def _record_experience(category: str, entry: str, ctx: dict) -> str:
         return f"Error recording experience: {e}"
 
 
-def _recall_experience(category: str, ctx: dict) -> str:
+def _recall_experience(category: str, ctx: ToolContext) -> str:
     if not category:
         return "Error: 'category' is required"
     exp_path = ctx.get("exp_path", "memory/experiences")

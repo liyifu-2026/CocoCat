@@ -1,5 +1,4 @@
 """WebSocket route — real-time events via EventBus."""
-import asyncio
 import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 

@@ -13,29 +13,27 @@ class ChatRequest(BaseModel):
     content: str
     user_id: str = "local"
     scene_id: str = "default"
+    session_id: str | None = None
 
 
 @router.post("/chat")
 async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
     """Send a message to Main AI via SandboxProvider."""
-    db = ctx.db
-
     msg_uuid = new_uuid()
-    db.execute_insert(
-        "INSERT INTO messages (msg_uuid, agent_id, user_id, role, content, scene_id, channel_type) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (msg_uuid, "main", body.user_id, "user", body.content, body.scene_id, "web"),
+    ctx.db.save_message(
+        msg_uuid=msg_uuid, agent_id="main", user_id=body.user_id,
+        role="user", content=body.content, scene_id=body.scene_id,
+        channel_type="web",
     )
 
     sandbox_provider = ctx.sandbox_provider
     if not sandbox_provider:
         reply_uuid = new_uuid()
-        db.execute_insert(
-            "INSERT INTO messages (msg_uuid, agent_id, user_id, role, content, scene_id) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (reply_uuid, "main", body.user_id, "assistant",
-             f"[System] SandboxProvider not available. Received: {body.content[:200]}",
-             body.scene_id),
+        ctx.db.save_message(
+            msg_uuid=reply_uuid, agent_id="main", user_id=body.user_id,
+            role="assistant",
+            content=f"[System] SandboxProvider not available. Received: {body.content[:200]}",
+            scene_id=body.scene_id,
         )
         return {"reply": "SandboxProvider not available", "msg_uuid": reply_uuid}
 
@@ -49,26 +47,33 @@ async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
             await ws.broadcast("text_delta", {
                 "content": delta,
                 "agent_id": "main",
+                "session_id": body.session_id,
             })
 
         async def on_reasoning(content: str):
             await ws.broadcast("stream_reasoning", {
                 "content": content,
                 "agent_id": "main",
+                "session_id": body.session_id,
             })
 
-        async def on_tool(name: str, status: str):
-            await ws.broadcast("stream_tool", {
+        async def on_tool(name: str, status: str, data: dict = None):
+            payload = {
                 "name": name,
                 "status": status,
                 "agent_id": "main",
-            })
+                "session_id": body.session_id,
+            }
+            if data:
+                payload.update(data)
+            await ws.broadcast("stream_tool", payload)
 
         from cococat.core.tools import create_main_ai_tools
 
         sub_executor = ctx.sub_executor
         main_ai_tools = create_main_ai_tools(
             sub_agent_executor=sub_executor.dispatch if sub_executor else None,
+            dag_store=ctx.dag_store,
         )
 
         reply = await sandbox_provider.run_once(
@@ -76,35 +81,19 @@ async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
             agent_id="main",
             tools=main_ai_tools,
             on_event=on_event,
+            session_id=body.session_id,
         )
-
-        from cococat.core.agent import _save_session_pair
-        import os
-        _save_session_pair(os.path.join("agents/main", "session.jsonl"), body.content, reply)
     except Exception as e:
         reply = f"Error: {e}"
 
     reply_uuid = new_uuid()
-    db.execute_insert(
-        "INSERT INTO messages (msg_uuid, agent_id, user_id, role, content, scene_id) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (reply_uuid, "main", body.user_id, "assistant", reply, body.scene_id),
+    ctx.db.save_message(
+        msg_uuid=reply_uuid, agent_id="main", user_id=body.user_id,
+        role="assistant", content=reply, scene_id=body.scene_id,
     )
     return {"reply": reply, "msg_uuid": reply_uuid}
 
 
 @router.get("/chat/history")
 async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "default", limit: int = 50):
-    db = ctx.db
-    rows = db.execute(
-        "SELECT role, content, created_at FROM messages "
-        "WHERE scene_id = ? AND chat_group = 'general' "
-        "ORDER BY id DESC LIMIT ?",
-        (scene_id, limit),
-    )
-    return {
-        "messages": [
-            {"role": r[0], "content": r[1], "created_at": r[2]}
-            for r in reversed(rows)
-        ]
-    }
+    return {"messages": ctx.db.get_chat_history(scene_id, limit)}

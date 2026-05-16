@@ -138,7 +138,7 @@ MERGED:"""
 
     try:
         result = await llm.chat(messages=[{"role": "user", "content": prompt}])
-        return result.get("content", "") if isinstance(result, dict) else str(result)
+        return result.content or ""
     except Exception:
         logger.exception("LLM body merge failed")
         return old_body + "\n\n## Updates\n" + new_body

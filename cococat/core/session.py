@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import uuid
@@ -46,6 +47,27 @@ class Session:
         """Mark session as closed. Future appends are rejected."""
         self._closed = True
 
+    async def sanitized_read(self, max_lines: int = 30) -> list[dict]:
+        """Read last N user/assistant messages, skipping system and tool roles.
+
+        Equivalent to the old _load_session() function in agent.py.
+        """
+        messages = await self.read()
+        filtered = [
+            {"role": m["role"], "content": m.get("content", "")}
+            for m in messages
+            if m.get("role") in ("user", "assistant")
+        ]
+        return filtered[-max_lines:]
+
+    async def append_pair(self, user_msg: str, assistant_reply: str) -> None:
+        """Append a user message and assistant reply in one call.
+
+        Equivalent to the old _save_session_pair() function in agent.py.
+        """
+        await self.append("user", user_msg)
+        await self.append("assistant", assistant_reply)
+
 
 class SessionManager:
     """Manages Session lifecycle with LRU caching."""
@@ -81,3 +103,47 @@ class SessionManager:
         if len(self._cache) >= self._max_cached:
             self._cache.popitem(last=False)  # evict oldest
         self._cache[session.id] = session
+
+
+# ── Module-level helpers (fallback when no Session object is available) ──
+
+def load_session(path: str, max_lines: int = 30) -> list[dict]:
+    """Read last N user/assistant messages from a JSONL session file."""
+    if not os.path.exists(path):
+        return []
+    messages = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    msg = json.loads(line)
+                    if msg.get("role") in ("user", "assistant"):
+                        messages.append({"role": msg["role"], "content": msg.get("content", "")})
+                except json.JSONDecodeError:
+                    continue
+    except OSError:
+        return []
+    return messages[-max_lines:]
+
+
+def save_session_pair(path: str, user_msg: str, assistant_reply: str) -> None:
+    """Append a user/assistant pair to a session JSONL file."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"role": "user", "content": user_msg}, ensure_ascii=False) + "\n")
+        f.write(json.dumps({"role": "assistant", "content": assistant_reply}, ensure_ascii=False) + "\n")
+
+
+def maybe_trigger_dream(session_path: str) -> None:
+    """Fire-and-forget auto-dream if session has enough history."""
+    if not os.path.exists(session_path):
+        return
+    with open(session_path, encoding="utf-8") as f:
+        line_count = sum(1 for _ in f)
+    if line_count < 50:
+        return
+    from cococat.core.dream import try_auto_dream
+    asyncio.create_task(try_auto_dream(None, session_path))

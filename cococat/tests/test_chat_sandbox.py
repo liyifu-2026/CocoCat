@@ -11,7 +11,7 @@ class MockProvider:
         self.captured_prompts = []
         self.captured_tools = []
 
-    async def run_once(self, prompt, agent_id, permissions=None, tools=None, on_event=None):
+    async def run_once(self, prompt, agent_id, permissions=None, tools=None, on_event=None, session_id=None):
         self.captured_prompts.append(prompt)
         if tools:
             self.captured_tools.append([t["name"] for t in tools])
@@ -22,8 +22,7 @@ class MockProvider:
 async def client():
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
-    from cococat.app import create_app, get_ctx
-    from cococat.context import AppContext
+    from cococat.app import create_app
 
     app = create_app(db_path)
 

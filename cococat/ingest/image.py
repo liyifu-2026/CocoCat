@@ -83,9 +83,6 @@ class ImagePipeline:
         Images are saved to raw/sources/{filename}_images/ directory.
         Returns list of extracted image paths.
         """
-        import subprocess
-        import tempfile
-        import shutil
 
         source_path = os.path.join(source_dir, source_filename)
         if not os.path.exists(source_path):
@@ -139,7 +136,6 @@ class ImagePipeline:
         """Extract images from DOCX using python-docx."""
         try:
             from docx import Document
-            from docx.opc.constants import RELATIONSHIP_TYPE as RT
         except ImportError:
             return []
 
@@ -216,7 +212,7 @@ class ImagePipeline:
                     ],
                 }],
             )
-            caption = result.get("content", "") if isinstance(result, dict) else str(result)
+            caption = result.content or ""
         except Exception:
             logger.exception("Image captioning failed for %s", image_path)
             return None

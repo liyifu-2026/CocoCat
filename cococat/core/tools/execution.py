@@ -3,8 +3,10 @@ import json
 import os
 import subprocess
 
+from cococat.core.types import ToolContext
 
-async def _bash(command: str, ctx: dict | None = None) -> str:
+
+async def _bash(command: str, ctx: ToolContext | None = None) -> str:
     if not command:
         return "Error: 'command' is required"
 

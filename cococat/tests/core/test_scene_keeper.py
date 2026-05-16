@@ -1,6 +1,5 @@
 """Test SceneKeeper — lightweight channel-message router."""
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 from cococat.core.scene_keeper import SceneKeeper
 from cococat.core.sandbox import SandboxProvider, LocalExecutor
 

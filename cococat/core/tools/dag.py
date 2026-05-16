@@ -4,8 +4,11 @@ import uuid
 
 import yaml
 
+from cococat.core.dag_store import DagStore
+from cococat.core.types import ToolContext
 
-def _define_dag(yaml_str: str, ctx: dict) -> str:
+
+def _define_dag(yaml_str: str, ctx: ToolContext) -> str:
     if not yaml_str:
         return "Error: 'yaml' is required"
     try:
@@ -13,50 +16,46 @@ def _define_dag(yaml_str: str, ctx: dict) -> str:
     except yaml.YAMLError as e:
         return f"Error parsing YAML: {e}"
 
-    dag_dir = ctx.get("dag_dir", "runs")
-    run_id = uuid.uuid4().hex[:12]
-    run_dir = os.path.join(dag_dir, run_id)
-    os.makedirs(run_dir, exist_ok=True)
+    store = ctx.get("dag_store")
+    if store is None:
+        return "Error: dag_store not configured"
 
+    run_id = uuid.uuid4().hex[:12]
     data["run_id"] = run_id
     data.setdefault("created_by", "main")
     data.setdefault("status", "running")
+    if ctx.get("session_id"):
+        data["session_id"] = ctx["session_id"]
     for stage in data.get("stages", []):
         for task in stage.get("tasks", []):
             task.setdefault("status", "pending")
 
-    dag_path = os.path.join(run_dir, "dag.yaml")
-    with open(dag_path, "w", encoding="utf-8") as f:
-        yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
-
+    store.save(run_id, data)
     return run_id
 
 
-def _load_dag(run_id: str, dag_dir: str) -> tuple[dict | None, str | None]:
-    dag_path = os.path.join(dag_dir, run_id, "dag.yaml")
-    if not os.path.exists(dag_path):
+def _load_dag(run_id: str, store: DagStore) -> tuple[dict | None, str | None]:
+    data = store.load(run_id)
+    if data is None:
         return None, f"Error: run '{run_id}' not found"
-    try:
-        with open(dag_path, encoding="utf-8") as f:
-            return yaml.safe_load(f), None
-    except yaml.YAMLError as e:
-        return None, f"Error reading dag.yaml: {e}"
+    return data, None
 
 
-def _save_dag(run_id: str, data: dict, dag_dir: str) -> None:
-    dag_path = os.path.join(dag_dir, run_id, "dag.yaml")
-    with open(dag_path, "w", encoding="utf-8") as f:
-        yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
+def _save_dag(run_id: str, data: dict, store: DagStore) -> None:
+    store.save(run_id, data)
 
 
-def _append_stage(run_id: str, stage_yaml: str, ctx: dict) -> str:
+def _append_stage(run_id: str, stage_yaml: str, ctx: ToolContext) -> str:
     if not run_id:
         return "Error: 'run_id' is required"
     if not stage_yaml:
         return "Error: 'stage_yaml' is required"
 
-    dag_dir = ctx.get("dag_dir", "runs")
-    data, err = _load_dag(run_id, dag_dir)
+    store = ctx.get("dag_store")
+    if store is None:
+        return "Error: dag_store not configured"
+
+    data, err = _load_dag(run_id, store)
     if err:
         return err
 
@@ -70,11 +69,11 @@ def _append_stage(run_id: str, stage_yaml: str, ctx: dict) -> str:
         task.setdefault("status", "pending")
 
     data.setdefault("stages", []).append(stage)
-    _save_dag(run_id, data, dag_dir)
+    _save_dag(run_id, data, store)
     return f"Appended stage '{stage.get('id', '?')}' to run '{run_id}'"
 
 
-def _update_dag(run_id: str, path: str, value: str, ctx: dict) -> str:
+def _update_dag(run_id: str, path: str, value: str, ctx: ToolContext) -> str:
     if not run_id:
         return "Error: 'run_id' is required"
     if not path:
@@ -82,8 +81,11 @@ def _update_dag(run_id: str, path: str, value: str, ctx: dict) -> str:
     if not value:
         return "Error: 'value' is required"
 
-    dag_dir = ctx.get("dag_dir", "runs")
-    data, err = _load_dag(run_id, dag_dir)
+    store = ctx.get("dag_store")
+    if store is None:
+        return "Error: dag_store not configured"
+
+    data, err = _load_dag(run_id, store)
     if err:
         return err
 
@@ -110,11 +112,11 @@ def _update_dag(run_id: str, path: str, value: str, ctx: dict) -> str:
     except (KeyError, IndexError, TypeError):
         return f"Error: path '{path}' not found at final segment '{final_key}'"
 
-    _save_dag(run_id, data, dag_dir)
+    _save_dag(run_id, data, store)
     return f"Updated '{path}' to '{value}' in run '{run_id}'"
 
 
-async def _dispatch_task(run_id: str, task_id: str, prompt: str, ctx: dict) -> str:
+async def _dispatch_task(run_id: str, task_id: str, prompt: str, ctx: ToolContext) -> str:
     if not run_id:
         return "Error: 'run_id' is required"
     if not task_id:
@@ -122,13 +124,15 @@ async def _dispatch_task(run_id: str, task_id: str, prompt: str, ctx: dict) -> s
     if not prompt:
         return "Error: 'prompt' is required"
 
-    dag_dir = ctx.get("dag_dir", "runs")
+    store = ctx.get("dag_store")
+    if store is None:
+        return "Error: dag_store not configured"
+
     executor = ctx.get("sub_agent_executor")
-
     if not executor:
-        return "Error: sub_agent_executor not configured — dispatch_task requires a running agent system"
+        return "Error: sub_agent_executor not configured"
 
-    data, err = _load_dag(run_id, dag_dir)
+    data, err = _load_dag(run_id, store)
     if err:
         return err
 
@@ -144,28 +148,87 @@ async def _dispatch_task(run_id: str, task_id: str, prompt: str, ctx: dict) -> s
     if task_node is None:
         return f"Error: task '{task_id}' not found in run '{run_id}'"
 
-    task_node["status"] = "running"
-    _save_dag(run_id, data, dag_dir)
+    task_node["status"] = "pending"
+    task_node["prompt"] = prompt
+    _save_dag(run_id, data, store)
+
+    return f"Task '{task_id}' dispatched in run '{run_id}' — will execute in background"
+
+
+async def _execute_pending_dag_task(store: DagStore, executor: callable) -> int:
+    """Find and execute one pending task in DAG. Returns 1 if executed, 0 if none."""
+    pending = store.get_pending_task()
+    if pending is None:
+        return 0
+
+    run_id = pending["run_id"]
+    data = pending["data"]
+    task_id = pending["task_id"]
+    prompt = pending["prompt"]
+    dag_session_id = pending["session_id"]
+
+    for stage in data.get("stages", []):
+        for task in stage.get("tasks", []):
+            if task.get("id") == task_id:
+                task["status"] = "running"
+                store.save(run_id, data)
+                break
 
     try:
-        result = await executor(prompt, task_id)
+        result = await executor(prompt, task_id, dag_session_id)
+        for stage in data.get("stages", []):
+            for task in stage.get("tasks", []):
+                if task.get("id") == task_id:
+                    task["status"] = "done"
+                    task["result"] = str(result) if result else "(no output)"
     except Exception as e:
-        task_node["status"] = "failed"
-        task_node["error"] = str(e)
-        _save_dag(run_id, data, dag_dir)
-        return f"Error dispatching task '{task_id}': {e}"
+        for stage in data.get("stages", []):
+            for task in stage.get("tasks", []):
+                if task.get("id") == task_id:
+                    task["status"] = "failed"
+                    task["error"] = str(e)
 
-    task_node["status"] = "done"
-    task_node["result"] = result
-    _save_dag(run_id, data, dag_dir)
-
-    return f"Task '{task_id}' completed in run '{run_id}'"
+    store.save(run_id, data)
+    return 1
 
 
-def _check_tasks(ctx: dict) -> str:
+def _check_dag_tasks(store: DagStore) -> str:
+    entries = []
+    for data in store.list_all():
+        run_id = data.get("run_id", "?")
+        run_status = data.get("status", "?")
+        entries.append(f"[{run_id}] run: {run_status}")
+
+        for stage in data.get("stages", []):
+            stage_id = stage.get("id", "?")
+            stage_status = stage.get("status", "?")
+            entries.append(f"  [{stage_id}] stage: {stage_status}")
+            for task in stage.get("tasks", []):
+                tid = task.get("id", "?")
+                tstatus = task.get("status", "?")
+                tresult = task.get("result") or ""
+                terror = task.get("error") or ""
+                line = f"    {tid}: {tstatus}"
+                if tresult:
+                    line += f" — result: {tresult}"
+                if terror:
+                    line += f" — error: {terror[:300]}"
+                entries.append(line)
+
+    if not entries:
+        return "No pending tasks"
+    return "\n".join(entries)
+
+
+def _check_tasks(ctx: ToolContext) -> str:
+    store = ctx.get("dag_store")
+    if store is not None:
+        return _check_dag_tasks(store)
+
+    # Legacy fallback: tasks.json (no dag_store configured)
     dag_dir = ctx.get("dag_dir")
     if dag_dir and os.path.isdir(dag_dir):
-        return _check_dag_tasks(dag_dir)
+        return _check_dag_tasks_via_fs(dag_dir)
 
     tasks_path = ctx.get("tasks_path", "runs")
     tasks_file = os.path.join(tasks_path, "tasks.json")
@@ -182,7 +245,8 @@ def _check_tasks(ctx: dict) -> str:
         return f"Error reading tasks: {e}"
 
 
-def _check_dag_tasks(dag_dir: str) -> str:
+def _check_dag_tasks_via_fs(dag_dir: str) -> str:
+    """Fallback: scan dag_dir directly when no store is available."""
     if not os.path.isdir(dag_dir):
         return "No pending tasks"
 
@@ -208,14 +272,21 @@ def _check_dag_tasks(dag_dir: str) -> str:
             for task in stage.get("tasks", []):
                 tid = task.get("id", "?")
                 tstatus = task.get("status", "?")
-                entries.append(f"    {tid}: {tstatus}")
+                tresult = task.get("result") or ""
+                terror = task.get("error") or ""
+                line = f"    {tid}: {tstatus}"
+                if tresult:
+                    line += f" — result: {tresult}"
+                if terror:
+                    line += f" — error: {terror[:300]}"
+                entries.append(line)
 
     if not entries:
         return "No pending tasks"
     return "\n".join(entries)
 
 
-def _stop_task(task_id: str, ctx: dict) -> str:
+def _stop_task(task_id: str, ctx: ToolContext) -> str:
     if not task_id:
         return "Error: 'task_id' is required"
     cancel_dir = ctx.get("cancel_dir", "runs/cancellations")

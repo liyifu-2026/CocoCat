@@ -4,13 +4,30 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable, Awaitable, Optional
+from typing import Callable, Awaitable, Optional, Protocol
 
 from cococat.channel_types import (
     ChatMessage, Reply, ReplyType, MediaCapabilities,
 )
 
 logger = logging.getLogger("cococat.channel")
+
+
+
+class Channel(Protocol):
+    """Protocol for channel backends (WeChat, Feishu, etc.).
+
+    Lightweight interface — just parse_identity() and send().
+    Used by SceneKeeper to route messages without knowing the platform.
+    """
+
+    async def parse_identity(self, raw_msg: dict) -> str:
+        """Extract user identity from raw channel message."""
+        ...
+
+    async def send(self, user_id: str, text: str) -> None:
+        """Send a text reply to a user through the channel."""
+        ...
 
 
 class ChannelAdapter(ABC):

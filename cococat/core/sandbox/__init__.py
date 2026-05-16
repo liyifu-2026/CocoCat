@@ -16,6 +16,50 @@ from cococat.core.sandbox.cubesandbox import CubeSandboxExecutor  # noqa: F401 â
 logger = logging.getLogger("cococat.sandbox")
 
 
+
+import os as _os
+
+async def _make_and_run_agent(
+    agent_id: str,
+    prompt: str,
+    tools: list[dict],
+    resolve_llm: Callable[[str], Any],
+    session_id: str | None = None,
+    on_event: Callable | None = None,
+) -> str:
+    """Create an Agent with SUB role and run it, returning the result.
+
+    Shared by LocalExecutor and CubeSandboxExecutor to avoid
+    duplicating Agent construction and agent.run() boilerplate.
+    """
+    from cococat.core.agent import Agent, AgentRole
+
+    llm = resolve_llm(agent_id)
+    if not llm:
+        return f"[System] No LLM provider for agent '{agent_id}'"
+
+    agent_dir = f"agents/{agent_id}"
+    agent = Agent(
+        id=agent_id,
+        name=agent_id,
+        role=AgentRole.SUB,
+        llm=llm,
+        tools=tools,
+        agent_dir=agent_dir if _os.path.isdir(agent_dir) else None,
+    )
+
+    try:
+        result = await agent.run(
+            prompt,
+            context={"session_id": session_id} if session_id else None,
+            on_text=(lambda t: on_event("text_delta", {"content": t})) if on_event else None,
+            on_tool=(lambda n, s, d=None: on_event("stream_tool", {"name": n, "status": s, **(d or {})})) if on_event else None,
+            on_reasoning=(lambda c: on_event("stream_reasoning", {"content": c})) if on_event else None,
+        )
+        return result
+    except Exception as e:
+        return f"Error: {e}"
+
 class Executor:
     """Abstract executor backend."""
 
@@ -37,7 +81,6 @@ class SandboxProvider:
     """
 
     def __init__(self, executor=None):
-        from cococat.core.sandbox.local_executor import LocalExecutor
         self._executor = executor or LocalExecutor()
         self._sandboxes: dict[str, Sandbox] = {}
 
@@ -69,14 +112,18 @@ class SandboxProvider:
         permissions: dict | None = None,
         tools: list[dict] | None = None,
         on_event: Callable[[str, dict], Any] | None = None,
+        session_id: str | None = None,
     ) -> str:
         """Create a sandbox, run a task, destroy it. One-shot convenience."""
         sandbox_id = await self.create(permissions=permissions)
+        task: dict = {
+            "prompt": prompt,
+            "agent_id": agent_id,
+            "tools": tools or [],
+        }
+        if session_id:
+            task["session_id"] = session_id
         try:
-            return await self.run(sandbox_id, {
-                "prompt": prompt,
-                "agent_id": agent_id,
-                "tools": tools or [],
-            }, on_event)
+            return await self.run(sandbox_id, task, on_event)
         finally:
             await self.destroy(sandbox_id)

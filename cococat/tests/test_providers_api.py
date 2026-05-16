@@ -1,6 +1,5 @@
 """Test provider API — extended provider list with base_url and env_key."""
 import json
-import os
 import pytest
 import pytest_asyncio
 import tempfile
@@ -38,19 +37,19 @@ class TestProvidersApi:
 
     @pytest.mark.asyncio
     async def test_list_providers_has_14_providers(self, client):
-        """GET /api/providers returns all ~14 built-in providers."""
+        """GET /api/providers returns all built-in providers."""
         resp = await client.get("/api/providers")
         data = resp.json()
         providers = data["providers"]
         names = {p["name"] for p in providers}
+        assert "deepseek" in names
+        assert "openai" in names
+        assert "anthropic" in names
         assert "gemini" in names
-        assert "groq" in names
-        assert "mistral" in names
-        assert "moonshot" in names
-        assert "volcengine" in names
+        assert "ollama" in names
+        assert len(providers) >= 20  # 29 builtins
         assert "openrouter" in names
         assert "minimax" in names
-        assert len(providers) >= 14
 
 
 class TestProviderKeySave:
@@ -138,11 +137,12 @@ class TestProviderFetchModels:
 class TestProviderModels:
     @pytest.mark.asyncio
     async def test_get_provider_models(self, client):
-        """GET /api/providers/{name}/models returns model list."""
+        """GET /api/providers/{name}/models returns structured model data."""
         resp = await client.get("/api/providers/deepseek/models")
         assert resp.status_code == 200
         data = resp.json()
-        assert "models" in data
+        assert "enabled" in data
+        assert "default" in data
 
     @pytest.mark.asyncio
     async def test_add_and_remove_model(self, client):
@@ -157,9 +157,9 @@ class TestProviderModels:
         assert data["models"] is not None
         assert "test-model" in data["models"]
 
-        # Verify persisted
+        # Verify persisted (new format: {available, enabled, default})
         resp = await client.get("/api/providers/deepseek/models")
-        assert "test-model" in resp.json()["models"]
+        assert "test-model" in resp.json()["enabled"]
 
         # Remove
         resp = await client.put("/api/providers/deepseek/models", json={

@@ -25,10 +25,14 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
         from cococat.core.cron_worker import CronWorker
 
         worker = TaskWorker(db, pool, poll_interval=10)
+        sub_exec = getattr(app.state.ctx, "sub_executor", None)
+        if sub_exec:
+            worker.set_dag_executor(sub_exec.dispatch)
+        worker.set_dag_store(app.state.ctx.dag_store)
+        worker.set_ws_manager(app.state.ctx.ws_manager)
         await worker.start()
         app.state.ctx.worker = worker
 
-        sub_exec = getattr(app.state.ctx, "sub_executor", None)
         cron_worker = CronWorker(pool, sub_executor=sub_exec)
         await cron_worker.start()
         app.state.ctx.cron_worker = cron_worker
@@ -80,9 +84,4 @@ async def get_ctx(request: Request) -> AppContext:
 
 def _seed_defaults(db: Database) -> None:
     """Seed default data if tables are empty."""
-    existing = db.execute("SELECT id FROM agents WHERE id = 'main'")
-    if not existing:
-        db.execute_insert(
-            "INSERT INTO agents (id, name, role, model, status) "
-            "VALUES ('main', 'Main AI', 'main', 'deepseek-chat', 'running')"
-        )
+    db.seed_main_agent()

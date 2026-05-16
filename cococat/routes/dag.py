@@ -3,7 +3,7 @@ import os
 import logging
 
 import yaml
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 logger = logging.getLogger("cococat.routes.dag")
 
@@ -15,8 +15,8 @@ def _dag_dir() -> str:
 
 
 @router.get("/dag")
-async def list_dag_runs():
-    """List all DAG runs with their task status."""
+async def list_dag_runs(session_id: str | None = Query(default=None)):
+    """List DAG runs. Optionally filter by session_id."""
     dag_dir = _dag_dir()
     if not os.path.isdir(dag_dir):
         return {"runs": []}
@@ -30,6 +30,9 @@ async def list_dag_runs():
             with open(dag_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
         except (yaml.YAMLError, OSError):
+            continue
+
+        if session_id and data.get("session_id") != session_id:
             continue
 
         runs.append(data)

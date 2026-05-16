@@ -1,5 +1,6 @@
 """Web tools — search and fetch."""
-import os
+
+from cococat.core.types import ToolContext
 
 try:
     from tavily import TavilyClient
@@ -7,7 +8,7 @@ except ImportError:
     TavilyClient = None
 
 
-def _web_search(query: str, ctx: dict | None = None) -> str:
+def _web_search(query: str, ctx: ToolContext | None = None) -> str:
     if not query:
         return "Error: 'query' is required"
     ctx = ctx or {}
