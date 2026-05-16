@@ -5,6 +5,7 @@ import { PROVIDER_ICONS } from "@/lib/provider-icons"
 
 const ROLES = [
   { key: "coco", name: "Coco", tagline: "协调者", emoji: "🧠" },
+  { key: "kb-agent", name: "知识库管理员", tagline: "知识库管家", emoji: "📚" },
   { key: "worker", name: "子代理", tagline: "执行者 × N", emoji: "🛠️" },
 ] as const
 
@@ -40,12 +41,14 @@ export function AgentsTab({ data }: { data: TabData }) {
   const [providers, setProviders] = useState<ProviderGroup[]>([])
   const [cocoModel, setCocoModel] = useState("")
   const [workerModel, setWorkerModel] = useState("deepseek-chat")
+  const [kbModel, setKbModel] = useState("deepseek-chat")
   const [prompt, setPrompt] = useState("")
   const [defaultPrompt, setDefaultPrompt] = useState("")
   const [isCustomPrompt, setIsCustomPrompt] = useState(false)
   const [savingPrompt, setSavingPrompt] = useState(false)
   const [savingModel, setSavingModel] = useState(false)
   const [savingWorker, setSavingWorker] = useState(false)
+  const [savingKb, setSavingKb] = useState(false)
   const [promptDirty, setPromptDirty] = useState(false)
 
   // Load enabled models grouped by provider
@@ -78,6 +81,13 @@ export function AgentsTab({ data }: { data: TabData }) {
   useEffect(() => {
     fetch("/api/agents/config").then(r => r.json()).then(d => {
       if (d.worker_model) setWorkerModel(d.worker_model)
+    }).catch(() => {})
+  }, [])
+
+  // Load kb-agent model
+  useEffect(() => {
+    fetch("/api/agents/kb-agent").then(r => r.json()).then(d => {
+      if (d.model) setKbModel(d.model)
     }).catch(() => {})
   }, [])
 
@@ -125,6 +135,17 @@ export function AgentsTab({ data }: { data: TabData }) {
     setSavingWorker(false)
   }
 
+  const handleSaveKbModel = async (model: string) => {
+    setKbModel(model)
+    setSavingKb(true)
+    await fetch("/api/agents/kb-agent", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+    })
+    setSavingKb(false)
+  }
+
   const current = ROLES.find(r => r.key === role)!
   const idx = ROLES.findIndex(r => r.key === role)
   const prev = idx > 0 ? ROLES[idx - 1]! : ROLES[ROLES.length - 1]!
@@ -161,17 +182,20 @@ export function AgentsTab({ data }: { data: TabData }) {
           <div className="flex items-center gap-2">
             <Zap className="size-3.5 text-amber-500 shrink-0" />
             <span className="text-[11px] text-muted-foreground shrink-0">
-              {role === "coco" ? "LLM 模型" : "默认模型"}
+              {role === "coco" ? "LLM 模型" : role === "kb-agent" ? "LLM 模型" : "默认模型"}
             </span>
             <ModelSelect
               providers={providers}
-              value={role === "coco" ? cocoModel : workerModel}
-              onChange={role === "coco" ? handleSaveCocoModel : handleSaveWorkerModel}
+              value={role === "coco" ? cocoModel : role === "kb-agent" ? kbModel : workerModel}
+              onChange={role === "coco" ? handleSaveCocoModel : role === "kb-agent" ? handleSaveKbModel : handleSaveWorkerModel}
             />
-            {(savingModel || savingWorker) && <Loader2 className="size-3 animate-spin text-muted-foreground shrink-0" />}
+            {(savingModel || savingWorker || savingKb) && <Loader2 className="size-3 animate-spin text-muted-foreground shrink-0" />}
           </div>
           {role === "worker" && (
             <p className="text-[10px] text-muted-foreground/60 mt-2 px-1">子代理按需创建，任务完成后自动销毁。此处设置所有子代理的默认模型。</p>
+          )}
+          {role === "kb-agent" && (
+            <p className="text-[10px] text-muted-foreground/60 mt-2 px-1">知识库管理员是常驻智能体，负责知识库的内容注入和日常维护。</p>
           )}
         </Slot>
 

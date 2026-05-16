@@ -1,5 +1,5 @@
 cron: []
-id: coco
+id: main
 model: deepseek-chat
 name: Coco
 page: /chat
