@@ -219,22 +219,23 @@ async def list_main_channels():
 
     for ct, info in channels.items():
         key = f"main:main:{ct}"
-        status = CHANNEL_STATUS.get(key, {}).get("status", "stopped")
-        display_name = ct
-        for t in CHANNEL_TYPES:
-            if t["channel_type"] == ct:
-                display_name = t["display_name"]
-                break
-        result.append({
-            "channel_type": ct,
-            "display_name": display_name,
-            "enabled": info.get("enabled", False),
-            "status": "connected" if status == "connected" else (
-                "configured" if info.get("config") else "unconfigured"
-            ),
-            "connected_since": CHANNEL_STATUS.get(key, {}).get("connected_since"),
-            "message_count": CHANNEL_STATUS.get(key, {}).get("message_count", 0),
-        })
+            status = CHANNEL_STATUS.get(key, {}).get("status", "stopped")
+            if status == "connected":
+                ch_status = "connected"
+            elif status == "connecting":
+                ch_status = "connecting"
+            elif info.get("enabled"):
+                ch_status = "configured"
+            else:
+                ch_status = "unconfigured"
+            result.append({
+                "channel_type": ct,
+                "display_name": display_name,
+                "enabled": info.get("enabled", False),
+                "status": ch_status,
+                "connected_since": CHANNEL_STATUS.get(key, {}).get("connected_since"),
+                "message_count": CHANNEL_STATUS.get(key, {}).get("message_count", 0),
+            })
 
     return {"channels": result}
 
@@ -271,13 +272,17 @@ async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ct
         elif body.target_type == "main":
             _connect_main_channel(ch, body, ctx, key)
 
+        # Check if startup finished immediately (non-QR channels succeed fast)
+        success, _ = ch.wait_startup(timeout=0.5)
+        status = "connected" if success else "connecting"
+
         CHANNEL_STATUS[key] = {
-            "status": "connected",
+            "status": status,
             "channel_type": body.channel_type,
-            "connected_since": datetime.datetime.now().isoformat(),
+            "connected_since": datetime.datetime.now().isoformat() if success else None,
             "message_count": 0,
         }
-        return {"status": "connected"}
+        return {"status": status}
 
     except Exception as e:
         logger.exception("Failed to connect channel %s", body.channel_type)

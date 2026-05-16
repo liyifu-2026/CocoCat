@@ -247,6 +247,12 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
           )}
 
           {/* Status bar */}
+          {status === "connecting" && !qrState && (
+            <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs">
+              <Loader2 className="size-2 animate-spin text-blue-500" />
+              <span className="font-semibold text-blue-700">连接中...</span>
+            </div>
+          )}
           {status === "connected" && !qrState && (
             <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs">
               <Circle className="size-2 text-green-500 fill-green-500" />

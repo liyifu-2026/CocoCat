@@ -21,6 +21,11 @@ const STATUS_STYLES: Record<string, { border: string; bg: string; dot: string; t
     dot: "text-green-500 fill-green-500", text: "text-green-700",
     label: "已连接",
   },
+  connecting: {
+    border: "border-blue-400", bg: "bg-blue-50/60",
+    dot: "text-blue-500 fill-blue-500", text: "text-blue-700",
+    label: "连接中",
+  },
   configured: {
     border: "border-amber-400", bg: "bg-amber-50/60",
     dot: "text-amber-500 fill-amber-500", text: "text-amber-700",

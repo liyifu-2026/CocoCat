@@ -52,7 +52,7 @@ export interface MainChannelInfo {
   channel_type: string
   display_name: string
   enabled: boolean
-  status: "connected" | "configured" | "unconfigured"
+  status: "connected" | "connecting" | "configured" | "unconfigured"
   connected_since: string | null
   message_count: number
 }
@@ -70,6 +70,7 @@ export interface TabData {
   global?: { name: string; description: string }[]
   kbs?: { id: string; purpose?: string }[]
   channels?: { channel_type: string; target_type: string; target_id: string; status: string }[]
+  workspace?: string
 }
 
 export interface SettingsModalProps {

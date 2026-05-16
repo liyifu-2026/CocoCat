@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
 import type { ChannelTypeInfo, MainChannelInfo } from "@/types/settings"
 import { PlatformGrid } from "./PlatformGrid"
@@ -51,12 +51,7 @@ export function ChannelsTab() {
   }, [])
 
   // Fetch on mount
-  const [initialized, setInitialized] = useState(false)
-  if (!initialized) {
-    setInitialized(true)
-    loadTypes()
-    loadMain()
-  }
+  useEffect(() => { loadTypes(); loadMain() }, [loadTypes, loadMain])
 
   const handleCardClick = (typeInfo: ChannelTypeInfo, mainInfo?: MainChannelInfo) => {
     setSelectedType(typeInfo)
