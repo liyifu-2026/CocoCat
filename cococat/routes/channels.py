@@ -1,13 +1,19 @@
 """Channel management routes."""
 import asyncio
-import json
+import datetime
 import os
+import logging
+
+import yaml
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from cococat.app import get_ctx
 from cococat.context import AppContext
+from cococat.core.channels.context import Reply, ReplyType, Context, ContextType
 
+logger = logging.getLogger("cococat.routes.channels")
 router = APIRouter(prefix="/api/channels", tags=["channels"])
 
 
@@ -188,23 +194,18 @@ def _save_main_config(data: dict):
 @router.get("")
 async def list_channels():
     """List all configured channels."""
+    from cococat.scene.config import list_scenes as list_scene_configs
+
     result = []
-    scenes_dir = "scenes"
-    if os.path.isdir(scenes_dir):
-        for scene_id in os.listdir(scenes_dir):
-            path = os.path.join(scenes_dir, scene_id, "scene.yaml")
-            if not os.path.exists(path):
-                continue
-            with open(path, encoding="utf-8") as f:
-                data = yaml.safe_load(f) or {}
-            for ch in data.get("channels", []):
-                key = f"scene:{scene_id}:{ch['type']}"
-                result.append({
-                    "target_type": "scene",
-                    "target_id": scene_id,
-                    "channel_type": ch["type"],
-                    "status": CHANNEL_STATUS.get(key, {}).get("status", "stopped"),
-                })
+    for config in list_scene_configs():
+        for ch in config.channels:
+            key = f"scene:{config.id}:{ch['type']}"
+            result.append({
+                "target_type": "scene",
+                "target_id": config.id,
+                "channel_type": ch["type"],
+                "status": CHANNEL_STATUS.get(key, {}).get("status", "stopped"),
+            })
 
     return {"channels": result}
 
@@ -266,40 +267,9 @@ async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ct
         ch = create_channel(body.channel_type)
 
         if body.target_type == "scene":
-            pool = ctx.pool
-            bus = ctx.bus
-
-            def route(msg, scene_id=body.target_id, ct=body.channel_type):
-                async def _handle():
-                    agent = pool.get_scene_agent(scene_id)
-                    if agent:
-                        reply = await agent.run(msg.content)
-                        await ch.send(reply, msg.user_id)
-                    await bus.publish("scene_message", {
-                        "scene_id": scene_id,
-                        "channel": ct,
-                        "user_id": msg.user_id,
-                        "content": msg.content,
-                    })
-                _schedule_coro(_handle())
-
-            ch.on_message = route
-            ch.start(body.target_id, body.config)
-
+            _connect_scene_channel(ch, body, ctx, key)
         elif body.target_type == "main":
-            bus = ctx.bus
-
-            def main_route(msg, ct=body.channel_type):
-                async def _handle():
-                    await bus.publish("main_message", {
-                        "channel": ct,
-                        "user_id": msg.user_id,
-                        "content": msg.content,
-                    })
-                _schedule_coro(_handle())
-
-            ch.on_message = main_route
-            ch.start(body.target_id, body.config)
+            _connect_main_channel(ch, body, ctx, key)
 
         CHANNEL_STATUS[key] = {
             "status": "connected",
@@ -310,7 +280,55 @@ async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ct
         return {"status": "connected"}
 
     except Exception as e:
+        logger.exception("Failed to connect channel %s", body.channel_type)
         return {"status": "error", "error": str(e)}
+
+
+def _connect_scene_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
+    """Wire a scene-bound channel: on_message → agent.run → send reply."""
+    pool = ctx.pool
+    bus = ctx.bus
+
+    def on_message(msg, scene_id=body.target_id, ct=body.channel_type):
+        async def _handle():
+            agent = pool.get_scene_agent(scene_id)
+            if not agent:
+                logger.warning("No agent bound to scene %s", scene_id)
+                return
+
+            reply_text = await agent.run(msg.content)
+            reply = Reply(ReplyType.TEXT, reply_text)
+            user_ctx = Context(ContextType.TEXT, msg.content,
+                               user_id=msg.user_id, scene_id=scene_id)
+            await ch.send(reply, user_ctx)
+
+            await bus.publish("scene_message", {
+                "scene_id": scene_id,
+                "channel": ct,
+                "user_id": msg.user_id,
+                "content": msg.content,
+            })
+        _schedule_coro(_handle())
+
+    ch.on_message = on_message
+    ch.start(body.target_id, body.config)
+
+
+def _connect_main_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
+    """Wire a main-AI channel: on_message → publish to event bus."""
+    bus = ctx.bus
+
+    def on_message(msg, ct=body.channel_type):
+        async def _handle():
+            await bus.publish("main_message", {
+                "channel": ct,
+                "user_id": msg.user_id,
+                "content": msg.content,
+            })
+        _schedule_coro(_handle())
+
+    ch.on_message = on_message
+    ch.start(body.target_id, body.config)
 
 
 @router.post("/disconnect")
