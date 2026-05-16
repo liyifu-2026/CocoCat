@@ -1,0 +1,7 @@
+cron: []
+id: coco
+model: deepseek-chat
+name: Coco
+page: /chat
+role: resident
+skills: []

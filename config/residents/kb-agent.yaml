@@ -1,0 +1,14 @@
+cron:
+- name: lint
+  schedule: '@daily'
+- name: dedup
+  schedule: '@weekly'
+- name: overview
+  schedule: '@weekly'
+id: kb-agent
+model: deepseek-chat
+name: 知识库管理员
+page: /knowledge
+role: resident
+skills:
+- knowledge-ingestion

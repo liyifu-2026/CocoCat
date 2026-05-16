@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Any, Callable, Optional
 
 from cococat.core.sandbox_path import PathSandbox, wrap_tool_with_sandbox
-from cococat.prompt import build_system_prompt, load_memory_from_agent_dir
+from cococat.prompt import build_system_prompt, load_memory_from_agent_dir, KB_AGENT_STATIC_PREFIX
 from cococat.skills import load_scene_skills
 from cococat.profile import load_agent_system_prompt
 from cococat.core.session import Session, load_session, save_session_pair, maybe_trigger_dream
@@ -70,6 +70,7 @@ class Agent:
             agent_profile=name + ("\n" + profile_text if profile_text else ""),
             memory_content=memory_content,
             pinned_facts=pinned,
+            static_prefix=KB_AGENT_STATIC_PREFIX if id == "kb-agent" else None,
         )
         self._default_system_prompt = self._system_prompt
         self._base_tools = tools or create_core_tools()
