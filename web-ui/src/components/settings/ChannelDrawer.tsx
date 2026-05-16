@@ -224,14 +224,16 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
             <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border p-4">
               <QrCode className="size-6 text-foreground" />
               {qrState.qrcode_url ? (
-                <>
-                  <img
-                    src={qrState.qrcode_url}
-                    alt="登录二维码"
-                    className="w-48 h-48 rounded-lg border border-border"
-                  />
-                  <p className="text-xs text-muted-foreground">请使用微信扫描二维码</p>
-                </>
+                (() => {
+                  const url = qrState.qrcode_url
+                  const src = url.startsWith("http") || url.startsWith("data:") ? url : `data:image/png;base64,${url}`
+                  return (
+                    <>
+                      <img src={src} alt="登录二维码" className="w-48 h-48 rounded-lg border border-border" />
+                      <p className="text-xs text-muted-foreground">请使用微信扫描二维码</p>
+                    </>
+                  )
+                })()
               ) : (
                 <Loader2 className="size-8 animate-spin text-muted-foreground" />
               )}

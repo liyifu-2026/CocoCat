@@ -1,8 +1,9 @@
 """Channel management routes."""
 import asyncio
 import datetime
-import os
 import logging
+import os
+import threading
 
 import yaml
 
@@ -280,6 +281,21 @@ async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ct
         # Check if startup finished immediately (non-QR channels succeed fast)
         success, _ = ch.wait_startup(timeout=0.5)
         status = "connected" if success else "connecting"
+
+        # For channels that take time to start (QR login), watch in background
+        if not success:
+            def _watch_startup():
+                ok, err = ch.wait_startup(timeout=300)
+                if ok:
+                    CHANNEL_STATUS[key] = {
+                        "status": "connected",
+                        "channel_type": body.channel_type,
+                        "connected_since": datetime.datetime.now().isoformat(),
+                        "message_count": 0,
+                    }
+                else:
+                    CHANNEL_STATUS.pop(key, None)
+            threading.Thread(target=_watch_startup, daemon=True).start()
 
         CHANNEL_STATUS[key] = {
             "status": status,
