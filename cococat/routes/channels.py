@@ -337,13 +337,13 @@ THINKING_MESSAGES = [
 ]
 
 
-async def _send_thinking(ch, msg):
+def _send_thinking(ch, msg):
     """Send a random thinking indicator before the AI reply."""
     text = random.choice(THINKING_MESSAGES)
     thinking_reply = Reply(ReplyType.TEXT, text)
     thinking_ctx = Context(ContextType.TEXT, msg.content,
                            user_id=msg.user_id, receiver=msg.user_id)
-    await ch.send(thinking_reply, thinking_ctx)
+    ch.send(thinking_reply, thinking_ctx)
 
 
 def _connect_scene_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
@@ -360,13 +360,13 @@ def _connect_scene_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
                 return
 
             # Thinking indicator
-            await _send_thinking(ch, msg)
+            _send_thinking(ch, msg)
 
             reply_text = await agent.run(msg.content)
             reply = Reply(ReplyType.TEXT, reply_text)
             user_ctx = Context(ContextType.TEXT, msg.content,
                                user_id=msg.user_id, scene_id=scene_id)
-            await ch.send(reply, user_ctx)
+            ch.send(reply, user_ctx)
 
             await bus.publish("scene_message", {
                 "scene_id": scene_id,
@@ -397,13 +397,13 @@ def _connect_main_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
                     return
 
                 # Thinking indicator
-                await _send_thinking(ch, msg)
+                _send_thinking(ch, msg)
 
                 reply_text = await agent.run(msg.content)
                 reply = Reply(ReplyType.TEXT, reply_text)
                 user_ctx = Context(ContextType.TEXT, msg.content,
                                    user_id=msg.user_id, receiver=msg.user_id)
-                await ch.send(reply, user_ctx)
+                ch.send(reply, user_ctx)
 
                 await bus.publish("main_message", {
                     "channel": ct,
