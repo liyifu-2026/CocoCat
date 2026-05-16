@@ -16,6 +16,10 @@ from cococat.core.tools.dag import (
 )
 from cococat.core.tools.memory_tools import _pin, _unpin, _recall, _record_experience, _recall_experience
 from cococat.core.tools.meta import _cron, _wait, _current_status, _todo_write
+from cococat.core.tools.kb_tools import (
+    _search_kb, _read_wiki, _write_wiki, _run_dedup,
+    _run_lint, _gen_overview, _cascade_del, _get_graph, _call_worker, _list_kbs,
+)
 
 
 @dataclass
@@ -149,6 +153,46 @@ def _make_sub_agent_tool(sub_agent_executor=None) -> list[dict]:
     ]
 
 
+def _make_kb_tools() -> list[dict]:
+    """KB tools for all agents (read-only)."""
+    return [
+        _make("search_kb", "Search a knowledge base wiki", {"kb_name": "string", "query": "string"},
+              lambda p, ctx: _search_kb(p, ctx)),
+        _make("read_wiki", "Read a wiki page", {"kb_name": "string", "type": "string", "slug": "string"},
+              lambda p, ctx: _read_wiki(p, ctx)),
+        _make("list_kbs", "List available knowledge bases", {},
+              lambda p, ctx: _list_kbs(p, ctx)),
+    ]
+
+
+def _make_kb_admin_tools() -> list[dict]:
+    """KB admin tools (write + maintenance) for kb-agent only."""
+    return [
+        _make("write_wiki", "Write a wiki page", {"kb_name": "string", "type": "string", "slug": "string", "content": "string", "title": "string"},
+              lambda p, ctx: _write_wiki(p, ctx)),
+        _make("run_dedup", "Run KB dedup pipeline", {"kb_name": "string"},
+              lambda p, ctx: _run_dedup(p, ctx)),
+        _make("run_lint", "Run KB health check", {"kb_name": "string"},
+              lambda p, ctx: _run_lint(p, ctx)),
+        _make("gen_overview", "Generate KB overview", {"kb_name": "string"},
+              lambda p, ctx: _gen_overview(p, ctx)),
+        _make("cascade_del", "Cascade delete source file from KB", {"kb_name": "string", "source_filename": "string"},
+              lambda p, ctx: _cascade_del(p, ctx)),
+        _make("get_graph", "Get KB knowledge graph", {"kb_name": "string"},
+              lambda p, ctx: _get_graph(p, ctx)),
+    ]
+
+
+def _make_call_worker_tool(sub_agent_executor=None) -> list[dict]:
+    """call_worker tool for resident agents to invoke worker pool."""
+    return [
+        _make("call_worker", "Call a worker agent for execution", {"task": "string"},
+              (lambda p, ctx: f"[call_worker] {p.get('task', '')} — stub")
+              if sub_agent_executor is None else
+              (lambda p, ctx: _call_worker(p, {**(ctx or {}), "sub_agent_executor": sub_agent_executor}))),
+    ]
+
+
 # ── Public API ────────────────────────────────────────────
 
 def create_core_tools(
@@ -167,7 +211,8 @@ def create_core_tools(
         _make_dag_tools(dag_store, sub_agent_executor) +
         _make_sub_agent_tool(sub_agent_executor) +
         _make_memory_tools() +
-        _make_meta_tools()
+        _make_meta_tools() +
+        _make_kb_tools()
     )
 
 
@@ -185,3 +230,25 @@ def create_main_ai_tools(
         _make_memory_tools() +
         _make_meta_tools()
     )
+
+
+def create_resident_tools(
+    sub_agent_executor: Callable[[str, str], Awaitable[str]] | None = None,
+    dag_store=None,
+    is_kb_agent: bool = False,
+) -> list[dict]:
+    """Create tools for a resident agent.
+
+    Coco: DAG + memory + meta + call_worker + kb_read
+    kb-agent: KB tools (read+write+admin) + call_worker + meta
+    """
+    tools = (
+        _make_dag_tools(dag_store, sub_agent_executor) +
+        _make_memory_tools() +
+        _make_meta_tools() +
+        _make_call_worker_tool(sub_agent_executor) +
+        _make_kb_tools()
+    )
+    if is_kb_agent:
+        tools += _make_kb_admin_tools()
+    return tools
