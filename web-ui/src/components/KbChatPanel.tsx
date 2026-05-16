@@ -1,41 +1,92 @@
-import { useState, useRef, useEffect } from "react"
-import { Send, Loader2, Bot } from "lucide-react"
+import { useState, useRef, useEffect, useContext, useCallback } from "react"
+import { Send, Loader2, Bot, Wrench, CheckCircle2 } from "lucide-react"
+import { KbChatContext, type ChatMessage } from "@/lib/KbChatContext"
 
-interface Message {
-  role: "user" | "assistant"
-  content: string
+function buildWsUrl(): string {
+  const proto = location.protocol === "https:" ? "wss" : "ws"
+  return `${proto}://${location.host}/ws`
 }
 
 export default function KbChatPanel({ kbName }: { kbName: string }) {
-  const [messages, setMessages] = useState<Message[]>([])
+  const ctx = useContext(KbChatContext)
   const [input, setInput] = useState("")
-  const [loading, setLoading] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const wsRef = useRef<WebSocket | null>(null)
 
+  const messages = ctx?.messages ?? []
+  const loading = ctx?.loading ?? false
+
+  // Auto scroll
   useEffect(() => {
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight)
   }, [messages])
+
+  // Connect WebSocket for live streaming
+  useEffect(() => {
+    if (!ctx) return
+    const ws = new WebSocket(buildWsUrl())
+    wsRef.current = ws
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.agent_id !== "kb-agent") return
+
+        if (data.type === "text_delta" || data.type === "stream_delta") {
+          ctx.appendToLast(data.content || "")
+        } else if (data.type === "stream_tool" || data.type === "tool_call") {
+          ctx.addToolMessage({
+            type: "tool" as const,
+            id: data.tool_call_id || Date.now().toString(),
+            name: data.name || data.tool_name || "tool",
+            status: data.status || "running",
+            arguments: data.arguments,
+            result: data.result,
+            elapsed: data.elapsed,
+          })
+        }
+      } catch {}
+    }
+
+    ws.onopen = () => console.log("[kb-chat] WS connected")
+    ws.onclose = () => console.log("[kb-chat] WS disconnected")
+
+    return () => {
+      ws.close()
+    }
+  }, [ctx])
 
   const send = async () => {
     const text = input.trim()
     if (!text || loading) return
 
     setInput("")
-    setMessages(prev => [...prev, { role: "user", content: text }])
-    setLoading(true)
+    ctx?.addMessage({ type: "chat", role: "user", content: text })
 
     try {
+      ctx?.setLoading(true)
+      ctx?.addMessage({ type: "chat", role: "assistant", content: "" })
       const res = await fetch("/api/kb-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: text, kb_name: kbName }),
       })
       const data = await res.json()
-      setMessages(prev => [...prev, { role: "assistant", content: data.reply || "No response" }])
+      // If streaming didn't fill the message, use the reply
+      if (data.reply) {
+        const last = ctx?.messages[ctx.messages.length - 1]
+        if (last && last.type === "chat" && last.role === "assistant") {
+          if (!last.content) {
+            ctx?.finalizeLast(data.reply)
+          } else if (last.content !== data.reply) {
+            ctx?.appendToLast(data.reply)
+          }
+        }
+      }
     } catch {
-      setMessages(prev => [...prev, { role: "assistant", content: "Error: failed to reach kb-agent" }])
+      ctx?.appendToLast("\n\n[Error: failed to reach kb-agent]")
     } finally {
-      setLoading(false)
+      ctx?.setLoading(false)
     }
   }
 
@@ -44,6 +95,7 @@ export default function KbChatPanel({ kbName }: { kbName: string }) {
       <div className="px-3 py-2 border-b border-border flex items-center gap-2 shrink-0">
         <Bot className="size-4 text-primary" />
         <span className="text-xs font-medium">kb-agent</span>
+        {loading && <Loader2 className="size-3 animate-spin ml-auto" />}
       </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3 text-xs">
         {messages.length === 0 && (
@@ -51,21 +103,30 @@ export default function KbChatPanel({ kbName }: { kbName: string }) {
             我是知识库管理员，可以帮你搜索、整理、维护 KB。
           </p>
         )}
-        {messages.map((m, i) => (
-          <div key={i} className={m.role === "user" ? "text-right" : ""}>
-            <div className={`inline-block rounded-lg px-3 py-2 max-w-[85%] ${
-              m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
-            }`}>
-              {m.content}
+        {messages.map((m, i) => {
+          if (m.type === "tool") {
+            return (
+              <div key={i} className="flex items-center gap-2 text-[11px] text-muted-foreground py-0.5">
+                <Wrench className="size-3" />
+                <span className="font-mono">{m.name}</span>
+                {m.status === "running" && <Loader2 className="size-3 animate-spin text-primary" />}
+                {m.status === "done" && <CheckCircle2 className="size-3 text-emerald-500" />}
+                {m.elapsed && <span className="text-[10px] opacity-50">({m.elapsed}s)</span>}
+              </div>
+            )
+          }
+          return (
+            <div key={i} className={m.role === "user" ? "text-right" : ""}>
+              <div className={`inline-block rounded-lg px-3 py-2 max-w-[85%] whitespace-pre-wrap ${
+                m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
+              }`}>
+                {m.content || (m.role === "assistant" && loading && i === messages.length - 1
+                  ? <span className="inline-block animate-pulse">...</span>
+                  : m.content)}
+              </div>
             </div>
-          </div>
-        ))}
-        {loading && (
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="size-3 animate-spin" />
-            kb-agent 思考中...
-          </div>
-        )}
+          )
+        })}
       </div>
       <div className="p-2 border-t border-border shrink-0">
         <div className="flex gap-1">

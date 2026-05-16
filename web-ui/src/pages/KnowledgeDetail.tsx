@@ -142,7 +142,7 @@ export default function KnowledgeDetailPage() {
           </div>
         )}
       </main>
-      <div className="w-72 shrink-0">
+      <div className="w-80 shrink-0">
         <KbChatPanel kbName={kb!} />
       </div>
     </div>
