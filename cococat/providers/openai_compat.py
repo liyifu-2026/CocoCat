@@ -32,7 +32,14 @@ def _tool_to_openai(tool: dict) -> dict:
         properties[name] = prop
 
     if not properties:
-        properties["_no_params"] = {"type": "string", "description": "No parameters required (reserved)"}
+        return {
+            "name": tool["name"],
+            "description": tool.get("description", ""),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        }
 
     return {
         "name": tool["name"],
@@ -117,6 +124,9 @@ class OpenAICompatProvider(BaseProvider):
                 },
                 json=body,
             )
+            if resp.status_code >= 400:
+                err_body = resp.text[:500]
+                logger.error("DeepSeek 400: %s", err_body)
             resp.raise_for_status()
             data = resp.json()
 
