@@ -1,0 +1,85 @@
+<h2>设计 Section 4：kb-agent 注册 &amp; knowledge-ingestion Skill</h2>
+<p class="subtitle">agent 定义 + 专属 skill + 触发机制</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+
+  <div style="border:1px solid #f9e2af;border-radius:8px;padding:14px;">
+    <div class="label" style="color:#f9e2af;">kb-agent 注册</div>
+    <p style="font-size:12px;color:#a6adc8;margin:4px 0 8px 0;">
+      在 agent 配置中注册 kb-agent，与现有 subagent 并列
+    </p>
+    <div style="background:#1e1e2e;border-radius:4px;padding:10px;font-family:monospace;font-size:12px;color:#cdd6f4;">
+<span style="color:#6c7086;"># agents/kb-agent.yaml 或等价配置</span><br/>
+name: <span style="color:#a6e3a1;">kb-agent</span><br/>
+display_name: <span style="color:#a6e3a1;">知识库管理员</span><br/>
+system_prompt: <span style="color:#a6e3a1;">agents/kb-agent.prompt.md</span><br/>
+skills: [<span style="color:#a6e3a1;">knowledge-ingestion</span>]<br/>
+tools: [<span style="color:#a6e3a1;">search_kb, read_wiki, write_wiki, <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;run_dedup, run_lint, gen_overview,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cascade_del, get_graph</span>]<br/>
+permission: <span style="color:#a6e3a1;">kb_read_write</span><br/>
+    </div>
+  </div>
+
+  <div style="border:1px solid #89b4fa;border-radius:8px;padding:14px;">
+    <div class="label" style="color:#89b4fa;">knowledge-ingestion skill</div>
+    <p style="font-size:12px;color:#a6adc8;margin:4px 0 8px 0;">
+      指导 kb-agent 如何拆解材料、注入 KB 的 skill 文件
+    </p>
+    <div style="background:#1e1e2e;border-radius:4px;padding:10px;font-family:monospace;font-size:12px;color:#cdd6f4;">
+<span style="color:#6c7086;"># skills/public/knowledge-ingestion.md</span><br/>
+<br/>
+<span style="color:#cba6f7;">##</span> 材料分析<br/>
+- 识别材料类型（文档/代码/对话/图片）<br/>
+- 提取关键实体和概念<br/>
+- 判断与现有 wiki 的重叠度<br/>
+<br/>
+<span style="color:#cba6f7;">##</span> 注入策略<br/>
+- 新实体 → 创建 entities/ 页面<br/>
+- 新概念 → 创建 concepts/ 页面<br/>
+- 已有页面补充 → merge 而非覆盖<br/>
+- 使用 wikilink `[[slug]]` 建立关联<br/>
+<br/>
+<span style="color:#cba6f7;">##</span> 质量控制<br/>
+- 检查 frontmatter 完整性<br/>
+- 去重检查（dedup-not-duplicates）<br/>
+- 更新 index.md 和 log.md<br/>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;">
+  <div class="label" style="color:#a6e3a1;margin-bottom:8px;">触发机制</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div style="border:1px solid #45475a;border-radius:8px;padding:14px;">
+      <strong style="color:#f9e2af;">事件驱动（即时响应）</strong>
+      <ul style="margin:4px 0 0 0;padding-left:16px;font-size:13px;">
+        <li>用户上传源文件 → Worker 创建 <code>kb:ingest</code> 任务 → dispatch 给 kb-agent</li>
+        <li>用户在前端对话窗发指令 → 直接路由给 kb-agent</li>
+        <li>用户删除源文件 → Worker 创建 <code>kb:cascade</code> 任务</li>
+      </ul>
+    </div>
+    <div style="border:1px solid #45475a;border-radius:8px;padding:14px;">
+      <strong style="color:#f9e2af;">定时巡检（cron 驱动）</strong>
+      <ul style="margin:4px 0 0 0;padding-left:16px;font-size:13px;">
+        <li><code>kb:lint</code> — 每天一次，检查健康</li>
+        <li><code>kb:dedup</code> — 每周一次，合并重复</li>
+        <li><code>kb:overview</code> — 每周一次，刷新概览</li>
+        <li>实现方式：cron 生成 pending task 写入 tasks 表，Worker 认领后 dispatch 给 kb-agent</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:16px;background:#313244;border-radius:8px;padding:14px;color:#cdd6f4;font-family:monospace;font-size:12px;">
+<strong style="color:#a6e3a1;">Cron 实现</strong> — 不引入外部 cron 库。在 Worker 主循环中加一个简单检查：
+<br/><br/>
+<span style="color:#6c7086;"># worker.py — 每次轮询时检查是否需要生成维护任务</span><br/>
+<span style="color:#cba6f7;">def</span> <span style="color:#89b4fa;">maybe_enqueue_maintenance</span>():<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#cba6f7;">for</span> kb_name <span style="color:#cba6f7;">in</span> list_kb_dirs():<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#cba6f7;">if</span> due(<span style="color:#a6e3a1;">'lint'</span>, kb_name, interval=<span style="color:#a6e3a1;">'24h'</span>):<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;enqueue_task(kb_name, <span style="color:#a6e3a1;">'kb:lint'</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#cba6f7;">if</span> due(<span style="color:#a6e3a1;">'dedup'</span>, kb_name, interval=<span style="color:#a6e3a1;">'7d'</span>):<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;enqueue_task(kb_name, <span style="color:#a6e3a1;">'kb:dedup'</span>)
+</div>

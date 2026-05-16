@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CocoCat — DAG 实时流程可视化原型</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Noto Sans SC", system-ui, sans-serif;
+  background: #f5f2ef; color: #333;
+  height: 100vh; overflow: hidden;
+  --primary: #8b5e3c; --blue: #3b82f6; --green: #22c55e;
+  --border: #e2ddd6; --card: #faf8f5; --muted: #8c8a86;
+  --radius: 14px;
+}
+
+.app { display: flex; height: 100vh; }
+
+.sidebar {
+  width: 200px; border-right: 1px solid var(--border);
+  background: #faf8f5; display: flex; flex-direction: column;
+  font-size: 13px; flex-shrink: 0;
+}
+.sidebar-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-weight: 600; color: var(--muted); text-transform: uppercase;
+  font-size: 10px; letter-spacing: 0.06em;
+}
+.sess { padding: 8px 12px; cursor: pointer; font-size: 12px; border-bottom: 1px solid var(--border); transition: background 0.15s; }
+.sess:hover { background: #ede8e1; }
+.sess.active { background: #e8e0d5; font-weight: 500; }
+
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.chat-scroll { flex: 1; overflow-y: auto; padding: 24px 32px; display: flex; flex-direction: column; gap: 16px; }
+
+/* Message bubbles */
+.msg-row { display: flex; }
+.msg-row.user { justify-content: flex-end; }
+.msg-row.assistant { justify-content: flex-start; }
+.user-bubble {
+  background: var(--primary); color: #fff;
+  border-radius: var(--radius) var(--radius) 4px var(--radius);
+  padding: 10px 16px; font-size: 14px; max-width: 65%;
+}
+.assistant-bubble {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) var(--radius) 4px;
+  padding: 14px 18px; font-size: 14px; line-height: 1.7; max-width: 65%;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* DAG Card in conversation */
+.dag-card {
+  background: var(--card); border: 1.5px solid #dbeafe;
+  border-radius: var(--radius); overflow: hidden; margin-top: 6px; margin-bottom: 2px;
+}
+.dag-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; cursor: pointer; user-select: none;
+  font-size: 12px; transition: background 0.15s;
+}
+.dag-header:hover { background: #f0f7ff; }
+.dag-header-left { display: flex; align-items: center; gap: 8px; }
+.dag-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 500;
+}
+.dag-badge.running { background: #eff6ff; color: #3b82f6; }
+.dag-badge.done { background: #f0fdf4; color: #22c55e; }
+.dag-body { padding: 8px 16px 16px; }
+.dag-body svg { width: 100%; }
+
+/* Legend */
+.dag-legend {
+  display: flex; gap: 14px; padding: 0 16px 8px; font-size: 10px; color: #888;
+}
+.dag-legend span { display: flex; align-items: center; gap: 4px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+.legend-dot.pending { background: #cbd5e1; }
+.legend-dot.running { background: #3b82f6; }
+.legend-dot.done { background: #22c55e; }
+.legend-dot.failed { background: #ef4444; }
+
+/* Notification message */
+.assistant-bubble.notify {
+  border-color: #dbeafe; background: #f8fbff;
+}
+.notify-icon { display: inline-block; width: 18px; height: 18px; background: #22c55e; border-radius: 50%; color: #fff; font-size: 11px; text-align: center; line-height: 18px; margin-right: 4px; }
+
+/* Tool cards */
+.tool-list { display: flex; flex-direction: column; gap: 3px; margin: 6px 0; }
+.tool-card {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: #f8f7f4; border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px; font-size: 11px;
+}
+.tool-name { font-weight: 600; font-family: "JetBrains Mono", monospace; font-size: 11px; }
+.tool-args { font-size: 10px; color: #888; font-family: "JetBrains Mono", monospace; margin-top: 1px; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tool-status {
+  font-size: 9px; padding: 1px 6px; border-radius: 99px; font-weight: 500;
+}
+.tool-status.done { background: #f0fdf4; color: #22c55e; }
+.tool-status.running { background: #eff6ff; color: #3b82f6; }
+
+/* Input */
+.input-area { border-top: 1px solid var(--border); background: #faf8f5cc; backdrop-filter: blur(6px); padding: 14px 32px; }
+.input-row { display: flex; gap: 10px; max-width: 720px; margin: 0 auto; }
+.input-row textarea {
+  flex: 1; resize: none; border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; font-size: 14px;
+  background: #fff; outline: none; font-family: inherit;
+}
+.input-row textarea:focus { border-color: var(--primary); }
+.send-btn {
+  background: var(--primary); color: #fff; border: none;
+  border-radius: 8px; padding: 10px 18px; cursor: pointer; font-size: 14px;
+}
+.send-btn:hover { opacity: 0.9; }
+
+/* Simulation controls */
+.sim-bar {
+  position: fixed; bottom: 0; right: 0;
+  background: #1e293b; color: #e2e8f0; padding: 8px 16px;
+  border-radius: 10px 0 0 0; font-size: 11px;
+  display: flex; gap: 8px; align-items: center; z-index: 99;
+}
+.sim-bar button {
+  background: #334155; color: #e2e8f0; border: none;
+  padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 11px;
+}
+.sim-bar button:hover { background: #475569; }
+.sim-bar button.active { background: #3b82f6; }
+.sim-step { color: #94a3b8; font-size: 10px; }
+
+/* Markdown styles */
+.assistant-bubble h2 { font-size: 1rem; margin: 8px 0 4px; }
+.assistant-bubble p { margin-bottom: 4px; }
+.assistant-bubble code {
+  font-family: "JetBrains Mono", monospace; font-size: 0.85em;
+  background: #f0ece7; padding: 1px 4px; border-radius: 3px;
+}
+.assistant-bubble ul { padding-left: 18px; margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">Sessions</div>
+    <div class="sess active">
+      <div>技术文档项目</div>
+      <div style="font-size:10px;color:#aaa;">12 条消息 · 1 个 DAG</div>
+    </div>
+    <div class="sess">
+      <div>算法优化</div>
+      <div style="font-size:10px;color:#aaa;">5 条消息</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="chat-scroll" id="chatScroll">
+
+      <!-- User message 1 -->
+      <div class="msg-row user">
+        <div class="user-bubble">帮我写一篇 React 架构设计文档</div>
+      </div>
+
+      <!-- Coco response with DAG -->
+      <div class="msg-row assistant" style="flex-direction: column;">
+        <div style="max-width: 65%; display: flex; flex-direction: column; gap: 6px;">
+          <div class="assistant-bubble">
+            收到！已拆分 5 个任务。你可以继续聊，后台会自动执行。
+          </div>
+
+          <!-- DAG CARD — real-time updating SVG -->
+          <div class="dag-card" id="dagCard">
+            <div class="dag-header" onclick="toggleDag()">
+              <div class="dag-header-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+                  <path d="M6 3v18M6 3l4 4M6 3L2 7M18 21V3M18 21l4-4M18 21l-4-4M10 12h4"/>
+                </svg>
+                <span style="font-weight:600;">DAG 任务流程</span>
+                <span class="dag-badge" id="dagBadge" style="background:#eff6ff;color:#3b82f6;">3/5 完成</span>
+              </div>
+              <span style="font-size:11px;color:#aaa;" id="dagChevron">▼</span>
+            </div>
+            <div class="dag-legend">
+              <span><span class="legend-dot pending"></span> 待执行</span>
+              <span><span class="legend-dot running"></span> 执行中</span>
+              <span><span class="legend-dot done"></span> 已完成</span>
+              <span><span class="legend-dot failed"></span> 失败</span>
+            </div>
+            <div class="dag-body" id="dagBody">
+              <!-- SVG rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Tool calls -->
+          <div class="tool-list" id="toolList">
+            <div class="tool-card">
+              <span class="tool-status done">✓</span>
+              <div>
+                <span class="tool-name">define_dag</span>
+                <div class="tool-args">yaml: 5 stages, 3 parallel</div>
+              </div>
+            </div>
+            <div class="tool-card">
+              <span class="tool-status done">✓</span>
+              <div>
+                <span class="tool-name">dispatch_task</span>
+                <div class="tool-args">×5 fired — tasks queued</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- User message 2 -->
+      <div class="msg-row user" id="userMsg2" style="display:flex;">
+        <div class="user-bubble">对了，记得加部署章节</div>
+      </div>
+
+      <!-- Coco response: append stage -->
+      <div class="msg-row assistant" id="appendResp" style="display:flex;flex-direction:column;">
+        <div style="max-width: 65%;">
+          <div class="assistant-bubble">
+            收到！已追加 <code>Deploy</code> 阶段到 DAG，添加了 2 个新任务。当前共 7 个任务。
+          </div>
+        </div>
+      </div>
+
+      <!-- Auto notification: tasks completed -->
+      <div class="msg-row assistant" id="notifyMsg" style="display:none;flex-direction:column;">
+        <div style="max-width: 65%;">
+          <div class="assistant-bubble notify">
+            <span class="notify-icon">✓</span>
+            <strong>技术文档已生成！</strong>
+            <p style="margin-top:6px;">7 个任务全部完成，文档已写入 <code>/workspace/react-arch.md</code>，全文约 3200 字。</p>
+            <p style="font-size:12px;color:var(--muted);margin-top:4px;">点击上方 DAG 可查看每个任务的执行详情。</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <textarea rows="1" placeholder="输入消息..."></textarea>
+        <button class="send-btn">Send</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Simulation bar -->
+<div class="sim-bar">
+  <span>模拟 DAG 进度：</span>
+  <button onclick="simStep(0)" class="active">Step 0</button>
+  <button onclick="simStep(1)">Step 1</button>
+  <button onclick="simStep(2)">Step 2</button>
+  <button onclick="simStep(3)">Step 3</button>
+  <span class="sim-step" id="simLabel">初始 (5个任务，全部待执行)</span>
+</div>
+
+<script>
+const tasks = [
+  { id:'analyze',   status:'pending', result:null },
+  { id:'read_code', status:'pending', result:null },
+  { id:'outline',   status:'pending', result:null },
+  { id:'write_ch1', status:'pending', result:null },
+  { id:'write_ch2', status:'pending', result:null },
+  { id:'deploy_ci', status:'pending', result:null },
+  { id:'deploy_cd', status:'pending', result:null },
+];
+
+function simStep(step) {
+  document.querySelectorAll('.sim-bar button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.sim-bar button')[step].classList.add('active');
+
+  if (step === 0) {
+    tasks.forEach(t => t.status = 'pending');
+    document.getElementById('simLabel').textContent = '初始 (7个任务，全部待执行)';
+    document.getElementById('userMsg2').style.display = 'none';
+    document.getElementById('appendResp').style.display = 'none';
+    document.getElementById('notifyMsg').style.display = 'none';
+  }
+  if (step === 1) {
+    tasks[0].status = 'done'; tasks[0].result = '项目结构分析完毕';
+    tasks[1].status = 'running'; tasks[1].result = null;
+    tasks[2].status = 'done'; tasks[2].result = '大纲已生成: 8章节';
+    tasks[3].status = 'running'; tasks[3].result = null;
+    document.getElementById('userMsg2').style.display = 'flex';
+    document.getElementById('appendResp').style.display = 'flex';
+    document.getElementById('notifyMsg').style.display = 'none';
+    document.getElementById('simLabel').textContent = 'Step 1: 3/7 完成, 2个执行中 (用户此时要求加部署章节)';
+  }
+  if (step === 2) {
+    tasks[0].status = 'done'; tasks[0].result = '项目结构已分析';
+    tasks[1].status = 'done'; tasks[1].result = '读取 12 个源文件';
+    tasks[2].status = 'done'; tasks[2].result = '大纲 8 章节';
+    tasks[3].status = 'done'; tasks[3].result = '第1-4章写入';
+    tasks[4].status = 'running'; tasks[4].result = null;
+    tasks[5].status = 'done'; tasks[5].result = 'CI 流水线配置完毕';
+    tasks[6].status = 'running'; tasks[6].result = null;
+    document.getElementById('simLabel').textContent = 'Step 2: 5/7 完成, 2个执行中';
+  }
+  if (step === 3) {
+    tasks.forEach(t => { t.status = 'done'; t.result = t.result || '执行成功'; });
+    tasks[4].result = '第5-8章写入完成';
+    tasks[6].result = 'CD 部署配置完毕';
+    document.getElementById('notifyMsg').style.display = 'flex';
+    document.getElementById('simLabel').textContent = 'Step 3: 7/7 全部完成！Coco 主动通知';
+  }
+
+  updateBadge();
+  renderDag();
+}
+
+function updateBadge() {
+  const done = tasks.filter(t => t.status === 'done').length;
+  const running = tasks.filter(t => t.status === 'running').length;
+  const failed = tasks.filter(t => t.status === 'failed').length;
+  const badge = document.getElementById('dagBadge');
+
+  if (failed > 0) {
+    badge.textContent = `${done}/${tasks.length} 完成 · ${failed} 失败`;
+    badge.style.background = '#fef2f2'; badge.style.color = '#ef4444';
+  } else if (running > 0) {
+    badge.textContent = `${done}/${tasks.length} 完成 · ${running} 执行中`;
+    badge.style.background = '#eff6ff'; badge.style.color = '#3b82f6';
+  } else if (done === tasks.length) {
+    badge.textContent = '全部完成 ✓';
+    badge.style.background = '#f0fdf4'; badge.style.color = '#22c55e';
+  } else {
+    badge.textContent = `${done}/${tasks.length} 完成`;
+  }
+}
+
+function statusColor(s) {
+  if (s === 'done') return { fill:'#f0fdf4', stroke:'#22c55e', text:'#166534' };
+  if (s === 'running') return { fill:'#eff6ff', stroke:'#3b82f6', text:'#1e40af' };
+  if (s === 'failed') return { fill:'#fef2f2', stroke:'#ef4444', text:'#991b1b' };
+  return { fill:'#f8fafc', stroke:'#cbd5e1', text:'#64748b' };
+}
+
+function renderDag() {
+  const svg = document.getElementById('dagSvgContainer');
+  const body = document.getElementById('dagBody');
+
+  // Stage structure
+  const stages = [
+    { id:'s1', name:'Analyze', x:40, y:20, tasks:[0,1] },
+    { id:'s2', name:'Plan', x:40+180, y:20, tasks:[2], deps:['s1'] },
+    { id:'s3', name:'Write', x:40+360, y:20, tasks:[3,4], deps:['s2'] },
+    { id:'s4', name:'Deploy', x:40, y:150, tasks:[5,6], deps:['s2'] },
+  ];
+
+  const html = `
+  <svg id="dagSvgContainer" viewBox="0 0 720 260">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#cbd5e1"/>
+      </marker>
+    </defs>
+    ${stages.map((st, si) => {
+      const c = statusColor(
+        st.tasks.every(i => tasks[i].status === 'done') ? 'done' :
+        st.tasks.some(i => tasks[i].status === 'running') ? 'running' :
+        st.tasks.some(i => tasks[i].status === 'failed') ? 'failed' : 'pending'
+      );
+      const par = si > 0 && st.tasks.length > 1;
+      return `
+      <!-- Stage ${st.id} -->
+      <g>
+        <rect x="${st.x}" y="${st.y}" width="150" height="46" rx="10"
+              fill="${c.fill}" stroke="${c.stroke}" stroke-width="2.5"/>
+        <text x="${st.x+75}" y="${st.y+29}" text-anchor="middle"
+              font-size="12" font-weight="700" fill="${c.text}">
+          ${par ? '∥ ' : ''}${st.name}
+        </text>
+
+        ${st.tasks.map((ti, idx) => {
+          const tc = statusColor(tasks[ti].status);
+          const tx = st.x + idx * 78 + 2;
+          const ty = st.y + 56;
+          const tw = 72;
+          return `
+          <rect x="${tx}" y="${ty}" width="${tw}" height="34" rx="7"
+                fill="${tc.fill}" stroke="${tc.stroke}" stroke-width="1.8"/>
+          <text x="${tx+tw/2}" y="${ty+22}" text-anchor="middle"
+                font-size="10" font-family="monospace" fill="${tc.text}">${tasks[ti].id}</text>
+          <!-- dot indicator -->
+          <circle cx="${tx+8}" cy="${ty+10}" r="5"
+                  fill="${tc.stroke}"
+                  ${tasks[ti].status === 'running' ? 'stroke="none"' : 'stroke="none"'} />
+          ${tasks[ti].status === 'running' ? `
+          <circle cx="${tx+8}" cy="${ty+10}" r="5" fill="none"
+                  stroke="${tc.stroke}" stroke-width="1.5" opacity="0.4">
+            <animate attributeName="r" from="5" to="10" dur="1s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" from="0.6" to="0" dur="1s" repeatCount="indefinite"/>
+          </circle>
+          ` : ''}
+          ${tasks[ti].status === 'done' ? `
+          <text x="${tx+8}" y="${ty+13}" text-anchor="middle" font-size="8" fill="#fff">✓</text>
+          ` : ''}
+          <line x1="${st.x+75}" y1="${st.y+46}" x2="${tx+tw/2}" y2="${ty}" stroke="#cbd5e1" stroke-width="1"/>
+          `;
+        }).join('')}
+
+        ${(st.deps || []).map(dep => {
+          const dst = stages.find(s => s.id === dep);
+          if (!dst) return '';
+          return `<line x1="${dst.x + 150}" y1="${dst.y + 23}" x2="${st.x}" y2="${st.y + 23}" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow)"/>`;
+        }).join('')}
+      </g>
+      `;
+    }).join('')}
+  </svg>`;
+  body.innerHTML = html;
+}
+
+function toggleDag() {
+  const body = document.getElementById('dagBody');
+  const chev = document.getElementById('dagChevron');
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    chev.textContent = '▼';
+    renderDag();
+  } else {
+    body.style.display = 'none';
+    chev.textContent = '▶';
+  }
+}
+
+document.getElementById('chatScroll').scrollTop = document.getElementById('chatScroll').scrollHeight;
+renderDag();
+</script>
+</body>
+</html>

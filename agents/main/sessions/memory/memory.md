@@ -1,0 +1,8 @@
+Sub-agent结果可通过读取runs/{run_id}/dag.yaml的result字段获取
+用户偏好B站UP主数据看板项目
+sub-agent内部调用web_search时缺少async配置导致NoneType错误
+web_search API Key已配置，助手直接调用正常
+项目无法落地因写文件和bash被禁用
+复杂DAG任务测试成功，三阶段搜索分析汇总流程跑通
+dispatch_task需与define_dag配合使用，不能单独调用
+check_tasks不返回任务具体结果

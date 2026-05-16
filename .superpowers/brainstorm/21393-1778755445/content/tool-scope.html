@@ -1,0 +1,45 @@
+<h2>哪些工具要进沙箱？</h2>
+<p class="subtitle">工具执行位置的选择：宿主机 vs MicroVM</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>只隔离执行工具</h3>
+      <p>bash, write_file, edit_file, browser → 沙箱<br>
+         read_file, glob, grep, web_search, web_fetch → 宿主机</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>读操作零延迟</li><li>改动最小</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>沙箱内文件变更宿主机不可见（需挂载）</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>所有文件/执行工具进沙箱</h3>
+      <p>read_file, write_file, edit_file, bash, glob, grep, browser → 沙箱<br>
+         web_search, web_fetch, pin, recall → 宿主机</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>文件系统完全隔离，读写一致</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>每次 read_file 都走沙箱 RPC</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>全部进沙箱</h3>
+      <p>所有 26 个工具全在沙箱执行，沙箱挂载宿主机 workspace</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>完全隔离，不留任何痕迹</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>pin/recall 等记忆操作也要进沙箱，web 操作也要代理</li><li>沙箱模板需额外依赖</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>性能参考</h3>
+<p>沙箱内部每次 run_code 调用 ≈ 1-5ms 延迟（本地 CubeSandbox）。<br>read_file 占 Agent 工具调用比例通常最高。</p>

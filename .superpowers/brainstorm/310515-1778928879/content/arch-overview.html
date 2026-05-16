@@ -1,0 +1,73 @@
+<h2>设计 Section 1：架构总览</h2>
+<p class="subtitle">KB 激活后的系统架构</p>
+
+<div style="background:#1e1e2e;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;color:#cdd6f4;line-height:1.8;">
+<pre style="margin:0;color:#cdd6f4;">
+┌──────────────────────────────────────────────┐
+│                  Frontend                     │
+│  ┌──────────┐ ┌────────────┐ ┌────────────┐ │
+│  │ 上传 UI  │ │ Wiki 浏览   │ │ KB Agent   │ │
+│  │ + 进度    │ │ + 图谱洞察 │ │  对话面板   │ │
+│  └────┬─────┘ └─────┬──────┘ └─────┬──────┘ │
+└───────┼─────────────┼──────────────┼─────────┘
+        │ HTTP+WS     │ HTTP          │ HTTP+WS
+┌───────▼─────────────▼──────────────▼─────────┐
+│              FastAPI Routes                   │
+│  /api/knowledge/*  +  /api/kb-agent/*        │
+└──────────────┬───────────────────────────────┘
+               │
+┌──────────────▼───────────────────────────────┐
+│            <strong style="color:#89b4fa;">KBService</strong>  (NEW)                       │
+│  ┌──────────┐ ┌────────┐ ┌───────────────┐  │
+│  │ dedup    │ │ lint   │ │ generate_over │  │
+│  └──────────┘ └────────┘ └───────────────┘  │
+│  ┌──────────┐ ┌────────┐ ┌───────────────┐  │
+│  │ cascade  │ │ graph  │ │ search        │  │
+│  └──────────┘ └────────┘ └───────────────┘  │
+│  ┌──────────┐ ┌────────┐ ┌───────────────┐  │
+│  │ write    │ │ image  │ │ ingest        │  │
+│  └──────────┘ └────────┘ └───────────────┘  │
+└──────────────┬───────────────────────────────┘
+               │
+┌──────────────▼───────────────────────────────┐
+│       <strong style="color:#a6e3a1;">kb-agent</strong> (CocoCat subagent)           │
+│  Tools: search_kb, write_wiki, run_dedup,    │
+│         run_lint, gen_overview, cascade_del   │
+│  Trigger: event (task) + cron (maintenance)   │
+└──────────────┬───────────────────────────────┘
+               │
+┌──────────────▼───────────────────────────────┐
+│       <strong style="color:#f9e2af;">TaskWorker</strong> (扩展)                       │
+│  Poll DB tasks → claim kb-task → dispatch    │
+│  to kb-agent → update task status            │
+└──────────────┬───────────────────────────────┘
+               │ reads/writes
+┌──────────────▼───────────────────────────────┐
+│        knowledge/{kb_name}/                   │
+│        sqlite tasks 表                        │
+└──────────────────────────────────────────────┘
+</pre>
+</div>
+
+<div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <div style="border:1px solid #89b4fa;border-radius:8px;padding:14px;">
+    <div class="label" style="color:#89b4fa;">新增模块</div>
+    <ul style="margin:4px 0 0 0;padding-left:16px;font-size:13px;">
+      <li><strong>KBService</strong> — 纯函数服务层，把散布在 ingest/*.py 的能力统一封装</li>
+      <li><strong>kb-agent</strong> — 注册在 agent 系统的专用 agent</li>
+      <li><strong>6 个 agent 工具</strong> — 薄封装 KBService</li>
+      <li><strong>Cron 调度</strong> — 生成周期性维护任务</li>
+      <li><strong>前端上传/对话面板</strong></li>
+    </ul>
+  </div>
+  <div style="border:1px solid #f9e2af;border-radius:8px;padding:14px;">
+    <div class="label" style="color:#f9e2af;">不改动的模块</div>
+    <ul style="margin:4px 0 0 0;padding-left:16px;font-size:13px;">
+      <li>TaskWorker 只扩展 kb-task dispatch，不改核心循环</li>
+      <li>IngestPipeline 保持不变，KBService 调用它</li>
+      <li>knowledge.py routes 保持不变</li>
+      <li>knowledge/ 目录结构不变</li>
+      <li>Frontend Knowledge.tsx 扩展而非重写</li>
+    </ul>
+  </div>
+</div>

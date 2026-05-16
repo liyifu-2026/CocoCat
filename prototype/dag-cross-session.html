@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CocoCat — 跨会话 DAG 总览</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Noto Sans SC", system-ui, sans-serif;
+  background: #f5f2ef; color: #333;
+  height: 100vh; overflow: hidden;
+  --primary: #8b5e3c; --blue: #3b82f6; --green: #22c55e;
+  --border: #e2ddd6; --card: #faf8f5; --muted: #8c8a86;
+  --radius: 14px;
+}
+.app { display: flex; height: 100vh; }
+.sidebar {
+  width: 208px; border-right: 1px solid var(--border);
+  background: #faf8f5; display: flex; flex-direction: column;
+  font-size: 13px; flex-shrink: 0; overflow: hidden;
+}
+.sidebar-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-weight: 600; color: var(--muted); text-transform: uppercase;
+  font-size: 10px; letter-spacing: 0.06em;
+}
+.sess {
+  padding: 7px 12px; cursor: pointer; font-size: 12px;
+  border-bottom: 1px solid var(--border); transition: background 0.15s;
+}
+.sess:hover { background: #ede8e1; }
+.sess.active { background: #e8e0d5; font-weight: 500; }
+.sess-highlight { animation: sessGlow 0.6s ease; }
+@keyframes sessGlow {
+  0% { background: #dbeafe; } 100% { background: inherit; }
+}
+.sidebar-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  font-size: 13px; cursor: pointer; transition: background 0.15s;
+  color: var(--muted);
+}
+.sidebar-btn:hover { background: #ede8e1; color: #333; }
+.sidebar-btn.active { background: #e8e0d5; color: #333; font-weight: 500; }
+.sidebar-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.sidebar-btn .badge {
+  margin-left: auto; font-size: 10px; padding: 1px 7px;
+  border-radius: 99px; background: #eff6ff; color: #3b82f6; font-weight: 500;
+}
+
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.chat-header {
+  padding: 10px 32px; border-bottom: 1px solid var(--border);
+  background: #faf8f5; font-size: 12px; color: var(--muted);
+  display: flex; align-items: center; gap: 8px;
+}
+.chat-header .session-title { font-weight: 500; color: #333; }
+.chat-scroll {
+  flex: 1; overflow-y: auto; padding: 24px 32px 80px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.msg-row { display: flex; }
+.msg-row.user { justify-content: flex-end; }
+.msg-row.assistant { justify-content: flex-start; flex-direction: column; }
+.user-bubble {
+  background: var(--primary); color: #fff;
+  border-radius: var(--radius) var(--radius) 4px var(--radius);
+  padding: 10px 16px; font-size: 14px; max-width: 65%;
+}
+.assistant-bubble {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) var(--radius) 4px;
+  padding: 14px 18px; font-size: 14px; line-height: 1.7;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Toast */
+.toast {
+  position: fixed; top: 16px; right: 24px; z-index: 100;
+  background: #1e293b; color: #e2e8f0; padding: 8px 16px;
+  border-radius: 8px; font-size: 12px;
+  animation: toastIn 0.3s ease, toastOut 0.3s ease 1.7s forwards;
+  pointer-events: none;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+
+/* DAG Card */
+.dag-card {
+  background: var(--card); border: 1.5px solid #dbeafe;
+  border-radius: var(--radius); overflow: hidden; margin: 6px 0 2px;
+  scroll-margin-top: 20px;
+}
+.dag-card.highlight {
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.25);
+  transition: box-shadow 0.15s;
+}
+.dag-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; cursor: pointer; user-select: none;
+  font-size: 12px; transition: background 0.15s;
+}
+.dag-header:hover { background: #f0f7ff; }
+.dag-header-left { display: flex; align-items: center; gap: 8px; }
+.dag-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 500;
+}
+.dag-badge.running { background: #eff6ff; color: #3b82f6; }
+.dag-badge.done { background: #f0fdf4; color: #22c55e; }
+.dag-body { padding: 8px 16px 16px; }
+.dag-body svg { width: 100%; }
+
+/* Task Panel */
+.task-panel {
+  flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px;
+}
+.task-section-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); font-weight: 600; padding: 0 4px;
+}
+.task-run-card {
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px; cursor: pointer;
+  transition: all 0.15s; font-size: 11px;
+}
+.task-run-card:hover { border-color: var(--blue); }
+.task-run-card .run-title {
+  font-weight: 600; margin-bottom: 3px; display: flex; align-items: center; gap: 6px;
+}
+.task-run-card .run-meta { font-size: 10px; color: var(--muted); }
+.task-run-card .run-bar {
+  height: 3px; background: #e5e7eb; border-radius: 2px; margin-top: 6px; overflow: hidden;
+}
+.task-run-card .run-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+
+/* Floating indicator */
+.dag-indicator {
+  position: fixed; bottom: 90px; right: 24px; z-index: 50;
+  display: flex; align-items: center; gap: 6px;
+  background: #fff; border: 1.5px solid #dbeafe;
+  border-radius: 99px; padding: 6px 14px; font-size: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08); cursor: pointer;
+  transition: all 0.2s;
+}
+.dag-indicator:hover { background: #f0f7ff; border-color: #3b82f6; }
+.dag-indicator .pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #3b82f6;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.3); }
+}
+
+.input-area { border-top: 1px solid var(--border); background: #faf8f5cc; backdrop-filter: blur(6px); padding: 14px 32px; }
+.input-row { display: flex; gap: 10px; max-width: 720px; margin: 0 auto; }
+.input-row textarea {
+  flex: 1; resize: none; border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; font-size: 14px;
+  background: #fff; outline: none; font-family: inherit;
+}
+.input-row textarea:focus { border-color: var(--primary); }
+.send-btn {
+  background: var(--primary); color: #fff; border: none;
+  border-radius: 8px; padding: 10px 18px; cursor: pointer; font-size: 14px;
+}
+.send-btn:hover { opacity: 0.9; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">Sessions</div>
+
+    <div class="sess active" data-session="tech" onclick="switchSession('tech')">
+      <div>技术文档项目</div>
+      <div style="font-size:10px;color:#aaa;">12 条 · DAG 进行中</div>
+    </div>
+    <div class="sess" data-session="review" onclick="switchSession('review')">
+      <div>代码审查</div>
+      <div style="font-size:10px;color:#aaa;">8 条 · DAG 已完成</div>
+    </div>
+    <div class="sess" data-session="algo" onclick="switchSession('algo')">
+      <div>算法优化</div>
+      <div style="font-size:10px;color:#aaa;">5 条 · DAG 已完成</div>
+    </div>
+    <div class="sess" data-session="empty" onclick="switchSession('empty')">
+      <div>闲聊</div>
+      <div style="font-size:10px;color:#aaa;">3 条 · 无任务</div>
+    </div>
+
+    <div style="border-bottom:1px solid var(--border); margin: 4px 0;"></div>
+
+    <div class="sidebar-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+      </svg>
+      <span>定时任务</span>
+    </div>
+
+    <div class="sidebar-btn active" onclick="toggleTaskPanel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M6 3v18M6 3l4 4M6 3L2 7M18 21V3M18 21l4-4M18 21l-4-4M10 12h4"/>
+      </svg>
+      <span>任务总览</span>
+      <span class="badge">3</span>
+    </div>
+
+    <div class="task-panel" id="taskPanel">
+      <div class="task-section-label">⚡ 活跃中</div>
+      <div class="task-run-card" onclick="jumpToDag('tech')">
+        <div class="run-title">
+          <span style="color:#3b82f6;">●</span> 技术文档生成
+          <span style="margin-left:auto;font-size:10px;color:var(--muted);">技术文档项目</span>
+        </div>
+        <div class="run-meta">7 tasks · 4/7 完成</div>
+        <div class="run-bar">
+          <div class="run-bar-fill" style="width:57%;background:var(--blue);"></div>
+        </div>
+      </div>
+
+      <div class="task-section-label" style="margin-top:6px;">✅ 已完成</div>
+      <div class="task-run-card" onclick="jumpToDag('review')">
+        <div class="run-title">
+          <span style="color:#22c55e;">●</span> 代码审查
+          <span style="margin-left:auto;font-size:10px;color:var(--muted);">代码审查</span>
+        </div>
+        <div class="run-meta">5 tasks · 全部完成 · 2h 前</div>
+        <div class="run-bar">
+          <div class="run-bar-fill" style="width:100%;background:var(--green);"></div>
+        </div>
+      </div>
+      <div class="task-run-card" onclick="jumpToDag('algo')">
+        <div class="run-title">
+          <span style="color:#22c55e;">●</span> 算法优化
+          <span style="margin-left:auto;font-size:10px;color:var(--muted);">算法优化</span>
+        </div>
+        <div class="run-meta">3 tasks · 全部完成 · 昨天</div>
+        <div class="run-bar">
+          <div class="run-bar-fill" style="width:100%;background:var(--green);"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="chat-header">
+      <span id="chatTitle">📋 技术文档项目</span>
+      <span id="chatMeta" style="font-size:10px;color:#aaa;">12 条消息 · DAG 进行中</span>
+    </div>
+
+    <div class="chat-scroll" id="chatScroll">
+      <!-- Tech session content rendered by JS -->
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <textarea rows="1" placeholder="输入消息..."></textarea>
+        <button class="send-btn">Send</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="dag-indicator" id="dagIndicator" onclick="scrollToCurrentDag()">
+  <span class="pulse-dot"></span>
+  <span id="indicatorText">任务进行中 4/7</span>
+  <span style="font-size:10px;color:var(--muted);">点击回到 →</span>
+</div>
+
+<script>
+let currentSession = 'tech';
+
+const sessions = {
+  tech: {
+    title: '技术文档项目',
+    meta: '12 条消息 · DAG 进行中',
+    hasDag: true,
+    dagStatus: 'running',
+    dagBadge: '4/7 完成 · 2 执行中',
+    indicator: '任务进行中 4/7',
+    html: `
+      <div class="msg-row user"><div class="user-bubble">帮我写一篇 React 架构设计文档</div></div>
+      <div class="msg-row assistant" id="dag-tech">
+        <div style="max-width: 65%; display: flex; flex-direction: column; gap: 6px;">
+          <div class="assistant-bubble">收到！已拆分 7 个任务，后台执行中。</div>
+          <div class="dag-card">
+            <div class="dag-header" onclick="this.parentElement.querySelector('.dag-body').style.display = this.parentElement.querySelector('.dag-body').style.display === 'none' ? 'block' : 'none'">
+              <div class="dag-header-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M6 3v18M6 3l4 4M6 3L2 7M18 21V3M18 21l4-4M18 21l-4-4M10 12h4"/></svg>
+                <span style="font-weight:600;">DAG 任务流程</span>
+                <span class="dag-badge running">4/7 完成 · 2 执行中</span>
+              </div>
+              <span>▼</span>
+            </div>
+            <div class="dag-body">
+              <svg viewBox="0 0 600 200">
+                <defs><marker id="at" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#cbd5e1"/></marker></defs>
+                <rect x="20" y="30" width="120" height="40" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2.5"/>
+                <text x="80" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#166534">Analyze</text>
+                <line x1="140" y1="50" x2="180" y2="50" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#at)"/>
+                <rect x="190" y="30" width="120" height="40" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="2.5"/>
+                <text x="250" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#1e40af">Write</text>
+                <line x1="310" y1="50" x2="350" y2="50" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#at)"/>
+                <rect x="360" y="30" width="120" height="40" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2.5"/>
+                <text x="420" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b">Deploy</text>
+                <rect x="190" y="120" width="120" height="40" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2.5"/>
+                <text x="250" y="145" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b">Review</text>
+                <line x1="250" y1="70" x2="250" y2="120" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#at)"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="msg-row user"><div class="user-bubble">加个部署章节</div></div>
+      <div class="msg-row assistant"><div class="assistant-bubble" style="max-width:65%;">收到！已追加 Deploy 阶段。</div></div>
+      <div class="msg-row user"><div class="user-bubble">部署用 Docker 还是 k8s？</div></div>
+      <div class="msg-row assistant"><div class="assistant-bubble" style="max-width:65%;">当前是 Docker + GitHub Actions，要改成 k8s 吗？</div></div>
+      <div style="height: 60px;"></div>
+    `
+  },
+  review: {
+    title: '代码审查',
+    meta: '8 条消息 · DAG 已完成',
+    hasDag: true,
+    dagStatus: 'done',
+    dagBadge: '全部完成 ✓',
+    indicator: null,
+    html: `
+      <div class="msg-row user"><div class="user-bubble">审查一下 src/api/login.ts 的安全问题</div></div>
+      <div class="msg-row assistant" id="dag-review">
+        <div style="max-width: 65%; display: flex; flex-direction: column; gap: 6px;">
+          <div class="assistant-bubble">已审查完毕。发现 3 个安全问题，详见报告。</div>
+          <div class="dag-card">
+            <div class="dag-header" onclick="this.parentElement.querySelector('.dag-body').style.display = this.parentElement.querySelector('.dag-body').style.display === 'none' ? 'block' : 'none'">
+              <div class="dag-header-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M6 3v18M6 3l4 4M6 3L2 7M18 21V3M18 21l4-4M18 21l-4-4M10 12h4"/></svg>
+                <span style="font-weight:600;">DAG 任务流程</span>
+                <span class="dag-badge done">全部完成 ✓</span>
+              </div>
+              <span>▼</span>
+            </div>
+            <div class="dag-body">
+              <svg viewBox="0 0 450 140">
+                <rect x="20" y="30" width="120" height="40" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2.5"/>
+                <text x="80" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#166534">Scan</text>
+                <line x1="140" y1="50" x2="180" y2="50" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#at)"/>
+                <rect x="190" y="30" width="120" height="40" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2.5"/>
+                <text x="250" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#166534">Audit</text>
+                <line x1="310" y1="50" x2="350" y2="50" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#at)"/>
+                <rect x="360" y="30" width="70" height="40" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2.5"/>
+                <text x="395" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#166534">Report</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="msg-row user"><div class="user-bubble">SQL 注入那个怎么修？</div></div>
+      <div class="msg-row assistant"><div class="assistant-bubble" style="max-width:65%;">用参数化查询替换字符串拼接。我已生成 fix patch。</div></div>
+      <div style="height: 60px;"></div>
+    `
+  },
+  algo: {
+    title: '算法优化',
+    meta: '5 条消息 · DAG 已完成',
+    hasDag: true,
+    dagStatus: 'done',
+    dagBadge: '全部完成 ✓',
+    indicator: null,
+    html: `
+      <div class="msg-row user"><div class="user-bubble">优化二分查找的实现</div></div>
+      <div class="msg-row assistant" id="dag-algo">
+        <div style="max-width: 65%; display: flex; flex-direction: column; gap: 6px;">
+          <div class="assistant-bubble">已优化完成。从 O(n) 降到 O(log n)。</div>
+          <div class="dag-card">
+            <div class="dag-header" onclick="this.parentElement.querySelector('.dag-body').style.display = this.parentElement.querySelector('.dag-body').style.display === 'none' ? 'block' : 'none'">
+              <div class="dag-header-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M6 3v18M6 3l4 4M6 3L2 7M18 21V3M18 21l4-4M18 21l-4-4M10 12h4"/></svg>
+                <span style="font-weight:600;">DAG 任务流程</span>
+                <span class="dag-badge done">全部完成 ✓</span>
+              </div>
+              <span>▼</span>
+            </div>
+            <div class="dag-body">
+              <svg viewBox="0 0 350 120">
+                <rect x="20" y="30" width="100" height="40" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2.5"/>
+                <text x="70" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#166534">Analyze</text>
+                <line x1="120" y1="50" x2="150" y2="50" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#at)"/>
+                <rect x="160" y="30" width="100" height="40" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2.5"/>
+                <text x="210" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#166534">Optimize</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="msg-row user"><div class="user-bubble">benchmark 结果怎么样</div></div>
+      <div class="msg-row assistant"><div class="assistant-bubble" style="max-width:65%;">100万次查询从 0.8s 降到 0.03s, 提速 26 倍。</div></div>
+      <div style="height: 60px;"></div>
+    `
+  },
+  empty: {
+    title: '闲聊',
+    meta: '3 条消息 · 无任务',
+    hasDag: false,
+    dagStatus: null,
+    dagBadge: null,
+    indicator: null,
+    html: `
+      <div class="msg-row user"><div class="user-bubble">今天天气不错</div></div>
+      <div class="msg-row assistant"><div class="assistant-bubble" style="max-width:65%;">是的！适合写代码 :)</div></div>
+      <div style="height: 60px;"></div>
+    `
+  }
+};
+
+function switchSession(key) {
+  currentSession = key;
+  const s = sessions[key];
+  document.getElementById('chatTitle').textContent = '📋 ' + s.title;
+  document.getElementById('chatMeta').textContent = s.meta;
+  document.getElementById('chatScroll').innerHTML = s.html;
+  document.querySelectorAll('.sess').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.sess[data-session="${key}"]`).classList.add('active');
+  updateIndicator();
+}
+
+function updateIndicator() {
+  const s = sessions[currentSession];
+  const ind = document.getElementById('dagIndicator');
+  if (s.hasDag && s.dagStatus === 'running') {
+    ind.style.display = 'flex';
+    document.getElementById('indicatorText').textContent = s.dagBadge;
+  } else {
+    ind.style.display = 'none';
+  }
+}
+
+function scrollToCurrentDag() {
+  const chat = document.getElementById('chatScroll');
+  const dag = document.getElementById('dag-' + currentSession);
+  if (dag) {
+    dag.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const card = dag.querySelector('.dag-card');
+    if (card) { card.classList.add('highlight'); setTimeout(() => card.classList.remove('highlight'), 1500); }
+  }
+}
+
+function jumpToDag(sessionKey) {
+  // If different session, show toast and switch
+  if (sessionKey !== currentSession) {
+    const sName = sessions[sessionKey].title;
+    showToast('↗ 切换到「' + sName + '」并定位到 DAG');
+  }
+  switchSession(sessionKey);
+  setTimeout(() => scrollToCurrentDag(), 200);
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2100);
+}
+
+function toggleTaskPanel() {
+  const p = document.getElementById('taskPanel');
+  p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+}
+
+switchSession('tech');
+updateIndicator();
+</script>
+</body>
+</html>

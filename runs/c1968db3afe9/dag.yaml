@@ -1,0 +1,18 @@
+created_by: main
+run_id: c1968db3afe9
+session_id: 7a6d0b80-9a00-4887-bd13-06fed01cb8a7
+stages:
+- id: s1
+  tasks:
+  - description: 搜索虎扑最新新闻
+    id: t1
+    prompt: '使用 web_search 搜索"虎扑 最新新闻 2026"，获取虎扑当前最新的热门新闻或帖子标题列表。
+
+      然后再使用 web_fetch 访问 https://www.hupu.com/ 获取虎扑首页的最新内容。
+
+      返回搜索到的所有新闻标题和摘要。'
+    result: 'Error: Client error ''400 Bad Request'' for url ''https://api.deepseek.com/chat/completions''
+
+      For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400'
+    status: done
+status: done

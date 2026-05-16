@@ -1,0 +1,4 @@
+{"msg_id": "scene:test_scene:weixin:user123:335a76b3", "channel": "weixin", "external_user": "user123", "content": "hello", "scene_id": "test_scene", "target_type": "scene", "target_id": "test_scene", "reply_url": "http://test:8080/reply"}
+{"msg_id": "scene:test_scene:weixin:user123:2d1db8d8", "channel": "weixin", "external_user": "user123", "content": "hello", "scene_id": "test_scene", "target_type": "scene", "target_id": "test_scene", "reply_url": "http://test:8080/reply"}
+{"msg_id": "scene:test_scene:weixin:user123:2541c7b9", "channel": "weixin", "external_user": "user123", "content": "hello", "scene_id": "test_scene", "target_type": "scene", "target_id": "test_scene", "reply_url": "http://test:8080/reply"}
+{"msg_id": "scene:test_scene:weixin:user123:4b1facc2", "channel": "weixin", "external_user": "user123", "content": "hello", "scene_id": "test_scene", "target_type": "scene", "target_id": "test_scene", "reply_url": "http://test:8080/reply"}

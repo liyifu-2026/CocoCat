@@ -1,0 +1,51 @@
+<h2>三种激活方案对比</h2>
+<p class="subtitle">需求：CocoCat 内专属 kb-agent，事件驱动 + 定时巡检，双向服务（后台维护 + 交互查询）</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>最小改动：扩展现有 Worker + 加 KB 工具</h3>
+      <p>在现有 TaskWorker 里注册 kb-agent agent 类型。Worker 认领 kb 任务后分发给 kb-agent 执行 ReAct 循环。KB 工具（search_kb、write_wiki、dedup、lint 等）直接加到 agent 工具集。Cron 定时生成本维护任务写入 tasks 表。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>专用 KBAgent：独立运行循环</h3>
+      <p>新建 KBAgent 类，拥有自己的生命周期和调度循环。不依赖 TaskWorker，有自己的工具集、自己的 cron 调度器、自己的 WebSocket 通道。用户可通过对话界面直接和 kb-agent 交互，类似于一个独立的「知识管理员」。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>推荐：KB 服务层 + 薄 agent 封装</h3>
+      <p>把现有散落在多个文件里的 KB 能力（dedup、lint、overview、graph、cascade）抽成一个 KBService 统一服务层。Agent 工具是 KBService 的薄封装。Worker 继续分发 kb 任务给 kb-agent。Cron 通过生成任务触发巡检。可测试、可复用、改动适中。</p>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons" style="margin-top:24px;">
+  <div class="pros">
+    <h4>方案 C 的优势（推荐）</h4>
+    <ul>
+      <li>KBService 可以独立测试，不依赖 LLM</li>
+      <li>Agent 工具只是薄封装，不重复造轮子</li>
+      <li>复用现有 TaskWorker + tasks 表，不改核心架构</li>
+      <li>以后换 agent 框架或调度策略不需要改 KB 逻辑</li>
+      <li>改动量适中，约 800-1200 行新代码</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>方案 A 的劣势</h4>
+    <ul>
+      <li>KB 逻辑散落在 agent 工具里，难以测试</li>
+      <li>Worker 与 KB 耦合深，后期不好拆</li>
+    </ul>
+    <h4 style="margin-top:12px;">方案 B 的劣势</h4>
+    <ul>
+      <li>独立运行循环 = 重复实现 agent 基础设施</li>
+      <li>改动量大（~2000+ 行），与现有架构偏离</li>
+    </ul>
+  </div>
+</div>

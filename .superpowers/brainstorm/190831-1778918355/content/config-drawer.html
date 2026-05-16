@@ -1,0 +1,157 @@
+<h2>配置面板 · 三种状态</h2>
+<p class="subtitle">点击渠道卡片后，右侧滑出配置抽屉 — 按当前状态展示不同界面</p>
+
+<div class="split">
+  <!-- Left: Channel Grid -->
+  <div class="mockup" style="width:55%;">
+    <div class="mockup-header">渠道列表（点飞书卡片）</div>
+    <div class="mockup-body" style="padding:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div style="border:2px solid #6366f1;border-radius:10px;padding:10px;text-align:center;box-shadow:0 0 0 2px rgba(99,102,241,0.3);">
+          <div style="font-size:22px;margin-bottom:2px;">🪶</div>
+          <div style="font-size:11px;font-weight:600;">飞书</div>
+          <div style="font-size:9px;color:#10b981;">● 已连接</div>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;text-align:center;opacity:0.6;">
+          <div style="font-size:22px;margin-bottom:2px;">💬</div>
+          <div style="font-size:11px;">微信</div>
+          <div style="font-size:9px;color:#9ca3af;">未配置</div>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;text-align:center;opacity:0.6;">
+          <div style="font-size:22px;margin-bottom:2px;">✈️</div>
+          <div style="font-size:11px;">Telegram</div>
+          <div style="font-size:9px;color:#9ca3af;">未配置</div>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;text-align:center;opacity:0.6;">
+          <div style="font-size:22px;margin-bottom:2px;">🎮</div>
+          <div style="font-size:11px;">Discord</div>
+          <div style="font-size:9px;color:#9ca3af;">未配置</div>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;text-align:center;opacity:0.6;">
+          <div style="font-size:22px;margin-bottom:2px;">🌐</div>
+          <div style="font-size:11px;">Web API</div>
+          <div style="font-size:9px;color:#9ca3af;">未配置</div>
+        </div>
+        <div style="border:1px solid #f59e0b;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:22px;margin-bottom:2px;">📱</div>
+          <div style="font-size:11px;">个人微信</div>
+          <div style="font-size:9px;color:#f59e0b;">● 已配置</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Config Drawer -->
+  <div class="mockup" style="width:45%;">
+    <div class="mockup-header">⚙ 飞书 — 配置</div>
+    <div class="mockup-body" style="padding:14px;">
+      <!-- Capabilities summary -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+        <span style="background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:500;">🖼 文字</span>
+        <span style="background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:500;">📋 卡片</span>
+        <span style="background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:500;">⚡ 流式</span>
+        <span style="background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:500;">🧵 多线程</span>
+      </div>
+
+      <!-- Status bar -->
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border-radius:8px;margin-bottom:14px;font-size:12px;">
+        <span style="width:8px;height:8px;background:#10b981;border-radius:50%;display:inline-block;"></span>
+        <span style="font-weight:600;color:#065f46;">已连接</span>
+        <span style="color:#6b7280;font-size:11px;">· 运行中 · 2h</span>
+        <button style="margin-left:auto;padding:3px 10px;border:1px solid #ef4444;color:#ef4444;border-radius:6px;font-size:10px;background:white;">断开</button>
+      </div>
+
+      <!-- Config form -->
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">App ID</label>
+        <input placeholder="cli_a6b..." style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:11px;background:#f9fafb;" readonly>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">App Secret</label>
+        <div style="display:flex;gap:4px;">
+          <input type="password" value="************" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:11px;background:#f9fafb;" readonly>
+          <button style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:10px;background:white;">👁</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button style="flex:1;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:12px;background:white;">更新凭证</button>
+        <button style="flex:1;padding:8px;border:none;border-radius:8px;font-size:12px;background:#ef4444;color:white;">断开连接</button>
+      </div>
+
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #f3f4f6;">
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">连接信息</div>
+        <div style="font-size:11px;color:#6b7280;">最后连接: 2026-05-16 14:32</div>
+        <div style="font-size:11px;color:#6b7280;">消息数: 1,247</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px;">
+  <h3>另外两种状态</h3>
+  <p class="subtitle" style="font-size:12px;">未配置 vs 已配置未连接 的抽屉内容差异</p>
+</div>
+
+<div class="split" style="margin-top:12px;">
+  <!-- State: Unconfigured -->
+  <div class="mockup">
+    <div class="mockup-header">未配置 — 微信</div>
+    <div class="mockup-body" style="padding:14px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+        <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:4px;font-size:10px;">文字</span>
+        <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:4px;font-size:10px;">图片</span>
+        <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:4px;font-size:10px;">语音</span>
+        <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:4px;font-size:10px;">卡片</span>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">App ID <span style="color:#ef4444;">*</span></label>
+        <input placeholder="wxXXXXXXXXXXXXXXXX" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:11px;">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Token <span style="color:#ef4444;">*</span></label>
+        <input placeholder="从微信后台获取" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:11px;">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Encoding AES Key</label>
+        <input placeholder="消息加解密密钥（可选）" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:11px;">
+      </div>
+
+      <p style="font-size:10px;color:#f59e0b;margin-bottom:10px;">⚠ 需要公网 IP 和已备案域名以接收微信回调</p>
+
+      <button style="width:100%;padding:8px;border:none;border-radius:8px;font-size:12px;background:#6366f1;color:white;font-weight:500;">保存并连接</button>
+    </div>
+  </div>
+
+  <!-- State: Configured, not connected -->
+  <div class="mockup">
+    <div class="mockup-header">已配置未连接 — 个人微信</div>
+    <div class="mockup-body" style="padding:14px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+        <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:10px;">文字</span>
+        <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:10px;">图片</span>
+        <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:10px;">文件</span>
+        <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:10px;">视频</span>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fffbeb;border-radius:8px;margin-bottom:14px;font-size:12px;">
+        <span style="width:8px;height:8px;background:#f59e0b;border-radius:50%;display:inline-block;"></span>
+        <span style="font-weight:600;color:#92400e;">凭证已保存，等待连接</span>
+      </div>
+
+      <!-- Token stored (previously configured) -->
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:500;color:#374151;display:block;margin-bottom:4px;">Bot Token</label>
+        <input type="password" value="********" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:11px;background:#f9fafb;" readonly>
+      </div>
+
+      <p style="font-size:10px;color:#6b7280;margin-bottom:10px;">点击"扫码连接"后将弹出微信二维码，手机扫码即可登录</p>
+
+      <div style="display:flex;gap:8px;">
+        <button style="flex:2;padding:8px;border:none;border-radius:8px;font-size:12px;background:#10b981;color:white;font-weight:500;">扫码连接</button>
+        <button style="flex:1;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:12px;background:white;">重置</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,6 @@
+[
+  {
+    "name": "deepseek",
+    "base_url": "https://api.deepseek.com"
+  }
+]

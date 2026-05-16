@@ -2,10 +2,10 @@ import { createContext, useContext, useEffect, useRef, type ReactNode } from "re
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+type MessageHandler = (data: Record<string, unknown>) => void
+
 interface LiveUpdatesValue {
-  onTextDelta: (cb: (text: string) => void) => () => void
-  onReasoning: (cb: (content: string) => void) => () => void
-  onToolEvent: (cb: (name: string, status: string) => void) => () => void
+  onMessage: (type: string, handler: MessageHandler) => () => void
 }
 
 const LiveUpdatesContext = createContext<LiveUpdatesValue | null>(null)
@@ -13,22 +13,7 @@ const LiveUpdatesContext = createContext<LiveUpdatesValue | null>(null)
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 15000]
 const DEDUPE_WINDOW = 5000
 
-export type StreamState = {
-  task_uuid: string
-  event: string
-  status: string
-  content?: string
-  stream_event?: { event_type: string; content: string; name?: string; input?: string; status?: string; result?: string }
-  updatedAt: number
-  error?: string
-}
-export const streamState = new Map<string, StreamState>()
-export const streamListeners = new Set<() => void>()
-
-const textDeltaListeners = new Set<(text: string) => void>()
-const reasoningListeners = new Set<(text: string) => void>()
-const toolEventListeners = new Set<(name: string, status: string) => void>()
-
+const messageListeners = new Map<string, Set<MessageHandler>>()
 const toastDedupe = new Map<string, number>()
 
 function dedupedToast(key: string, message: string) {
@@ -36,6 +21,15 @@ function dedupedToast(key: string, message: string) {
   if (last && Date.now() - last < DEDUPE_WINDOW) return
   toastDedupe.set(key, Date.now())
   toast.info(message)
+}
+
+function getListeners(type: string): Set<MessageHandler> {
+  let set = messageListeners.get(type)
+  if (!set) {
+    set = new Set()
+    messageListeners.set(type, set)
+  }
+  return set
 }
 
 export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
@@ -46,8 +40,19 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
   const mountedRef = useRef(true)
 
   const connect = () => {
+    if (wsRef.current) {
+      wsRef.current.onclose = null
+      wsRef.current.onerror = null
+      wsRef.current.close()
+      wsRef.current = null
+    }
+    if (reconnectTimerRef.current !== undefined) {
+      clearTimeout(reconnectTimerRef.current)
+      reconnectTimerRef.current = undefined
+    }
     const protocol = location.protocol === "https:" ? "wss:" : "ws:"
-    const ws = new WebSocket(`${protocol}//${location.host}/ws`)
+    const backendHost = import.meta.env.VITE_API_HOST || `${location.hostname}:${location.port}`
+    const ws = new WebSocket(`${protocol}//${backendHost}/ws`)
     wsRef.current = ws
 
     const qc = queryClient
@@ -59,17 +64,13 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
-        const eventType = data.type || data.event
+        const eventType: string = data.type || data.event
+
+        // Dispatch to domain listeners
+        getListeners(eventType).forEach(cb => cb(data.data ?? data))
+
+        // System-level side effects (React Query invalidation, toasts)
         switch (eventType) {
-          case "text_delta":
-            textDeltaListeners.forEach(cb => cb(data.data?.content ?? ""))
-            break
-          case "stream_reasoning":
-            reasoningListeners.forEach(cb => cb(data.data?.content ?? ""))
-            break
-          case "stream_tool":
-            toolEventListeners.forEach(cb => cb(data.data?.name ?? "", data.data?.status ?? ""))
-            break
           case "agent.status":
             qc.invalidateQueries({ queryKey: ["agents"] })
             if (data.status === "error") {
@@ -89,17 +90,9 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
             qc.invalidateQueries({ queryKey: ["chat-groups"] })
             qc.invalidateQueries({ queryKey: ["chat-messages"] })
             qc.invalidateQueries({ queryKey: ["knowledge"] })
-            streamState.set(data.task_uuid, { ...data, updatedAt: Date.now() })
-            streamListeners.forEach(fn => fn())
             break
-          case "stream_progress":
-          case "stream_reasoning":
-            streamState.set(data.task_uuid || "main", { ...data, updatedAt: Date.now() })
-            streamListeners.forEach(fn => fn())
-            break
-          case "stream_tool":
-            streamState.set(data.task_uuid || "main", { ...data, updatedAt: Date.now() })
-            streamListeners.forEach(fn => fn())
+          case "dag.completed":
+            qc.invalidateQueries({ queryKey: ["dag"] })
             break
         }
       } catch {
@@ -134,17 +127,10 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
 
   return (
     <LiveUpdatesContext.Provider value={{
-      onTextDelta: (cb: (text: string) => void) => {
-        textDeltaListeners.add(cb)
-        return () => { textDeltaListeners.delete(cb) }
-      },
-      onReasoning: (cb: (content: string) => void) => {
-        reasoningListeners.add(cb)
-        return () => { reasoningListeners.delete(cb) }
-      },
-      onToolEvent: (cb: (name: string, status: string) => void) => {
-        toolEventListeners.add(cb)
-        return () => { toolEventListeners.delete(cb) }
+      onMessage: (type: string, handler: MessageHandler) => {
+        const listeners = getListeners(type)
+        listeners.add(handler)
+        return () => { listeners.delete(handler) }
       },
     }}>
       {children}

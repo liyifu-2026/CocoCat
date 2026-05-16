@@ -1,22 +1,23 @@
-# 环境迁移状态：WSL2 → Arch Linux
+# 环境迁移状态：WSL2 → Arch Linux → Debian
 
-日期: 2026-05-14
+日期: 2026-05-14（更新：迁移至 Debian）
 
 ## 迁移概述
 
-从 WSL2 迁移到 Arch Linux 裸金属，解决 KVM 不可用问题，为 CubeSandbox 部署创造条件。
+WSL2 → Arch Linux 裸金属（解决 KVM）→ Debian 13 裸金属（解决内存不足）。最终为 CubeSandbox 部署创造条件。
 
 ## 环境状态
 
 | 项目 | 状态 | 说明 |
 |------|------|------|
-| 操作系统 | ✅ Arch Linux | 7.0.2-arch1-1, x86_64 |
+| 操作系统 | ✅ Debian 13 | trixie, x86_64 |
+| 内存 | ✅ 15GB | 满足 CubeSandbox ≥8GB 要求 |
 | KVM | ✅ 可用 | Intel KVM (`/dev/kvm`, kvm_intel) |
-| Python | ✅ 3.14.4 | venv 已创建 (`.venv/`) |
-| pip 依赖 | ✅ | pyproject.toml 全量安装 |
-| pytest | ✅ 124 通过 | `cococat/tests/` 全绿 |
-| Playwright | ✅ | Chromium 已下载，浏览器测试通过 |
-| Node.js | ✅ v26.1.0 | npm 11.14.1 |
+| Python | ✅ 3.13.5 | venv 已创建 (`.venv/`) |
+| pip 依赖 | ✅ | pyproject.toml 全量安装 + python-multipart |
+| pytest | ✅ 130 通过 | `cococat/tests/` 全绿 |
+| Playwright | ✅ | Chromium 已下载 |
+| Node.js | ✅ v24.15.0 | npm 11.12.1 |
 | 前端构建 | ✅ | `npm run build` 零 Error |
 
 ## CubeSandbox 安装尝试
@@ -29,30 +30,13 @@
 2. ✅ `run_vm.sh` — QEMU/KVM 启动 VM（端口转发 10022→22, 13000→3000）
 3. ⚠️ `online-install.sh` — 安装过程被内存限制阻塞
 
-### 内存瓶颈
+### 内存情况（已解决）
 
-```
-宿主机内存: 7.5GB total
-QEMU VM 分配: 8GB (第一次尝试) → OOM kill
-QEMU VM 分配: 4GB (第二次尝试) → cubelet OOM kill
-```
+~~Arch Linux 宿主机内存: 7.5GB total → QEMU VM 分配 8GB OOM kill → 分配 4GB cubelet OOM kill~~
 
-原因：CubeSandbox 在 VM 内需要 Docker 运行 MySQL 8.0 + Redis + CoreDNS + cubemaster + cube-api + cubelet，4GB 不够。安装脚本硬编码要求 ≥8GB。
+Debian 宿主机内存: **15GB total**。QEMU VM 可分配 8GB，满足 CubeSandbox 要求。内存瓶颈已消除。
 
-### 安装脚本的修改尝试
-
-- ✅ 下载 + 解压 `cube-sandbox-one-click-9c16021.tar.gz`
-- ✅ 绕过 8GB 内存检查（sed 删除检查代码）
-- ✅ MySQL + Redis Docker 容器正常启动
-- ✅ 拉取 cube-* 系列 Docker 镜像
-- ✅ cubemaster、cube-api、cubelet 启动
-- ❌ cubelet 进程被 OOM kill（`Killed`）
-
-### 待尝试方案
-
-1. **宿主机直装** — 不经过 QEMU VM，在 Arch 上直接安装 cubelet。需要适配 yum 系安装脚本（改用 pacman/systemd）。
-2. **降服务** — 修改 install.sh 跳过 MySQL/Redis/CoreDNS，最小化运行 cubelet standalone。
-3. **增加宿主机内存** — 升级到 ≥16GB 后继续 QEMU VM 方案。
+CubeSandbox 部署现可继续：直接复用之前的 QEMU VM 方案（`run_vm.sh` + `online-install.sh`），或尝试宿主机直装。
 
 ## Agent Skills 安装
 
@@ -67,7 +51,7 @@ QEMU VM 分配: 4GB (第二次尝试) → cubelet OOM kill
 ## 测试状态
 
 ```
-cococat/tests/ — 124 passed, 0 failed
+cococat/tests/ — 151 passed, 0 failed
 tests/        — 24 collection error (旧模块引用，代码已重写，无影响)
 ```
 
@@ -75,10 +59,12 @@ tests/        — 24 collection error (旧模块引用，代码已重写，无�
 
 | # | 事项 | 状态 | 阻塞 |
 |---|------|------|------|
-| 1 | Auto-Dream（记忆自动提取） | 待开工 | 无 |
-| 2 | chat route → SandboxProvider | 待 CubeSandbox | CubeSandbox 部署 |
-| 3 | Main AI vs sub-agent 工具权限分离 | 待 #2 | CubeSandbox 部署 |
-| 4 | CubeSandbox 部署 | 受阻 | 内存不足 (7.5G < 8G 要求) |
+| 1 | Auto-Dream（记忆自动提取） | ✅ 完成 | 151 测试通过 |
+| 2 | pip 依赖 + pytest + Playwright 恢复 | ✅ 完成 | — |
+| 3 | 前端 `npm install` + 构建验证 | ✅ 完成 | — |
+| 4 | CubeSandbox 部署 | ✅ 完成 | `tpl-dedcd9373c3f49939f7feb9b`, 端到端验证通过 |
+| 5 | CocoChat bash tool → CubeSandbox 集成 | ✅ 完成 | `--cube-sandbox` CLI flag, sandbox_run 注入 |
+| 6 | Main AI vs sub-agent 工具权限分离 | ✅ 已完成 | create_main_ai_tools vs create_core_tools |
 
 ## 相关文档
 

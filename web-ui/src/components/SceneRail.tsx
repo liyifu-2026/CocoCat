@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
+import { useLocation, NavLink } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 
 import { SceneAvatar } from "./SceneAvatar"
@@ -7,7 +7,7 @@ import { useTheme } from "@/context/ThemeContext"
 import { useSidebar } from "@/context/SidebarContext"
 import { useT } from "@/context/LanguageContext"
 import { useDialogActions } from "@/context/DialogContext"
-import { Sun, Moon, Plus, PanelRight, Settings, GitBranch } from "lucide-react"
+import { Sun, Moon, Plus, PanelRight, Settings, Layers, Bot, Book, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface SceneRailProps {
@@ -16,17 +16,11 @@ interface SceneRailProps {
 
 export function SceneRail({ onOpenSettings }: SceneRailProps) {
   const t = useT()
-  const navigate = useNavigate()
   const location = useLocation()
   const { theme, toggleTheme } = useTheme()
   const { collapsed, toggle } = useSidebar()
   const { openImportScene } = useDialogActions()
   const [hovered, setHovered] = useState(false)
-
-  const handleNav = (to: string) => {
-    if (collapsed) toggle()
-    navigate(to)
-  }
 
   const { data } = useQuery({ queryKey: ["scenes"], queryFn: () => fetch("/api/scenes").then(r => r.json()) })
   const scenes: { id: string }[] = (data as { scenes: { id: string }[] })?.scenes ?? []
@@ -42,19 +36,20 @@ export function SceneRail({ onOpenSettings }: SceneRailProps) {
         hovered ? "w-36" : "w-13",
       )}
     >
-      <button
-        onClick={() => handleNav("/dashboard")}
-        className={cn(
+      <NavLink
+        to="/dashboard"
+        onClick={() => { if (collapsed) toggle() }}
+        className={({ isActive }) => cn(
           "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
-          location.pathname === "/dashboard" || location.pathname === "/"
+          isActive
             ? "bg-primary text-primary-foreground shadow-sm"
             : "text-sidebar-foreground hover:bg-sidebar-accent",
         )}
         title={t("component.dashboard")}
-          aria-label={t("component.dashboard")}
+        aria-label={t("component.dashboard")}
       >
-        <span className="text-xs font-display font-bold tracking-wider" style={hovered ? {} : {}}>Cc</span>
-      </button>
+        <span className="text-xs font-display font-bold tracking-wider">Cc</span>
+      </NavLink>
       {collapsed && (
         <button onClick={toggle} title={t("component.show_sidebar")}
           className="w-8 h-8 rounded-lg flex items-center justify-center text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200"
@@ -63,16 +58,31 @@ export function SceneRail({ onOpenSettings }: SceneRailProps) {
         </button>
       )}
 
+      <NavLink
+        to="/chat"
+        onClick={() => { if (collapsed) toggle() }}
+        className={({ isActive }) => cn(
+          "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
+          isActive
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+        )}
+        title={t("nav.chat")}
+      >
+        <MessageSquare className="size-4" />
+      </NavLink>
+
       <div className="w-6 border-t border-sidebar-border my-0.5" />
 
       <nav className="flex-1 flex flex-col items-center gap-1.5 overflow-y-auto w-full px-1.5">
         {scenes.map((scene, i) => (
-          <button
+          <NavLink
             key={scene.id}
-            onClick={() => handleNav(`/scenes/${scene.id}`)}
-            className={cn(
+            to={`/scenes/${scene.id}`}
+            onClick={() => { if (collapsed) toggle() }}
+            className={({ isActive }) => cn(
               "flex items-center gap-2.5 rounded-lg transition-all duration-200 w-full px-1.5 py-1 stagger-1",
-              activeSceneId === scene.id
+              isActive
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
             )}
@@ -80,8 +90,11 @@ export function SceneRail({ onOpenSettings }: SceneRailProps) {
             style={{ animationDelay: `${i * 0.04}s` }}
           >
             <SceneAvatar id={scene.id} size={activeSceneId === scene.id ? "md" : "sm"} />
-            {hovered && <span className="text-xs text-sidebar-foreground truncate font-medium">{scene.id}</span>}
-          </button>
+            <span className={cn(
+              "text-xs text-sidebar-foreground truncate font-medium transition-opacity duration-200",
+              hovered ? "opacity-100 delay-75" : "opacity-0 delay-0",
+            )}>{scene.id}</span>
+          </NavLink>
         ))}
         <button
           onClick={openImportScene}
@@ -89,25 +102,52 @@ export function SceneRail({ onOpenSettings }: SceneRailProps) {
           title={t("import_create.title")}
         >
           <Plus className="size-4 shrink-0" />
-          {hovered && <span className="text-xs">{t("component.new_scene")}</span>}
+          <span className={cn(
+            "text-xs transition-opacity duration-200",
+            hovered ? "opacity-100 delay-75" : "opacity-0 delay-0",
+          )}>{t("component.new_scene")}</span>
         </button>
       </nav>
 
       <div className="w-6 border-t border-sidebar-border my-0.5" />
 
       <div className="flex flex-col items-center gap-1.5">
-        <button
-          onClick={() => handleNav("/dag")}
-          className={cn(
+        <NavLink
+          to="/scenes"
+          className={({ isActive }) => cn(
             "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
-            location.pathname === "/dag"
+            isActive
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
           )}
-          title="DAG"
+          title={t("nav.scenes")}
         >
-          <GitBranch className="size-4" />
-        </button>
+          <Layers className="size-4" />
+        </NavLink>
+        <NavLink
+          to="/agents"
+          className={({ isActive }) => cn(
+            "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
+            isActive
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+          )}
+          title={t("nav.agents")}
+        >
+          <Bot className="size-4" />
+        </NavLink>
+        <NavLink
+          to="/knowledge"
+          className={({ isActive }) => cn(
+            "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
+            isActive
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+          )}
+          title={t("nav.knowledge")}
+        >
+          <Book className="size-4" />
+        </NavLink>
         <button
           onClick={toggleTheme}
           className="w-8 h-8 rounded-lg flex items-center justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200"

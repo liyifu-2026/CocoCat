@@ -74,6 +74,7 @@ def test_backup_page_creates_backup():
 # ── Dedup ──
 
 from cococat.ingest.dedup import DedupPipeline
+from cococat.providers.base import LLMResponse
 
 
 class DedupLLM:
@@ -84,8 +85,8 @@ class DedupLLM:
         content = messages[-1]["content"]
         self.calls.append(content[:100])
         if "Identify groups" in content:
-            return {"content": json.dumps([["page-a", "page-a-dup"]])}
-        return {"content": "# Merged Page\nCombined content."}
+            return LLMResponse(content=json.dumps([["page-a", "page-a-dup"]]))
+        return LLMResponse(content="# Merged Page\nCombined content.")
 
 
 @pytest.mark.asyncio
@@ -305,8 +306,8 @@ class FakeLLM:
         content = messages[-1]["content"]
         self.calls.append(content[:100])
         if "research analyst" in content.lower():
-            return {"content": self.analysis}
-        return {"content": self.generation}
+            return LLMResponse(content=self.analysis)
+        return LLMResponse(content=self.generation)
 
 
 @pytest.fixture

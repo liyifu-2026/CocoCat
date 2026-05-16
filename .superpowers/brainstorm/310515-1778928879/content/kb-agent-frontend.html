@@ -1,0 +1,91 @@
+<h2>设计 Section 5：kb-agent 配置 & 前端对话窗</h2>
+<p class="subtitle">基于 Resident Agent 概念的 kb-agent 注册 + KB 页 UI 布局</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+
+  <div>
+    <div class="label" style="color:#a6e3a1;margin-bottom:8px;">kb-agent 注册（Resident Agent）</div>
+    <div style="background:#1e1e2e;border-radius:8px;padding:14px;font-family:monospace;font-size:12px;color:#cdd6f4;line-height:1.6;">
+<span style="color:#6c7086;"># 注册为 Resident Agent，与 Coco 平级</span><br/>
+<span style="color:#cba6f7;">class</span> <span style="color:#89b4fa;">AgentRole</span>(Enum):<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;RESIDENT = <span style="color:#a6e3a1;">"resident"</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;WORKER   = <span style="color:#a6e3a1;">"worker"</span><br/>
+<br/>
+<span style="color:#6c7086;"># config/residents/kb-agent.yaml</span><br/>
+id: <span style="color:#a6e3a1;">kb-agent</span><br/>
+name: <span style="color:#a6e3a1;">知识库管理员</span><br/>
+role: <span style="color:#a6e3a1;">resident</span><br/>
+page: <span style="color:#a6e3a1;">/knowledge</span>          <span style="color:#6c7086;"># 绑定页面</span><br/>
+skills: [<span style="color:#a6e3a1;">knowledge-ingestion</span>]<br/>
+tools: [<span style="color:#a6e3a1;">search_kb, read_wiki, write_wiki,</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#a6e3a1;">run_dedup, run_lint, gen_overview,</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#a6e3a1;">cascade_del, get_graph, call_worker</span>]<br/>
+cron: [<span style="color:#a6e3a1;">kb:lint@24h, kb:dedup@7d, kb:overview@7d</span>]
+    </div>
+  </div>
+
+  <div>
+    <div class="label" style="color:#89b4fa;margin-bottom:8px;">Coco 注册（Resident Agent）</div>
+    <div style="background:#1e1e2e;border-radius:8px;padding:14px;font-family:monospace;font-size:12px;color:#cdd6f4;line-height:1.6;">
+<span style="color:#6c7086;"># config/residents/coco.yaml</span><br/>
+id: <span style="color:#a6e3a1;">coco</span><br/>
+name: <span style="color:#a6e3a1;">Coco</span><br/>
+role: <span style="color:#a6e3a1;">resident</span><br/>
+page: <span style="color:#a6e3a1;">/chat</span>               <span style="color:#6c7086;"># 绑定页面</span><br/>
+skills: []<br/>
+tools: [<span style="color:#a6e3a1;">define_dag, call_worker, search_kb, read_wiki</span>]<br/>
+cron: []
+    </div>
+    <p style="font-size:12px;color:#a6adc8;margin:8px 0 0 0;">
+      注意：Coco 也有 search_kb + read_wiki（只读），需要时可以查 KB。
+    </p>
+  </div>
+
+</div>
+
+<div style="margin-top:24px;">
+  <div class="label" style="color:#f9e2af;margin-bottom:8px;">KB 详情页 UI 布局</div>
+  <div style="background:#1e1e2e;border-radius:10px;padding:16px;color:#cdd6f4;">
+    
+    <div style="display:flex;gap:12px;min-height:280px;">
+      <!-- 左侧：Wiki 浏览区 -->
+      <div style="flex:1;background:#313244;border-radius:8px;padding:12px;">
+        <div class="mock-nav" style="margin-bottom:10px;">📚 knowledge/team-wiki</div>
+        <div style="display:flex;gap:8px;">
+          <div class="mock-sidebar" style="width:120px;font-size:11px;">
+            <strong>Entities</strong><br/>
+            ▪ cococat<br/>
+            <br/>
+            <strong>Concepts</strong><br/>
+            ▪ message-bus<br/>
+            ▪ multi-agent<br/>
+            ▪ test<br/>
+          </div>
+          <div class="mock-content" style="flex:1;font-size:12px;">
+            <h3 style="margin:0 0 6px 0;font-size:13px;">cococat</h3>
+            <p style="color:#a6adc8;">CocoCat is a multi-agent collaboration platform...</p>
+            <p style="color:#6c7086;">— tags: platform, multi-agent</p>
+            <p style="color:#6c7086;">— related: [[multi-agent-systems]]</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧：kb-agent 对话窗 -->
+      <div style="width:280px;background:#181825;border:1px solid #89b4fa;border-radius:8px;display:flex;flex-direction:column;">
+        <div style="padding:8px 12px;border-bottom:1px solid #313244;font-size:12px;color:#89b4fa;">
+          🤖 kb-agent · 知识库管理员
+        </div>
+        <div style="flex:1;padding:8px 12px;font-size:11px;color:#a6adc8;overflow-y:auto;">
+          <div style="margin-bottom:8px;"><strong style="color:#89b4fa;">kb-agent:</strong> 你好！我是知识库管理员。可以帮你搜索、整理、维护知识库。</div>
+        </div>
+        <div style="padding:8px 12px;border-top:1px solid #313244;">
+          <input class="mock-input" placeholder="问 kb-agent..." style="width:100%;box-sizing:border-box;" />
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p style="font-size:12px;color:#a6adc8;margin:8px 0 0 16px;">
+    左侧：现有 Wiki 浏览（KnowledgeDetail.tsx）。右侧：新增 kb-agent 对话小窗，常驻在 KB 页面。
+  </p>
+</div>

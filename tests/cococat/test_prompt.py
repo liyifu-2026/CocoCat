@@ -4,11 +4,12 @@ import tempfile
 import pytest
 from cococat.prompt import build_system_prompt, load_memory_from_agent_dir
 from cococat.core.agent import Agent, AgentRole
+from cococat.providers.base import LLMResponse
 
 
 class FakeLLM:
     async def chat(self, messages, tools=None, **kwargs):
-        return {"content": "ok"}
+        return LLMResponse(content="ok")
 
 
 def test_load_memory_from_agent_dir():

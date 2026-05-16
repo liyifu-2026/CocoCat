@@ -1,0 +1,75 @@
+<h2>设计缺口 & 修正</h2>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;">
+  <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:16px;">
+    <div class="label" style="color:#991b1b;">缺口 1：其他 agent 没有只读 search_kb 工具</div>
+    <p style="font-size:14px;color:#991b1b;margin:8px 0 0 0;">
+      目前其他 agent 只能通过 system prompt 里的 KB overview 感知 KB 存在。<strong>不能主动检索</strong> wiki 页面内容。需要给所有普通 agent 加一个 <code>search_kb</code> 工具，权限设为只读。
+    </p>
+  </div>
+  <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:16px;">
+    <div class="label" style="color:#991b1b;">缺口 2：kb-agent 缺少 ingestion skill 和专属对话界面</div>
+    <p style="font-size:14px;color:#991b1b;margin:8px 0 0 0;">
+      当前 kb-agent 只是一个后台 subagent。<strong>没有前端对话面板</strong>让用户在 KB 页面直接跟它交互。也缺少 <code>knowledge-ingestion</code> skill 来指导它如何拆解材料。
+    </p>
+  </div>
+</div>
+
+<div style="margin-top:24px;">
+  <h3 style="color:#a6e3a1;">修正后的完整设定</h3>
+</div>
+
+<div style="background:#1e1e2e;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;color:#cdd6f4;line-height:1.8;">
+<pre style="margin:0;color:#cdd6f4;">
+┌───────────────────────────────────────────────────────┐
+│  <strong style="color:#f9e2af;">kb-agent（知识库管理员）</strong>                         │
+│  位置：KB 详情页 → 专属对话面板                         │
+│  权限：读 + 写（创建/修改 wiki 页面、触发维护操作）       │
+│  Skill：<strong style="color:#89b4fa;">knowledge-ingestion</strong>（指导拆解材料）           │
+│  Tools：                                              │
+│    ┌─────────────────────────────────────────────┐     │
+│    │ search_kb     — 搜索 wiki（读写均可）        │     │
+│    │ write_wiki    — 创建/更新 wiki 页面          │     │
+│    │ run_dedup     — 运行去重管线                 │     │
+│    │ run_lint      — 运行健康检查                 │     │
+│    │ gen_overview  — 生成/更新 KB 全局概览        │     │
+│    │ cascade_del   — 级联删除源文件及相关页面      │     │
+│    │ get_graph     — 获取知识图谱 + 洞察          │     │
+│    └─────────────────────────────────────────────┘     │
+└───────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────┐
+│  <strong style="color:#89b4fa;">普通 agent（其他场景的 agent）</strong>                    │
+│  权限：只读                                           │
+│  Tools：                                              │
+│    ┌─────────────────────────────────────────────┐     │
+│    │ search_kb     — 搜索 wiki（只读）            │     │
+│    │ read_wiki     — 读取指定 wiki 页面           │     │
+│    └─────────────────────────────────────────────┘     │
+│  注：这两个工具在 kb-agent 上也可以调用，但 kb-agent    │
+│  额外拥有写权限的工具                                   │
+└───────────────────────────────────────────────────────┘
+</pre>
+</div>
+
+<div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <div style="border:1px solid #a6e3a1;border-radius:8px;padding:14px;">
+    <div class="label" style="color:#a6e3a1;">kb-agent 的工作流（收到材料后）</div>
+    <ol style="margin:4px 0 0 0;padding-left:18px;font-size:13px;">
+      <li>加载 <strong>knowledge-ingestion skill</strong></li>
+      <li>调用 ingest（两阶段 LLM 管线）</li>
+      <li>写入 wiki 页面（FILE blocks → entities/concepts）</li>
+      <li>更新 index.md + log.md</li>
+      <li>可选：触发 dedup、生成 overview</li>
+    </ol>
+  </div>
+  <div style="border:1px solid #a6e3a1;border-radius:8px;padding:14px;">
+    <div class="label" style="color:#a6e3a1;">kb-agent 的日常维护</div>
+    <ol style="margin:4px 0 0 0;padding-left:18px;font-size:13px;">
+      <li>定期 lint 检查 → 报告孤儿页面/断链</li>
+      <li>定期 dedup → 合并重复页面</li>
+      <li>定期 overview → 重新生成全局概览</li>
+      <li>源文件删除 → 触发级联清理</li>
+    </ol>
+  </div>
+</div>

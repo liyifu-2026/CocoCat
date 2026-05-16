@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CocoCat — DAG 跳转 + 任务总览</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Noto Sans SC", system-ui, sans-serif;
+  background: #f5f2ef; color: #333;
+  height: 100vh; overflow: hidden;
+  --primary: #8b5e3c; --blue: #3b82f6; --green: #22c55e;
+  --border: #e2ddd6; --card: #faf8f5; --muted: #8c8a86;
+  --radius: 14px;
+}
+
+.app { display: flex; height: 100vh; }
+
+.sidebar {
+  width: 208px; border-right: 1px solid var(--border);
+  background: #faf8f5; display: flex; flex-direction: column;
+  font-size: 13px; flex-shrink: 0; overflow: hidden;
+}
+.sidebar-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-weight: 600; color: var(--muted); text-transform: uppercase;
+  font-size: 10px; letter-spacing: 0.06em; display: flex; justify-content: space-between;
+}
+.sess {
+  padding: 7px 12px; cursor: pointer; font-size: 12px;
+  border-bottom: 1px solid var(--border); transition: background 0.15s;
+}
+.sess:hover { background: #ede8e1; }
+.sess.active { background: #e8e0d5; font-weight: 500; }
+.sidebar-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  font-size: 13px; cursor: pointer; transition: background 0.15s;
+  color: var(--muted);
+}
+.sidebar-btn:hover { background: #ede8e1; color: #333; }
+.sidebar-btn.active { background: #e8e0d5; color: #333; font-weight: 500; }
+.sidebar-btn svg { width: 15px; height: 15px; }
+.sidebar-btn .badge {
+  margin-left: auto; font-size: 10px; padding: 1px 7px;
+  border-radius: 99px; background: #eff6ff; color: #3b82f6; font-weight: 500;
+}
+
+/* Main chat area */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.chat-scroll { flex: 1; overflow-y: auto; padding: 24px 32px 80px; display: flex; flex-direction: column; gap: 16px; position: relative; }
+
+/* Message bubbles */
+.msg-row { display: flex; }
+.msg-row.user { justify-content: flex-end; }
+.msg-row.assistant { justify-content: flex-start; flex-direction: column; }
+.user-bubble {
+  background: var(--primary); color: #fff;
+  border-radius: var(--radius) var(--radius) 4px var(--radius);
+  padding: 10px 16px; font-size: 14px; max-width: 65%;
+}
+.assistant-bubble {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) var(--radius) 4px;
+  padding: 14px 18px; font-size: 14px; line-height: 1.7;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.assistant-bubble.notify {
+  border-color: #dbeafe; background: #f8fbff;
+}
+
+/* Floating "current DAG" indicator */
+.dag-indicator {
+  position: fixed; bottom: 90px; right: 24px; z-index: 50;
+  display: flex; align-items: center; gap: 6px;
+  background: #fff; border: 1.5px solid #dbeafe;
+  border-radius: 99px; padding: 6px 14px; font-size: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08); cursor: pointer;
+  transition: all 0.2s;
+}
+.dag-indicator:hover {
+  background: #f0f7ff; border-color: #3b82f6;
+  box-shadow: 0 4px 18px rgba(59,130,246,0.15);
+}
+.dag-indicator .pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #3b82f6;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.3); }
+}
+
+/* DAG Card */
+.dag-card {
+  background: var(--card); border: 1.5px solid #dbeafe;
+  border-radius: var(--radius); overflow: hidden; margin-top: 6px; margin-bottom: 2px;
+  scroll-margin-top: 20px;
+}
+.dag-card.highlight {
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+  transition: box-shadow 0.6s;
+}
+.dag-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; cursor: pointer; user-select: none;
+  font-size: 12px; transition: background 0.15s;
+}
+.dag-header:hover { background: #f0f7ff; }
+.dag-header-left { display: flex; align-items: center; gap: 8px; }
+.dag-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 500;
+}
+.dag-badge.running { background: #eff6ff; color: #3b82f6; }
+.dag-badge.done { background: #f0fdf4; color: #22c55e; }
+.dag-body { padding: 8px 16px 16px; }
+.dag-body svg { width: 100%; }
+
+.dag-legend {
+  display: flex; gap: 14px; padding: 0 16px 8px; font-size: 10px; color: #888;
+}
+.dag-legend span { display: flex; align-items: center; gap: 4px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+.legend-dot.pending { background: #cbd5e1; }
+.legend-dot.running { background: #3b82f6; }
+.legend-dot.done { background: #22c55e; }
+
+/* Task Overview Panel (sidebar content) */
+.task-panel {
+  flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px;
+}
+.task-section-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); font-weight: 600; padding: 0 4px;
+}
+.task-run-card {
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px; cursor: pointer;
+  transition: all 0.15s; font-size: 11px;
+}
+.task-run-card:hover { border-color: var(--blue); }
+.task-run-card .run-title {
+  font-weight: 600; margin-bottom: 3px; display: flex; align-items: center; gap: 6px;
+}
+.task-run-card .run-meta {
+  font-size: 10px; color: var(--muted);
+}
+.task-run-card .run-bar {
+  height: 3px; background: #e5e7eb; border-radius: 2px; margin-top: 6px; overflow: hidden;
+}
+.task-run-card .run-bar-fill {
+  height: 100%; border-radius: 2px; transition: width 0.4s;
+}
+
+/* Tool cards */
+.tool-list { display: flex; flex-direction: column; gap: 3px; margin: 6px 0; }
+.tool-card {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: #f8f7f4; border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px; font-size: 11px;
+}
+.tool-name { font-weight: 600; font-family: "JetBrains Mono", monospace; font-size: 11px; }
+.tool-args { font-size: 10px; color: #888; font-family: "JetBrains Mono", monospace; margin-top: 1px; }
+.tool-status { font-size: 9px; padding: 1px 6px; border-radius: 99px; font-weight: 500; }
+.tool-status.done { background: #f0fdf4; color: #22c55e; }
+.tool-status.running { background: #eff6ff; color: #3b82f6; }
+
+/* Input */
+.input-area { border-top: 1px solid var(--border); background: #faf8f5cc; backdrop-filter: blur(6px); padding: 14px 32px; }
+.input-row { display: flex; gap: 10px; max-width: 720px; margin: 0 auto; }
+.input-row textarea {
+  flex: 1; resize: none; border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; font-size: 14px;
+  background: #fff; outline: none; font-family: inherit;
+}
+.input-row textarea:focus { border-color: var(--primary); }
+.send-btn {
+  background: var(--primary); color: #fff; border: none;
+  border-radius: 8px; padding: 10px 18px; cursor: pointer; font-size: 14px;
+}
+.send-btn:hover { opacity: 0.9; }
+
+/* Sim bar */
+.sim-bar {
+  position: fixed; bottom: 0; right: 0;
+  background: #1e293b; color: #e2e8f0; padding: 8px 16px;
+  border-radius: 10px 0 0 0; font-size: 11px;
+  display: flex; gap: 8px; align-items: center; z-index: 99;
+}
+.sim-bar button {
+  background: #334155; color: #e2e8f0; border: none;
+  padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 11px;
+}
+.sim-bar button:hover { background: #475569; }
+.sim-bar button.active { background: #3b82f6; }
+
+/* Scrollbar */
+.chat-scroll::-webkit-scrollbar, .task-panel::-webkit-scrollbar { width: 5px; }
+.chat-scroll::-webkit-scrollbar-thumb, .task-panel::-webkit-scrollbar-thumb {
+  background: #d1cfcb; border-radius: 3px;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span>Sessions</span>
+      <span style="font-size:10px;color:var(--primary);cursor:pointer;">+ New</span>
+    </div>
+
+    <!-- Sessions -->
+    <div class="sess active">
+      <div style="font-weight:500;">技术文档项目</div>
+      <div style="font-size:10px;color:#aaa;">12 条消息 · DAG 进行中</div>
+    </div>
+    <div class="sess">
+      <div>算法优化</div>
+      <div style="font-size:10px;color:#aaa;">5 条消息</div>
+    </div>
+    <div class="sess">
+      <div>代码审查</div>
+      <div style="font-size:10px;color:#aaa;">8 条消息 · DAG 已完成</div>
+    </div>
+
+    <!-- ── Sidebar separator ── -->
+    <div style="border-bottom:1px solid var(--border); margin: 4px 0;"></div>
+
+    <!-- 定时任务 -->
+    <div class="sidebar-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+      </svg>
+      <span>定时任务</span>
+    </div>
+
+    <!-- ── DAG 任务总览（新增）── -->
+    <div class="sidebar-btn active" id="dagOverviewBtn" onclick="toggleTaskPanel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M6 3v18M6 3l4 4M6 3L2 7M18 21V3M18 21l4-4M18 21l-4-4M10 12h4"/>
+      </svg>
+      <span>任务总览</span>
+      <span class="badge" id="taskBadge">3 活跃</span>
+    </div>
+
+    <!-- 任务总览面板 -->
+    <div class="task-panel" id="taskPanel">
+      <!-- 活跃中 -->
+      <div class="task-section-label">⚡ 活跃中的 DAG</div>
+      <div class="task-run-card" onclick="scrollToDag('tech-doc', event)" id="run-card-tech">
+        <div class="run-title">
+          <span style="color:#3b82f6;">●</span> 技术文档生成
+          <span style="margin-left:auto;font-size:10px;color:var(--muted);">Session: 技术文档项目</span>
+        </div>
+        <div class="run-meta">7 tasks · 4/7 完成 · 2 执行中</div>
+        <div class="run-bar">
+          <div class="run-bar-fill" style="width:57%;background:var(--blue);"></div>
+        </div>
+      </div>
+
+      <!-- 已完成 -->
+      <div class="task-section-label" style="margin-top:12px;">✅ 已完成的 DAG</div>
+      <div class="task-run-card" onclick="scrollToDag('code-review', event)" style="opacity:0.7;">
+        <div class="run-title">
+          <span style="color:#22c55e;">●</span> 代码审查
+        </div>
+        <div class="run-meta">5 tasks · 全部完成 · 2小时前</div>
+        <div class="run-bar">
+          <div class="run-bar-fill" style="width:100%;background:var(--green);"></div>
+        </div>
+      </div>
+      <div class="task-run-card" onclick="scrollToDag('algo', event)" style="opacity:0.7;">
+        <div class="run-title">
+          <span style="color:#22c55e;">●</span> 算法优化
+        </div>
+        <div class="run-meta">3 tasks · 全部完成 · 昨天</div>
+        <div class="run-bar">
+          <div class="run-bar-fill" style="width:100%;background:var(--green);"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CHAT -->
+  <main class="main">
+    <div class="chat-scroll" id="chatScroll">
+
+      <div class="msg-row user">
+        <div class="user-bubble">帮我写一篇 React 架构设计文档</div>
+      </div>
+
+      <!-- DAG response — the anchor point -->
+      <div class="msg-row assistant" id="dag-tech-doc">
+        <div style="max-width: 65%; display: flex; flex-direction: column; gap: 6px;">
+          <div class="assistant-bubble">
+            <p>收到！已拆分 7 个任务，后台执行中。你可以继续聊。</p>
+          </div>
+
+          <div class="dag-card highlight" id="dagCard1">
+            <div class="dag-header" onclick="toggleDag('dagBody1', 'chev1')">
+              <div class="dag-header-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+                  <path d="M6 3v18M6 3l4 4M6 3L2 7M18 21V3M18 21l4-4M18 21l-4-4M10 12h4"/>
+                </svg>
+                <span style="font-weight:600;">DAG 任务流程</span>
+                <span class="dag-badge running">4/7 完成 · 2 执行中</span>
+              </div>
+              <span style="font-size:11px;color:#aaa;" id="chev1">▼</span>
+            </div>
+            <div class="dag-legend">
+              <span><span class="legend-dot pending"></span> 待执行</span>
+              <span><span class="legend-dot running"></span> 执行中</span>
+              <span><span class="legend-dot done"></span> 已完成</span>
+            </div>
+            <div class="dag-body" id="dagBody1">
+              <svg viewBox="0 0 720 240">
+                <defs>
+                  <marker id="arrow1" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#cbd5e1"/>
+                  </marker>
+                </defs>
+                <!-- S1: Analyze (done) -->
+                <rect x="40" y="20" width="140" height="46" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2.5"/>
+                <text x="110" y="48" text-anchor="middle" font-size="12" font-weight="700" fill="#166534">Analyze</text>
+                <rect x="46" y="78" width="62" height="32" rx="7" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.8"/>
+                <text x="77" y="99" text-anchor="middle" font-size="10" font-family="monospace" fill="#166534">read_code</text>
+                <circle cx="54" cy="94" r="5" fill="#22c55e"/>
+                <text x="54" y="97" text-anchor="middle" font-size="8" fill="#fff">✓</text>
+                <rect x="114" y="78" width="62" height="32" rx="7" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.8"/>
+                <text x="145" y="99" text-anchor="middle" font-size="10" font-family="monospace" fill="#166534">list_dir</text>
+                <circle cx="122" cy="94" r="5" fill="#22c55e"/>
+                <text x="122" y="97" text-anchor="middle" font-size="8" fill="#fff">✓</text>
+                <!-- lines stage→tasks -->
+                <line x1="95" y1="66" x2="77" y2="78" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="125" y1="66" x2="145" y2="78" stroke="#cbd5e1" stroke-width="1"/>
+
+                <!-- Arrow S1 → S2 -->
+                <line x1="180" y1="43" x2="230" y2="43" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow1)"/>
+
+                <!-- S2: Plan (done) -->
+                <rect x="240" y="20" width="140" height="46" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2.5"/>
+                <text x="310" y="48" text-anchor="middle" font-size="12" font-weight="700" fill="#166534">Plan</text>
+                <rect x="270" y="78" width="80" height="32" rx="7" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.8"/>
+                <text x="310" y="99" text-anchor="middle" font-size="10" font-family="monospace" fill="#166534">outline</text>
+                <circle cx="278" cy="94" r="5" fill="#22c55e"/>
+                <text x="278" y="97" text-anchor="middle" font-size="8" fill="#fff">✓</text>
+                <line x1="310" y1="66" x2="310" y2="78" stroke="#cbd5e1" stroke-width="1"/>
+
+                <!-- Arrow S2 → S3 -->
+                <line x1="380" y1="43" x2="430" y2="43" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow1)"/>
+
+                <!-- S3: Write (running) -->
+                <rect x="440" y="20" width="140" height="46" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="2.5"/>
+                <text x="510" y="48" text-anchor="middle" font-size="12" font-weight="700" fill="#1e40af">Write</text>
+                <rect x="446" y="78" width="62" height="32" rx="7" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.8"/>
+                <text x="477" y="99" text-anchor="middle" font-size="10" font-family="monospace" fill="#166534">ch1-4</text>
+                <circle cx="454" cy="94" r="5" fill="#22c55e"/>
+                <text x="454" y="97" text-anchor="middle" font-size="8" fill="#fff">✓</text>
+                <rect x="514" y="78" width="62" height="32" rx="7" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.8"/>
+                <text x="545" y="99" text-anchor="middle" font-size="10" font-family="monospace" fill="#1e40af">ch5-8</text>
+                <circle cx="522" cy="94" r="5" fill="#3b82f6"/>
+                <circle cx="522" cy="94" r="5" fill="none" stroke="#3b82f6" stroke-width="1.5" opacity="0.4">
+                  <animate attributeName="r" from="5" to="10" dur="1s" repeatCount="indefinite"/>
+                  <animate attributeName="opacity" from="0.6" to="0" dur="1s" repeatCount="indefinite"/>
+                </circle>
+                <line x1="495" y1="66" x2="477" y2="78" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="525" y1="66" x2="545" y2="78" stroke="#cbd5e1" stroke-width="1"/>
+
+                <!-- Arrow S2 → S4 (diagonal) -->
+                <line x1="310" y1="66" x2="310" y2="170" stroke="#cbd5e1" stroke-width="1.5"/>
+                <line x1="310" y1="170" x2="150" y2="170" stroke="#cbd5e1" stroke-width="1.5"/>
+                <line x1="150" y1="170" x2="150" y2="155" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow1)"/>
+
+                <!-- S4: Deploy (pending) -->
+                <rect x="40" y="160" width="140" height="46" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2.5"/>
+                <text x="110" y="188" text-anchor="middle" font-size="12" font-weight="700" fill="#64748b">Deploy</text>
+                <rect x="46" y="218" width="62" height="32" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.8"/>
+                <text x="77" y="239" text-anchor="middle" font-size="10" font-family="monospace" fill="#64748b">ci_setup</text>
+                <circle cx="54" cy="234" r="5" fill="#cbd5e1"/>
+                <rect x="114" y="218" width="62" height="32" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.8"/>
+                <text x="145" y="239" text-anchor="middle" font-size="10" font-family="monospace" fill="#64748b">cd_config</text>
+                <circle cx="122" cy="234" r="5" fill="#cbd5e1"/>
+                <line x1="95" y1="206" x2="77" y2="218" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="125" y1="206" x2="145" y2="218" stroke="#cbd5e1" stroke-width="1"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Tool calls -->
+          <div class="tool-list">
+            <div class="tool-card">
+              <span class="tool-status done">✓</span>
+              <div>
+                <span class="tool-name">define_dag</span>
+                <div class="tool-args">yaml: 4 stages, 7 tasks</div>
+              </div>
+            </div>
+            <div class="tool-card">
+              <span class="tool-status done">✓</span>
+              <div>
+                <span class="tool-name">dispatch_task</span>
+                <div class="tool-args">×4 fired</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- User continues chatting -->
+      <div class="msg-row user">
+        <div class="user-bubble">对了，加个部署章节</div>
+      </div>
+      <div class="msg-row assistant">
+        <div class="assistant-bubble" style="max-width:65%;">
+          <p>收到！已追加 <code>Deploy</code> 阶段。现在共 7 个任务。</p>
+        </div>
+      </div>
+
+      <!-- More chat... -->
+      <div class="msg-row user">
+        <div class="user-bubble">部署用 Docker 还是 k8s？</div>
+      </div>
+      <div class="msg-row assistant">
+        <div class="assistant-bubble" style="max-width:65%;">
+          <p>当前配置用的是 Docker + GitHub Actions，如果你要 k8s 我可以改成 Helm chart。需要改吗？</p>
+        </div>
+      </div>
+
+      <!-- Footer spacer -->
+      <div style="height: 60px;"></div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <textarea rows="1" placeholder="输入消息..."></textarea>
+        <button class="send-btn">Send</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Floating DAG indicator -->
+<div class="dag-indicator" id="dagIndicator" onclick="scrollToDag('tech-doc')">
+  <span class="pulse-dot"></span>
+  <span>任务进行中 4/7</span>
+  <span style="font-size:10px;color:var(--muted);">点击回到 DAG →</span>
+</div>
+
+<script>
+function scrollToDag(anchorId, event) {
+  if (event) event.preventDefault();
+
+  // Scroll chat to the DAG message
+  const target = document.getElementById('dag-' + anchorId);
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Highlight briefly
+    const card = target.querySelector('.dag-card');
+    if (card) {
+      card.classList.add('highlight');
+      setTimeout(() => card.classList.remove('highlight'), 1500);
+    }
+  }
+
+  // Switch sidebar to task panel
+  const panel = document.getElementById('taskPanel');
+  const btn = document.getElementById('dagOverviewBtn');
+  panel.style.display = 'flex';
+  btn.classList.add('active');
+}
+
+function toggleTaskPanel() {
+  const panel = document.getElementById('taskPanel');
+  const btn = document.getElementById('dagOverviewBtn');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'flex';
+    btn.classList.add('active');
+  } else {
+    panel.style.display = 'none';
+    btn.classList.remove('active');
+  }
+}
+
+function toggleDag(bodyId, chevId) {
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    chev.textContent = '▼';
+  } else {
+    body.style.display = 'none';
+    chev.textContent = '▶';
+  }
+}
+
+document.getElementById('chatScroll').scrollTop = document.getElementById('chatScroll').scrollHeight;
+</script>
+</body>
+</html>

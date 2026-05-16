@@ -1,0 +1,40 @@
+<h2>Sub-Agent 隔离方案：CubeSandbox 怎么服务 Agent？</h2>
+<p class="subtitle">三个方向，针对 Sub-Agent 的工具执行环境</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>扩展现状：选择性路由更多工具进沙箱</h3>
+      <p>Agent 循环仍在宿主机。把 write_file、browser、glob 也像 bash 一样通过 <code>sandbox_run</code> 路由进 MicroVM。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>改动小（扩展现有模式）</li><li>Agent 不受 VM 限制</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>Agent 仍依赖宿主机环境</li><li>每个工具单独适配</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>完整 Agent 进 MicroVM</h3>
+      <p>CubeSandboxExecutor 在 VM 内创建完整 Agent 实例，LLM 回连宿主机 Provider，整个 ReAct 循环跑在 VM 里。宿主机只做调度和结果转发。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>真正的硬件级隔离</li><li>Agent 看不到宿主机</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>VM 模板需装 Python + 依赖</li><li>改动量大</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>混合：Agent 宿主机 + 执行工具全进沙箱</h3>
+      <p>Agent 循环复用宿主机的 LLM 连接和 read 工具。所有写操作（bash、write_file、browser）统一进 CubeSandbox。沙箱挂载 workspace 目录。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>平衡安全和复杂度</li><li>one-shot 创建/销毁沙箱</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>Agent 循环本身不隔离</li><li>需要文件系统挂载</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

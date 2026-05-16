@@ -1,0 +1,1 @@
+2026-05-15 测试结果：read_file ✅ | list_dir ✅ | web_fetch ✅ (httpbin/github/baidu) | recall ✅ | pin ✅ | todo_write ✅ | define_dag ✅ | dispatch_task ✅ | check_tasks ✅ | record_experience ✅ | 不可用：write_file ❌ | edit_file ❌ | bash ❌ | glob ❌ | grep ❌ | web_search ❌ | browser ❌

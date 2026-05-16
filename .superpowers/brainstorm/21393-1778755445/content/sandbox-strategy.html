@@ -1,0 +1,40 @@
+<h2>沙箱分配策略：一个沙箱一个 Agent？还是共享？</h2>
+<p class="subtitle">CubeSandbox 冷启动 &lt; 60ms，但每次创建仍有开销</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>一个沙箱 = 一个 Sub-Agent（即用即毁）</h3>
+      <p>Main AI 每次 dispatch_task → 建一个沙箱 → Agent 执行 → 销毁。和现在 <code>run_once</code> 模式一致。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>隔离最彻底，任务间互不影响</li><li>实现简单，复用现有 run_once</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>多任务并发可能占多个沙箱</li><li>沙箱间无法共享状态</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>一个沙箱 = 一个会话（Main AI 的整个 DAG 执行过程）</h3>
+      <p>用户发消息 → 创建一个沙箱 → 该轮所有 Sub-Agent 复用同一个沙箱 → 用户回复后销毁。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>优点</h4><ul><li>减少沙箱创建开销</li><li>Sub-Agent 间可共享文件上下文</li></ul></div>
+        <div class="cons"><h4>缺点</h4><ul><li>一个 sub-agent 出错可能污染沙箱</li><li>沙箱生命周期管理更复杂</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>参考数据</h3>
+<div class="mockup">
+<div class="mockup-header">CubeSandbox 性能</div>
+<div class="mockup-body">
+<table style="width:100%;text-align:left">
+<tr><td>冷启动</td><td>&lt; 60ms（单并发）</td></tr>
+<tr><td>内存开销</td><td>&lt; 5MB / 实例</td></tr>
+<tr><td>50 并发</td><td>平均 67ms</td></tr>
+</table>
+</div>
+</div>

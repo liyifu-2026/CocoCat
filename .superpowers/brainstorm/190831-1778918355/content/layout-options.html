@@ -1,0 +1,113 @@
+<h2>渠道设置 — Main AI 渠道管理</h2>
+<p class="subtitle">三种布局方案对比，选择你更倾向的方向</p>
+
+<div class="cards">
+  <div class="card" data-choice="card-list" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">方案 A：卡片列表 + 内联配置</div>
+        <div class="mockup-body" style="padding:16px">
+          <div style="background:#f3f4f6;border-radius:8px;padding:10px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="background:#10b981;width:8px;height:8px;border-radius:50%;"></div>
+                <b style="font-size:13px;">飞书</b><span style="font-size:11px;color:#6b7280;">已连接</span>
+              </div>
+              <div style="display:flex;gap:4px;">
+                <button class="mock-button" style="padding:2px 8px;font-size:10px;">断开</button>
+                <button class="mock-button" style="padding:2px 8px;font-size:10px;">配置</button>
+              </div>
+            </div>
+            <div style="margin-top:4px;font-size:11px;color:#9ca3af;">支持文字、卡片、流式输出 · 已加入多会话</div>
+          </div>
+          <div style="background:#f3f4f6;border-radius:8px;padding:10px;margin-bottom:8px;opacity:0.6;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="background:#d1d5db;width:8px;height:8px;border-radius:50%;"></div>
+                <b style="font-size:13px;">Telegram</b><span style="font-size:11px;color:#9ca3af;">未配置</span>
+              </div>
+              <button class="mock-button" style="padding:2px 8px;font-size:10px;">设置</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · 卡片列表</h3>
+      <p>每个渠道一张卡片，状态一目了然；点"配置"在卡片内展开表单，无需弹窗。适合渠道数量不多、快速扫视的场景。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="master-detail" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="split">
+        <div class="mockup" style="width:60%;">
+          <div class="mockup-header">方案 B：左侧列表</div>
+          <div class="mockup-body" style="padding:8px;">
+            <div style="background:#e0e7ff;border-radius:6px;padding:6px 10px;margin-bottom:4px;font-size:12px;font-weight:500;">飞书 <span style="color:#10b981;font-size:10px;">● 已连接</span></div>
+            <div style="border-radius:6px;padding:6px 10px;margin-bottom:4px;font-size:12px;">微信 <span style="color:#9ca3af;font-size:10px;">○ 未连接</span></div>
+            <div style="border-radius:6px;padding:6px 10px;margin-bottom:4px;font-size:12px;">Telegram <span style="color:#f59e0b;font-size:10px;">● 配置中</span></div>
+            <div style="border-radius:6px;padding:6px 10px;font-size:12px;">Discord <span style="color:#9ca3af;font-size:10px;">○ 未连接</span></div>
+            <div style="margin-top:8px;">
+              <button class="mock-button" style="padding:4px 10px;font-size:11px;width:100%;">+ 添加渠道</button>
+            </div>
+          </div>
+        </div>
+        <div class="mockup" style="width:40%;">
+          <div class="mockup-header">右侧详情</div>
+          <div class="mockup-body" style="padding:12px;">
+            <div style="font-size:13px;font-weight:600;margin-bottom:8px;">飞书 配置</div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px;">App ID</div>
+            <input class="mock-input" placeholder="cli_xxx" style="margin-bottom:6px;width:100%;">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px;">App Secret</div>
+            <input class="mock-input" placeholder="****" type="password" style="margin-bottom:10px;width:100%;">
+            <button class="mock-button" style="background:#6366f1;color:#fff;padding:4px 12px;font-size:11px;">保存并连接</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 左右分栏</h3>
+      <p>左列表 + 右详情，类似现有供应商(Providers) tab 的模式。选中渠道后右侧展示配置和能力详情，结构清晰但占空间大。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="grid-panel" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">方案 C：平台网格 + 底部面板</div>
+        <div class="mockup-body" style="padding:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+            <div style="border:2px solid #10b981;border-radius:8px;padding:10px;text-align:center;">
+              <div style="font-size:20px;margin-bottom:2px;">🪶</div>
+              <div style="font-size:12px;font-weight:600;">飞书</div>
+              <div style="font-size:10px;color:#10b981;">已连接</div>
+            </div>
+            <div style="border:1px solid #d1d5db;border-radius:8px;padding:10px;text-align:center;opacity:0.6;">
+              <div style="font-size:20px;margin-bottom:2px;">💬</div>
+              <div style="font-size:12px;">微信</div>
+              <div style="font-size:10px;color:#9ca3af;">未配置</div>
+            </div>
+            <div style="border:1px solid #d1d5db;border-radius:8px;padding:10px;text-align:center;opacity:0.6;">
+              <div style="font-size:20px;margin-bottom:2px;">✈️</div>
+              <div style="font-size:12px;">Telegram</div>
+              <div style="font-size:10px;color:#9ca3af;">未配置</div>
+            </div>
+            <div style="border:1px solid #d1d5db;border-radius:8px;padding:10px;text-align:center;opacity:0.6;">
+              <div style="font-size:20px;margin-bottom:2px;">🎮</div>
+              <div style="font-size:12px;">Discord</div>
+              <div style="font-size:10px;color:#9ca3af;">未配置</div>
+            </div>
+          </div>
+          <div style="background:#f3f4f6;border-radius:8px;padding:10px;font-size:11px;color:#6b7280;text-align:center;">
+            点击平台卡片配置和连接
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · 平台网格</h3>
+      <p>所有支持的渠道平台以网格展示，每个平台一张大卡片含 logo + 能力标签；点击进入独立配置页/抽屉。适合展示丰富元数据。</p>
+    </div>
+  </div>
+</div>

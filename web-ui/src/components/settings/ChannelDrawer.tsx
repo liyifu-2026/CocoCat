@@ -225,11 +225,23 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
               <QrCode className="size-6 text-foreground" />
               {qrState.qrcode_url ? (
                 (() => {
-                  const url = qrState.qrcode_url
-                  const src = url.startsWith("http") || url.startsWith("data:") ? url : `data:image/png;base64,${url}`
+                  const raw = qrState.qrcode_url
+                  let src: string
+                  if (raw.startsWith("http")) {
+                    src = raw
+                  } else if (raw.startsWith("data:")) {
+                    src = raw
+                  } else if (raw.length < 200) {
+                    // Looks like an ID, generate QR via external API
+                    src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(raw)}`
+                  } else {
+                    // Raw base64, prepend data URI
+                    src = `data:image/png;base64,${raw}`
+                  }
                   return (
                     <>
-                      <img src={src} alt="登录二维码" className="w-48 h-48 rounded-lg border border-border" />
+                      <img src={src} alt="登录二维码" className="w-48 h-48 rounded-lg border border-border"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; setError("无法加载二维码，请重试") }} />
                       <p className="text-xs text-muted-foreground">请使用微信扫描二维码</p>
                     </>
                   )
@@ -245,6 +257,12 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                 {qrPolling && qrState.status !== "confirmed" && <Loader2 className="size-3 animate-spin inline mr-1.5" />}
                 {QR_STATUS_LABELS[qrState.status] || qrState.status}
               </span>
+              {(qrState.status === "expired" || qrState.status === "timeout") && (
+                <button onClick={() => { setQrState(null); setError(""); handleConnect() }}
+                  className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent transition-colors">
+                  重新扫码
+                </button>
+              )}
             </div>
           )}
 

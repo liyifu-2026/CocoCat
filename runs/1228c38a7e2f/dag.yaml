@@ -1,0 +1,57 @@
+created_by: main
+name: bilibili_analysis
+run_id: 1228c38a7e2f
+session_id: 2f08c031-ea47-4191-a2c9-4f5b0f5a5463
+stages:
+- stage: 搜索
+  tasks:
+  - id: search_up主
+    prompt: 搜索"B站 2025年 头部UP主 排名 数据"，返回你找到的关键信息
+    result: 'Error: object NoneType can''t be used in ''await'' expression'
+    status: done
+  - id: search_trend
+    prompt: 搜索"B站 2025 内容创作趋势 UP主"，返回关键趋势信息
+    result: 'Error: object NoneType can''t be used in ''await'' expression'
+    status: done
+- stage: 分析
+  tasks:
+  - depends_on:
+    - search_up主
+    - search_trend
+    id: analyze
+    prompt: '基于以下搜索结果，分析B站头部UP主的共同特点：
+
+
+      搜索结果1：搜索出错，暂无有效数据
+
+
+      请给出3个关键洞察'
+    result: 'Error: object NoneType can''t be used in ''await'' expression'
+    status: done
+  - depends_on:
+    - search_up主
+    - search_trend
+    id: suggest
+    prompt: '基于以下搜索结果，给新手UP主3条建议：
+
+
+      搜索结果1：搜索出错，暂无有效数据
+
+      趋势：搜索出错，暂无有效数据'
+    result: 'Error: object NoneType can''t be used in ''await'' expression'
+    status: done
+- stage: 输出
+  tasks:
+  - depends_on:
+    - analyze
+    - suggest
+    id: report
+    prompt: '汇总以下信息，生成一份简洁的B站UP主分析报告：
+
+
+      洞察：{analyze.result}
+
+      建议：{suggest.result}'
+    result: 'Error: object NoneType can''t be used in ''await'' expression'
+    status: done
+status: done

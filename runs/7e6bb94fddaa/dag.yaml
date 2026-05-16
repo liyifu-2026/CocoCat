@@ -1,0 +1,10 @@
+created_by: main
+run_id: 7e6bb94fddaa
+stages:
+- name: greet
+  tasks:
+  - description: Say hello to the user
+    id: hello_task
+    result: Hello! Welcome! 😊 有什么我可以帮你的吗？
+    status: done
+status: done

@@ -1,0 +1,86 @@
+<h2>Agent 分级体系设计</h2>
+<p class="subtitle">从 MAIN/SUB 二元 → 三级分层，支持系统级专属 agent</p>
+
+<div style="margin-top:20px;">
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+
+  <div style="border:2px solid #f9e2af;border-radius:10px;padding:16px;background:#1e1e2e;">
+    <div style="text-align:center;font-size:24px;margin-bottom:8px;">🎯</div>
+    <div class="label" style="color:#f9e2af;text-align:center;margin-bottom:8px;">Orchestrator<br/>编排者</div>
+    <div style="background:#313244;border-radius:6px;padding:10px;font-size:12px;color:#cdd6f4;">
+      <strong style="color:#f9e2af;">Coco</strong><br/>
+      角色：不亲自干活<br/>
+      工具：DAG 编排 + 分发<br/>
+      绑定场景：否<br/>
+      对话入口：主聊天页
+    </div>
+    <ul style="margin:8px 0 0 0;padding-left:16px;font-size:11px;color:#a6adc8;">
+      <li>定义 DAG 工作流</li>
+      <li>分派任务给各级 agent</li>
+      <li>汇总结果返回用户</li>
+    </ul>
+  </div>
+
+  <div style="border:2px solid #89b4fa;border-radius:10px;padding:16px;background:#1e1e2e;">
+    <div style="text-align:center;font-size:24px;margin-bottom:8px;">🔧</div>
+    <div class="label" style="color:#89b4fa;text-align:center;margin-bottom:8px;">Service Agent<br/>专属服务者</div>
+    <div style="background:#313244;border-radius:6px;padding:10px;font-size:12px;color:#cdd6f4;">
+      <strong style="color:#89b4fa;">kb-agent</strong>（当前）<br/>
+      <strong style="color:#89b4fa;">未来：review-agent</strong> 等<br/>
+      角色：管理某个系统领域<br/>
+      工具：领域专属工具集<br/>
+      绑定场景：否（全局）<br/>
+      对话入口：专属管理页
+    </div>
+    <ul style="margin:8px 0 0 0;padding-left:16px;font-size:11px;color:#a6adc8;">
+      <li>拥有领域专属 skill</li>
+      <li>自主后台维护（cron）</li>
+      <li>用户可直接对话</li>
+      <li>Worker agent 也可调用它</li>
+    </ul>
+  </div>
+
+  <div style="border:2px solid #a6e3a1;border-radius:10px;padding:16px;background:#1e1e2e;">
+    <div style="text-align:center;font-size:24px;margin-bottom:8px;">👷</div>
+    <div class="label" style="color:#a6e3a1;text-align:center;margin-bottom:8px;">Worker Agent<br/>执行者</div>
+    <div style="background:#313244;border-radius:6px;padding:10px;font-size:12px;color:#cdd6f4;">
+      <strong style="color:#a6e3a1;">现有 sub-agent</strong><br/>
+      角色：在场景中执行任务<br/>
+      工具：全工具集 + 只读 KB<br/>
+      绑定场景：是<br/>
+      对话入口：Coco 分发
+    </div>
+    <ul style="margin:8px 0 0 0;padding-left:16px;font-size:11px;color:#a6adc8;">
+      <li>绑定到具体业务场景</li>
+      <li>通过 Coco 分派任务</li>
+      <li>可调用 Service agent</li>
+      <li>可只读查询 KB</li>
+    </ul>
+  </div>
+
+</div>
+</div>
+
+<div style="margin-top:24px;background:#1e1e2e;border-radius:10px;padding:18px;font-family:monospace;font-size:13px;color:#cdd6f4;line-height:1.8;">
+<pre style="margin:0;">
+<strong style="color:#f9e2af;">AgentRole 枚举改为：</strong>
+
+<span style="color:#cba6f7;">class</span> <span style="color:#89b4fa;">AgentRole</span>(Enum):
+    ORCHESTRATOR = <span style="color:#a6e3a1;">"orchestrator"</span>   <span style="color:#6c7086;"># Coco，只有一个</span>
+    SERVICE      = <span style="color:#a6e3a1;">"service"</span>        <span style="color:#6c7086;"># 系统级专属 agent</span>
+    WORKER       = <span style="color:#a6e3a1;">"worker"</span>         <span style="color:#6c7086;"># 场景绑定的执行 agent</span>
+
+<strong style="color:#f9e2af;">关键区别：</strong>
+┌─────────────┬──────────┬──────────┬──────────┐
+│             │ Coco     │ kb-agent │ Worker   │
+├─────────────┼──────────┼──────────┼──────────┤
+│ 绑定场景     │ ✗        │ ✗        │ ✓        │
+│ 专属对话页   │ ✓（主聊） │ ✓（KB页） │ ✗        │
+│ 全工具       │ ✗（编排） │ ✗（KB）   │ ✓        │
+│ 专属工具     │ DAG      │ KB 8工具  │ ✗        │
+│ 被 Coco 调用 │ —        │ ✓        │ ✓        │
+│ 后台自主运行 │ ✗        │ ✓ (cron)  │ ✗        │
+└─────────────┴──────────┴──────────┴──────────┘
+</pre>
+</div>

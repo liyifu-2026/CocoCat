@@ -3,8 +3,10 @@ channels:
     config: {}
     enabled: false
   feishu:
-    config: {}
-    enabled: false
+    config:
+      app_id: test
+      app_secret: secret
+    enabled: true
   telegram:
     config: {}
     enabled: false
@@ -16,4 +18,4 @@ channels:
     enabled: false
   weixin:
     config: {}
-    enabled: false
+    enabled: true

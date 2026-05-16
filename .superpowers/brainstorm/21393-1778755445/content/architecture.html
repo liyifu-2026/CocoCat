@@ -1,0 +1,54 @@
+<h2>CubeSandbox 如何服务 Agent？</h2>
+<p class="subtitle">当前 --cube-sandbox 只替换了 bash 工具的执行后端，需要升级为整个 Agent 在 MicroVM 中运行</p>
+
+<h3>当前状态</h3>
+<div class="mockup">
+<div class="mockup-header">现在：Agent 循环跑在宿主机，只有 bash 进沙箱</div>
+<div class="mockup-body">
+<pre style="font-size:13px;line-height:1.8">
+用户消息
+  → SandboxProvider.run_once()
+    → LocalExecutor.run()
+      → <b>Agent.run()</b> (ReAct 循环，宿主机)
+        ├─ read_file  → 宿主机文件系统
+        ├─ web_search → 宿主机网络
+        └─ bash       → <span style="color:#f00">CubeSandbox MicroVM</span>
+</pre>
+</div>
+</div>
+
+<h3>核心问题</h3>
+<p>Sub-agent 收到任务后，整个 ReAct 循环（LLM 调用、工具执行、文件操作）跑在哪里？</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Agent 跑在宿主机，工具选择性进沙箱</h3>
+      <p>现状 + 扩增。Agent 循环在宿主机，按需把 <b>更多工具</b>（write_file、browser 等）也路由进沙箱。新增 <code>route_to_sandbox</code> 配置项。</p>
+      <p style="color:#888">改动量小，但 Agent 仍依赖宿主机环境（Python 版本、已装包）</p>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Agent 整体跑在 MicroVM 里</h3>
+      <p>Sub-agent 分发时，CubeSandboxExecutor 在 VM 内起完整的 Agent 实例（含 Python 运行时 + LLM 回连宿主机）。宿主机只做调度和回复转发。</p>
+      <p style="color:#888">真正的隔离，但需要 VM 内有 Python 运行时 + 依赖，模板需定制</p>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>混合：宿主机 Agent + MicroVM 工具沙箱（完整工具集）</h3>
+      <p>Agent 循环在宿主机（复用 LLM 连接、已有工具），但 <b>所有写操作 + bash + browser</b> 全进沙箱。沙箱挂载工作目录，实现透明隔离。</p>
+      <p style="color:#888">折中方案。安全隔离覆盖所有执行工具，Agent 保持宿主机的便利性</p>
+    </div>
+  </div>
+</div>

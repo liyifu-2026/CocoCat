@@ -1,0 +1,11 @@
+created_by: main
+run_id: 8f25a007dde2
+stages:
+- name: 重复
+  tasks:
+  - agent: main
+    name: say_123
+    prompt: 重复说 "123" 100遍
+    result: 'Error: object NoneType can''t be used in ''await'' expression'
+    status: done
+status: done

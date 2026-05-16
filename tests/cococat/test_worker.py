@@ -8,11 +8,12 @@ from cococat.core.agent import Agent, AgentRole
 from cococat.core.agent_pool import AgentPool
 from cococat.db import Database
 from cococat.worker import TaskWorker
+from cococat.providers.base import LLMResponse
 
 
 class FakeLLM:
     async def chat(self, messages, tools=None, **kwargs):
-        return {"content": "Ingested file successfully."}
+        return LLMResponse(content="Ingested file successfully.")
 
 
 @pytest.fixture

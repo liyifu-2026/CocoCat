@@ -9,14 +9,15 @@ from cococat.memory.ticker import MemoryTicker
 from cococat.memory.facts import FactsExtractor
 from cococat.memory.compiler import DailyCompiler
 from cococat.db import Database
+from cococat.providers.base import LLMResponse
 
 
 class FakeLLM:
     async def chat(self, messages, tools=None, **kwargs):
         content = messages[-1]["content"]
         if "Extract" in content:
-            return {"content": '[{"text": "User prefers short answers", "tags": "preference"}]'}
-        return {"content": "Summary: user asked about refund policy."}
+            return LLMResponse(content='[{"text": "User prefers short answers", "tags": "preference"}]')
+        return LLMResponse(content="Summary: user asked about refund policy.")
 
 
 @pytest.fixture

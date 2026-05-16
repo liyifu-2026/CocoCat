@@ -1,0 +1,61 @@
+<h2>Main AI 对话流程（当前）</h2>
+<p class="subtitle">从 POST /api/chat 到用户看到回复</p>
+
+<div class="mockup">
+<div class="mockup-header">完整链路</div>
+<div class="mockup-body">
+<pre style="font-size:13px;line-height:2">
+POST /api/chat  {content, user_id, scene_id}
+  │
+  ├─ 1. 写入 messages 表 (role=user)
+  │
+  ├─ 2. 检查 ctx.sandbox_provider 存在？
+  │     └─ 否 → 返回 "SandboxProvider not available"
+  │
+  ├─ 3. 创建 WebSocket 回调 (on_text, on_tool, on_reasoning)
+  │     └─ 实时推送给前端
+  │
+  ├─ 4. <b>create_main_ai_tools()</b>   ← Main AI 工具集
+  │     define_dag, dispatch_task, check_tasks, stop_task,
+  │     pin, unpin, recall, read_file, list_dir,
+  │     web_search, web_fetch, todo_write, wait...
+  │     ❌ 没有 bash, write_file, browser
+  │
+  ├─ 5. sandbox_provider.run_once(prompt, tools, on_event)
+  │     │
+  │     ├─ create() → LocalExecutor 创建临时 Agent
+  │     ├─ run()   → Agent.run(prompt) 
+  │     │             ├─ 加载 session.jsonl 历史
+  │     │             ├─ ReAct 循环 (max 20 轮)
+  │     │             │   ├─ LLM 流式输出 → WebSocket 推前端
+  │     │             │   └─ 工具调用 → dispatch_task → Sub-Agent
+  │     │             ├─ 保存 session.jsonl
+  │     │             ├─ 触发 Auto-Dream (如达标)
+  │     │             └─ 返回 result
+  │     └─ destroy() → 销毁临时 Agent
+  │
+  └─ 6. 写入 messages 表 (role=assistant)
+     └─ 返回 {"reply": result, "msg_uuid": ...}
+</pre>
+</div>
+</div>
+
+<h3>Sub-Agent 是怎么被调用的？</h3>
+<div class="mockup">
+<div class="mockup-header">dispatch_task 路径</div>
+<div class="mockup-body">
+<pre style="font-size:13px;line-height:2">
+Main AI 调 dispatch_task(run_id, task_id, prompt)
+  → SubAgentExecutor.dispatch(task, agent_id)
+      │
+      ├─ 检查 AgentPool 有无闲置 Sub-Agent？
+      │   ├─ 有 → pool 的 Agent 直接 run(prompt)
+      │   └─ 无 → <b>sandbox_provider.run_once(prompt, tools)</b>
+      │           → LocalExecutor.run()
+      │             → 临时 Agent → ReAct with create_core_tools()
+      │               包含 bash, write_file, browser 等全部工具
+      │
+      └─ 返回结果 → 写入 dag.yaml
+</pre>
+</div>
+</div>

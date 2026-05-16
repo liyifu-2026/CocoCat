@@ -1,0 +1,56 @@
+<h2>CocoCat KB — Current State Overview</h2>
+<p class="subtitle">What exists, what's wired, what's disconnected</p>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px;">
+  
+  <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;">
+    <div class="label" style="color:#166534;">Wired & Working</div>
+    <ul style="margin:8px 0 0 0;padding-left:16px;font-size:14px;color:#166534;">
+      <li>File upload → ingest pipeline</li>
+      <li>KB overview in agent system prompt</li>
+      <li>Wiki page browser (frontend)</li>
+      <li>Substring search (API only)</li>
+      <li>Knowledge graph (D3.js)</li>
+      <li>SHA256 ingest caching</li>
+    </ul>
+  </div>
+
+  <div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:16px;">
+    <div class="label" style="color:#854d0e;">Code Exists, Not Wired</div>
+    <ul style="margin:8px 0 0 0;padding-left:16px;font-size:14px;color:#854d0e;">
+      <li>3-stage Dedup pipeline</li>
+      <li>Overview generation</li>
+      <li>Cascade source deletion</li>
+      <li>Image pipeline (PDF/DOCX)</li>
+      <li>Lint health checks</li>
+      <li>Knowledge graph insights</li>
+    </ul>
+  </div>
+
+  <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:16px;">
+    <div class="label" style="color:#991b1b;">Spec'd But Not Built</div>
+    <ul style="margin:8px 0 0 0;padding-left:16px;font-size:14px;color:#991b1b;">
+      <li>Agent-side <code>search_kb</code> tool</li>
+      <li>Frontend upload UI dialog</li>
+      <li>WebSocket progress events</li>
+      <li>knowledge-ingestion skill file</li>
+    </ul>
+  </div>
+
+  <div style="background:#f0f9ff;border:1px solid #7dd3fc;border-radius:8px;padding:16px;">
+    <div class="label" style="color:#075985;">Integration Gap</div>
+    <ul style="margin:8px 0 0 0;padding-left:16px;font-size:14px;color:#075985;">
+      <li>Agents can't search KBs</li>
+      <li>No agent tool to write to KBs</li>
+      <li>KB maintenance not autonomous</li>
+      <li>No scheduled health workflows</li>
+    </ul>
+  </div>
+</div>
+
+<div style="margin-top:24px;padding:16px;background:#1e1e2e;border-radius:8px;color:#cdd6f4;font-family:monospace;font-size:13px;">
+<strong style="color:#89b4fa;">Key insight:</strong> The KB has a solid ingestion + storage core, but agents<br/>
+can only <em>read</em> KB files via overview prompts. They can't search, can't write,<br/>
+and can't trigger maintenance workflows (dedup, lint, overview).<br/>
+<strong style="color:#a6e3a1;">The KB is a passive file store, not an active agent knowledge system.</strong>
+</div>

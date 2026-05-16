@@ -8,7 +8,6 @@ import Agents from "@/pages/Agents"
 import Scenes from "@/pages/Scenes"
 import Knowledge from "@/pages/Knowledge"
 import KnowledgeDetail from "@/pages/KnowledgeDetail"
-import Dag from "@/pages/Dag"
 
 export default function App() {
   return (
@@ -23,7 +22,6 @@ export default function App() {
           <Route path="/scenes/:id" element={<ErrorBoundary><SceneDetail /></ErrorBoundary>} />
           <Route path="/knowledge" element={<ErrorBoundary><Knowledge /></ErrorBoundary>} />
           <Route path="/knowledge/:kb" element={<ErrorBoundary><KnowledgeDetail /></ErrorBoundary>} />
-          <Route path="/dag" element={<ErrorBoundary><Dag /></ErrorBoundary>} />
           <Route path="*" element={<Navigate to="/chat" replace />} />
         </Route>
       </Routes>

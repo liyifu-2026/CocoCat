@@ -1,0 +1,12 @@
+created_by: main
+name: test_search
+run_id: a5c30d2ee26b
+session_id: 2f08c031-ea47-4191-a2c9-4f5b0f5a5463
+stages:
+- name: search
+  tasks:
+  - id: search_bili
+    prompt: 搜索B站2025年最火的三个UP主
+    result: 'Error: object NoneType can''t be used in ''await'' expression'
+    status: done
+status: done

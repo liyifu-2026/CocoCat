@@ -1,0 +1,19 @@
+[
+  {
+    "task": "测试 read_file 读取文件",
+    "status": "pending"
+  },
+  {
+    "task": "测试 web_fetch 抓取页面",
+    "status": "done",
+    "result": "httpbin/github/baidu 均成功"
+  },
+  {
+    "task": "测试记忆系统 recall/pin",
+    "status": "done"
+  },
+  {
+    "task": "测试 DAG dispatch_task",
+    "status": "pending"
+  }
+]

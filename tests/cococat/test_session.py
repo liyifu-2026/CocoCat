@@ -109,6 +109,59 @@ async def test_session_read_on_nonexistent_file(tmp_dir):
 
 
 @pytest.mark.asyncio
+async def test_session_sanitized_read_filters_roles(tmp_dir, session_mgr):
+    """sanitized_read() returns only user/assistant messages, skipping system/tool."""
+    session = await session_mgr.create(tmp_dir, system_prompt="You are helpful.")
+    await session.append("user", "Hello")
+    await session.append("assistant", "Hi")
+    await session.append("tool", "tool result")
+    await session.append("user", "Thanks")
+
+    messages = await session.sanitized_read()
+    assert len(messages) == 3  # system (filtered) + user + assistant + tool (filtered) + user
+    roles = {m["role"] for m in messages}
+    assert roles == {"user", "assistant"}
+
+
+@pytest.mark.asyncio
+async def test_session_sanitized_read_max_lines(tmp_dir, session_mgr):
+    """sanitized_read(max_lines=N) returns only the last N user/assistant messages."""
+    session = await session_mgr.create(tmp_dir)
+    for i in range(10):
+        await session.append("user", f"msg {i}")
+        await session.append("assistant", f"reply {i}")
+
+    messages = await session.sanitized_read(max_lines=6)
+    assert len(messages) == 6
+    assert messages[0]["content"] == "msg 7"
+    assert messages[-1]["content"] == "reply 9"
+
+
+@pytest.mark.asyncio
+async def test_session_sanitized_read_nonexistent(tmp_dir):
+    """sanitized_read() on nonexistent session returns empty list."""
+    from cococat.core.session import Session
+    s = Session("nonexistent", tmp_dir)
+    messages = await s.sanitized_read()
+    assert messages == []
+
+
+@pytest.mark.asyncio
+async def test_session_append_pair(tmp_dir, session_mgr):
+    """append_pair() writes user and assistant messages in one call."""
+    session = await session_mgr.create(tmp_dir)
+    await session.append_pair("Hello", "Hi there!")
+
+    messages = await session.read()
+    user_msgs = [m for m in messages if m["role"] == "user"]
+    assistant_msgs = [m for m in messages if m["role"] == "assistant"]
+    assert len(user_msgs) == 1
+    assert user_msgs[0]["content"] == "Hello"
+    assert len(assistant_msgs) == 1
+    assert assistant_msgs[0]["content"] == "Hi there!"
+
+
+@pytest.mark.asyncio
 async def test_session_manager_open_nonexistent(tmp_dir, session_mgr):
     with pytest.raises(FileNotFoundError):
         await session_mgr.open("bad_id", tmp_dir)

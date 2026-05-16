@@ -1,0 +1,22 @@
+created_by: main
+run_id: 6e89ec775b5e
+session_id: 7a6d0b80-9a00-4887-bd13-06fed01cb8a7
+stages:
+- description: 搜索2025年新高考数学一卷真题
+  id: s1
+  tasks:
+  - description: 搜索真题题目
+    id: search1
+    prompt: 使用 web_search 搜索 "2025年新高考数学全国一卷 真题 题目"，尽可能找到完整的试卷内容。搜索中文来源，比如百度、知乎、教育网站等。把找到的题目按题型整理好返回。如果没有完整版，把能找到的部分都返回。
+    result: 'Error: Client error ''400 Bad Request'' for url ''https://api.deepseek.com/chat/completions''
+
+      For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400'
+    status: done
+  - description: 补充搜索真题答案
+    id: search2
+    prompt: 使用 web_search 搜索 "2025年新高考数学全国一卷 答案 解析"，找到对应的答案和解析。返回完整的答案列表。
+    result: 'Error: Client error ''400 Bad Request'' for url ''https://api.deepseek.com/chat/completions''
+
+      For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400'
+    status: done
+status: done

@@ -8,6 +8,7 @@ from cococat.core.agent_pool import AgentPool
 from cococat.core.event_bus import EventBus
 from cococat.db import Database
 from cococat.worker import TaskWorker
+from cococat.providers.base import LLMResponse
 
 
 class KBLLM:
@@ -15,8 +16,8 @@ class KBLLM:
     async def chat(self, messages, tools=None, **kwargs):
         content = messages[-1]["content"]
         if "research analyst" in content.lower():
-            return {"content": "Analysis: document describes CocoCat architecture."}
-        return {"content": """---FILE:wiki/concepts/test-concept.md---
+            return LLMResponse(content="Analysis: document describes CocoCat architecture.")
+        return LLMResponse(content="""---FILE:wiki/concepts/test-concept.md---
 ---
 type: concept
 title: Test Concept
@@ -42,7 +43,7 @@ tags: [test]
 # Test Entity
 
 A test entity referenced by the concept.
----END FILE---"""}
+---END FILE---""")
 
 
 @pytest.mark.asyncio

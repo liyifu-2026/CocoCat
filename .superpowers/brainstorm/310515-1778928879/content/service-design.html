@@ -1,0 +1,68 @@
+<h2>设计 Section 3：KBService 服务层</h2>
+<p class="subtitle">把散落在 ingest/*.py 的能力统一封装成可测试的纯函数服务</p>
+
+<div style="background:#1e1e2e;border-radius:8px;padding:18px;font-family:monospace;font-size:13px;color:#cdd6f4;line-height:1.6;">
+<pre style="margin:0;">
+<strong style="color:#89b4fa;">class KBService:</strong>
+    <span style="color:#6c7086;">"""纯函数服务层，不依赖 LLM、不依赖 HTTP。所有 KB 操作的统一入口"""</span>
+
+    <span style="color:#6c7086;"># ── 查询（供所有人） ──</span>
+    <strong style="color:#89b4fa;">search</strong>(kb_name, query, limit=20) → list[SearchResult]
+        <span style="color:#6c7086;"># 全文本搜索 wiki/*.md，返回标题+匹配片段</span>
+
+    <strong style="color:#89b4fa;">read</strong>(kb_name, type, slug) → WikiPage | None
+        <span style="color:#6c7086;"># 读取单个 wiki 页面（含内容+frontmatter）</span>
+
+    <strong style="color:#89b4fa;">list_pages</strong>(kb_name) → dict[list[str], list[str]]
+        <span style="color:#6c7086;"># {entities: [...], concepts: [...]}</span>
+
+    <strong style="color:#89b4fa;">get_graph</strong>(kb_name) → GraphResult
+        <span style="color:#6c7086;"># {nodes, links, insights: {connections, gaps, bridges}}</span>
+
+    <span style="color:#6c7086;"># ── 写入（仅 kb-agent） ──</span>
+    <strong style="color:#89b4fa;">write_page</strong>(kb_name, type, slug, content, frontmatter) → None
+        <span style="color:#6c7086;"># 创建/覆盖 wiki 页面，自动更新 index.md + log.md</span>
+
+    <strong style="color:#89b4fa;">cascade_delete</strong>(kb_name, source_filename) → CascadeResult
+        <span style="color:#6c7086;"># 删除源文件 → 清理关联页面 → 更新 index</span>
+
+    <span style="color:#6c7086;"># ── 维护（仅 kb-agent） ──</span>
+    <strong style="color:#89b4fa;">run_dedup</strong>(kb_name, llm) → DedupResult
+        <span style="color:#6c7086;"># {merged: int, removed: list[str], log: str}</span>
+
+    <strong style="color:#89b4fa;">run_lint</strong>(kb_name) → LintResult
+        <span style="color:#6c7086;"># {orphans, broken_links, missing_frontmatter, ...}</span>
+
+    <strong style="color:#89b4fa;">gen_overview</strong>(kb_name, llm) → str
+        <span style="color:#6c7086;"># 返回生成的 overview markdown 文本，写入 overview.md</span>
+
+    <span style="color:#6c7086;"># ── 注入（给 agent 的 system prompt） ──</span>
+    <strong style="color:#89b4fa;">get_overview_context</strong>(kb_names) → str
+        <span style="color:#6c7086;"># 替代现有 load_kb_overview()，整合 overview.md + index.md</span>
+</pre>
+</div>
+
+<div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <div style="border:1px solid #a6e3a1;border-radius:8px;padding:14px;">
+    <div class="label" style="color:#a6e3a1;">与现有代码的关系</div>
+    <ul style="margin:4px 0 0 0;padding-left:16px;font-size:13px;">
+      <li>IngestPipeline → KBService 不接管 ingest，保留现有 Worker 触发</li>
+      <li>DedupPipeline → KBService.run_dedup 封装</li>
+      <li>lint_kb() → KBService.run_lint 封装</li>
+      <li>update_overview() → KBService.gen_overview 封装</li>
+      <li>KnowledgeGraph → KBService.get_graph 封装</li>
+      <li>cascade_delete_source → KBService.cascade_delete 封装</li>
+      <li>load_kb_overview() → KBService.get_overview_context 替代</li>
+    </ul>
+  </div>
+  <div style="border:1px solid #a6e3a1;border-radius:8px;padding:14px;">
+    <div class="label" style="color:#a6e3a1;">设计原则</div>
+    <ul style="margin:4px 0 0 0;padding-left:16px;font-size:13px;">
+      <li>大部分方法纯文件 I/O，无副作用</li>
+      <li>LLM 作为参数传入（run_dedup、gen_overview）</li>
+      <li>可独立单元测试（mock LLM 即可）</li>
+      <li>不做权限校验——调用方（agent tool）负责</li>
+      <li>文件位置：<code>cococat/kb/service.py</code></li>
+    </ul>
+  </div>
+</div>

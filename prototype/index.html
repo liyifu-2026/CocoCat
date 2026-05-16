@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CocoCat Chat Redesign — Prototype</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Noto Sans SC", system-ui, sans-serif;
+  background: #f5f2ef; color: #333;
+  height: 100vh; overflow: hidden;
+  --primary: #8b5e3c; --blue: #3b82f6; --green: #22c55e;
+  --border: #e2ddd6; --card: #faf8f5; --muted: #8c8a86;
+  --radius: 14px; --radius-sm: 8px;
+}
+
+.app { display: flex; height: 100vh; }
+
+.sidebar {
+  width: 224px; border-right: 1px solid var(--border);
+  background: #faf8f5; display: flex; flex-direction: column;
+  font-size: 13px;
+}
+.sidebar-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-weight: 600; color: var(--muted); text-transform: uppercase;
+  font-size: 11px; letter-spacing: 0.05em;
+}
+.session-item {
+  padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border);
+  font-size: 12px; transition: background 0.15s;
+}
+.session-item:hover { background: #ede8e1; }
+.session-item.active { background: #e8e0d5; font-weight: 500; }
+
+.main {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+
+.chat-scroll {
+  flex: 1; overflow-y: auto; padding: 24px 32px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+/* ── Message Unit ── */
+.msg-unit {
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: 720px;
+}
+.msg-unit.user { align-self: flex-end; }
+.msg-unit.assistant { align-self: flex-start; }
+
+/* User message bubble */
+.user-bubble {
+  background: var(--primary); color: #fff;
+  border-radius: var(--radius) var(--radius) 4px var(--radius);
+  padding: 10px 16px; font-size: 14px; line-height: 1.6;
+  align-self: flex-end; max-width: 75%;
+}
+
+/* ── DAG Card ── */
+.dag-card {
+  background: var(--card); border: 1.5px solid #dbeafe;
+  border-radius: var(--radius); overflow: hidden;
+}
+.dag-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; cursor: pointer; user-select: none;
+  transition: background 0.15s; font-size: 12px;
+}
+.dag-header:hover { background: #f0f7ff; }
+.dag-header svg { width: 16px; height: 16px; color: var(--blue); }
+.dag-header-left { display: flex; align-items: center; gap: 8px; }
+.dag-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 99px;
+  background: #eff6ff; color: var(--blue); font-weight: 500;
+}
+.dag-body { padding: 12px 16px 16px; }
+.dag-body svg { width: 100%; max-height: 320px; }
+
+/* ── Tool Cards ── */
+.tool-list { display: flex; flex-direction: column; gap: 4px; }
+.tool-card {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: #f8f7f4; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px;
+}
+.tool-icon { margin-top: 2px; flex-shrink: 0; width: 16px; height: 16px; }
+.tool-body { flex: 1; min-width: 0; }
+.tool-name { font-weight: 600; font-family: "JetBrains Mono", monospace; font-size: 12px; }
+.tool-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tool-status {
+  font-size: 10px; padding: 1px 6px; border-radius: 99px; font-weight: 500;
+}
+.tool-status.running { background: #eff6ff; color: var(--blue); }
+.tool-status.done { background: #f0fdf4; color: var(--green); }
+.tool-status.error { background: #fef2f2; color: #ef4444; }
+.tool-elapsed { font-size: 10px; color: var(--muted); }
+.tool-args, .tool-result {
+  font-size: 11px; color: #666; font-family: "JetBrains Mono", monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 480px; margin-top: 2px;
+}
+.tool-label { color: #aaa; font-size: 10px; }
+
+/* ── Reply Message ── */
+.reply-bubble {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) var(--radius) 4px;
+  padding: 14px 18px; font-size: 14px; line-height: 1.7;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.reply-bubble h1 { font-size: 1.2rem; margin: 12px 0 6px; }
+.reply-bubble h2 { font-size: 1.05rem; margin: 10px 0 4px; }
+.reply-bubble h3 { font-size: 0.95rem; margin: 8px 0 3px; }
+.reply-bubble p { margin-bottom: 6px; }
+.reply-bubble p:last-child { margin-bottom: 0; }
+.reply-bubble ul, .reply-bubble ol { padding-left: 20px; margin: 4px 0; }
+.reply-bubble li { margin-bottom: 2px; }
+.reply-bubble code {
+  font-family: "JetBrains Mono", monospace; font-size: 0.85em;
+  background: #f0ece7; padding: 1px 5px; border-radius: 4px;
+}
+.reply-bubble pre {
+  background: #f5f2ef; border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; overflow-x: auto;
+  margin: 8px 0; font-size: 13px;
+}
+.reply-bubble pre code { background: none; padding: 0; }
+.reply-bubble blockquote {
+  border-left: 3px solid #deb887; padding-left: 12px;
+  margin: 8px 0; color: #666; font-style: italic;
+}
+.reply-bubble a { color: var(--primary); }
+
+/* ── Streaming indicator ── */
+.streaming-bubble {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) var(--radius) 4px;
+  padding: 14px 18px; font-size: 14px; line-height: 1.7;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: #ccc; animation: pulse 1.2s infinite; }
+.dot:nth-child(2) { animation-delay: 0.15s; }
+.dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
+
+/* ── Input area ── */
+.input-area {
+  border-top: 1px solid var(--border); background: #faf8f5cc;
+  backdrop-filter: blur(6px); padding: 14px 32px;
+}
+.input-row { display: flex; gap: 10px; align-items: flex-end; max-width: 720px; margin: 0 auto; }
+.input-row textarea {
+  flex: 1; resize: none; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 14px; font-size: 14px;
+  background: #fff; outline: none; font-family: inherit;
+  transition: border-color 0.2s;
+}
+.input-row textarea:focus { border-color: var(--primary); }
+.model-select {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 10px; font-size: 12px; background: #fff; cursor: pointer;
+  color: var(--muted); outline: none;
+}
+.send-btn {
+  background: var(--primary); color: #fff; border: none;
+  border-radius: var(--radius-sm); padding: 10px 18px; cursor: pointer;
+  font-size: 14px; transition: opacity 0.2s;
+}
+.send-btn:hover { opacity: 0.9; }
+
+/* ── Legend ── */
+.prototype-tag {
+  position: fixed; top: 8px; right: 8px; z-index: 999;
+  background: #fef3c7; color: #92400e; font-size: 10px;
+  padding: 4px 10px; border-radius: 99px; font-weight: 600;
+  border: 1px solid #fcd34d;
+}
+</style>
+</head>
+<body>
+
+<div class="prototype-tag">PROTOTYPE — 视觉确认用</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">Sessions</div>
+    <div class="session-item">+ New</div>
+    <div class="session-item active" style="font-weight:500;">
+      <div style="font-size:11px;color:var(--muted);">Design discussion</div>
+      <div style="font-size:10px;color:#aaa;">3 messages</div>
+    </div>
+    <div class="session-item">
+      <div style="font-size:11px;color:var(--muted);">Bug investigation</div>
+      <div style="font-size:10px;color:#aaa;">12 messages</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="chat-scroll" id="chatScroll">
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- UNIT 1: Simple chat — no DAG, no tools       -->
+      <!-- ═══════════════════════════════════════════ -->
+      <div class="msg-unit user">
+        <div class="user-bubble">你好，帮我分析一下项目的架构</div>
+      </div>
+
+      <div class="msg-unit assistant">
+        <!-- No DAG — no DAG card -->
+        <!-- No tools — no tool cards -->
+        <div class="reply-bubble">
+          <p>我来帮你分析项目架构。可以先看看项目的目录结构和主要模块。</p>
+          <p>你想从哪方面入手？代码组织、依赖关系、还是数据流？</p>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- UNIT 2: With DAG + tools — full example       -->
+      <!-- ═══════════════════════════════════════════ -->
+      <div class="msg-unit user">
+        <div class="user-bubble">帮我重构 src/lib/utils.ts 文件</div>
+      </div>
+
+      <div class="msg-unit assistant">
+        <!-- 1. DAG Card (vector SVG flow) -->
+        <div class="dag-card">
+          <div class="dag-header" onclick="this.parentElement.classList.toggle('collapsed')">
+            <div class="dag-header-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 3v18M6 3l4 4M6 3L2 7M18 21V3M18 21l4-4M18 21l-4-4M10 12h4"/>
+              </svg>
+              <span style="font-weight:600;">DAG 任务流程</span>
+              <span class="dag-badge">running</span>
+            </div>
+            <span style="font-size:11px;color:#aaa;">▼</span>
+          </div>
+          <div class="dag-body">
+            <!-- Vector SVG DAG using inline SVG -->
+            <svg viewBox="0 0 580 260">
+              <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#cbd5e1"/>
+                </marker>
+              </defs>
+              <!-- Stage 1: Analyze -->
+              <g>
+                <rect x="200" y="10" width="140" height="42" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+                <text x="270" y="35" text-anchor="middle" font-size="12" font-weight="600" fill="#166534">Analyze</text>
+                <rect x="210" y="58" width="120" height="32" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+                <text x="270" y="78" text-anchor="middle" font-size="10" font-family="monospace" fill="#334155">read_file</text>
+                <circle cx="225" cy="74" r="4" fill="#22c55e"/>
+                <text x="233" y="77" font-size="9" fill="#666">done</text>
+                <line x1="270" y1="52" x2="270" y2="58" stroke="#cbd5e1" stroke-width="1.2"/>
+              </g>
+              <!-- Arrows -->
+              <line x1="340" y1="31" x2="380" y2="160" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow)"/>
+              <!-- Stage 2: Restructure -->
+              <g>
+                <rect x="380" y="140" width="140" height="42" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
+                <text x="450" y="165" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">Restructure</text>
+                <rect x="385" y="190" width="55" height="32" rx="7" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.2"/>
+                <text x="412" y="210" text-anchor="middle" font-size="9" font-family="monospace" fill="#334155">edit</text>
+                <rect x="448" y="190" width="67" height="32" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+                <text x="481" y="210" text-anchor="middle" font-size="9" font-family="monospace" fill="#334155">write</text>
+                <!-- Dep arrow between tasks -->
+                <line x1="440" y1="206" x2="448" y2="206" stroke="#cbd5e1" stroke-width="1" marker-end="url(#arrow)"/>
+              </g>
+              <!-- Arrows from stage to tasks -->
+              <line x1="450" y1="182" x2="412" y2="190" stroke="#cbd5e1" stroke-width="1"/>
+              <line x1="450" y1="182" x2="481" y2="190" stroke="#cbd5e1" stroke-width="1"/>
+              <!-- Stage 3: Verify -->
+              <g>
+                <rect x="200" y="200" width="140" height="42" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+                <text x="270" y="225" text-anchor="middle" font-size="12" font-weight="600" fill="#475569">Verify</text>
+                <rect x="210" y="248" width="120" height="32" rx="7" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+                <text x="270" y="268" text-anchor="middle" font-size="10" font-family="monospace" fill="#334155">bash (test)</text>
+                <circle cx="225" cy="264" r="4" fill="#94a3b8"/>
+                <text x="233" y="267" font-size="9" fill="#666">pending</text>
+              </g>
+              <!-- Arrows -->
+              <line x1="450" y1="182" x2="340" y2="221" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow)"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 2. Tool calls for this message -->
+        <div class="tool-list">
+          <div class="tool-card">
+            <svg class="tool-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
+              <circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-5"/>
+            </svg>
+            <div class="tool-body">
+              <div class="tool-meta">
+                <span class="tool-name">read_file</span>
+                <span class="tool-status done">done</span>
+                <span class="tool-elapsed">0.02s</span>
+              </div>
+              <div class="tool-args"><span class="tool-label">args: </span>{"file_path": "src/lib/utils.ts"}</div>
+              <div class="tool-result"><span class="tool-label">result: </span>// utils.ts — 42 lines, exports uuid(), cn(), formatDate()</div>
+            </div>
+          </div>
+
+          <div class="tool-card">
+            <svg class="tool-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
+              <circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-5"/>
+            </svg>
+            <div class="tool-body">
+              <div class="tool-meta">
+                <span class="tool-name">define_dag</span>
+                <span class="tool-status done">done</span>
+                <span class="tool-elapsed">0.01s</span>
+              </div>
+              <div class="tool-args"><span class="tool-label">args: </span>{"yaml": "stages:\n  - id: analyze\n    tasks: [read_file]\n  - id: restructure\n..."}</div>
+              <div class="tool-result"><span class="tool-label">result: </span>DAG created: run a1b2c3d4e5f6</div>
+            </div>
+          </div>
+
+          <div class="tool-card">
+            <svg class="tool-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
+              <circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-5"/>
+            </svg>
+            <div class="tool-body">
+              <div class="tool-meta">
+                <span class="tool-name">edit_file</span>
+                <span class="tool-status done">done</span>
+                <span class="tool-elapsed">0.01s</span>
+              </div>
+              <div class="tool-args"><span class="tool-label">args: </span>{"file_path": "src/lib/utils.ts", "old": "function formatDate", "new": "export function..."}</div>
+            </div>
+          </div>
+
+          <div class="tool-card">
+            <svg class="tool-icon" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+              <circle cx="12" cy="12" r="9" stroke-dasharray="56" stroke-dashoffset="20">
+                <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1.5s" repeatCount="indefinite"/>
+              </circle>
+            </svg>
+            <div class="tool-body">
+              <div class="tool-meta">
+                <span class="tool-name">bash</span>
+                <span class="tool-status running">running</span>
+                <span class="tool-elapsed">0.3s...</span>
+              </div>
+              <div class="tool-args"><span class="tool-label">args: </span>{"command": "npx tsc --noEmit"}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Reply message -->
+        <div class="reply-bubble">
+          <p>我已经为重构创建了一个 DAG 任务流程：</p>
+          <ol>
+            <li><strong>Analyze</strong> — 读取并分析 <code>src/lib/utils.ts</code></li>
+            <li><strong>Restructure</strong> — 拆分函数并添加类型注解</li>
+            <li><strong>Verify</strong> — 运行 TypeScript 编译检查</li>
+          </ol>
+          <p>目前正在执行类型检查验证阶段...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <div class="input-row">
+        <select class="model-select">
+          <option>deepseek-chat</option>
+          <option>deepseek-reasoner</option>
+          <option>gpt-4o</option>
+        </select>
+        <textarea rows="1" placeholder="输入消息..."></textarea>
+        <button class="send-btn">Send</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+document.querySelector('.dag-card').classList.toggle = function(c) { this.classList.contains(c) ? this.classList.remove(c) : this.classList.add(c); };
+</script>
+</body>
+</html>

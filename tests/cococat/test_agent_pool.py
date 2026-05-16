@@ -2,11 +2,12 @@
 import pytest
 from cococat.core.event_bus import EventBus
 from cococat.core.agent import Agent, AgentState, AgentRole
+from cococat.providers.base import LLMResponse
 
 
 class FakeLLM:
     async def chat(self, messages, tools=None, **kwargs):
-        return {"content": "response"}
+        return LLMResponse(content="response")
 
 
 @pytest.fixture

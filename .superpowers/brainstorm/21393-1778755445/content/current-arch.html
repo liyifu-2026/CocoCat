@@ -1,0 +1,56 @@
+<h2>CocoCat Agent 架构现状</h2>
+<p class="subtitle">Main AI 和 Sub-Agent 分别跑在什么上面</p>
+
+<h3>两条路径</h3>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">路径 1：Main AI（用户聊天）</div>
+    <div class="mockup-body">
+<pre style="font-size:13px;line-height:1.8">
+POST /api/chat
+  → SandboxProvider.run_once(prompt, agent_id="main", tools=...)
+      → LocalExecutor.run()
+        → Agent.run()   ← 宿主机
+          工具: define_dag, dispatch_task, 
+                pin, recall, read_file...
+          ❌ 没有 bash
+</pre>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">路径 2：Sub-Agent（被 dispatch_task 触发）</div>
+    <div class="mockup-body">
+<pre style="font-size:13px;line-height:1.8">
+Main AI 调 dispatch_task → 发送任务
+  → SubAgentExecutor.dispatch(task, agent_id)
+    → if sandbox_provider:
+        SandboxProvider.run_once(task, tools=...)
+          → LocalExecutor.run()
+            → Agent.run()   ← 宿主机
+              工具: bash, write_file, browser,
+                    read_file, glob, grep, ...
+</pre>
+    </div>
+  </div>
+</div>
+
+<h3>关键事实</h3>
+<div class="section">
+  <div class="label">SandboxProvider 当前默认用 LocalExecutor</div>
+  <p style="margin-top:8px"><code>SandboxProvider(executor=None)</code> → 自动创建 <code>LocalExecutor()</code>，Agent 跑在宿主机进程内。</p>
+</div>
+
+<div class="section">
+  <div class="label">CubeSandboxExecutor 已存在但只做 run_code</div>
+  <p style="margin-top:8px"><code>CubeSandboxExecutor.run()</code> 调用 <code>sbx.run_code(code)</code>，不创建 Agent、不跑 ReAct 循环。它被用作 bash 工具的 sandbox_run 回调，而不是完整的 Agent 执行器。</p>
+</div>
+
+<div class="section">
+  <div class="label">AgentPool 是启动时从 DB 加载的持久 Agent</div>
+  <p style="margin-top:8px"><code>_load_agents_from_db()</code> 从 <code>agents</code> 表读取 running 状态的 Agent，创建 Agent 对象加入 AgentPool。<code>SubAgentExecutor</code> 优先用 AgentPool 的闲置 Agent，没有才走 SandboxProvider 创建临时 Agent。</td></p>
+</div>
+
+<h3>所以 CubeSandbox 应该覆盖哪层？</h3>
+<p>Main AI 一直跑在宿主机（它没有 bash）。需要隔离的是 Sub-Agent 的工具执行环境。</p>

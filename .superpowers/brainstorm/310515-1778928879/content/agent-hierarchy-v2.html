@@ -1,0 +1,95 @@
+<h2>Agent 分层：修正版</h2>
+<p class="subtitle">常驻 agent 平级，分工不同；Worker 是临时执行池</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;">
+
+  <div style="border:2px solid #a6e3a1;border-radius:10px;padding:18px;background:#1e1e2e;">
+    <div style="text-align:center;font-size:28px;margin-bottom:10px;">🏠</div>
+    <div style="text-align:center;margin-bottom:12px;">
+      <span class="label" style="color:#a6e3a1;font-size:15px;">Resident Agent · 常驻角色</span>
+    </div>
+
+    <table style="width:100%;font-size:12px;color:#cdd6f4;border-collapse:collapse;">
+      <tr style="border-bottom:1px solid #45475a;">
+        <td style="padding:6px 8px;vertical-align:top;"><strong style="color:#f9e2af;">地位</strong></td>
+        <td style="padding:6px 8px;"><strong>平级</strong>，无主从关系，各自独立负责一个领域</td>
+      </tr>
+      <tr style="border-bottom:1px solid #45475a;">
+        <td style="padding:6px 8px;vertical-align:top;"><strong style="color:#f9e2af;">生命周期</strong></td>
+        <td style="padding:6px 8px;">系统启动时创建，<strong>常驻不销毁</strong></td>
+      </tr>
+      <tr style="border-bottom:1px solid #45475a;">
+        <td style="padding:6px 8px;vertical-align:top;"><strong style="color:#f9e2af;">工具</strong></td>
+        <td style="padding:6px 8px;">各自拥有<strong>领域专属</strong>工具集</td>
+      </tr>
+      <tr style="border-bottom:1px solid #45475a;">
+        <td style="padding:6px 8px;vertical-align:top;"><strong style="color:#f9e2af;">UI 入口</strong></td>
+        <td style="padding:6px 8px;">各自有<strong>专属对话页</strong></td>
+      </tr>
+      <tr style="border-bottom:1px solid #45475a;">
+        <td style="padding:6px 8px;vertical-align:top;"><strong style="color:#f9e2af;">绑定</strong></td>
+        <td style="padding:6px 8px;"><strong>1:1 深度绑定</strong>到各自的页面/场景</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 8px;vertical-align:top;"><strong style="color:#f9e2af;">后台能力</strong></td>
+        <td style="padding:6px 8px;">可自主运行后台任务（cron/事件）</td>
+      </tr>
+    </table>
+  </div>
+
+  <div style="border:2px solid #585b70;border-radius:10px;padding:18px;background:#1e1e2e;">
+    <div style="text-align:center;font-size:28px;margin-bottom:10px;">🏊</div>
+    <div style="text-align:center;margin-bottom:12px;">
+      <span class="label" style="color:#a6adc8;font-size:15px;">Worker Pool · 临时执行池</span>
+    </div>
+
+    <table style="width:100%;font-size:12px;color:#cdd6f4;border-collapse:collapse;">
+      <tr style="border-bottom:1px solid #45475a;">
+        <td style="padding:6px 8px;vertical-align:top;"><strong style="color:#f9e2af;">地位</strong></td>
+        <td style="padding:6px 8px;"><strong>被 Resident agent 调用</strong></td>
+      </tr>
+      <tr style="border-bottom:1px solid #45475a;">
+        <td style="padding:6px 8px;vertical-align:top;"><strong style="color:#f9e2af;">生命周期</strong></td>
+        <td style="padding:6px 8px;"><strong>触发即创建，完成即销毁</strong></td>
+      </tr>
+      <tr style="border-bottom:1px solid #45475a;">
+        <td style="padding:6px 8px;vertical-align:top;"><strong style="color:#f9e2af;">工具</strong></td>
+        <td style="padding:6px 8px;">通用执行工具（bash/file/browser...）</td>
+      </tr>
+      <tr style="border-bottom:1px solid #45475a;">
+        <td style="padding:6px 8px;vertical-align:top;"><strong style="color:#f9e2af;">UI 入口</strong></td>
+        <td style="padding:6px 8px;">无，对用户不可见</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 8px;vertical-align:top;"><strong style="color:#f9e2af;">绑定</strong></td>
+        <td style="padding:6px 8px;">不绑定，池子复用</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+
+<div style="margin-top:24px;background:#1e1e2e;border-radius:10px;padding:20px;font-family:monospace;font-size:13px;color:#cdd6f4;line-height:1.8;">
+<pre style="margin:0;">
+<strong style="color:#a6e3a1;">当前常驻角色：</strong>
+
+┌──────────┬─────────────┬──────────────┬───────────────────┐
+│  Agent   │   绑定对象   │    职责       │       工具        │
+├──────────┼─────────────┼──────────────┼───────────────────┤
+│  Coco    │ 主聊天页    │ 编排 & 对话   │ DAG + 分发        │
+│ kb-agent │ KB 管理页   │ 知识库管理    │ KB 8工具 + 分发   │
+└──────────┴─────────────┴──────────────┴───────────────────┘
+
+<strong style="color:#89b4fa;">未来扩展：</strong>
+
+┌──────────┬─────────────┬──────────────┬───────────────────┐
+│  Agent   │   绑定对象   │    职责       │       工具        │
+├──────────┼─────────────┼──────────────┼───────────────────┤
+│ Scene-A  │ 场景A页面   │ 场景A专属     │ 场景A工具 + 分发   │
+│ Scene-B  │ 场景B页面   │ 场景B专属     │ 场景B工具 + 分发   │
+│  ...     │    ...      │    ...       │       ...         │
+└──────────┴─────────────┴──────────────┴───────────────────┘
+
+<strong style="color:#f9e2af;">不在 agent 之间做「分发」，每个 agent 自己决定是否要调 Worker 池。</strong>
+</pre>
+</div>
