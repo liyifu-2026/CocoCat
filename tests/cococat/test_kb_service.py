@@ -82,6 +82,14 @@ def test_write_page(temp_kb):
     assert "compiled language" in page["content"]
 
 
+def test_write_page_default_frontmatter(temp_kb):
+    service = KBService(knowledge_dir=os.path.dirname(temp_kb))
+    service.write_page("test-kb", "entities", "neo4j", "Graph database.", None)
+    page = service.read("test-kb", "entities", "neo4j")
+    assert page is not None
+    assert "type: entity" in page["content"].lower()
+
+
 def test_write_page_updates_index(temp_kb):
     service = KBService(knowledge_dir=os.path.dirname(temp_kb))
     service.write_page("test-kb", "concepts", "testing", "Testing is important.", {
@@ -133,6 +141,12 @@ async def test_cascade_delete_async(temp_kb):
     })
     modified = await service.cascade_delete("test-kb", src_file)
     assert isinstance(modified, list)
+    # Verify source file was removed
+    assert not os.path.exists(src_path)
+    # Verify page no longer references the source
+    page = service.read("test-kb", "entities", "from-source")
+    assert page is not None
+    assert src_file not in page["content"]
 
 
 @pytest.mark.asyncio

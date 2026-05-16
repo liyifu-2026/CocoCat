@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any
 
 logger = logging.getLogger("cococat.kb.service")
@@ -102,7 +103,7 @@ class KBService:
         from cococat.ingest.merge import write_frontmatter
         fm = frontmatter or {}
         fm.setdefault("title", slug)
-        fm.setdefault("type", page_type.rstrip("s"))
+        fm.setdefault("type", page_type[:-3] + "y" if page_type.endswith("ies") else page_type[:-1])
         file_content = write_frontmatter(fm, content)
 
         file_path = os.path.join(wiki_dir, f"{slug}.md")
@@ -127,7 +128,7 @@ class KBService:
         return {"merged": count, "removed": [], "log": f"Merged {count} pages"}
 
     def run_lint(self, kb_name: str) -> dict:
-        """Run health check. Returns {orphans, broken_links, missing_frontmatter}."""
+        """Run health check. Returns {orphans, broken_links, missing_fm}."""
         from cococat.ingest.overview import lint_kb
         return lint_kb(self._kb_path(kb_name))
 
@@ -156,7 +157,7 @@ class KBService:
         else:
             existing = ""
 
-        if f"- {slug}" in existing:
+        if re.search(rf"^- {re.escape(slug)}$", existing, re.MULTILINE):
             return
 
         if not existing:
@@ -199,6 +200,6 @@ _service: KBService | None = None
 
 def get_kb_service(knowledge_dir: str = "knowledge") -> KBService:
     global _service
-    if _service is None:
+    if _service is None or knowledge_dir != "knowledge":
         _service = KBService(knowledge_dir)
     return _service
