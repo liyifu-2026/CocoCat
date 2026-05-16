@@ -27,7 +27,7 @@ export default function KbChatPanel({ kbName }: { kbName: string }) {
     const ws = new WebSocket(buildWsUrl())
     wsRef.current = ws
 
-    ws.onmessage = (event) => {
+    const onMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data)
         if (data.agent_id !== "kb-agent") return
@@ -48,13 +48,15 @@ export default function KbChatPanel({ kbName }: { kbName: string }) {
       } catch {}
     }
 
+    ws.onmessage = onMessage
     ws.onopen = () => console.log("[kb-chat] WS connected")
     ws.onclose = () => console.log("[kb-chat] WS disconnected")
 
     return () => {
+      ws.onmessage = null
       ws.close()
     }
-  }, [ctx])
+  }, [])
 
   const send = async () => {
     const text = input.trim()

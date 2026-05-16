@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, type ReactNode } from "react"
+import { createContext, useState, useCallback, useMemo, type ReactNode } from "react"
 
 export interface ToolMessage {
   type: "tool"
@@ -69,11 +69,13 @@ export function KbChatProvider({ children }: { children: ReactNode }) {
     setMessages([])
   }, [])
 
+  const value = useMemo(() => ({
+    messages, loading, addMessage, addToolMessage,
+    appendToLast, finalizeLast, setLoading, clearMessages,
+  }), [messages, loading, addMessage, addToolMessage, appendToLast, finalizeLast, setLoading, clearMessages])
+
   return (
-    <KbChatContext.Provider value={{
-      messages, loading, addMessage, addToolMessage,
-      appendToLast, finalizeLast, setLoading, clearMessages,
-    }}>
+    <KbChatContext.Provider value={value}>
       {children}
     </KbChatContext.Provider>
   )
