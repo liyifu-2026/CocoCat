@@ -4,21 +4,36 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any, AsyncIterator
 
 import httpx
 
-from cococat.providers.base import BaseProvider
+from cococat.providers.base import BaseProvider, LLMResponse, ToolCallRequest
+from cococat.providers.usage import TokenUsage, log_usage
 
 logger = logging.getLogger("cococat.providers.openai_compat")
 
 
 def _tool_to_openai(tool: dict) -> dict:
-    """Convert CocoCat flat tool format to OpenAI function schema."""
+    """Convert CocoCat flat tool format to OpenAI/DeepSeek function schema.
+
+    Ensures API-compliant JSON Schema:
+    - array types get items: {type: "string"} (required by DeepSeek/OpenAI)
+    - number, integer, string, boolean types pass through as-is
+    - Empty params receive a minimal safe schema
+    """
     params = tool.get("parameters", {})
     properties = {}
     for name, ptype in params.items():
-        properties[name] = {"type": ptype, "description": ""}
+        prop: dict = {"type": ptype, "description": ""}
+        if ptype == "array":
+            prop["items"] = {"type": "string"}
+        properties[name] = prop
+
+    if not properties:
+        properties["_no_params"] = {"type": "string", "description": "No parameters required (reserved)"}
+
     return {
         "name": tool["name"],
         "description": tool.get("description", ""),
@@ -39,11 +54,13 @@ class OpenAICompatProvider(BaseProvider):
         base_url: str,
         model: str,
         timeout: float = 120.0,
+        provider_name: str = "",
     ):
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._timeout = timeout
+        self._provider_name = provider_name
 
     @property
     def model(self) -> str:
@@ -66,14 +83,30 @@ class OpenAICompatProvider(BaseProvider):
             ]
         return body
 
+    def _log_usage(self, data: dict, start_time: float, provider_name: str = "") -> None:
+        """Extract usage from API response and log it."""
+        usage = data.get("usage", {})
+        if not usage:
+            return
+        elapsed_ms = (time.monotonic() - start_time) * 1000
+        log_usage(TokenUsage(
+            model=data.get("model", self._model),
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+            provider=provider_name,
+            duration_ms=round(elapsed_ms, 1),
+        ))
+
     async def chat(
         self,
         messages: list[dict],
         tools: list[dict] | None = None,
         **kwargs,
-    ) -> str:
+    ) -> LLMResponse:
         """Send a non-streaming chat request."""
         body = self._build_request(messages, tools, stream=False)
+        start_time = time.monotonic()
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(
@@ -89,17 +122,27 @@ class OpenAICompatProvider(BaseProvider):
 
         choice = data["choices"][0]
         msg = choice["message"]
-        result: dict = {"content": msg.get("content") or ""}
-        if msg.get("tool_calls"):
-            result["tool_calls"] = [
-                {
-                    "id": tc["id"],
-                    "name": tc["function"]["name"],
-                    "arguments": tc["function"]["arguments"],
-                }
-                for tc in msg["tool_calls"]
-            ]
-        return result
+        content = msg.get("content") or ""
+        tool_calls = [
+            ToolCallRequest(
+                id=tc["id"],
+                name=tc["function"]["name"],
+                arguments=tc["function"]["arguments"],
+            )
+            for tc in (msg.get("tool_calls") or [])
+        ]
+        finish_reason = choice.get("finish_reason", "stop")
+        usage = data.get("usage", {})
+
+        self._log_usage(data, start_time, provider_name=self._provider_name)
+
+        return LLMResponse(
+            content=content,
+            tool_calls=tool_calls,
+            finish_reason=finish_reason,
+            usage={"input_tokens": usage.get("prompt_tokens", 0), "output_tokens": usage.get("completion_tokens", 0)},
+            reasoning_content=msg.get("reasoning_content"),
+        )
 
     async def chat_stream(
         self,
@@ -113,6 +156,8 @@ class OpenAICompatProvider(BaseProvider):
 
         accumulated = []
         tc_buffer: dict[int, dict] = {}  # index → {id, name, arguments}
+        last_usage: dict = {}
+        start_time = time.monotonic()
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             async with client.stream(
@@ -132,6 +177,8 @@ class OpenAICompatProvider(BaseProvider):
                             break
                         try:
                             chunk = json.loads(data_str)
+                            if "usage" in chunk:
+                                last_usage = chunk
                             choice = chunk.get("choices", [{}])[0]
                             delta = choice.get("delta", {})
                             content = delta.get("content", "")
@@ -168,4 +215,5 @@ class OpenAICompatProvider(BaseProvider):
                         except json.JSONDecodeError:
                             continue
 
+        self._log_usage(last_usage, start_time, provider_name=self._provider_name)
         yield {"type": "done", "content": "".join(accumulated)}

@@ -1,0 +1,574 @@
+import { useState, useEffect, useRef, useMemo } from "react"
+import { Loader2, Plus, Trash2, Eye, EyeOff, CheckCircle2, XCircle, ChevronsRight, ChevronRight, ChevronLeft, ChevronsLeft, Search } from "lucide-react"
+import { PROVIDER_ICONS } from "@/lib/provider-icons"
+import { getCatalogModels, getCatalogMeta, isProviderSupported } from "@/lib/model-catalog"
+import type { ProviderInfo, TabData } from "@/types/settings"
+import type { Model } from "modelpedia"
+// ── Color palette for provider logos ──
+
+const LOGO_COLORS = [
+  "bg-blue-100 text-blue-600", "bg-emerald-100 text-emerald-600", "bg-orange-100 text-orange-600",
+  "bg-purple-100 text-purple-600", "bg-cyan-100 text-cyan-600", "bg-rose-100 text-rose-600",
+  "bg-amber-100 text-amber-600", "bg-lime-100 text-lime-600", "bg-teal-100 text-teal-600",
+  "bg-indigo-100 text-indigo-600", "bg-pink-100 text-pink-600", "bg-sky-100 text-sky-600",
+  "bg-fuchsia-100 text-fuchsia-600", "bg-green-100 text-green-600",
+]
+
+function logoColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  return LOGO_COLORS[Math.abs(hash) % LOGO_COLORS.length]!
+}
+
+function logoLetters(name: string): string {
+  return name.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase()
+}
+
+function ModelMetaTooltip({ model }: { model: Model }) {
+  const lines: string[] = []
+  if (model.context_window) lines.push(`上下文: ${(model.context_window / 1000).toFixed(0)}k tokens`)
+  if (model.max_output_tokens) lines.push(`最大输出: ${(model.max_output_tokens / 1000).toFixed(0)}k tokens`)
+  if (model.pricing) {
+    const cost = `$${model.pricing.input}/$${model.pricing.output} (每百万 token)`
+    lines.push(`定价: ${cost}`)
+  }
+  if (model.status) lines.push(`状态: ${model.status}`)
+  if (!lines.length) return null
+  return (
+    <div className="invisible group-hover:visible absolute bottom-full left-0 mb-1 z-50 w-56 bg-slate-800 text-slate-100 text-[10px] rounded-lg px-3 py-2 shadow-lg leading-relaxed">
+      {lines.map((l, i) => <div key={i}>{l}</div>)}
+    </div>
+  )
+}
+
+// ── Providers Tab ──
+
+export function ProvidersTab({ data, onUpdate }: { data: TabData; onUpdate: () => void }) {
+  const providers = (data?.providers || []) as ProviderInfo[]
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [customName, setCustomName] = useState("")
+  const [customDisplayName, setCustomDisplayName] = useState("")
+  const [customUrl, setCustomUrl] = useState("")
+  const [addingCustom, setAddingCustom] = useState(false)
+
+  const sorted = [...providers].sort((a, b) => {
+    if (a.connected && !b.connected) return -1
+    if (!a.connected && b.connected) return 1
+    return (a.display_name || a.name).localeCompare(b.display_name || b.name)
+  })
+
+  const selected = sorted.find(p => p.name === selectedId) || sorted[0] || null
+  const hasConfigured = sorted.some(p => p.connected)
+
+  // Auto-select first provider if none selected
+  const effectiveSelected: string | undefined = selectedId || sorted[0]?.name || undefined
+
+  const handleAddCustom = async () => {
+    const name = customName.trim().toLowerCase().replace(/\s+/g, "-")
+    if (!name || !customUrl.trim()) return
+    await fetch(`/api/providers/${encodeURIComponent(name)}/config`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ display_name: customDisplayName.trim() || name, base_url: customUrl.trim() }),
+    })
+    setCustomName(""); setCustomDisplayName(""); setCustomUrl(""); setAddingCustom(false)
+    setSelectedId(name)
+    onUpdate()
+  }
+
+  return (
+    <div className="flex gap-0 h-[480px] min-w-0">
+      {/* Left column — fixed width, not percentage */}
+      <div className="w-[230px] shrink-0 border-r border-border/50 overflow-y-auto flex flex-col">
+        {hasConfigured && (
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2">已配置</div>
+        )}
+        {sorted.filter(p => p.connected).map(p => (
+          <ProviderListItem key={p.name} provider={p} active={effectiveSelected === p.name} onClick={() => { setSelectedId(p.name); setAddingCustom(false) }} />
+        ))}
+        {hasConfigured && (
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-2 mt-1">未配置</div>
+        )}
+        {sorted.filter(p => !p.connected).map(p => (
+          <ProviderListItem key={p.name} provider={p} active={effectiveSelected === p.name} onClick={() => { setSelectedId(p.name); setAddingCustom(false) }} />
+        ))}
+        <div className="p-2 mt-auto">
+          {addingCustom ? (
+            <div className="rounded-lg border border-blue-200 bg-blue-50/30 p-3 space-y-2">
+              <input value={customName} onChange={e => setCustomName(e.target.value)} placeholder="供应商 ID (例: my-llm)" className="w-full rounded border border-blue-200 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              <input value={customDisplayName} onChange={e => setCustomDisplayName(e.target.value)} placeholder="显示名称 (例: My LLM)" className="w-full rounded border border-blue-200 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              <input value={customUrl} onChange={e => setCustomUrl(e.target.value)} placeholder="Base URL (例: https://api.example.com/v1)" className="w-full rounded border border-blue-200 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              <div className="flex gap-2">
+                <button onClick={handleAddCustom} disabled={!customName.trim() || !customUrl.trim()} className="flex-1 rounded bg-blue-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-blue-700 disabled:opacity-40 transition-all">添加</button>
+                <button onClick={() => { setAddingCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomUrl("") }} className="rounded border border-slate-200 px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 transition-all">取消</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setAddingCustom(true)} className="w-full rounded-lg border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all">
+              <Plus className="size-3 inline mr-1" /> 自定义供应商
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Right column */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 min-w-0">
+        {effectiveSelected ? (
+          <ProviderDetailPanel key={effectiveSelected} providerName={effectiveSelected} provider={selected ?? undefined} onUpdate={onUpdate} />
+        ) : (
+          <div className="flex items-center justify-center h-full text-sm text-muted-foreground/50">选择左侧供应商</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function ProviderListItem({ provider, active, onClick }: { provider: ProviderInfo; active: boolean; onClick: () => void }) {
+  const IconComp = PROVIDER_ICONS[provider.name]
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-lg transition-all duration-150 ${
+        active ? "bg-blue-50 border border-blue-200" : "hover:bg-muted/40 border border-transparent"
+      } ${!provider.connected ? "opacity-65" : ""}`}
+    >
+      <div className={`size-8 rounded-lg flex items-center justify-center shrink-0 ${logoColor(provider.name)}`}>
+        {IconComp ? <IconComp size={18} /> : <span className="text-xs font-bold">{logoLetters(provider.display_name || provider.name)}</span>}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className={`text-sm truncate ${active ? "font-medium text-foreground" : "text-foreground/80"}`}>
+          {provider.display_name || provider.name}
+        </div>
+        {provider.connected && (
+          <div className="text-[10px] text-muted-foreground">{provider.enabled_count} 个模型</div>
+        )}
+      </div>
+      <span className={`size-2 rounded-full shrink-0 ${provider.connected ? "bg-green-500" : "bg-slate-300"}`} />
+    </button>
+  )
+}
+
+// ── Provider Detail Panel ──
+
+interface ModelData {
+  available: string[]
+  enabled: string[]
+  default: string
+}
+
+export function ProviderDetailPanel({ providerName, provider, onUpdate }: { providerName: string; provider?: ProviderInfo; onUpdate: () => void }) {
+  const [keyVal, setKeyVal] = useState("")
+  const [baseUrl, setBaseUrl] = useState(provider?.base_url || "")
+  const [showKey, setShowKey] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [connStatus, setConnStatus] = useState<"idle" | "ok" | "fail">(provider?.connected ? "ok" : "idle")
+  const [connError, setConnError] = useState("")
+  const [models, setModels] = useState<ModelData>({ available: [], enabled: [], default: "" })
+  const [modelsLoaded, setModelsLoaded] = useState(false)
+  const [fetching, setFetching] = useState(false)
+  const [discoveredModels, setDiscoveredModels] = useState<string[]>([])
+  const [manualModel, setManualModel] = useState("")
+  const [checkedAvailable, setCheckedAvailable] = useState<Set<string>>(new Set())
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [modelSearch, setModelSearch] = useState("")
+
+  // Load base_url from provider info
+  useEffect(() => {
+    if (provider) setBaseUrl(provider.base_url)
+  }, [provider?.base_url])
+
+  // Load enabled models from backend
+  useEffect(() => {
+    fetch(`/api/providers/${encodeURIComponent(providerName)}/models`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.enabled) {
+          setModels((prev) => ({
+            ...prev,
+            enabled: d.enabled || [],
+            default: d.default || "",
+          }))
+        }
+        setModelsLoaded(true)
+      })
+      .catch(() => setModelsLoaded(true))
+  }, [providerName])
+
+  // Build available models from modelpedia catalog + API-discovered
+  const catalogModels = useMemo(() => {
+    if (!provider) return [] as Model[]
+    return getCatalogModels(providerName)
+  }, [providerName, provider])
+
+  const mergedAvailable = useMemo(() => {
+    const catalogIds = new Set(catalogModels.map((m) => m.id))
+    const merged = [...catalogModels.map((m) => m.id)]
+    for (const m of (discoveredModels || [])) {
+      if (!catalogIds.has(m)) merged.push(m)
+    }
+    // If modelpedia doesn't cover this provider, use backend available
+    if (catalogModels.length === 0) {
+      return [...new Set([...merged, ...models.available])].filter(
+        (id) => !models.enabled.includes(id),
+      )
+    }
+    return merged.filter((id) => !models.enabled.includes(id))
+  }, [catalogModels, discoveredModels, models.available, models.enabled])
+
+  // Precompute model metadata map for O(1) lookup
+  const catalogMetaMap = useMemo(
+    () => new Map(catalogModels.map((m) => [m.id, m])),
+    [catalogModels],
+  )
+
+  const availModels = useMemo(
+    () =>
+      mergedAvailable.filter(
+        (m) =>
+          !modelSearch || m.toLowerCase().includes(modelSearch.toLowerCase()),
+      ),
+    [mergedAvailable, modelSearch],
+  )
+
+  const handleSave = async () => {
+    if (!keyVal.trim()) return
+    setSaving(true)
+    setConnStatus("idle")
+    setConnError("")
+    try {
+      const resp = await fetch("/api/providers/key", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: providerName, key: keyVal.trim() }),
+      })
+      const data = await resp.json()
+      if (data.ok) {
+        setConnStatus("ok")
+        setKeyVal("")
+      } else {
+        setConnStatus("fail")
+        setConnError(data.error || "Connection failed")
+      }
+      onUpdate()
+    } catch { setConnStatus("fail"); setConnError("Network error") }
+    finally { setSaving(false) }
+  }
+
+  const handleSaveUrl = async () => {
+    const url = baseUrl.trim()
+    if (!url) return
+    await fetch(`/api/providers/${encodeURIComponent(providerName)}/config`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ base_url: url }),
+    })
+    onUpdate()
+  }
+
+  const handleFetchModels = async () => {
+    setFetching(true)
+    try {
+      const resp = await fetch("/api/providers/fetch-models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: providerName, base_url: baseUrl, key: keyVal.trim() || undefined }),
+      })
+      const data = await resp.json()
+      if (data.models?.length) {
+        setDiscoveredModels(data.models)
+        const newAvailable = [...new Set([...models.available, ...data.models])]
+        setModels(prev => ({ ...prev, available: newAvailable }))
+        await syncModels(models.enabled, models.default)
+      }
+    } catch {} finally { setFetching(false) }
+  }
+
+  const syncModels = async (enabled: string[], defaultModel: string) => {
+    await fetch(`/api/providers/${encodeURIComponent(providerName)}/models/batch`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ models: enabled, default: defaultModel || null }),
+    })
+  }
+
+  const moveToEnabled = async (ids: string[]) => {
+    if (!ids.length) return
+    const newEnabled = [...models.enabled, ...ids.filter(id => !models.enabled.includes(id))]
+    const newAvail = models.available.filter(m => !newEnabled.includes(m))
+    const newDefault = models.default && !newEnabled.includes(models.default) ? (newEnabled[0] || "") : models.default
+    setModels({ available: newAvail, enabled: newEnabled, default: newDefault || (newEnabled[0] || "") })
+    setCheckedAvailable(new Set())
+    await syncModels(newEnabled, newDefault || (newEnabled[0] || ""))
+    onUpdate()
+  }
+
+  const moveToAvailable = async (ids: string[]) => {
+    if (!ids.length) return
+    const newEnabled = models.enabled.filter(m => !ids.includes(m))
+    const newAvail = [...new Set([...models.available, ...ids])]
+    const newDefault = ids.includes(models.default) ? (newEnabled[0] || "") : models.default
+    setModels({ available: newAvail, enabled: newEnabled, default: newDefault })
+    await syncModels(newEnabled, newDefault)
+    onUpdate()
+  }
+
+  const setDefault = async (id: string) => {
+    const newDefault = id
+    setModels(prev => ({ ...prev, default: newDefault }))
+    await syncModels(models.enabled, newDefault)
+    onUpdate()
+  }
+
+  const addManual = async () => {
+    const val = manualModel.trim()
+    if (!val || models.enabled.includes(val)) return
+    const newEnabled = [...models.enabled, val]
+    setModels(prev => ({ ...prev, enabled: newEnabled, available: prev.available.filter(m => m !== val) }))
+    setManualModel("")
+    await syncModels(newEnabled, models.default)
+    onUpdate()
+  }
+
+  const handleDelete = async () => {
+    if (provider?.custom) {
+      await fetch(`/api/providers/${encodeURIComponent(providerName)}`, { method: "DELETE" })
+      onUpdate()
+    } else {
+      await fetch("/api/providers/key", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: providerName, key: "" }),
+      })
+      setModels({ available: [], enabled: [], default: "" })
+      setConnStatus("idle")
+      setConnError("")
+      onUpdate()
+    }
+  }
+
+  // Drag handlers
+  const onDragStart = (e: React.DragEvent, id: string) => { setDragId(id); e.dataTransfer.effectAllowed = "move" }
+  const onDragEnd = () => setDragId(null)
+  const onDropToEnabled = async (e: React.DragEvent) => {
+    e.preventDefault()
+    if (dragId) await moveToEnabled([dragId])
+    setDragId(null)
+  }
+  const onDropToAvail = async (e: React.DragEvent) => {
+    e.preventDefault()
+    if (dragId) await moveToAvailable([dragId])
+    setDragId(null)
+  }
+
+  const isConnected = connStatus === "ok"
+  const IconComp = PROVIDER_ICONS[providerName]
+
+  return (
+    <div className="space-y-4 py-3">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className={`size-9 rounded-lg flex items-center justify-center shrink-0 ${logoColor(providerName)}`}>
+          {IconComp ? <IconComp size={20} /> : <span className="text-xs font-bold">{logoLetters(provider?.display_name || providerName)}</span>}
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-sm font-medium text-foreground">{provider?.display_name || providerName}</h3>
+          <p className="text-[10px] text-muted-foreground truncate">{baseUrl}</p>
+        </div>
+        <span className={`ml-auto shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium ${isConnected ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+          {isConnected ? "已连接" : "未配置"}
+        </span>
+      </div>
+
+      {/* API Key */}
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-medium text-muted-foreground">API Key</label>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              type={showKey ? "text" : "password"}
+              placeholder={isConnected ? "••••••••（已保存）" : "输入 API Key"}
+              value={keyVal}
+              onChange={e => { setKeyVal(e.target.value); setConnStatus("idle"); setConnError("") }}
+              onKeyDown={e => { if (e.key === "Enter") handleSave() }}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 pr-14"
+            />
+            <button onClick={() => setShowKey(!showKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              {showKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+            </button>
+          </div>
+          <button onClick={handleSave} disabled={!keyVal.trim() || saving} className="shrink-0 rounded-lg bg-blue-600 text-white px-4 py-2 text-xs font-medium hover:bg-blue-700 disabled:opacity-40 active:scale-95 transition-all flex items-center gap-1.5">
+            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+            保存并测试
+          </button>
+        </div>
+        {connStatus === "ok" && (
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full bg-green-500" />
+            <span className="text-green-600">连接正常</span>
+          </div>
+        )}
+        {connStatus === "fail" && (
+          <div className="flex items-center gap-1.5 text-xs">
+            <XCircle className="size-3 text-red-500" />
+            <span className="text-red-600">{connError || "连接失败"}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Base URL */}
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-medium text-muted-foreground">Base URL</label>
+        <input
+          type="text"
+          value={baseUrl}
+          onChange={e => setBaseUrl(e.target.value)}
+          onBlur={handleSaveUrl}
+          onKeyDown={e => { if (e.key === "Enter") handleSaveUrl() }}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+        />
+      </div>
+
+      {/* Models */}
+      {isConnected && modelsLoaded && (
+        <div className="space-y-2 border-t border-border/50 pt-3">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-medium text-muted-foreground">模型</label>
+            <button onClick={handleFetchModels} disabled={fetching} className="text-[10px] text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50">
+              {fetching ? <Loader2 className="size-3 animate-spin inline" /> : "读取 API 可用模型"}
+            </button>
+          </div>
+          <div className="flex gap-1.5 h-[200px] min-w-0">
+            {/* Available */}
+            <div
+              className="flex-1 min-w-[100px] flex flex-col rounded-lg border border-border bg-muted/20"
+              onDragOver={e => e.preventDefault()}
+              onDrop={onDropToAvail}
+            >
+              <div className="px-3 py-1.5 text-[10px] text-muted-foreground uppercase font-medium border-b border-border/30 shrink-0 space-y-1">
+                <div>可用模型</div>
+                <div className="relative">
+                  <Search className="size-3 absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <input
+                    value={modelSearch}
+                    onChange={e => setModelSearch(e.target.value)}
+                    placeholder="筛选..."
+                    className="w-full rounded border border-border/50 bg-white pl-5 pr-2 py-0.5 text-[10px] font-normal normal-case focus:outline-none focus:ring-1 focus:ring-blue-400/30"
+                  />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-1">
+                {availModels.map(m => {
+                  const meta = catalogMetaMap.get(m)
+                  return (
+                    <div
+                      key={m}
+                      draggable
+                      onDragStart={e => onDragStart(e, m)}
+                      onDragEnd={onDragEnd}
+                      className={`group relative flex items-center gap-2 px-2 py-1.5 rounded hover:bg-background cursor-pointer text-xs mb-0.5 transition-colors ${dragId === m ? "opacity-40" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checkedAvailable.has(m)}
+                        onChange={() => {
+                          const next = new Set(checkedAvailable)
+                          next.has(m) ? next.delete(m) : next.add(m)
+                          setCheckedAvailable(next)
+                        }}
+                        className="rounded border-slate-300 shrink-0"
+                      />
+                      <span className="text-slate-700 truncate flex-1">{m}</span>
+                      {meta?.status === "deprecated" && (
+                        <span className="text-[9px] px-1 py-0 rounded bg-amber-100 text-amber-600 shrink-0">旧</span>
+                      )}
+                      {meta?.status === "active" && (
+                        <span className="text-[9px] px-1 py-0 rounded bg-green-100 text-green-600 shrink-0">新</span>
+                      )}
+                      {meta && <ModelMetaTooltip model={meta} />}
+                    </div>
+                  )
+                })}
+                {availModels.length === 0 && (
+                  <div className="text-[10px] text-muted-foreground/40 text-center py-8">全部已启用</div>
+                )}
+              </div>
+            </div>
+
+            {/* Arrows */}
+            <div className="flex flex-col justify-center gap-1.5 shrink-0">
+              <button onClick={() => moveToEnabled(availModels.map(m => m))} disabled={availModels.length === 0} className="size-6 rounded border border-border bg-background hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-all disabled:opacity-30" title="全部移入">
+                <ChevronsRight className="size-3" />
+              </button>
+              <button onClick={() => moveToEnabled([...checkedAvailable])} disabled={checkedAvailable.size === 0} className="size-6 rounded border border-border bg-background hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-all disabled:opacity-30" title="移入选中的">
+                <ChevronRight className="size-3" />
+              </button>
+              <button onClick={() => moveToAvailable(models.enabled.filter(m => m !== models.default))} disabled={models.enabled.length <= 1} className="size-6 rounded border border-border bg-background hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-all disabled:opacity-30" title="移出非默认的">
+                <ChevronLeft className="size-3" />
+              </button>
+              <button onClick={() => moveToAvailable([...models.enabled])} disabled={models.enabled.length === 0} className="size-6 rounded border border-border bg-background hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-all disabled:opacity-30" title="全部移出">
+                <ChevronsLeft className="size-3" />
+              </button>
+            </div>
+
+            {/* Enabled */}
+            <div
+              className="flex-1 min-w-[100px] flex flex-col rounded-lg border border-blue-200 bg-blue-50/30"
+              onDragOver={e => e.preventDefault()}
+              onDrop={onDropToEnabled}
+            >
+              <div className="px-3 py-1.5 text-[10px] text-blue-500 uppercase font-medium border-b border-blue-100 shrink-0 flex items-center justify-between">
+                <span>已启用 · {models.enabled.length}</span>
+              </div>
+              <div className="flex-1 overflow-y-auto p-1">
+                {models.enabled.map(m => (
+                  <div
+                    key={m}
+                    draggable
+                    onDragStart={e => onDragStart(e, m)}
+                    onDragEnd={onDragEnd}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded bg-white border border-blue-100 text-xs mb-0.5 transition-colors ${dragId === m ? "opacity-40" : ""}`}
+                  >
+                    <span className={`size-1.5 rounded-full shrink-0 ${m === models.default ? "bg-blue-500" : "bg-blue-300"}`} />
+                    <span className={`flex-1 truncate ${m === models.default ? "font-medium text-slate-800" : "text-slate-600"}`}>{m}</span>
+                    {m === models.default ? (
+                      <span className="text-[9px] px-1 py-0 rounded bg-blue-100 text-blue-600 font-medium shrink-0">默认</span>
+                    ) : (
+                      <button onClick={() => setDefault(m)} className="text-[9px] text-slate-300 hover:text-blue-500 shrink-0">设为默认</button>
+                    )}
+                    <button onClick={() => moveToAvailable([m])} className="text-slate-300 hover:text-red-400 shrink-0">×</button>
+                  </div>
+                ))}
+                {models.enabled.length === 0 && (
+                  <div className="text-[10px] text-muted-foreground/40 text-center py-8">从左侧移入模型</div>
+                )}
+              </div>
+              <div className="p-2 border-t border-blue-100 shrink-0">
+                <div className="flex gap-1">
+                  <input
+                    value={manualModel}
+                    onChange={e => setManualModel(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") addManual() }}
+                    placeholder="手动输入模型名..."
+                    className="flex-1 rounded border border-blue-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                  <button onClick={addManual} disabled={!manualModel.trim()} className="shrink-0 rounded bg-blue-500 text-white px-2 py-1 text-xs hover:bg-blue-600 disabled:opacity-30 transition-all">添加</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Danger zone */}
+      {isConnected && (
+        <div className="pt-3 border-t border-border/50">
+          <button onClick={handleDelete} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium transition-colors">
+            <Trash2 className="size-3" />
+            {provider?.custom ? "删除供应商" : "移除 API Key"}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+

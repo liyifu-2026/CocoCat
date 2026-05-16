@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any, AsyncIterator
 
 import httpx
 
-from cococat.providers.base import BaseProvider
+from cococat.providers.base import BaseProvider, LLMResponse, ToolCallRequest
+from cococat.providers.usage import TokenUsage, log_usage
 
 logger = logging.getLogger("cococat.providers.anthropic")
 
@@ -112,14 +114,30 @@ class AnthropicProvider(BaseProvider):
             ]
         return body
 
+    def _log_usage(self, data: dict, start_time: float) -> None:
+        """Extract usage from Anthropic response and log it."""
+        usage = data.get("usage", {})
+        if not usage:
+            return
+        elapsed_ms = (time.monotonic() - start_time) * 1000
+        log_usage(TokenUsage(
+            model=data.get("model", self._model),
+            prompt_tokens=usage.get("input_tokens", 0),
+            completion_tokens=usage.get("output_tokens", 0),
+            total_tokens=usage.get("input_tokens", 0) + usage.get("output_tokens", 0),
+            provider="anthropic",
+            duration_ms=round(elapsed_ms, 1),
+        ))
+
     async def chat(
         self,
         messages: list[dict],
         tools: list[dict] | None = None,
         **kwargs,
-    ) -> dict:
+    ) -> LLMResponse:
         system, converted = self._convert_messages(messages)
         body = self._build_request(converted, system=system, tools=tools)
+        start_time = time.monotonic()
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(
@@ -134,22 +152,34 @@ class AnthropicProvider(BaseProvider):
             resp.raise_for_status()
             data = resp.json()
 
-        result: dict = {"content": ""}
+        content = ""
+        tool_calls: list[ToolCallRequest] = []
 
-        # Extract text and tool_use from content blocks
         for block in data.get("content", []):
             if block["type"] == "text":
-                result["content"] += block["text"]
+                content += block["text"]
             elif block["type"] == "tool_use":
-                if "tool_calls" not in result:
-                    result["tool_calls"] = []
-                result["tool_calls"].append({
-                    "id": block["id"],
-                    "name": block["name"],
-                    "arguments": json.dumps(block["input"]),
-                })
+                tool_calls.append(ToolCallRequest(
+                    id=block["id"],
+                    name=block["name"],
+                    arguments=block["input"],
+                ))
 
-        return result
+        stop_reason = data.get("stop_reason", "end_turn")
+        finish = "stop"
+        if stop_reason == "tool_use":
+            finish = "tool_calls"
+        elif stop_reason == "max_tokens":
+            finish = "length"
+
+        usage = data.get("usage", {})
+        self._log_usage(data, start_time)
+        return LLMResponse(
+            content=content,
+            tool_calls=tool_calls,
+            finish_reason=finish,
+            usage={"input_tokens": usage.get("input_tokens", 0), "output_tokens": usage.get("output_tokens", 0)},
+        )
 
     async def chat_stream(
         self,
@@ -159,5 +189,5 @@ class AnthropicProvider(BaseProvider):
     ) -> AsyncIterator[dict]:
         """Streaming not implemented for Anthropic yet — falls back to non-streaming."""
         result = await self.chat(messages, tools, **kwargs)
-        yield {"type": "delta", "content": result.get("content", "")}
-        yield {"type": "done", "content": result.get("content", "")}
+        yield {"type": "delta", "content": result.content or ""}
+        yield {"type": "done", "content": result.content or ""}
