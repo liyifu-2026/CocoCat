@@ -8,9 +8,11 @@ from typing import Callable
 from cococat.core.types import ToolContext
 
 
-def make_assistant_msg(content: str, tool_calls: list) -> dict:
+def make_assistant_msg(content: str, tool_calls: list, reasoning_content: str | None = None) -> dict:
     """Build the assistant message with tool_calls in OpenAI format."""
     msg: dict = {"role": "assistant", "content": content}
+    if reasoning_content:
+        msg["reasoning_content"] = reasoning_content
     msg["tool_calls"] = []
     for tc in tool_calls:
         tid = tc.id if hasattr(tc, "id") else tc["id"]

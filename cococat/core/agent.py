@@ -66,16 +66,18 @@ class Agent:
             memory_content, pinned = load_memory_from_agent_dir(agent_dir)
             profile_text = load_agent_system_prompt(agent_dir)
 
+        self._base_tools = tools or create_core_tools()
+        self._scene_tools: list[dict] = []
+        self._sandbox: Optional[PathSandbox] = None
+
         self._system_prompt = system_prompt or build_system_prompt(
             agent_profile=name + ("\n" + profile_text if profile_text else ""),
             memory_content=memory_content,
             pinned_facts=pinned,
+            tools=self._base_tools,
             static_prefix=KB_AGENT_STATIC_PREFIX if id == "kb-agent" else None,
         )
         self._default_system_prompt = self._system_prompt
-        self._base_tools = tools or create_core_tools()
-        self._scene_tools: list[dict] = []
-        self._sandbox: Optional[PathSandbox] = None
 
     def bind_to_scene(self, scene) -> None:
         """Bind this agent to a scene. Accepts SceneConfig object or scene_id string."""
@@ -99,11 +101,13 @@ class Agent:
 
         # Apply scene context + skills
         if scene_config:
+            all_tools = list(self._base_tools)
             self._system_prompt = build_system_prompt(
                 agent_profile=self.name,
                 scene_context=scene_config.context,
                 scene_kbs=scene_config.kbs,
                 scene_skills=scene_config.skills,
+                tools=all_tools,
             )
             # Load scene skills from disk
             self._scene_tools = load_scene_skills(scene_id) if scene_id else []
@@ -179,10 +183,12 @@ class Agent:
 
         for iteration in range(max_iterations):
             use_stream = iteration == 0 and hasattr(llm, "chat_stream")
+            reasoning = None
 
             if use_stream:
                 collected_content = []
                 collected_tool_calls = []
+                collected_reasoning = []
 
                 async for event in llm.chat_stream(
                     messages=messages,
@@ -196,6 +202,8 @@ class Agent:
                         r = on_reasoning(event["content"])
                         if callable(getattr(r, "__await__", None)):
                             await r
+                    if event["type"] == "reasoning":
+                        collected_reasoning.append(event["content"])
                     if event["type"] == "delta":
                         collected_content.append(event["content"])
                     if event["type"] == "tool_call":
@@ -206,6 +214,7 @@ class Agent:
                         })
 
                 content = "".join(collected_content)
+                reasoning = "".join(collected_reasoning) if collected_reasoning else None
                 tool_calls = [ToolCallRequest(**tc) for tc in collected_tool_calls] if collected_tool_calls else []
             else:
                 resp = await llm.chat(
@@ -215,10 +224,11 @@ class Agent:
                 )
                 content = resp.content or ""
                 tool_calls = resp.tool_calls or None
+                reasoning = resp.reasoning_content or None
 
             if tool_calls:
                 final_text.append(content) if content else None
-                messages.append(make_assistant_msg(content, tool_calls))
+                messages.append(make_assistant_msg(content, tool_calls, reasoning))
                 await execute_tool_calls(tool_calls, messages, tools, context, on_tool)
             else:
                 if content:
