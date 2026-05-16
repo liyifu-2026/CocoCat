@@ -112,18 +112,19 @@ class KBService:
         self._update_index(kb_path, page_type, slug)
         self._append_log(kb_path, f"Wrote {page_type}/{slug}")
 
-    def cascade_delete(self, kb_name: str, source_filename: str, llm: Any = None) -> list[str]:
+    async def cascade_delete(self, kb_name: str, source_filename: str, llm: Any = None) -> list[str]:
         """Delete a source file and clean up all wiki pages referencing it."""
         from cococat.ingest.cascade import cascade_delete_source
-        return cascade_delete_source(source_filename, self._kb_path(kb_name), llm)
+        return await cascade_delete_source(source_filename, self._kb_path(kb_name), llm)
 
     # ── Maintenance ─────────────────────────────────────
 
-    def run_dedup(self, kb_name: str, llm: Any) -> dict:
+    async def run_dedup(self, kb_name: str, llm: Any) -> dict:
         """Run 3-stage dedup pipeline. Returns {merged, removed, log}."""
         from cococat.ingest.dedup import DedupPipeline
         pipeline = DedupPipeline(llm, self._kb_path(kb_name))
-        return pipeline.run()
+        count = await pipeline.run()
+        return {"merged": count, "removed": [], "log": f"Merged {count} pages"}
 
     def run_lint(self, kb_name: str) -> dict:
         """Run health check. Returns {orphans, broken_links, missing_frontmatter}."""
@@ -149,18 +150,31 @@ class KBService:
         index_path = os.path.join(kb_path, "index.md")
         category = page_type.capitalize()
 
-        existing = ""
         if os.path.exists(index_path):
             with open(index_path, encoding="utf-8") as f:
                 existing = f.read()
+        else:
+            existing = ""
 
         if f"- {slug}" in existing:
             return
 
-        if existing:
-            content = existing.rstrip() + f"\n- {slug}\n"
-        else:
+        if not existing:
             content = f"# Index\n\n## {category}\n- {slug}\n"
+        else:
+            heading = f"## {category}"
+            idx = existing.find(heading)
+            if idx >= 0:
+                # Find end of this section (next ## or EOF)
+                next_heading = existing.find("\n## ", idx + len(heading))
+                if next_heading >= 0:
+                    before = existing[:next_heading]
+                    after = existing[next_heading:]
+                    content = before.rstrip() + f"\n- {slug}\n\n" + after.lstrip()
+                else:
+                    content = existing.rstrip() + f"\n- {slug}\n"
+            else:
+                content = existing.rstrip() + f"\n\n## {category}\n- {slug}\n"
 
         with open(index_path, "w", encoding="utf-8") as f:
             f.write(content)

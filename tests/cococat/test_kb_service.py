@@ -98,3 +98,46 @@ def test_get_overview_context(temp_kb):
     ctx = service.get_overview_context(["test-kb"])
     assert "test-kb" in ctx
     assert "Test knowledge base" in ctx
+
+
+def test_run_lint(temp_kb):
+    service = KBService(knowledge_dir=os.path.dirname(temp_kb))
+    result = service.run_lint("test-kb")
+    assert isinstance(result, dict)
+    assert "orphans" in result
+    assert "broken_links" in result
+    assert "missing_fm" in result
+
+
+def test_get_graph(temp_kb):
+    service = KBService(knowledge_dir=os.path.dirname(temp_kb))
+    data = service.get_graph("test-kb")
+    assert isinstance(data, dict)
+    assert "graph" in data
+    assert "insights" in data
+    assert "nodes" in data["graph"]
+    assert "links" in data["graph"]
+
+
+@pytest.mark.asyncio
+async def test_cascade_delete_async(temp_kb):
+    src_file = "test-source.txt"
+    src_path = os.path.join(temp_kb, "raw", "sources", src_file)
+    os.makedirs(os.path.dirname(src_path), exist_ok=True)
+    with open(src_path, "w") as f:
+        f.write("test content")
+    service = KBService(knowledge_dir=os.path.dirname(temp_kb))
+    service.write_page("test-kb", "entities", "from-source", "Content from source.", {
+        "title": "From Source",
+        "sources": [src_file],
+    })
+    modified = await service.cascade_delete("test-kb", src_file)
+    assert isinstance(modified, list)
+
+
+@pytest.mark.asyncio
+async def test_run_dedup_no_llm_skips(temp_kb):
+    service = KBService(knowledge_dir=os.path.dirname(temp_kb))
+    result = await service.run_dedup("test-kb", None)
+    assert isinstance(result, dict)
+    assert "merged" in result
