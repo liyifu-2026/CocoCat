@@ -259,6 +259,7 @@ def create_resident_tools(
     """
     if is_kb_agent:
         tools = (
+            _make_file_tools() +
             _make_memory_tools() +
             _make_meta_tools() +
             _make_call_worker_tool(sub_agent_executor) +
