@@ -178,7 +178,9 @@ class OpenAICompatProvider(BaseProvider):
                 },
                 json=body,
             ) as resp:
-                resp.raise_for_status()
+                if resp.status_code >= 400:
+                    err_body = await resp.aread()
+                    raise RuntimeError(f"DeepSeek {resp.status_code}: {err_body.decode()[:500]}")
                 async for line in resp.aiter_lines():
                     if line.startswith("data: "):
                         data_str = line[6:]
