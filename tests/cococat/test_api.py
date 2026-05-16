@@ -208,3 +208,14 @@ async def test_list_channels(client):
     resp = await client.get("/api/channels")
     assert resp.status_code == 200
     assert "channels" in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_list_channel_types(client):
+    resp = await client.get("/api/channels/types")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "types" in data
+    assert len(data["types"]) == 6
+    channel_types = {t["channel_type"] for t in data["types"]}
+    assert channel_types == {"feishu", "wechat", "weixin", "telegram", "discord", "web_api"}

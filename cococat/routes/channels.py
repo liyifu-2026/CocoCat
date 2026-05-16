@@ -58,7 +58,7 @@ CHANNEL_TYPES = [
             {"key": "app_id", "label": "App ID", "required": True, "type": "text", "placeholder": "cli_a6b..."},
             {"key": "app_secret", "label": "App Secret", "required": True, "type": "password", "placeholder": ""},
         ],
-        "notes": None,
+        "notes": "",
         "icon_type": "hand",
     },
     {
@@ -115,7 +115,7 @@ CHANNEL_TYPES = [
         "config_fields": [
             {"key": "bot_token", "label": "Bot Token", "required": True, "type": "password", "placeholder": "从 @BotFather 获取"},
         ],
-        "notes": None,
+        "notes": "",
         "icon_type": "simple",
     },
     {
@@ -134,7 +134,7 @@ CHANNEL_TYPES = [
         "config_fields": [
             {"key": "bot_token", "label": "Bot Token", "required": True, "type": "password", "placeholder": "从 Discord Developer Portal 获取"},
         ],
-        "notes": None,
+        "notes": "",
         "icon_type": "simple",
     },
     {
@@ -154,7 +154,7 @@ CHANNEL_TYPES = [
             {"key": "endpoint", "label": "Endpoint URL", "required": True, "type": "text", "placeholder": "https://example.com/api/chat"},
             {"key": "api_key", "label": "API Key", "required": False, "type": "password", "placeholder": "可选认证密钥"},
         ],
-        "notes": None,
+        "notes": "",
         "icon_type": "hand",
     },
 ]
