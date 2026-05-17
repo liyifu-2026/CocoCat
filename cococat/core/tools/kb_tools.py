@@ -158,3 +158,29 @@ def _list_kbs(params: dict, ctx: Any) -> str:
     if not kbs:
         return "No knowledge bases found."
     return "Available knowledge bases:\n" + "\n".join(f"- {kb}" for kb in kbs)
+
+
+def _create_kb(params: dict, ctx: Any) -> str:
+    """Create a new knowledge base directory structure."""
+    import os
+    kb_name = params.get("kb_name", "")
+    purpose = params.get("purpose", "")
+    if not kb_name:
+        return "Error: kb_name is required"
+    base = os.path.join("knowledge", kb_name)
+    if os.path.exists(os.path.join(base, "wiki")):
+        return f"Knowledge base '{kb_name}' already exists"
+    dirs = [
+        os.path.join(base, "wiki", "entities"),
+        os.path.join(base, "wiki", "concepts"),
+        os.path.join(base, "raw", "sources"),
+    ]
+    for d in dirs:
+        os.makedirs(d, exist_ok=True)
+    with open(os.path.join(base, "purpose.md"), "w", encoding="utf-8") as f:
+        f.write(f"# {kb_name}\n\n{purpose or 'Knowledge base for ' + kb_name}\n")
+    with open(os.path.join(base, "index.md"), "w", encoding="utf-8") as f:
+        f.write(f"# {kb_name} Index\n\n## Entities\n\n## Concepts\n")
+    with open(os.path.join(base, "log.md"), "w", encoding="utf-8") as f:
+        f.write(f"# {kb_name} Change Log\n\n")
+    return f"Created knowledge base '{kb_name}'"

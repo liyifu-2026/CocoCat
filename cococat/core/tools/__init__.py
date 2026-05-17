@@ -19,6 +19,7 @@ from cococat.core.tools.meta import _cron, _wait, _current_status, _todo_write
 from cococat.core.tools.kb_tools import (
     _search_kb, _read_wiki, _write_wiki, _run_dedup,
     _run_lint, _gen_overview, _cascade_del, _get_graph, _call_worker, _list_kbs,
+    _create_kb,
 )
 from cococat.core.types import ToolContext, DagEnv, SandboxEnv, WebEnv
 
@@ -66,6 +67,23 @@ def _make_file_tools() -> list[dict]:
         _make("edit_file", "Edit a file by replacing text", {"path": "string", "old": "string", "new": "string"},
               lambda p, ctx: _edit_file(p.get("path", ""), p.get("old", ""), p.get("new", "")),
               requires_sandbox=True, sandbox_operation="write"),
+        _make("list_dir", "List directory contents", {"path": "string"},
+              lambda p, ctx: _list_dir(p.get("path", ""))),
+        _make("glob", "Find files by glob pattern", {"pattern": "string"},
+              lambda p, ctx: _glob(p.get("pattern", "")),
+              requires_sandbox=True, sandbox_operation="read"),
+        _make("grep", "Search file contents with regex", {"pattern": "string", "path": "string"},
+              lambda p, ctx: _grep(p.get("pattern", ""), p.get("path", "")),
+              requires_sandbox=True, sandbox_operation="read"),
+    ]
+
+
+def _make_readonly_file_tools() -> list[dict]:
+    """Read-only file tools for Coco — safe exploration, no writes."""
+    return [
+        _make("read_file", "Read a file with offset/limit", {"path": "string", "offset": "integer", "limit": "integer"},
+              lambda p, ctx: _read_file(p.get("path", ""), p.get("offset", 0), p.get("limit", 2000)),
+              requires_sandbox=True, sandbox_operation="read"),
         _make("list_dir", "List directory contents", {"path": "string"},
               lambda p, ctx: _list_dir(p.get("path", ""))),
         _make("glob", "Find files by glob pattern", {"pattern": "string"},
@@ -168,6 +186,8 @@ def _make_kb_tools() -> list[dict]:
 def _make_kb_admin_tools() -> list[dict]:
     """KB admin tools (write + maintenance) for kb-agent only."""
     return [
+        _make("create_kb", "Create a new knowledge base with proper directory structure", {"kb_name": "string", "purpose": "string"},
+              lambda p, ctx: _create_kb(p, _ensure_tool_context(ctx))),
         _make("write_wiki", "Write a wiki page", {"kb_name": "string", "type": "string", "slug": "string", "content": "string", "title": "string"},
               lambda p, ctx: _write_wiki(p, _ensure_tool_context(ctx))),
         _make("run_dedup", "Run KB dedup pipeline", {"kb_name": "string"},
@@ -236,14 +256,20 @@ def create_main_ai_tools(
     dag_store=None,
     tavily_api_key: str | None = None,
 ) -> list[dict]:
-    """Create Coco's tools — DAG orchestration + memory + meta ONLY.
-    Coco NEVER calls execution tools directly. All execution goes through
-    define_dag → dispatch_task → sub-agent.
+    """Create Coco's tools.
+
+    Coco CAN directly: read_file, list_dir, glob, grep, web_search, web_fetch.
+    Coco MUST use DAG for: write_file, edit_file, bash, browser (sub-agents only).
     """
+    if tavily_api_key is None:
+        tavily_api_key = os.environ.get("TAVILY_API_KEY")
     return (
         _make_dag_tools(dag_store, sub_agent_executor) +
         _make_memory_tools() +
-        _make_meta_tools()
+        _make_meta_tools() +
+        _make_readonly_file_tools() +
+        _make_web_tools(tavily_api_key) +
+        _make_kb_tools()
     )
 
 

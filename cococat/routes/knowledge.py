@@ -1,10 +1,16 @@
 """KB upload route — handles file upload and ingest task creation."""
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from pydantic import BaseModel
 from cococat.db import new_uuid
 from cococat.app import get_ctx
 from cococat.context import AppContext
 
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
+
+
+class CreateKBRequest(BaseModel):
+    name: str
+    purpose: str = ""
 
 
 @router.post("/{kb_name}/upload")
@@ -60,6 +66,29 @@ async def list_kbs():
             kbs.append({"id": name, "purpose": purpose})
 
     return {"kbs": kbs}
+
+
+@router.post("")
+async def create_knowledge(body: CreateKBRequest):
+    """Create a new knowledge base."""
+    import os
+    base = os.path.join("knowledge", body.name)
+    if os.path.exists(os.path.join(base, "wiki")):
+        raise HTTPException(status_code=409, detail=f"Knowledge base '{body.name}' already exists")
+    dirs = [
+        os.path.join(base, "wiki", "entities"),
+        os.path.join(base, "wiki", "concepts"),
+        os.path.join(base, "raw", "sources"),
+    ]
+    for d in dirs:
+        os.makedirs(d, exist_ok=True)
+    with open(os.path.join(base, "purpose.md"), "w", encoding="utf-8") as f:
+        f.write(f"# {body.name}\n\n{body.purpose or 'Knowledge base for ' + body.name}\n")
+    with open(os.path.join(base, "index.md"), "w", encoding="utf-8") as f:
+        f.write(f"# {body.name} Index\n\n## Entities\n\n## Concepts\n")
+    with open(os.path.join(base, "log.md"), "w", encoding="utf-8") as f:
+        f.write(f"# {body.name} Change Log\n\n")
+    return {"status": "created", "name": body.name}
 
 
 @router.get("/{kb_name}/wiki")
