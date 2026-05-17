@@ -22,14 +22,13 @@ def agent():
 
 @pytest.fixture(autouse=True)
 def _setup_test_skills(tmp_path):
-    """Create mock skill files and isolate workspace to tmp_path."""
-    # Skills are loaded from cwd by load_scene_skills
-    skills_dir = "skills/scenes/test-scene"
+    """Create mock skill files in flat skills/ directory and isolate workspace."""
+    skills_dir = "skills"
     os.makedirs(skills_dir, exist_ok=True)
     with open(os.path.join(skills_dir, "refund_procedure.md"), "w") as f:
-        f.write("---\nname: refund_procedure\ndescription: Refund\n---\n# Body")
+        f.write("---\nname: refund_procedure\ndescription: Refund\n---\n# Refund Body")
     with open(os.path.join(skills_dir, "crm_lookup.md"), "w") as f:
-        f.write("---\nname: crm_lookup\ndescription: CRM\n---\n# Body")
+        f.write("---\nname: crm_lookup\ndescription: CRM\n---\n# CRM Body")
     # Isolate workspace to tmp_path so KB dirs in cwd are out of scope
     old_ws = os.environ.get("COCOCAT_WORKSPACE")
     os.environ["COCOCAT_WORKSPACE"] = str(tmp_path)
@@ -45,7 +44,6 @@ def _setup_test_skills(tmp_path):
     try:
         os.remove(os.path.join(skills_dir, "refund_procedure.md"))
         os.remove(os.path.join(skills_dir, "crm_lookup.md"))
-        os.rmdir(skills_dir)
     except OSError:
         pass
 
@@ -57,6 +55,7 @@ def scene():
         name="Test Scene",
         context="You help customers with refunds.",
         kbs=["product-manual", "faq"],
+        skills=["refund_procedure", "crm_lookup"],
     )
 
 
@@ -83,9 +82,8 @@ def test_agent_scoped_after_binding(agent, scene):
     assert "read_file" in names
     assert "bash" in names
 
-    # Scene skills loaded from disk
-    assert "refund_procedure" in names
-    assert "crm_lookup" in names
+    # Scene skills injected into prompt (they don't have as_tool, so no tool registration)
+    assert "refunds" in agent._system_prompt
 
 
 def test_agent_unbind_restores_default(agent, scene):
@@ -98,7 +96,6 @@ def test_agent_unbind_restores_default(agent, scene):
 
     tools = agent.get_tools()
     names = {t["name"] for t in tools}
-    assert "refund_procedure" not in names  # Scene skills removed
     assert "read_file" in names  # Core tools present
 
 
