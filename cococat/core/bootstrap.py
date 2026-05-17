@@ -133,6 +133,10 @@ def _load_residents(ctx, factory, sub_executor, dag_store) -> None:
         )
         pool.add_agent(agent)
 
+        cron_entries = cfg.get("cron", [])
+        if cron_entries:
+            _seed_cron_jobs(agent_id, cron_entries)
+
         existing = db._conn.execute("SELECT id FROM agents WHERE id = ?", (agent_id,)).fetchone()
         if not existing:
             db._conn.execute(
@@ -178,6 +182,27 @@ def _load_workers(ctx, factory, sub_executor, dag_store) -> None:
         )
         pool.add_agent(agent)
         logger.info("Worker loaded: %s (%s) → %s", r["name"], r["id"], model)
+
+
+def _seed_cron_jobs(agent_id: str, entries: list[dict]) -> None:
+    import json as _json
+    cron_dir = os.path.join("runs", "cron")
+    os.makedirs(cron_dir, exist_ok=True)
+    for entry in entries:
+        name = entry.get("name", "task")
+        schedule = entry.get("schedule", "@daily")
+        filename = f"{agent_id}-{name}.json"
+        filepath = os.path.join(cron_dir, filename)
+        if not os.path.exists(filepath):
+            job = {
+                "agent_id": agent_id,
+                "name": name,
+                "schedule": schedule,
+                "task": entry.get("task", f"Run {name} maintenance"),
+            }
+            with open(filepath, "w", encoding="utf-8") as f:
+                _json.dump(job, f, indent=2)
+            logger.info("Seeded cron job: %s (%s)", filename, schedule)
 
 
 # ── Helpers ────────────────────────────────────────────────
