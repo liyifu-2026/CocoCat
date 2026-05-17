@@ -9,3 +9,10 @@ Auto-generated. Last updated: 2026-05-03 23:44
 - message-bus-architecture
 - multi-agent-systems
 - test
+
+## Entities
+- multi-agent-architecture
+- dag-based-task-dispatch
+- wiki-knowledge-structure-yaml
+- orchestrator-agent-coco
+- knowledge-base-agent

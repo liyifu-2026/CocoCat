@@ -13,8 +13,8 @@ AI 智能体——一个有独立身份、记忆、技能和 LLM 配置的虚拟
 ### AgentLoop
 Agent 的核心执行引擎，实现 ReAct 循环。负责维护消息历史、调用 LLM、执行工具、管理 token 预算。
 
-### AgentRunner
-Agent 的外观类（Facade），封装了 AgentLoop 的初始化和运行逻辑。负责加载场景上下文、创建 ToolRegistry、管理缓存。
+### AgentPool
+Agent 生命周期管理器，在同一进程中管理所有 Agent 的创建、调度和销毁。取代 v1 中由 Rust 核心 spawn 子进程的模式。
 
 ## C
 
@@ -30,7 +30,7 @@ Dream 系统中记录已处理历史位置的指针。存储在 `.dream_cursor` 
 ## D
 
 ### Dispatch（分发）
-Agent 间任务分发的机制。Agent A 通过 `dispatch_task` 工具写 JSON 文件到队列，Rust 核心轮询读取并转发给 Agent B。
+Agent 间任务分发的机制。Agent A 通过 `dispatch_task` 工具提交任务，EventBus 路由给 Agent B。v2 中分发基于 DAG 编排，任务文件存储在 `runs/` 目录。
 
 ### Dream
 Agent 记忆整合过程。分析 `history.jsonl` 中的未处理条目，提取关键信息，合并到 `MEMORY.md`。通过受限工具循环（仅 `read_file` + `edit_file`）手术式编辑记忆。
@@ -43,18 +43,16 @@ Agent 或 Scene 的外部接入配置。定义了通过什么渠道（微信、�
 ### Env Skill（环境技能）
 场景级技能，该场景内所有 Agent 自动获得。与 Agent 个人技能不同，env skill 由场景配置定义。
 
+### EventBus
+v2 中的内部事件总线，负责 Agent 间消息传递、任务分发和状态事件广播。取代 v1 中 Rust 核心的轮询机制。
+
 ## H
 
 ### Heartbeat（心跳）
 Agent 的定期后台任务线程（默认 300s 周期）。执行：检查邮箱、读取聊天群组、执行定时任务、自动压缩。
 
 ### Hire（雇佣）
-通过 `hire_agent` 工具请求创建新 Agent 的流程。需要管理员审批，通过后 Rust 核心自动创建配置文件并 spwan 新进程。
-
-## J
-
-### JSON-RPC
-CocoCat 的层间通信协议。Rust 核心与 Python Agent 通过 stdin/stdout 传递 JSON-RPC 2.0 格式的单行消息。
+通过 `hire_agent` 工具请求创建新 Agent 的流程。需要管理员审批，通过后 AgentPool 自动创建配置文件并注册新 Agent。
 
 ## K
 
@@ -105,6 +103,9 @@ Agent 的思考-行动循环：LLM 推理 → 决定调用工具 → 执行工�
 Agent 可加载的独立能力单元。通过 `learn_skill` / `forget_skill` 管理。有 `public`（其他 agent 可见）和 `private`（仅自己可见）之分。
 
 ## T
+
+### TaskWorker
+v2 中的任务执行器。EventBus 将分发任务路由到对应的 TaskWorker，后者调用目标 Agent 的 AgentLoop 执行。取代 v1 中的 JSON-RPC 子进程调用。
 
 ### TOCTOU（Time of Check, Time of Use）
 安全编程中常见的竞态条件问题：检查权限和使用资源之间存在时间窗口。CocoCat 通过原子写入和文件锁缓解此类问题。

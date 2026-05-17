@@ -334,14 +334,24 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
               )}
 
               {status === "configured" && (
-                <button
-                  onClick={handleConnect}
-                  disabled={connecting}
-                  className="w-full rounded-lg bg-green-600 text-white px-4 py-2.5 text-xs font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {connecting && <Loader2 className="size-3 animate-spin" />}
-                  {typeInfo.channel_type === "weixin" ? "扫码连接" : "连接"}
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={handleConnect}
+                    disabled={connecting}
+                    className="w-full rounded-lg bg-green-600 text-white px-4 py-2.5 text-xs font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {connecting && <Loader2 className="size-3 animate-spin" />}
+                    {typeInfo.channel_type === "weixin" ? "扫码连接" : "连接"}
+                  </button>
+                  <button
+                    onClick={handleDisconnect}
+                    disabled={disconnecting}
+                    className="w-full rounded-lg border border-red-300 text-red-600 bg-white px-4 py-2.5 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {disconnecting && <Loader2 className="size-3 animate-spin" />}
+                    重置并清除凭证
+                  </button>
+                </div>
               )}
 
               {status === "connected" && (

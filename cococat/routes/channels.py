@@ -282,6 +282,7 @@ async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ct
                 pass
 
         ch = create_channel(body.channel_type)
+        CHANNEL_INSTANCES[key] = ch
 
         if body.target_type == "scene":
             _connect_scene_channel(ch, body, ctx, key)
@@ -425,6 +426,15 @@ async def disconnect_channel(body: ChannelConnect):
             ch.stop()
         except Exception:
             pass
+
+    # Clear main.yaml channel config so it shows as "unconfigured"
+    if body.target_type == "main":
+        cfg = _load_main_config()
+        channels = cfg.get("channels", {})
+        if body.channel_type in channels:
+            channels[body.channel_type]["enabled"] = False
+            _save_main_config(cfg)
+
     return {"status": "disconnected"}
 
 

@@ -25,28 +25,9 @@ on:
 
 ## 并行任务
 
-CI 包含 3 个独立的并行 job：
+CI 包含 2 个独立的并行 job：
 
-### 1. Rust 编译 + 测试
-
-```yaml
-rust:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rust-lang/setup-rust-toolchain@v1
-    - name: Build
-      run: cargo build --verbose
-    - name: Test
-      run: cargo test --verbose
-```
-
-编译整个 Rust 核心并运行单元测试。确保：
-- Rust 代码可通过编译
-- 无警告（`deny(warnings)`）
-- transport、message_bus 等核心模块测试通过
-
-### 2. Python 测试
+### 1. Python 测试
 
 ```yaml
 python:
@@ -71,7 +52,7 @@ python:
 - 运行 `tests/` 下的所有 Python 测试
 - 不安装缺失的 `requirements-dev.txt`（容错）
 
-### 3. 前端 Lint + TypeScript 检查
+### 2. 前端 Lint + TypeScript 检查
 
 ```yaml
 frontend:
@@ -107,9 +88,6 @@ frontend:
 ## 本地运行测试
 
 ```bash
-# Rust 测试
-cd src && cargo test
-
 # Python 测试
 cp .env.example .env
 python -m pytest tests/ -v

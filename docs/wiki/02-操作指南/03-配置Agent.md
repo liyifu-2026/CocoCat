@@ -102,28 +102,27 @@ agents/{id}/
 | `enabled` | 是否启用 |
 | `config` | 渠道配置参数 |
 
-## 5. 系统配置（`agents/config.toml`）
+## 5. 系统配置（`config/residents/*.yaml`）
 
-由 Rust 核心读取，控制 Agent 生命周期：
+Agent 的运行时定义文件，由 AgentPool 读取：
 
-```toml
-[[agents]]
-id = "leader"
-name = "组长"
-interpreter = "python"
-script = "py-agent/agent_runtime.py"
-enabled = true
-scene = "development"
+```yaml
+id: "leader"
+name: "组长"
+enabled: true
+scene: "development"
+config:
+  role: "组长"
+  objective: "协调团队工作"
 ```
 
 | 字段 | 说明 |
 |------|------|
-| `id` | 唯一标识，用于 Rust 进程管理和 agent 间路由 |
+| `id` | 唯一标识，用于进程内管理和 agent 间路由 |
 | `name` | 可读名称 |
-| `interpreter` | 解释器（目前仅 `python`） |
-| `script` | Agent 运行时脚本路径 |
-| `enabled` | 是否随 Rust 核心自动启动 |
+| `enabled` | 是否随系统自动启动 |
 | `scene` | 所属场景 ID |
+| `config` | Agent 配置参数 |
 
 ## 6. 场景指派
 

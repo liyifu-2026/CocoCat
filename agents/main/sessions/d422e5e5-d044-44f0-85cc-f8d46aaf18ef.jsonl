@@ -6,3 +6,9 @@
 {"role": "assistant", "content": "老实说，分两层看：\n\n**我直接可调用的（12个）：**\n\n| 工具 | 用途 |\n|------|------|\n| `define_dag` | 定义任务图 |\n| `dispatch_task` | 派任务给子代理 |\n| `check_tasks` | 查任务状态/结果 |\n| `append_stage` | 追加阶段 |\n| `update_dag` | 修改任务节点 |\n| `stop_task` | 取消任务 |\n| `pin` / `unpin` | 记忆存取 |\n| `recall` | 检索记忆 |\n| `record_experience` / `recall_experience` | 经验库 |\n| `todo_write` | 待办列表 |\n| `cron` / `wait` / `current_status` | 元操作 |\n\n**我不能直接调的（但子代理能）：**\n\n`read_file`、`write_file`、`edit_file`、`list_dir`、`bash`、`glob`、`grep`、`web_search`、`web_fetch`、`browser`\n\n这些执行类工具我必须通过 `dispatch_task` 派给子代理，它干完活我再用 `check_tasks` 收结果。所以我没办法直接帮你读文件、跑命令、搜网页 —— 但我可以一秒拆任务、派出去、跟踪进度。\n\n想试试来点什么？"}
 {"role": "user", "content": "啊"}
 {"role": "assistant", "content": "哈哈，是不是发现我和你之前想象的「助手」不太一样？\n\n简单说就是：**我是军师，不是兵。** 你下命令，我来拆解调度，活让后台的子代理去干。\n\n想试试派个活看看效果不？比如查查项目目录里有什么文件之类的。"}
+{"role": "user", "content": "1"}
+{"role": "assistant", "content": "收到。等你的指令呢 — 想查什么、建什么、改什么，直接说就行。"}
+{"role": "user", "content": "1"}
+{"role": "assistant", "content": "Leaif，收到你的信号了。不过别光发数字呀 😄 \n\n说吧，想让我调度点啥？查目录、搜东西、还是推进 B 站看板项目？"}
+{"role": "user", "content": "吐了"}
+{"role": "assistant", "content": "哈哈，抱歉让你绕晕了。咱来点干脆的。\n\n一句话：你想干啥？读文件、搜网页、写代码、跑命令 — 你直接说需求，我立马派活出去。不打哑谜了 👊"}

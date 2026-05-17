@@ -14,7 +14,7 @@ FastAPI 路由表。所有端点(除 `/api/auth/login`、`/api/auth/verify`)需�
 | POST | `/api/auth/login` | 登录,返回 JWT token |
 | GET | `/api/auth/verify` | 验证 token 有效性 |
 
-## Agent 管理 (`web/routes/agents.py`)
+## Agent 管理 (`cococat/routes/agents.py`)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -31,7 +31,7 @@ FastAPI 路由表。所有端点(除 `/api/auth/login`、`/api/auth/verify`)需�
 | GET | `/api/agents/{id}/display` | 获取显示配置 |
 | PUT | `/api/agents/{id}/display` | 更新显示配置 |
 
-## 场景管理 (`web/routes/scenes.py`)
+## 场景管理 (`cococat/routes/scenes.py`)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -51,7 +51,7 @@ FastAPI 路由表。所有端点(除 `/api/auth/login`、`/api/auth/verify`)需�
 | POST | `/api/scenes/{id}/chat` | 场景对话(外部入口) |
 | GET | `/api/scenes/{id}/users/{uid}/history` | 获取用户对话历史 |
 
-## 知识库 (`web/routes/knowledge.py`)
+## 知识库 (`cococat/routes/knowledge.py`)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -65,7 +65,7 @@ FastAPI 路由表。所有端点(除 `/api/auth/login`、`/api/auth/verify`)需�
 | DELETE | `/api/knowledge/{id}/wiki/{slug}` | 删除 Wiki 页面 |
 | GET | `/api/knowledge/{id}/search` | 搜索知识库 |
 
-## 聊天群组 (`web/routes/chat_groups.py`)
+## 聊天群组 (`cococat/routes/chat_groups.py`)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -76,7 +76,7 @@ FastAPI 路由表。所有端点(除 `/api/auth/login`、`/api/auth/verify`)需�
 | GET | `/api/chat/groups/{id}/messages` | 获取群消息 |
 | POST | `/api/chat/groups/{id}/messages` | 发送群消息 |
 
-## 邮箱 (`web/routes/mailbox.py`)
+## 邮箱 (`cococat/routes/mailbox.py`)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -84,7 +84,7 @@ FastAPI 路由表。所有端点(除 `/api/auth/login`、`/api/auth/verify`)需�
 | POST | `/api/mailbox/send` | 发送消息 |
 | PUT | `/api/mailbox/{agent_id}/read/{idx}` | 标记已读 |
 
-## Hiring (`web/main.py`)
+## Hiring (`cococat/app.py`)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -92,7 +92,7 @@ FastAPI 路由表。所有端点(除 `/api/auth/login`、`/api/auth/verify`)需�
 | POST | `/api/hiring/pending/{id}/approve` | 批准 hire |
 | POST | `/api/hiring/pending/{id}/reject` | 拒绝 hire |
 
-## 定时任务 (`web/routes/schedule.py`)
+## 定时任务 (`cococat/routes/schedule.py`)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -101,7 +101,7 @@ FastAPI 路由表。所有端点(除 `/api/auth/login`、`/api/auth/verify`)需�
 | PUT | `/api/schedule/{id}` | 更新定时任务 |
 | DELETE | `/api/schedule/{id}` | 删除定时任务 |
 
-## 状态 (`web/routes/status.py`)
+## 状态 (`cococat/routes/status.py`)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -109,13 +109,13 @@ FastAPI 路由表。所有端点(除 `/api/auth/login`、`/api/auth/verify`)需�
 | GET | `/api/status` | 系统总体状态 |
 | GET | `/api/usage` | Token 用量统计 |
 
-## 协作 (`web/routes/collaboration.py`)
+## 协作 (`cococat/routes/collaboration.py`)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/collaboration/graph` | 获取 agent 协作关系图 |
 
-## 入口 (`web/routes/entries.py`)
+## 入口 (`cococat/routes/entries.py`)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|

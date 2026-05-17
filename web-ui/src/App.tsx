@@ -12,7 +12,7 @@ import { KbChatProvider } from "@/lib/KbChatContext"
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/app">
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/chat" replace />} />

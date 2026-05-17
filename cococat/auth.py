@@ -52,15 +52,18 @@ def verify_password(password: str) -> bool:
 # ── Middleware ─────────────────────────────────────────────
 
 async def auth_middleware(request, call_next):
-    """FastAPI middleware: authenticate all requests except public paths."""
+    """FastAPI middleware: authenticate all requests except public paths.
+
+    If no API_KEY or JWT_SECRET is configured, auth is skipped entirely.
+    """
     path = request.url.path.rstrip("/")
 
     if path in PUBLIC_PATHS or path.startswith("/ws"):
         return await call_next(request)
 
-    for prefix in PUBLIC_PREFIXES:
-        if path.startswith(prefix):
-            return await call_next(request)
+    # Auth disabled — no credentials configured
+    if not API_KEY and JWT_SECRET == "change-me":
+        return await call_next(request)
 
     # Try Bearer token
     auth_header = request.headers.get("Authorization", "")

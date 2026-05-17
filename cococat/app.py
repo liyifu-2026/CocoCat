@@ -6,6 +6,7 @@ from cococat.core.event_bus import EventBus
 from cococat.core.agent_pool import AgentPool
 from cococat.routes.ws import WsManager
 from cococat.context import AppContext
+from cococat.auth import auth_middleware
 
 
 def create_app(db_path: str = "cococat.db") -> FastAPI:
@@ -45,6 +46,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     app = FastAPI(title="CocoCat", version="2.0.0", lifespan=lifespan)
 
     app.state.ctx = ctx
+    app.middleware("http")(auth_middleware)
 
     from cococat.routes.agents import router as agents_router
     from cococat.routes.scenes import router as scenes_router
@@ -73,6 +75,20 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     @app.get("/api/health")
     async def health():
         return {"status": "ok"}
+
+    @app.post("/api/auth/login")
+    async def login(request: Request):
+        from cococat.auth import create_access_token, verify_password
+        try:
+            body = await request.json()
+        except Exception:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=400, content={"detail": "Invalid JSON"})
+        if not verify_password(body.get("password", "")):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=401, content={"detail": "Incorrect password"})
+        token = create_access_token({"sub": "admin"})
+        return {"access_token": token, "token_type": "bearer"}
 
     return app
 

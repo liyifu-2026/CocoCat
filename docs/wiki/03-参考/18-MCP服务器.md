@@ -7,14 +7,14 @@ sidebar_position: 18
 
 MCP（Model Context Protocol）服务器将 CocoCat 的核心工具暴露给支持 MCP 的客户端（如 Claude Desktop）。
 
-定义于 `py-agent/mcp_server.py`。
+> **注意**: v2 中 MCP 服务器模块位于 `cococat/mcp/`，该模块可能尚未移植。以下为 v1 参考文档，v2 路径待确认。
 
 ## 启动模式
 
 ### Stdio 模式（Claude Desktop）
 
 ```bash
-python py-agent/mcp_server.py
+python -m cococat.mcp
 ```
 
 用于 Claude Desktop 的 MCP 配置：
@@ -24,7 +24,7 @@ python py-agent/mcp_server.py
   "mcpServers": {
     "cococat": {
       "command": "python",
-      "args": ["path/to/py-agent/mcp_server.py"]
+      "args": ["-m", "cococat.mcp"]
     }
   }
 }
@@ -33,7 +33,7 @@ python py-agent/mcp_server.py
 ### HTTP SSE 模式
 
 ```bash
-python py-agent/mcp_server.py --port 8080
+python -m cococat.mcp --port 8080
 ```
 
 启动 HTTP 服务器，SSE 端点 `/sse`，消息端点 `/messages`。
