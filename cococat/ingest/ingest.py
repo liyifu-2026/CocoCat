@@ -58,6 +58,26 @@ class IngestPipeline:
             return IngestResult(source_hash=content_hash, skipped=True,
                                written_files=cached)
 
+        # Extract and caption images from source
+        try:
+            from cococat.ingest.image import ImagePipeline
+            source_dir = os.path.dirname(src_path)
+            image_pipeline = ImagePipeline(vision_llm=self._llm, kb_dir=self._kb_dir)
+
+            images = image_pipeline.find_images(source_dir)
+            embedded_images = image_pipeline.extract_embedded_images(source_dir, filename)
+            images.extend(embedded_images)
+
+            for img_path in images:
+                caption = await image_pipeline.caption_image(img_path)
+                if caption:
+                    img_name = os.path.basename(img_path)
+                    source_content += f"\n\n[Image: {img_name}]\nCaption: {caption}\n"
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
         # Phase 1: Analysis
         analysis = await self._analyze(source_content, kb_name)
         if not analysis:
