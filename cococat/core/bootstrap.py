@@ -121,6 +121,16 @@ def _load_residents(ctx, factory, sub_executor, dag_store) -> None:
                 pass
         provider = provider or _create_stub_llm(model)
 
+        skills = cfg.get("skills", [])
+        if skills:
+            profile_dir = f"agents/{agent_id}"
+            os.makedirs(profile_dir, exist_ok=True)
+            profile_path = os.path.join(profile_dir, "profile.yaml")
+            if not os.path.exists(profile_path):
+                with open(profile_path, "w", encoding="utf-8") as f:
+                    yaml.dump({"skills": skills}, f, default_flow_style=False)
+                logger.info("Created %s with skills: %s", profile_path, skills)
+
         tools = create_resident_tools(
             sub_agent_executor=sub_executor.dispatch,
             dag_store=dag_store,
