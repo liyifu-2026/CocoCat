@@ -9,7 +9,7 @@ from typing import Any, Callable, Optional
 
 from cococat.core.sandbox_path import PathSandbox, wrap_tool_with_sandbox
 from cococat.prompt import build_system_prompt, load_memory_from_agent_dir, KB_AGENT_STATIC_PREFIX
-from cococat.skills import load_scene_skills
+from cococat.skills import resolve_skills, skills_to_prompt, skills_to_tools
 from cococat.profile import load_agent_system_prompt
 from cococat.core.session import Session, load_session, save_session_pair, maybe_trigger_dream
 from cococat.core.tools import create_core_tools
@@ -62,18 +62,28 @@ class Agent:
 
         memory_content, pinned = "", ""
         profile_text = ""
+        self._agent_skill_names: list[str] = []
         if agent_dir:
             memory_content, pinned = load_memory_from_agent_dir(agent_dir)
             profile_text = load_agent_system_prompt(agent_dir)
+            from cococat.profile import get_agent_skills
+            self._agent_skill_names = get_agent_skills(agent_dir)
 
         self._base_tools = tools or create_core_tools()
         self._scene_tools: list[dict] = []
         self._sandbox: Optional[PathSandbox] = None
 
+        # Load agent skills from profile
+        self._agent_skills = resolve_skills(self._agent_skill_names)
+        agent_skills_prompt = skills_to_prompt(self._agent_skills)
+        agent_skill_tools = skills_to_tools(self._agent_skills)
+        self._base_tools = list(self._base_tools) + agent_skill_tools
+
         self._system_prompt = system_prompt or build_system_prompt(
             agent_profile=name + ("\n" + profile_text if profile_text else ""),
             memory_content=memory_content,
             pinned_facts=pinned,
+            scene_skills=agent_skills_prompt,
             tools=self._base_tools,
             static_prefix=KB_AGENT_STATIC_PREFIX if id == "kb-agent" else None,
         )
@@ -101,17 +111,20 @@ class Agent:
 
         # Apply scene context + skills
         if scene_config:
-            all_tools = list(self._base_tools)
+            # Merge agent skills + scene skills (union, de-duplicated)
+            all_skill_names = list(dict.fromkeys(self._agent_skill_names + scene_config.skills))
+            merged_skills = resolve_skills(all_skill_names)
+            merged_prompt = skills_to_prompt(merged_skills)
+            merged_tools = skills_to_tools(merged_skills)
+
             self._system_prompt = build_system_prompt(
                 agent_profile=self.name,
                 scene_context=scene_config.context,
                 scene_kbs=scene_config.kbs,
-                scene_skills=scene_config.skills,
-                tools=all_tools,
+                scene_skills=merged_prompt,
+                tools=list(self._base_tools) + merged_tools,
             )
-            # Load scene skills from disk
-            self._scene_tools = load_scene_skills(scene_id) if scene_id else []
-            # Apply KB sandbox
+            self._scene_tools = merged_tools
             self._sandbox = PathSandbox(allowed_kbs=scene_config.kbs)
         else:
             self._sandbox = None
