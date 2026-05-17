@@ -1,6 +1,0 @@
-{
-  "mounted_kbs": [],
-  "assigned_agents": [],
-  "status": "pending_config",
-  "notes": "Set mounted_kbs and assigned_agents, then change status to 'ready'"
-}
