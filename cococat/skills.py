@@ -1,24 +1,27 @@
-"""Skills loader — reads .md skill files and creates executable tools."""
+"""Skills loader — reads .md skill files from skills/ directory."""
 
 from __future__ import annotations
 
 import logging
 import os
 import re
-from typing import Optional
+from typing import Any
 
 logger = logging.getLogger("cococat.skills")
 
-# YAML frontmatter pattern
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
+MAX_PROMPT_PER_SKILL = 4000
+MAX_TOOL_OUTPUT = 2000
 
-def load_skill_file(path: str) -> Optional[dict]:
-    """Load a skill .md file and return a tool definition.
 
-    Skill files can have optional YAML frontmatter with name/description.
-    If no frontmatter, the filename (minus .md) becomes the name.
+def load_skill(name: str, skills_dir: str = "skills") -> dict[str, Any] | None:
+    """Load a single skill from skills/{name}.md.
+
+    Returns dict with keys: id, name, description, tags, as_tool, body.
+    Returns None if file not found or unreadable.
     """
+    path = os.path.join(skills_dir, f"{name}.md")
     if not os.path.exists(path):
         return None
 
@@ -28,10 +31,10 @@ def load_skill_file(path: str) -> Optional[dict]:
     except OSError:
         return None
 
-    # Extract frontmatter
-    name = os.path.splitext(os.path.basename(path))[0]
-    description = raw[:200]
-    params = {}
+    display_name = name
+    description = raw[:200].strip()
+    tags: list[str] = []
+    as_tool = False
 
     match = _FRONTMATTER_RE.match(raw)
     if match:
@@ -39,56 +42,70 @@ def load_skill_file(path: str) -> Optional[dict]:
             import yaml
             fm = yaml.safe_load(match.group(1))
             if isinstance(fm, dict):
-                name = fm.get("name", name)
+                display_name = fm.get("name", display_name)
                 description = fm.get("description", description)
-                params = fm.get("parameters", {})
+                tags = fm.get("tags") or []
+                as_tool = bool(fm.get("as_tool", False))
         except Exception:
-            pass  # Use defaults
-        body = raw[match.end():]
+            pass
+        body = raw[match.end():].strip()
     else:
-        body = raw
+        body = raw.strip()
 
     return {
-        "name": name,
+        "id": name,
+        "name": display_name,
         "description": description[:500],
-        "parameters": params,
+        "tags": tags,
+        "as_tool": as_tool,
         "body": body,
     }
 
 
-def load_scene_skills(scene_id: str, skills_dir: str = "skills") -> list[dict]:
-    """Load all skills for a scene from skills/scenes/{scene_id}/ directory."""
-    scene_skills_dir = os.path.join(skills_dir, "scenes", scene_id)
-    if not os.path.isdir(scene_skills_dir):
-        return []
+def resolve_skills(names: list[str], skills_dir: str = "skills") -> list[dict[str, Any]]:
+    """Load multiple skills by name. Missing skills are skipped with a log warning."""
+    skills = []
+    for name in names:
+        s = load_skill(name, skills_dir)
+        if s:
+            skills.append(s)
+        else:
+            logger.warning("Skill '%s' not found in %s/", name, skills_dir)
+    return skills
 
+
+def skills_to_prompt(skills: list[dict[str, Any]]) -> str:
+    """Convert skill list to a system prompt block."""
+    if not skills:
+        return ""
+
+    lines = ["## Active Skills"]
+    for s in skills:
+        lines.append(f"\n### {s['id']}")
+        body = s["body"]
+        if len(body) > MAX_PROMPT_PER_SKILL:
+            body = body[:MAX_PROMPT_PER_SKILL] + "\n[...truncated]"
+        lines.append(body)
+
+    return "\n".join(lines)
+
+
+def skills_to_tools(skills: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return tool definitions for skills with as_tool == true."""
     tools = []
-    for fname in sorted(os.listdir(scene_skills_dir)):
-        if not fname.endswith(".md"):
+    for s in skills:
+        if not s.get("as_tool"):
             continue
-        path = os.path.join(scene_skills_dir, fname)
-        skill = load_skill_file(path)
-        if skill:
-            skill["execute"] = lambda p, ctx, body=skill["body"]: f"[Skill] {body[:1000]}"
-            tools.append(skill)
+        body = s["body"]
+        _body_ref = body
 
-    return tools
-
-
-def load_global_skills(skills_dir: str = "skills") -> list[dict]:
-    """Load all global skills from skills/public/ directory."""
-    public_dir = os.path.join(skills_dir, "public")
-    if not os.path.isdir(public_dir):
-        return []
-
-    tools = []
-    for fname in sorted(os.listdir(public_dir)):
-        if not fname.endswith(".md"):
-            continue
-        path = os.path.join(public_dir, fname)
-        skill = load_skill_file(path)
-        if skill:
-            skill["execute"] = lambda p, ctx, body=skill["body"]: f"[Skill] {body[:1000]}"
-            tools.append(skill)
-
+        tools.append({
+            "name": s["id"],
+            "description": s["description"],
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+            "execute": lambda p=None, ctx=None, b=_body_ref: b[:MAX_TOOL_OUTPUT],
+        })
     return tools

@@ -2,68 +2,95 @@
 import os
 import tempfile
 import pytest
-from cococat.skills import load_skill_file, load_scene_skills, load_global_skills
+from cococat.skills import load_skill, resolve_skills, skills_to_prompt, skills_to_tools
 
 
-def test_load_skill_file_with_frontmatter():
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-        f.write("---\nname: test_tool\ndescription: A test tool\n---\n\n# Body\nSome instructions.")
-        path = f.name
-
-    skill = load_skill_file(path)
-    assert skill is not None
-    assert skill["name"] == "test_tool"
-    assert "test tool" in skill["description"]
-    assert "# Body" in skill["body"]
-    os.unlink(path)
-
-
-def test_load_skill_file_no_frontmatter():
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-        f.write("# Just a markdown file\nWith some instructions.")
-        path = f.name
-
-    skill = load_skill_file(path)
-    assert skill is not None
-    assert skill["name"] != ""
-    os.unlink(path)
-
-
-def test_load_scene_skills():
+def test_load_skill_with_frontmatter():
     with tempfile.TemporaryDirectory() as d:
-        scene_dir = os.path.join(d, "scenes", "customer-service")
-        os.makedirs(scene_dir)
-        with open(os.path.join(scene_dir, "refund_procedure.md"), "w") as f:
-            f.write("---\nname: refund_procedure\ndescription: Refund\n---\n# Body")
+        md = os.path.join(d, "code_review.md")
+        with open(md, "w", encoding="utf-8") as f:
+            f.write("---\nname: Code Review\ndescription: Review code\n"
+                    "tags: [development, review]\nas_tool: true\n---\n\n# Review\nBody here.")
 
-        tools = load_scene_skills("customer-service", skills_dir=d)
-        names = {t["name"] for t in tools}
-        assert "refund_procedure" in names
+        skill = load_skill("code_review", skills_dir=d)
+        assert skill is not None
+        assert skill["id"] == "code_review"
+        assert skill["name"] == "Code Review"
+        assert skill["description"] == "Review code"
+        assert skill["tags"] == ["development", "review"]
+        assert skill["as_tool"] is True
+        assert "Body here" in skill["body"]
+        assert "---" not in skill["body"]
 
 
-def test_load_scene_skills_nonexistent():
-    tools = load_scene_skills("nonexistent-scene")
-    assert tools == []
-
-
-def test_load_global_skills():
+def test_load_skill_no_frontmatter():
     with tempfile.TemporaryDirectory() as d:
-        public_dir = os.path.join(d, "public")
-        os.makedirs(public_dir)
-        with open(os.path.join(public_dir, "test_skill.md"), "w") as f:
-            f.write("---\nname: test_skill\ndescription: A global skill\n---\n# Body")
+        md = os.path.join(d, "hello.md")
+        with open(md, "w", encoding="utf-8") as f:
+            f.write("# Just a markdown file\nInstructions here.")
 
-        tools = load_global_skills(skills_dir=d)
-        names = {t["name"] for t in tools}
-        assert "test_skill" in names
-
-
-def test_load_global_skills_empty():
-    with tempfile.TemporaryDirectory() as d:
-        tools = load_global_skills(skills_dir=d)
-        assert tools == []
+        skill = load_skill("hello", skills_dir=d)
+        assert skill is not None
+        assert skill["id"] == "hello"
+        assert skill["name"] == "hello"
+        assert "Instructions" in skill["description"]
+        assert skill["tags"] == []
+        assert skill["as_tool"] is False
+        assert "# Just a markdown file" in skill["body"]
 
 
-def test_load_skill_file_nonexistent():
-    skill = load_skill_file("/nonexistent/skill.md")
+def test_load_skill_nonexistent():
+    skill = load_skill("nonexistent", skills_dir="/tmp/nope")
     assert skill is None
+
+
+def test_resolve_skills():
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "a.md"), "w", encoding="utf-8") as f:
+            f.write("---\nname: A\n---\n\n# A body")
+        with open(os.path.join(d, "b.md"), "w", encoding="utf-8") as f:
+            f.write("# B body")
+
+        skills = resolve_skills(["a", "b", "missing"], skills_dir=d)
+        assert len(skills) == 2
+        ids = {s["id"] for s in skills}
+        assert ids == {"a", "b"}
+
+
+def test_resolve_skills_empty():
+    skills = resolve_skills([], skills_dir="/tmp/nope")
+    assert skills == []
+
+
+def test_skills_to_prompt():
+    skills = [
+        {"id": "a", "name": "A", "description": "...", "tags": [], "as_tool": False, "body": "Skill A body\nLine 2"},
+        {"id": "b", "name": "B", "description": "...", "tags": ["x"], "as_tool": False, "body": "Skill B body"},
+    ]
+    prompt = skills_to_prompt(skills)
+    assert "## Active Skills" in prompt
+    assert "### a" in prompt
+    assert "Skill A body" in prompt
+    assert "### b" in prompt
+    assert "Skill B body" in prompt
+
+
+def test_skills_to_prompt_empty():
+    assert skills_to_prompt([]) == ""
+
+
+def test_skills_to_tools():
+    skills = [
+        {"id": "a", "name": "A", "description": "Desc A", "tags": [], "as_tool": True, "body": "A body"},
+        {"id": "b", "name": "B", "description": "Desc B", "tags": [], "as_tool": False, "body": "B body"},
+        {"id": "c", "name": "C", "description": "Desc C", "tags": [], "as_tool": True, "body": "C body"},
+    ]
+    tools = skills_to_tools(skills)
+    assert len(tools) == 2
+    names = {t["name"] for t in tools}
+    assert names == {"a", "c"}
+    assert "Desc A" in [t["description"] for t in tools]
+
+
+def test_skills_to_tools_empty():
+    assert skills_to_tools([]) == []
