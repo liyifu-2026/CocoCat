@@ -1,9 +1,9 @@
 """Skills routes."""
 import os
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Query
 from pydantic import BaseModel
 
-from cococat.skills import load_global_skills, load_scene_skills, load_skill_file
+from cococat.skills import load_skill, resolve_skills
 
 router = APIRouter(prefix="/api/skills", tags=["skills"])
 
@@ -14,56 +14,50 @@ class SkillCreate(BaseModel):
 
 
 @router.get("")
-async def list_skills(request: Request):
-    """List all skills (global + per-scene)."""
-    global_skills = load_global_skills()
-    result = {"global": []}
+async def list_skills(request: Request, tag: str | None = Query(None)):
+    """List all skills from skills/ directory. Optional tag filter."""
+    skills_dir = "skills"
+    result: list[dict] = []
 
-    for s in global_skills:
-        result["global"].append({"name": s["name"], "description": s["description"][:100]})
+    if not os.path.isdir(skills_dir):
+        return {"skills": result}
 
-    # Scene skills
-    scenes_dir = "skills/scenes"
-    if os.path.isdir(scenes_dir):
-        for scene_id in os.listdir(scenes_dir):
-            skipath = os.path.join(scenes_dir, scene_id)
-            if os.path.isdir(skipath):
-                scene = load_scene_skills(scene_id)
-                if scene:
-                    result.setdefault("scenes", {})
-                    result["scenes"][scene_id] = [
-                        {"name": s["name"], "description": s["description"][:100]}
-                        for s in scene
-                    ]
+    for fname in sorted(os.listdir(skills_dir)):
+        if not fname.endswith(".md"):
+            continue
+        name = fname[:-3]
+        s = load_skill(name)
+        if not s:
+            continue
+        if tag and tag not in s.get("tags", []):
+            continue
+        result.append({
+            "name": s["name"],
+            "id": s["id"],
+            "description": s["description"][:100],
+            "tags": s.get("tags", []),
+            "as_tool": s.get("as_tool", False),
+        })
 
-    return result
+    return {"skills": result}
 
 
 @router.get("/{skill_name}")
 async def get_skill(skill_name: str):
-    """Read a skill's markdown content."""
-    # Search global
-    path = os.path.join("skills", "public", f"{skill_name}.md")
-    if not os.path.exists(path):
-        # Search scene skills
-        for scene_dir in ["skills/scenes"]:
-            if not os.path.isdir(scene_dir):
-                continue
-            for scene_id in os.listdir(scene_dir):
-                sp = os.path.join(scene_dir, scene_id, f"{skill_name}.md")
-                if os.path.exists(sp):
-                    path = sp
-                    break
-
+    """Read a single skill's markdown content."""
+    path = os.path.join("skills", f"{skill_name}.md")
     if not os.path.exists(path):
         return {"error": "not found"}, 404
 
-    skill = load_skill_file(path)
+    skill = load_skill(skill_name)
     if not skill:
         return {"error": "failed to load"}, 500
 
     return {
+        "id": skill["id"],
         "name": skill["name"],
         "description": skill["description"],
+        "tags": skill["tags"],
+        "as_tool": skill["as_tool"],
         "body": skill["body"],
     }
