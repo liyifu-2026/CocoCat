@@ -4,39 +4,14 @@ from __future__ import annotations
 
 import datetime
 import os
-from typing import Optional
+from typing import Any, Optional
 
 from cococat.kb.service import get_kb_service
 
-STATIC_PREFIX = """You are Coco — a task orchestrator. You have NO execution tools. You plan and dispatch. You NEVER fake actions.
 
-## YOUR ACTUAL TOOLS — Only DAG + Memory + Meta
+# ── Behavior rules (static, no tool list) ──────────────────
 
-You have NO read_file. NO list_dir. NO web_search. NO web_fetch.
-
-**DAG Orchestration (YOUR ONLY action tools):**
-- define_dag(yaml) — Create a task graph. Sub-agents execute tasks.
-- dispatch_task(run_id, task_id, prompt) — Fire a task. Write clear prompts telling the sub-agent which tools and params to use.
-- check_tasks() — Get status and RESULTS of all dispatched tasks. ALWAYS call when user asks progress.
-- append_stage(run_id, stage_yaml) — Add a stage.
-- update_dag(run_id, path, value) — Update a node.
-- stop_task(task_id) — Cancel a task.
-
-**Memory & Meta:**
-- pin(fact) / unpin(keyword) — Remember/forget.
-- recall(query) — FTS5 memory search.
-- record_experience(category, entry) / recall_experience(category) — Knowledge base.
-- todo_write(todos) — Your task list.
-- cron(schedule, task) / wait(seconds) / current_status() — Meta.
-
-## WHAT SUB-AGENTS CAN DO (You Cannot — They Execute Through DAG)
-
-Sub-agents have FULL execution tools: read_file, write_file, edit_file, list_dir, bash, glob, grep, web_search, web_fetch, browser.
-
-When writing dispatch_task prompts, tell the sub-agent EXACTLY which tool to use:
-  "Use read_file to read src/main.py and return the first 50 lines"
-  "Use web_search to find the latest React documentation on hooks"
-  "Use bash to run pytest and return the output"
+COCO_BEHAVIOR_RULES = """You are Coco — a task orchestrator. You have NO execution tools. You plan and dispatch. You NEVER fake actions.
 
 ## WHAT YOU CANNOT DO
 
@@ -123,36 +98,11 @@ CRITICAL: After check_tasks, if tasks are still running → ONLY report status. 
 - Always prefer dispatching over giving up. If you don't know how to do something, dispatch a task with a detailed prompt.
 """
 
-
-KB_AGENT_STATIC_PREFIX = """You are kb-agent — a Knowledge Base Administrator.
+KB_AGENT_BEHAVIOR_RULES = """You are kb-agent — a Knowledge Base Administrator.
 
 ## YOUR ROLE
 
 You manage knowledge bases. You receive source materials, break them down, and inject organized knowledge into wiki pages. You also perform regular maintenance: deduplication, linting, and overview generation.
-
-## YOUR TOOLS
-
-**Read & Search:**
-- search_kb(kb_name, query) — Full-text search across wiki pages
-- read_wiki(kb_name, type, slug) — Read a specific wiki page
-- list_kbs() — List all available knowledge bases
-- get_graph(kb_name) — Knowledge graph with insights (connections, gaps, bridges)
-
-**Write & Maintain (you have full write access):**
-- write_wiki(kb_name, type, slug, content, title) — Create or update a wiki page
-- run_dedup(kb_name) — Run the 3-stage deduplication pipeline
-- run_lint(kb_name) — Health check: orphan pages, broken wikilinks, missing frontmatter
-- gen_overview(kb_name) — Generate/refresh the KB global overview
-- cascade_del(kb_name, source_filename) — Delete a source and all its wiki pages
-
-**Execution:**
-- call_worker(task) — Delegate heavy computation to a worker agent
-
-**Memory & Meta:**
-- pin(fact) / unpin(keyword) — Remember/forget facts
-- recall(query) — Search memory
-- todo_write(todos) — Manage your task list
-- wait(seconds) / current_status() — Meta tools
 
 ## WORKFLOW WHEN RECEIVING MATERIAL
 
@@ -178,6 +128,42 @@ You run periodic maintenance automatically:
 5. When asked to process a file, use call_worker for the two-phase ingest pipeline.
 """
 
+# Backward-compat alias (used by routes/agents.py for API display)
+STATIC_PREFIX = COCO_BEHAVIOR_RULES
+KB_AGENT_STATIC_PREFIX = KB_AGENT_BEHAVIOR_RULES
+
+
+# ── Tool section generator ─────────────────────────────────
+
+def build_tool_section(tools: list[dict[str, Any]]) -> str:
+    """Generate tool descriptions from actual Tool objects."""
+    if not tools:
+        return ""
+    lines = []
+    for t in tools:
+        name = t.get("name", t["name"]) if isinstance(t, dict) else t.name
+        desc = t.get("description", "") if isinstance(t, dict) else t.description
+        # Shorten description to one line
+        short = desc.split("\n")[0][:80]
+        lines.append(f"- {name} — {short}")
+    return "\n".join(lines)
+
+
+def build_sub_agent_section() -> str:
+    """Describe what sub-agents can do (generated from core tools)."""
+    from cococat.core.tools import create_core_tools
+    all_tools = create_core_tools()
+    # Exclude DAG + memory + meta tools (sub-agents don't get those)
+    exec_tools = [t for t in all_tools if t["name"] not in (
+        "define_dag", "append_stage", "update_dag", "dispatch_task", "check_tasks", "stop_task",
+        "pin", "unpin", "recall", "record_experience", "recall_experience",
+        "todo_write", "cron", "wait", "current_status",
+    )]
+    names = [t["name"] for t in exec_tools]
+    return f"Sub-agents have FULL execution tools: {', '.join(names)}."
+
+
+# ── Prompt assembly ────────────────────────────────────────
 
 def build_system_prompt(
     agent_profile: str = "",
@@ -188,14 +174,23 @@ def build_system_prompt(
     pinned_facts: str = "",
     workspace: str = "workspace",
     static_prefix: str | None = None,
+    tools: list[dict[str, Any]] | None = None,
 ) -> str:
     """Build a complete system prompt with static prefix + dynamic suffix.
 
     The static prefix is cacheable by LLMs (Anthropic prompt cache, KV cache).
     The dynamic suffix varies per session.
-    If static_prefix is provided, it overrides the default STATIC_PREFIX.
+    If static_prefix is provided, it overrides the default COCO_BEHAVIOR_RULES.
+    If tools is provided, generates tool section from actual Tool objects.
     """
-    parts = [static_prefix if static_prefix else STATIC_PREFIX]
+    prefix = static_prefix or COCO_BEHAVIOR_RULES
+    parts = [prefix]
+
+    # ── Tool section (dynamic, from actual tools) ──
+    if tools:
+        tools_text = build_tool_section(tools)
+        sub_text = build_sub_agent_section()
+        parts.append(f"\n## YOUR ACTUAL TOOLS\n\n{tools_text}\n\n## WHAT SUB-AGENTS CAN DO\n\n{sub_text}")
 
     # ── Dynamic suffix (per-session) ──
 
@@ -212,8 +207,7 @@ def build_system_prompt(
             parts.append(kb_overview)
 
     if scene_skills:
-        skills_text = "\n".join(f"- {s}" for s in scene_skills)
-        parts.append(f"\n## Scene Skills\n{skills_text}")
+        parts.append(f"\n{scene_skills}")
 
     if memory_content:
         parts.append(f"\n## Memory\n{memory_content}")
