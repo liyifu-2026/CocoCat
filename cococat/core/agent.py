@@ -96,7 +96,7 @@ def load_agent_config(
 
 
 def _resolve_session_path(agent_dir: str, session_id: str) -> str:
-    if session_id and session_id != "default":
+    if session_id:
         sessions_dir = os.path.join(agent_dir, "sessions")
         os.makedirs(sessions_dir, exist_ok=True)
         return os.path.join(sessions_dir, f"{session_id}.jsonl")
@@ -119,7 +119,7 @@ async def run_agent(
     """Execute ReAct loop: history → iterate LLM → execute tools → persist → dream."""
     context = ToolContext()
     context.agent_id = config.id
-    context.agent_dir = config.agent_dir
+    context.agent_dir = config.agent_dir or f"agents/{config.id}"
     context.role = config.role
     context.bound_scene = None  # agents created per scene, no dynamic binding
 
