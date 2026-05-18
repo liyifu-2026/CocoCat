@@ -78,14 +78,23 @@ class SetKeyRequest(BaseModel):
 
 @router.get("/settings")
 async def get_settings():
-    """Return API key status and current workspace."""
+    """Return API key status, max iterations, and current workspace."""
     from cococat.core.workspace import WorkspaceManager
     env_vars = _read_env()
 
     keys = []
     for spec in KNOWN_KEYS:
         env_key = spec["env_key"]
+        # Check env var, .env file, and auth.json
         has_key = bool(env_vars.get(env_key) or os.environ.get(env_key))
+        if not has_key:
+            try:
+                import json
+                with open("config/auth.json", encoding="utf-8") as f:
+                    auth = json.load(f)
+                has_key = bool(auth.get(spec["name"]))
+            except Exception:
+                pass
         keys.append({
             "name": spec["name"],
             "env_key": env_key,
@@ -94,9 +103,11 @@ async def get_settings():
         })
 
     ws = WorkspaceManager()
+    max_iter = int(os.environ.get("COCOCAT_MAX_ITERATIONS", "30"))
     return {
         "keys": keys,
         "workspace": str(ws.path),
+        "max_iterations": max_iter,
     }
 
 
@@ -118,6 +129,21 @@ async def set_api_key(req: SetKeyRequest):
 
 class SetWorkspaceRequest(BaseModel):
     value: str
+
+
+class SetMaxIterationsRequest(BaseModel):
+    value: int
+
+
+@router.put("/settings/max-iterations")
+async def set_max_iterations(req: SetMaxIterationsRequest):
+    """Save max iterations to .env file."""
+    if req.value < 1:
+        raise HTTPException(status_code=400, detail="Must be >= 1")
+    val = str(req.value)
+    _write_env({"COCOCAT_MAX_ITERATIONS": val})
+    os.environ["COCOCAT_MAX_ITERATIONS"] = val
+    return {"saved": True, "max_iterations": req.value}
 
 
 @router.put("/settings/workspace")

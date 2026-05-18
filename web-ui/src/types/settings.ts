@@ -71,6 +71,8 @@ export interface TabData {
   kbs?: { id: string; purpose?: string }[]
   channels?: { channel_type: string; target_type: string; target_id: string; status: string }[]
   workspace?: string
+  keys?: { name: string; label: string; has_key: boolean }[]
+  max_iterations?: number
 }
 
 export interface SettingsModalProps {
