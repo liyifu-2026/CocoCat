@@ -1,5 +1,6 @@
-"""DAG routes — list runs and run detail."""
+"""DAG routes — list runs, run detail, delete."""
 import os
+import shutil
 import logging
 
 import yaml
@@ -56,3 +57,38 @@ async def get_dag_run(run_id: str):
         raise HTTPException(status_code=500, detail=f"Error reading DAG: {e}")
 
     return data
+
+
+@router.delete("/dag/{run_id}")
+async def delete_dag_run(run_id: str):
+    """Delete a DAG run directory."""
+    dag_dir = _dag_dir()
+    run_path = os.path.join(dag_dir, run_id)
+    if not os.path.exists(run_path):
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+    shutil.rmtree(run_path)
+    return {"status": "deleted", "run_id": run_id}
+
+
+@router.delete("/dag")
+async def delete_dag_by_session(session_id: str = Query(...)):
+    """Delete all DAG runs for a session."""
+    dag_dir = _dag_dir()
+    if not os.path.isdir(dag_dir):
+        return {"status": "no_dags", "deleted": 0}
+    
+    deleted = 0
+    for run_dir in sorted(os.listdir(dag_dir)):
+        dag_path = os.path.join(dag_dir, run_dir, "dag.yaml")
+        if not os.path.exists(dag_path):
+            continue
+        try:
+            with open(dag_path, encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            if data.get("session_id") == session_id:
+                shutil.rmtree(os.path.join(dag_dir, run_dir))
+                deleted += 1
+        except (yaml.YAMLError, OSError):
+            continue
+    
+    return {"status": "deleted", "count": deleted}

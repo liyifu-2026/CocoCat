@@ -123,7 +123,7 @@ def _update_dag(run_id: str, path: str, value: str, ctx: ToolContext) -> str:
     return f"Updated '{path}' to '{value}' in run '{run_id}'"
 
 
-async def _dispatch_task(run_id: str, task_id: str, prompt: str, ctx: ToolContext) -> str:
+async def _dispatch_task(run_id: str, task_id: str, prompt: str, ctx: ToolContext, title: str | None = None) -> str:
     ctx = _resolve(ctx)
     if not run_id:
         return "Error: 'run_id' is required"
@@ -158,9 +158,12 @@ async def _dispatch_task(run_id: str, task_id: str, prompt: str, ctx: ToolContex
 
     task_node["status"] = "pending"
     task_node["prompt"] = prompt
+    if title:
+        task_node["title"] = title
     _save_dag(run_id, data, store)
 
-    return f"Task '{task_id}' dispatched in run '{run_id}' — will execute in background"
+    display = title or task_id
+    return f"Task '{display}' dispatched in run '{run_id}' — will execute in background"
 
 
 async def _execute_pending_dag_task(store: DagStore, executor: callable) -> int:

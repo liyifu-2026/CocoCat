@@ -140,7 +140,11 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
 
   const newSession = () => { store.newSession(); ctrl.clear() }
 
-  const deleteSession = (id: string) => { store.deleteSession(id) }
+  const deleteSession = (id: string) => {
+    store.deleteSession(id)
+    // Also delete associated DAG runs on server
+    fetch(`/api/dag?session_id=${id}`, { method: "DELETE" }).catch(() => {})
+  }
 
   const jumpToDagSession = (sessionId: string | undefined) => {
     if (!sessionId) return
