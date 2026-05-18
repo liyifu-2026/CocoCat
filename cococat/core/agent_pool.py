@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from cococat.core.agent import AgentRole, AgentState
+from cococat.core.agent import AgentRole
 
 if TYPE_CHECKING:
     from cococat.core.event_bus import EventBus
@@ -17,8 +17,7 @@ logger = logging.getLogger("cococat.agent_pool")
 class AgentPool:
     """Manages a pool of Agent instances.
 
-    - Tracks agent states (idle/working)
-    - Handles scene binding/unbinding
+    - Tracks agent states
     - Provides free sub-agent lookup
     """
 
@@ -47,7 +46,7 @@ class AgentPool:
         """Return all idle worker agents."""
         return [
             a for a in self._agents.values()
-            if a.role == AgentRole.WORKER and a.state == AgentState.IDLE
+            if a.role == AgentRole.WORKER
         ]
 
     def get_residents(self) -> list[Agent]:
@@ -68,26 +67,4 @@ class AgentPool:
         """List all agents in the pool."""
         return list(self._agents.values())
 
-    def bind_to_scene(self, agent_id: str, scene_id: str) -> bool:
-        """Bind a sub agent to a scene. Returns False if agent is main AI or not found."""
-        agent = self._agents.get(agent_id)
-        if not agent:
-            return False
-        try:
-            agent.bind_to_scene(scene_id)
-            return True
-        except ValueError:
-            return False
 
-    def unbind(self, agent_id: str) -> None:
-        """Unbind an agent from its scene."""
-        agent = self._agents.get(agent_id)
-        if agent:
-            agent.unbind()
-
-    def get_scene_agent(self, scene_id: str) -> Agent | None:
-        """Find the agent currently bound to a scene."""
-        for a in self._agents.values():
-            if a.bound_scene == scene_id:
-                return a
-        return None
