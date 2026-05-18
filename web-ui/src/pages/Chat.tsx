@@ -91,18 +91,37 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
   }, [store, ctrl, isKb, kbName])
 
   useEffect(() => {
-    return onMessage("dag.completed", (data) => {
+    return onMessage("dag.completed", async (data) => {
       if (!data?.session_id || data.session_id !== currentIdRef.current) return
       if (ctrl.streaming) return
       // Show system notification in chat
       const taskCount = (data as any).task_count || 0
       store.addAssistantMessage(`📋 已派发 ${taskCount} 个后台任务均已完成，正在汇总结果...`, 
         { dagRunIds: (data as any).run_id ? [(data as any).run_id as string] : undefined })
-      // Auto-trigger Coco to report
+      // Silently trigger Coco
       const triggerMsg = `check_tasks for run ${(data as any).run_id || ""} and summarize the results. The user is waiting.`
-      sendMessage(triggerMsg)
+      const body: Record<string, string | undefined> = {
+        content: triggerMsg,
+        user_id: "local",
+        session_id: currentIdRef.current,
+      }
+      if (isKb && kbName) body.kb_name = kbName
+      const api = isKb ? "/api/kb-chat" : "/api/chat"
+      try {
+        const resp = await fetch(api, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+        const d = await resp.json()
+        const reply = d.reply || "(no response)"
+        const snap = ctrl.snapshot()
+        store.addAssistantMessage(reply, snap)
+      } catch (e) {
+        store.addAssistantMessage("Error: " + String(e))
+      }
     })
-  }, [onMessage, store, ctrl, sendMessage])
+  }, [onMessage, store, ctrl, isKb, kbName])
 
   // Clear streaming state when switching sessions
   useEffect(() => {
