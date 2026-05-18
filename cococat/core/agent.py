@@ -3,19 +3,96 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional
 
 from cococat.core.sandbox_path import PathSandbox, wrap_tool_with_sandbox
 from cococat.prompt import build_system_prompt, load_memory_from_agent_dir, KB_AGENT_STATIC_PREFIX
 from cococat.skills import resolve_skills, skills_to_prompt, skills_to_tools
-from cococat.profile import load_agent_system_prompt
+from cococat.profile import load_agent_system_prompt, get_agent_skills
 from cococat.core.session import Session, load_session, save_session_pair, maybe_trigger_dream
 from cococat.core.tools import create_core_tools
 from cococat.core.tool_executor import make_assistant_msg, execute_tool_calls
 from cococat.providers.base import ToolCallRequest
 from cococat.core.types import ToolContext
+
+
+@dataclass(frozen=True)
+class AgentConfig:
+    """Agent 的不可变配置——所有构建在创建时一次性完成。"""
+    id: str
+    name: str
+    role: str                     # "resident" | "worker"
+    system_prompt: str
+    tools: list = field(default_factory=list)
+    agent_dir: str = ""
+
+
+def load_agent_config(
+    agent_dir: str,
+    *,
+    base_tools: list | None = None,
+    scene_config = None,
+    is_kb_agent: bool = False,
+) -> AgentConfig:
+    """加载 profile / memory / skills → 合并 → 不可变 AgentConfig。"""
+    name = "agent"
+    profile_text = ""
+    memory_content, pinned = "", ""
+
+    if agent_dir and os.path.isdir(agent_dir):
+        profile_text = load_agent_system_prompt(agent_dir)
+        memory_content, pinned = load_memory_from_agent_dir(agent_dir)
+        skill_names = get_agent_skills(agent_dir)
+        # 从 profile.yaml 提取 agent name
+        profile_path = os.path.join(agent_dir, "profile.yaml")
+        if os.path.exists(profile_path):
+            import yaml
+            try:
+                with open(profile_path, encoding="utf-8") as f:
+                    data = yaml.safe_load(f)
+                if isinstance(data, dict) and data.get("name"):
+                    name = data["name"]
+            except Exception:
+                pass
+    else:
+        skill_names = []
+
+    agent_skills = resolve_skills(skill_names)
+
+    if scene_config and hasattr(scene_config, 'skills') and scene_config.skills:
+        all_names = list(dict.fromkeys(skill_names + scene_config.skills))
+        merged_skills = resolve_skills(all_names)
+    else:
+        merged_skills = agent_skills
+
+    skill_tools = skills_to_tools(merged_skills)
+    skill_prompt = skills_to_prompt(merged_skills)
+
+    tools = list(base_tools or [])
+    tools += skill_tools
+
+    agent_profile_str = name + ("\n" + profile_text if profile_text else "")
+    system_prompt = build_system_prompt(
+        agent_profile=agent_profile_str,
+        memory_content=memory_content,
+        pinned_facts=pinned,
+        scene_context=scene_config.context if scene_config else "",
+        scene_kbs=scene_config.kbs if scene_config else [],
+        scene_skills=skill_prompt,
+        tools=tools,
+        static_prefix=KB_AGENT_STATIC_PREFIX if is_kb_agent else None,
+    )
+
+    return AgentConfig(
+        id=os.path.basename(agent_dir.rstrip("/")) if agent_dir else "agent",
+        name=name,
+        role=scene_config and "worker" or "worker",
+        system_prompt=system_prompt,
+        tools=tools,
+        agent_dir=agent_dir,
+    )
 
 
 class AgentState(Enum):
