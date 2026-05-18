@@ -6,7 +6,6 @@ import { SceneAvatar } from "./SceneAvatar"
 import { useTheme } from "@/context/ThemeContext"
 import { useSidebar } from "@/context/SidebarContext"
 import { useT } from "@/context/LanguageContext"
-import { useDialogActions } from "@/context/DialogContext"
 import { Sun, Moon, Plus, PanelRight, Settings, Layers, Bot, Book, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -19,11 +18,13 @@ export function SceneRail({ onOpenSettings }: SceneRailProps) {
   const location = useLocation()
   const { theme, toggleTheme } = useTheme()
   const { collapsed, toggle } = useSidebar()
-  const { openImportScene } = useDialogActions()
+  
   const [hovered, setHovered] = useState(false)
 
   const { data } = useQuery({ queryKey: ["scenes"], queryFn: () => fetch("/api/scenes").then(r => r.json()) })
-  const scenes: { id: string }[] = (data as { scenes: { id: string }[] })?.scenes ?? []
+  const scenes: { id: string; name: string; status: string }[] = Array.isArray(data)
+    ? data
+    : (data as { scenes: { id: string; name: string; status: string }[] })?.scenes ?? []
 
   const activeSceneId = location.pathname.match(/^\/scenes\/([^/]+)/)?.[1]
 
@@ -75,38 +76,48 @@ export function SceneRail({ onOpenSettings }: SceneRailProps) {
       <div className="w-6 border-t border-sidebar-border my-0.5" />
 
       <nav className="flex-1 flex flex-col items-center gap-1.5 overflow-y-auto w-full px-1.5">
-        {scenes.map((scene, i) => (
-          <NavLink
-            key={scene.id}
-            to={`/scenes/${scene.id}`}
-            onClick={() => { if (collapsed) toggle() }}
-            className={({ isActive }) => cn(
-              "flex items-center gap-2.5 rounded-lg transition-all duration-200 w-full px-1.5 py-1 stagger-1",
-              isActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
-            )}
-            title={hovered ? undefined : scene.id}
-            style={{ animationDelay: `${i * 0.04}s` }}
-          >
-            <SceneAvatar id={scene.id} size={activeSceneId === scene.id ? "md" : "sm"} />
-            <span className={cn(
-              "text-xs text-sidebar-foreground truncate font-medium transition-opacity duration-200",
-              hovered ? "opacity-100 delay-75" : "opacity-0 delay-0",
-            )}>{scene.id}</span>
-          </NavLink>
-        ))}
-        <button
-          onClick={openImportScene}
+        {scenes.map((scene, i) => {
+          const statusColors: Record<string, string> = {
+            running: "bg-green-400",
+            paused: "bg-yellow-400",
+            archived: "bg-gray-400",
+          }
+          return (
+            <NavLink
+              key={scene.id}
+              to={`/scenes/${scene.id}`}
+              onClick={() => { if (collapsed) toggle() }}
+              className={({ isActive }) => cn(
+                "flex items-center gap-2.5 rounded-lg transition-all duration-200 w-full px-1.5 py-1 stagger-1",
+                isActive
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
+              )}
+              title={hovered ? undefined : scene.name || scene.id}
+              style={{ animationDelay: `${i * 0.04}s` }}
+            >
+              <SceneAvatar id={scene.id} size={activeSceneId === scene.id ? "md" : "sm"} />
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusColors[scene.status] || "bg-gray-300"}`} />
+                <span className={cn(
+                  "text-xs text-sidebar-foreground truncate font-medium transition-opacity duration-200",
+                  hovered ? "opacity-100 delay-75" : "opacity-0 delay-0",
+                )}>{scene.name || scene.id}</span>
+              </div>
+            </NavLink>
+          )
+        })}
+        <NavLink
+          to="/scenes/new"
           className="flex items-center justify-center gap-2 w-full text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg py-1.5 mt-0.5 transition-all duration-200"
-          title={t("import_create.title")}
+          title={t("component.new_scene")}
         >
           <Plus className="size-4 shrink-0" />
           <span className={cn(
             "text-xs transition-opacity duration-200",
             hovered ? "opacity-100 delay-75" : "opacity-0 delay-0",
           )}>{t("component.new_scene")}</span>
-        </button>
+        </NavLink>
       </nav>
 
       <div className="w-6 border-t border-sidebar-border my-0.5" />

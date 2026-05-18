@@ -104,3 +104,27 @@ async def get_ctx(request: Request) -> AppContext:
 def _seed_defaults(db: Database) -> None:
     """Seed default data if tables are empty."""
     db.agents.seed_main()
+    _seed_scenes_from_yaml(db)
+
+
+def _seed_scenes_from_yaml(db: Database) -> None:
+    from cococat.scene.config import list_scenes
+    existing = {r["id"] for r in db._conn.execute("SELECT id FROM scenes").fetchall()}
+    for sc in list_scenes():
+        if sc.id in existing:
+            continue
+        db.scenes.create_full({
+            "id": sc.id,
+            "name": sc.name or sc.id,
+            "description": "",
+            "context": sc.context,
+            "agent_id": None,
+            "status": "running",
+            "purpose": "",
+            "kbs": sc.kbs,
+            "skills": sc.skills,
+            "tools": [],
+            "channels": sc.channels,
+            "llm_config": {},
+            "visibility": "private",
+        })
