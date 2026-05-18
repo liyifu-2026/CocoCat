@@ -5,7 +5,7 @@ from cococat.db import Database
 from cococat.core.event_bus import EventBus
 from cococat.core.agent_pool import AgentPool
 from cococat.routes.ws import WsManager
-from cococat.context import AppContext
+from cococat.context import AppContext, set_ctx_static
 from cococat.auth import auth_middleware
 
 
@@ -19,6 +19,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     pool = AgentPool(bus)
 
     ctx = AppContext(db=db, bus=bus, pool=pool, ws_manager=WsManager())
+    set_ctx_static(ctx)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -38,6 +39,9 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
         cron_worker = CronWorker(pool, sub_executor=sub_exec)
         await cron_worker.start()
         app.state.ctx.cron_worker = cron_worker
+
+        from cococat.routes.channels import auto_reconnect_channels
+        auto_reconnect_channels(app.state.ctx)
 
         yield
 
