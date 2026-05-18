@@ -18,7 +18,8 @@ function formatArgs(args: string | undefined): string {
   }
 }
 
-export default function ChatPage() {
+export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName?: string }) {
+  const isKb = agentId === "kb-agent"
   const { onMessage } = useLiveUpdates()
   const store = useSessionStore()
   const currentIdRef = useRef(store.currentId)
@@ -36,7 +37,7 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    fetch("/api/agents/main").then(r => r.json()).then(d => {
+    fetch(`/api/agents/${agentId || "main"}`).then(r => r.json()).then(d => {
       if (d.model) setCurrentModel(d.model)
     }).catch(() => {})
     fetch("/api/models").then(r => r.json()).then(d => {
@@ -89,10 +90,16 @@ export default function ChatPage() {
     ctrl.start(ctrl.dagRuns)
 
     try {
-      const resp = await fetch("/api/chat", {
+      const body: Record<string, string | undefined> = {
+        content: userMsg,
+        user_id: "local",
+        session_id: currentIdRef.current || undefined,
+      }
+      if (isKb && kbName) body.kb_name = kbName
+      const resp = await fetch(isKb ? "/api/kb-chat" : "/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: userMsg, user_id: "local", session_id: currentIdRef.current || undefined }),
+        body: JSON.stringify(body),
       })
       if (!resp.ok) throw new Error(`Server returned ${resp.status}`)
       const data = await resp.json()
@@ -112,7 +119,7 @@ export default function ChatPage() {
     if (!model || model === currentModel) return
     setModelLoading(true)
     try {
-      await fetch("/api/agents/main", {
+      await fetch(`/api/agents/${agentId || "main"}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model }),
