@@ -4,7 +4,7 @@ import uuid
 
 import yaml
 
-from cococat.core.dag_store import DagStore
+from cococat.dag.store import DagStore
 from cococat.core.types import ToolContext
 
 
@@ -166,43 +166,6 @@ async def _dispatch_task(run_id: str, task_id: str, prompt: str, ctx: ToolContex
     return f"Task '{display}' dispatched in run '{run_id}' — will execute in background"
 
 
-async def _execute_pending_dag_task(store: DagStore, executor: callable) -> int:
-    """Find and execute one pending task in DAG. Returns 1 if executed, 0 if none."""
-    pending = store.get_pending_task()
-    if pending is None:
-        return 0
-
-    run_id = pending["run_id"]
-    data = pending["data"]
-    task_id = pending["task_id"]
-    prompt = pending["prompt"]
-    dag_session_id = pending["session_id"]
-
-    for stage in data.get("stages", []):
-        for task in stage.get("tasks", []):
-            if task.get("id") == task_id:
-                task["status"] = "running"
-                store.save(run_id, data)
-                break
-
-    try:
-        result = await executor(prompt, task_id, dag_session_id)
-        for stage in data.get("stages", []):
-            for task in stage.get("tasks", []):
-                if task.get("id") == task_id:
-                    task["status"] = "done"
-                    task["result"] = str(result) if result else "(no output)"
-    except Exception as e:
-        for stage in data.get("stages", []):
-            for task in stage.get("tasks", []):
-                if task.get("id") == task_id:
-                    task["status"] = "failed"
-                    task["error"] = str(e)
-
-    store.save(run_id, data)
-    return 1
-
-
 def _check_dag_tasks(store: DagStore) -> str:
     entries = []
     for data in store.list_all():
@@ -236,66 +199,7 @@ def _check_tasks(ctx: ToolContext) -> str:
     store = ctx.dag.store
     if store is not None:
         return _check_dag_tasks(store)
-
-    # Legacy fallback: dag_dir (no dag_store configured)
-    dag_dir = ctx.dag.dag_dir
-    if dag_dir and os.path.isdir(dag_dir):
-        return _check_dag_tasks_via_fs(dag_dir)
-
-    tasks_path = ctx.dag.tasks_path
-    tasks_file = os.path.join(tasks_path, "tasks.json")
-    if not os.path.exists(tasks_file):
-        return "No pending tasks"
-    try:
-        import json
-        tasks = json.load(open(tasks_file))
-        if not tasks:
-            return "No pending tasks"
-        lines = [f"{t.get('id', '?')}: {t.get('status', 'unknown')} — {t.get('description', '')}" for t in tasks]
-        return "\n".join(lines)
-    except Exception as e:
-        return f"Error reading tasks: {e}"
-
-
-def _check_dag_tasks_via_fs(dag_dir: str) -> str:
-    """Fallback: scan dag_dir directly when no store is available."""
-    if not os.path.isdir(dag_dir):
-        return "No pending tasks"
-
-    entries = []
-    for run_dir in sorted(os.listdir(dag_dir)):
-        dag_path = os.path.join(dag_dir, run_dir, "dag.yaml")
-        if not os.path.exists(dag_path):
-            continue
-        try:
-            with open(dag_path, encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-        except (yaml.YAMLError, OSError):
-            continue
-
-        run_id = data.get("run_id", run_dir)
-        run_status = data.get("status", "?")
-        entries.append(f"[{run_id}] run: {run_status}")
-
-        for stage in data.get("stages", []):
-            stage_id = stage.get("id", "?")
-            stage_status = stage.get("status", "?")
-            entries.append(f"  [{stage_id}] stage: {stage_status}")
-            for task in stage.get("tasks", []):
-                tid = task.get("id", "?")
-                tstatus = task.get("status", "?")
-                tresult = task.get("result") or ""
-                terror = task.get("error") or ""
-                line = f"    {tid}: {tstatus}"
-                if tresult:
-                    line += f" — result: {tresult}"
-                if terror:
-                    line += f" — error: {terror[:300]}"
-                entries.append(line)
-
-    if not entries:
-        return "No pending tasks"
-    return "\n".join(entries)
+    return "No pending tasks"
 
 
 def _stop_task(task_id: str, ctx: ToolContext) -> str:

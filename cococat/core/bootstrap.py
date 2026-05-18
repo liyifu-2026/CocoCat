@@ -31,7 +31,7 @@ def _setup_providers(ctx, auth_path: str):
 
 
 def _setup_dag_store(ctx):
-    from cococat.core.dag_store import SqliteDagStore, FileDagStore
+    from cococat.dag.store import SqliteDagStore, FileDagStore
 
     db = ctx.db
     dag_store = SqliteDagStore(db) if db is not None else FileDagStore("runs")

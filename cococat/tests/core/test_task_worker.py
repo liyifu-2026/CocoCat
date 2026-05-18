@@ -2,7 +2,7 @@
 import asyncio
 import pytest
 from cococat.core.tools.dag import _define_dag, _dispatch_task, _load_dag
-from cococat.core.dag_store import FileDagStore
+from cococat.dag.store import FileDagStore
 
 
 @pytest.mark.asyncio
@@ -60,9 +60,9 @@ stages:
     async def stub_executor(prompt: str, agent_id: str, session_id: str | None = None) -> str:
         return f"executed: {prompt}"
 
-    from cococat.core.tools.dag import _execute_pending_dag_task
+    from cococat.dag import execute_pending_dag_task
 
-    count = await _execute_pending_dag_task(store, stub_executor)
+    count = await execute_pending_dag_task(store, stub_executor)
     assert count >= 1
 
     data, err = _load_dag(run_id, store)

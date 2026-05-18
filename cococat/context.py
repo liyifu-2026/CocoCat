@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from cococat.routes.ws import WsManager
     from cococat.core.sub_agent import SubAgentExecutor
     from cococat.core.sandbox import SandboxProvider
-    from cococat.core.dag_store import DagStore
+    from cococat.dag.store import DagStore
     from cococat.providers.credentials import CredentialManager
     from cococat.providers.factory import ProviderFactory
 

@@ -3,24 +3,40 @@ import pytest
 import json
 import os
 
+from cococat.core.tools import create_core_tools, ToolRegistry
+from cococat.dag.store import FileDagStore
+
 
 class TestCheckTasks:
     @pytest.mark.asyncio
     async def test_check_tasks_no_tasks(self, registry, tmp_path):
-        ctx = {"tasks_path": str(tmp_path)}
-        result = await registry.execute("check_tasks", {}, ctx)
-        assert "no tasks" in result.lower() or "pending" in result.lower() or "0" in result
+        store = FileDagStore(str(tmp_path / "runs"))
+        tools = create_core_tools(dag_store=store)
+        reg = ToolRegistry(tools)
+        result = await reg.execute("check_tasks", {})
+        assert "no tasks" in result.lower() or "pending" in result.lower()
 
     @pytest.mark.asyncio
     async def test_check_tasks_with_file(self, registry, tmp_path):
-        tasks = [
-            {"id": "t1", "status": "running", "description": "test task"},
-            {"id": "t2", "status": "done", "description": "done task"},
-        ]
-        path = str(tmp_path / "tasks.json")
-        json.dump(tasks, open(path, "w"))
-        ctx = {"tasks_path": str(tmp_path)}
-        result = await registry.execute("check_tasks", {}, ctx)
+        store = FileDagStore(str(tmp_path / "runs"))
+        tools = create_core_tools(dag_store=store)
+        reg = ToolRegistry(tools)
+
+        dag_yaml = """
+stages:
+  - id: s1
+    tasks:
+      - id: t1
+        status: running
+        description: test task
+      - id: t2
+        status: done
+        description: done task
+"""
+        from cococat.core.tools.dag import _define_dag
+        _define_dag(dag_yaml, {"dag_store": store})
+
+        result = await reg.execute("check_tasks", {})
         assert "t1" in result
         assert "running" in result.lower()
 

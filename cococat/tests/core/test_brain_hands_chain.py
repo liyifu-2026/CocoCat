@@ -328,7 +328,7 @@ class TestDagDispatchWithWebSearch:
     async def test_dispatch_task_marks_task_pending(self, tmp_path):
         """_dispatch_task should mark task as pending in dag.yaml."""
         from cococat.core.tools.dag import _dispatch_task, _define_dag
-        from cococat.core.dag_store import FileDagStore
+        from cococat.dag.store import FileDagStore
 
         store = FileDagStore(str(tmp_path / "runs"))
 
@@ -361,9 +361,9 @@ stages:
 
     @pytest.mark.asyncio
     async def test_execute_pending_dag_task_runs_sub_agent(self, tmp_path):
-        """_execute_pending_dag_task should execute and get results."""
-        from cococat.core.tools.dag import _execute_pending_dag_task
-        from cococat.core.dag_store import FileDagStore
+        """execute_pending_dag_task should execute and get results."""
+        from cococat.dag import execute_pending_dag_task
+        from cococat.dag.store import FileDagStore
 
         store = FileDagStore(str(tmp_path / "runs"))
 
@@ -387,7 +387,7 @@ stages:
             execution_log.append({"prompt": prompt, "task_id": task_id, "session_id": session_id})
             return f"Result from {task_id}: found 3 articles"
 
-        count = await _execute_pending_dag_task(store, mock_executor)
+        count = await execute_pending_dag_task(store, mock_executor)
 
         assert count == 1
         assert len(execution_log) == 1

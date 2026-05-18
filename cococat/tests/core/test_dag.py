@@ -1,7 +1,7 @@
 """Test DAG tools — define_dag, append_stage, dispatch_task, update_dag."""
 import pytest
 from cococat.core.tools import create_core_tools, ToolRegistry
-from cococat.core.dag_store import FileDagStore
+from cococat.dag.store import FileDagStore
 
 
 def _dag_store(tmp_path):

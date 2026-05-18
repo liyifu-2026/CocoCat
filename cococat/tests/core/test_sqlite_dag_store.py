@@ -1,7 +1,7 @@
 """Tests for SqliteDagStore."""
 import pytest
 from cococat.db import Database
-from cococat.core.dag_store import SqliteDagStore
+from cococat.dag.store import SqliteDagStore
 
 
 @pytest.fixture

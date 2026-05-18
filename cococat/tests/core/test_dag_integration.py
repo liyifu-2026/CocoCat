@@ -10,7 +10,7 @@ directly (simulating what the LLM would do).
 import pytest
 from cococat.core.sub_agent import SubAgentExecutor
 from cococat.core.event_bus import EventBus
-from cococat.core.dag_store import FileDagStore
+from cococat.dag.store import FileDagStore
 from cococat.providers.base import LLMResponse
 
 
@@ -104,10 +104,10 @@ stages:
             assert "dispatched" in r3.lower()
 
         # ── Stage 2b: TaskWorker picks up and executes pending tasks ──
-        from cococat.core.tools.dag import _execute_pending_dag_task
+        from cococat.dag import execute_pending_dag_task
         with _patch_executor(dag_env):
             for _ in range(3):
-                await _execute_pending_dag_task(store, executor_fn)
+                await execute_pending_dag_task(store, executor_fn)
 
         # ── Stage 3: verify DAG status ──
         from cococat.core.tools.dag import _check_dag_tasks
@@ -150,8 +150,8 @@ stages:
         result = await _dispatch_task(run_id, "failing-task", "do it", ctx)
         assert "dispatched" in result.lower()
 
-        from cococat.core.tools.dag import _execute_pending_dag_task
-        await _execute_pending_dag_task(store, failing_executor)
+        from cococat.dag import execute_pending_dag_task
+        await execute_pending_dag_task(store, failing_executor)
         data = store.load(run_id)
         task = data["stages"][0]["tasks"][0]
         assert task["status"] == "failed"
@@ -171,10 +171,10 @@ stages:
             await _dispatch_task(r1, "t1", "do x", ctx)
             await _dispatch_task(r2, "t2", "do y", ctx)
 
-        from cococat.core.tools.dag import _execute_pending_dag_task
+        from cococat.dag import execute_pending_dag_task
         with _patch_executor(dag_env):
-            await _execute_pending_dag_task(store, dag_env["executor"].dispatch)
-            await _execute_pending_dag_task(store, dag_env["executor"].dispatch)
+            await execute_pending_dag_task(store, dag_env["executor"].dispatch)
+            await execute_pending_dag_task(store, dag_env["executor"].dispatch)
 
         status = _check_dag_tasks(store)
         assert r1 in status
@@ -209,10 +209,10 @@ stages:
         for r in results:
             assert "dispatched" in r.lower()
 
-        from cococat.core.tools.dag import _execute_pending_dag_task
+        from cococat.dag import execute_pending_dag_task
         with _patch_executor(dag_env):
             for _ in range(3):
-                await _execute_pending_dag_task(store, dag_env["executor"].dispatch)
+                await execute_pending_dag_task(store, dag_env["executor"].dispatch)
 
 
 # ---------------------------------------------------------------------------

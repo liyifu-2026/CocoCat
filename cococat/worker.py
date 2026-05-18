@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from cococat.db import Database
     from cococat.core.agent_pool import AgentPool
-    from cococat.core.dag_store import DagStore
+    from cococat.dag.store import DagStore
 
 logger = logging.getLogger("cococat.worker")
 
@@ -73,9 +73,9 @@ class TaskWorker:
         """Process one pending DAG task. On run completion, notify via WS."""
         if not self._dag_executor or not self._dag_store:
             return
-        from cococat.core.tools.dag import _execute_pending_dag_task
+        from cococat.dag import execute_pending_dag_task
         try:
-            count = await _execute_pending_dag_task(self._dag_store, self._dag_executor)
+            count = await execute_pending_dag_task(self._dag_store, self._dag_executor)
             if count:
                 logger.info("TaskWorker: executed %d DAG task(s)", count)
                 await self._check_run_completion()
