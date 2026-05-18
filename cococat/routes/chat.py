@@ -188,6 +188,45 @@ async def kb_chat_history(ctx: AppContext = Depends(get_ctx), session_id: str = 
     return {"messages": messages}
 
 
+@router.delete("/chat/session/{session_id}")
+async def delete_chat_session(session_id: str, ctx: AppContext = Depends(get_ctx)):
+    """Delete a chat session and all associated records (DAG runs, sub-agent dirs, session files)."""
+    import os, shutil
+    deleted = {"dag_runs": 0, "session_files": 0, "sub_agent_dirs": 0}
+
+    # 1. Delete DAG runs for this session
+    store = ctx.dag_store
+    if store:
+        for run in store.list_all():
+            if run.get("session_id") == session_id:
+                store.delete(run.get("run_id", ""))
+                deleted["dag_runs"] += 1
+
+    # 2. Delete main agent session file
+    for agent_id in ["main", "kb-agent"]:
+        session_path = os.path.join("agents", agent_id, "sessions", f"{session_id}.jsonl")
+        if os.path.exists(session_path):
+            os.remove(session_path)
+            deleted["session_files"] += 1
+        # Also delete the default session file if it exists
+        default_path = os.path.join("agents", agent_id, "session.jsonl")
+        if os.path.exists(default_path):
+            os.remove(default_path)
+            deleted["session_files"] += 1
+
+    # 3. Delete sub-agent session dirs
+    agents_dir = "agents"
+    if os.path.isdir(agents_dir):
+        for name in os.listdir(agents_dir):
+            if name.startswith("sub-"):
+                path = os.path.join(agents_dir, name)
+                if os.path.isdir(path):
+                    shutil.rmtree(path, ignore_errors=True)
+                    deleted["sub_agent_dirs"] += 1
+
+    return {"status": "deleted", **deleted}
+
+
 @router.get("/chat/history")
 async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "default", limit: int = 50):
     return {"messages": ctx.db.messages.get_chat_history(scene_id, limit)}
