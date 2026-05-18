@@ -6,7 +6,6 @@ import { SceneAvatar } from "./SceneAvatar"
 import { useTheme } from "@/context/ThemeContext"
 import { useSidebar } from "@/context/SidebarContext"
 import { useT } from "@/context/LanguageContext"
-import { useDialogActions } from "@/context/DialogContext"
 import { Sun, Moon, Plus, PanelRight, Settings, Layers, Bot, Book, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -19,7 +18,6 @@ export function SceneRail({ onOpenSettings }: SceneRailProps) {
   const location = useLocation()
   const { theme, toggleTheme } = useTheme()
   const { collapsed, toggle } = useSidebar()
-  const { openImportScene } = useDialogActions()
   
   const [hovered, setHovered] = useState(false)
 
