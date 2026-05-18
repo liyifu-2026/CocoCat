@@ -23,40 +23,6 @@ class KbChatRequest(BaseModel):
     session_id: str | None = None
 
 
-# ── WebSocket streaming helpers ────────────────────────────
-
-def _make_event_handler(ws):
-    """Create on_event callback that broadcasts to WebSocket."""
-    async def on_event(event_type: str, data: dict):
-        await ws.broadcast(event_type, data)
-    return on_event
-
-
-def _make_stream_callbacks(ws, agent_id: str, session_id: str | None):
-    """Create on_text/on_reasoning/on_tool callbacks for agent.run()."""
-
-    async def on_text(delta: str):
-        await ws.broadcast("text_delta", {
-            "content": delta, "agent_id": agent_id, "session_id": session_id,
-        })
-
-    async def on_reasoning(content: str):
-        await ws.broadcast("stream_reasoning", {
-            "content": content, "agent_id": agent_id, "session_id": session_id,
-        })
-
-    async def on_tool(name: str, status: str, data: dict = None):
-        payload = {
-            "name": name, "status": status,
-            "agent_id": agent_id, "session_id": session_id,
-        }
-        if data:
-            payload.update(data)
-        await ws.broadcast("stream_tool", payload)
-
-    return on_text, on_reasoning, on_tool
-
-
 # ── Routes ─────────────────────────────────────────────────
 
 
@@ -83,7 +49,12 @@ async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
         return {"reply": "SandboxProvider not available", "msg_uuid": reply_uuid}
 
     try:
-        on_event = _make_event_handler(ctx.ws_manager)
+        async def on_event(event_type: str, data: dict):
+            await ctx.ws_manager.broadcast(event_type, {
+                **(data or {}),
+                "agent_id": "main",
+                "session_id": body.session_id,
+            })
 
         from cococat.core.tools import create_main_ai_tools
 

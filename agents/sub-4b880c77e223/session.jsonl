@@ -1,2 +1,0 @@
-{"role": "user", "content": "输出一句 \"我是sub-agent，我活了！\""}
-{"role": "assistant", "content": "我是 sub-agent，我活了！"}

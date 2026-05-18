@@ -1,0 +1,8 @@
+{"role": "user", "content": "你好"}
+{"role": "assistant", "content": "你好，Leaif！有什么我可以帮你的吗？"}
+{"role": "user", "content": "现在有什么知识库"}
+{"role": "assistant", "content": "当前有 3 个知识库可用：\n\n- **test-kb**\n- **product-manual**\n- **team-wiki**\n\n你想查看哪个知识库的内容，或者需要搜索某个主题？"}
+{"role": "user", "content": "现在有什么知识库"}
+{"role": "assistant", "content": "让我重新查询一下，确保信息是最新的。\n\n当前有 3 个知识库：\n\n- **test-kb**\n- **product-manual**\n- **team-wiki**\n\n需要查看哪个知识库的内容吗？"}
+{"role": "user", "content": "需要,看看里面啥内容"}
+{"role": "assistant", "content": "各知识库结构如下：\n\n### test-kb\n- `index.md` — 索引\n- `log.md` — 日志\n- `wiki/` — Wiki 页面\n- `raw/` — 原始文件\n- `.llm-wiki/` — 内部配置\n\n### product-manual\n— **空目录**，暂无内容。\n\n### team-wiki\n- `index.md`、`log.md`、`purpose.md`、`schema.md` — 说明与索引文件\n- `wiki/` — Wiki 页面\n- `raw/` — 原始文件\n- `.llm-wiki/` — 内部配置\n\n---\n\n让我进一步看看 **test-kb** 和 **team-wiki** 里的具体内容。\n\n再深入看看两个知识库的 Wiki 内容：\n\n以下是三个知识库的完整内容概览：\n\n---\n\n## 📚 test-kb — 云沙箱技术知识库\n\n**实体（8个）：**\n- CubeSandbox、RustVMM、KVM、E2B SDK\n- CubeVS (eBPF-based)、PVM (Prologue Virtual Machine)\n- 腾讯云、控制器用户\n\n**概念（7个）：**\n- 硬件级强隔离、毫秒级冷启动、高密度部署\n- 完全兼容 E2B、基于 eBPF 的网络隔离\n- 模板（Template）、实例\n\n**笔记：** test-note\n\n---\n\n## 👥 team-wiki — CocoCat 团队 Wiki\n\n**目的：** 记录 CocoCat 系统架构、组件和团队实践，用于知识共享和新成员入职。\n\n**实体（6个）：**\n- cococat、multi-agent-architecture\n- dag-based-task-dispatch、wiki-knowledge-structure-yaml\n- orchestrator-agent-coco、knowledge-base-agent\n\n**概念（3个）：**\n- message-bus-architecture\n- multi-agent-systems\n- test\n\n---\n\n## 📦 product-manual\n\n— 空库，暂无内容。\n\n---\n\n想看哪个具体页面的详细内容？"}

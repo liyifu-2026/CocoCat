@@ -1,2 +1,0 @@
-{"role": "user", "content": "用 bash 执行 echo 'bash works!'，报告结果"}
-{"role": "assistant", "content": "DAG 存储未配置，直接执行 bash 命令：\n\n结果：`bash works!` ✅ — bash 执行成功，输出了预期的文本。"}

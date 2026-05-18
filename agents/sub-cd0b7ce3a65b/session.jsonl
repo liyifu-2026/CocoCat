@@ -1,2 +1,0 @@
-{"role": "user", "content": "请直接返回 \"你好，我是 sub-agent，我收到任务了！\" 这句话。"}
-{"role": "assistant", "content": "你好，我是 sub-agent，我收到任务了！"}

@@ -1,2 +1,0 @@
-{"role": "user", "content": "用 browser 工具浏览任意页面测试是否可用，报告结果"}
-{"role": "assistant", "content": "DAG 存储暂未配置，我直接使用 browser 工具进行测试。\n\n## 浏览器工具测试结果 ✅\n\n**工具可用！** 成功访问了 `https://example.com`，返回内容如下：\n\n- **页面标题：** Example Domain\n- **页面内容：**\n  > *Example Domain*\n  >\n  > This domain is for use in documentation examples without needing permission. Avoid use in operations.\n  >\n  > *Learn more*\n\n**结论：** `browser` 工具正常工作。调用格式为 JSON 字符串：`{\"type\": \"navigate\", \"url\": \"...\"}`，返回解析后的文本内容。"}
