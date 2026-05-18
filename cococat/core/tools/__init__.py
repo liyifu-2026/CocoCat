@@ -174,7 +174,8 @@ def _make_sub_agent_tool(sub_agent_executor=None) -> list[dict]:
 def _make_kb_tools() -> list[dict]:
     """KB tools for all agents (read-only)."""
     return [
-        _make("search_kb", "Search a knowledge base wiki", {"kb_name": "string", "query": "string"},
+        _make("search_kb", "Search knowledge base with inverted index (supports multi-keyword AND/OR)", 
+              {"kb_name": "string", "query": "string", "mode": "string", "type": "string", "tag": "string", "source": "string", "limit": "integer"},
               lambda p, ctx: _search_kb(p, _ensure_tool_context(ctx))),
         _make("read_wiki", "Read a wiki page", {"kb_name": "string", "type": "string", "slug": "string"},
               lambda p, ctx: _read_wiki(p, _ensure_tool_context(ctx))),

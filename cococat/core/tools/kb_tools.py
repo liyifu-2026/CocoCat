@@ -6,20 +6,31 @@ from typing import Any
 
 
 def _search_kb(params: dict, ctx: Any) -> str:
-    """Search a knowledge base."""
+    """Search a knowledge base with optional filters."""
     from cococat.kb.service import get_kb_service
     kb_name = params.get("kb_name", "")
     query = params.get("query", "")
     if not kb_name or not query:
         return "Error: kb_name and query are required"
     service = get_kb_service()
-    results = service.search(kb_name, query)
+    results = service.search(
+        kb_name, query,
+        mode=params.get("mode", "and"),
+        page_type=params.get("type"),
+        tag=params.get("tag"),
+        source=params.get("source"),
+        limit=params.get("limit", 20),
+    )
     if not results:
         return f"No results found for '{query}' in KB '{kb_name}'."
     lines = [f"Search results for '{query}' in KB '{kb_name}':"]
     for i, r in enumerate(results, 1):
-        lines.append(f"\n{i}. **{r['name']}** ({r['type']})")
-        lines.append(f"   {r['snippet'][:200]}")
+        lines.append(f"\n{i}. **{r['name']}** ({r['type']}) — score: {r['score']}")
+        if r.get('tags'):
+            lines.append(f"   tags: {', '.join(r['tags'])}")
+        if r.get('matched_tokens'):
+            lines.append(f"   matched: {', '.join(r['matched_tokens'])}")
+        lines.append(f"   {r['snippet'][:300]}")
     return "\n".join(lines)
 
 

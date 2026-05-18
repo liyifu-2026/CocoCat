@@ -26,37 +26,18 @@ class KBService:
 
     # ── Query ──────────────────────────────────────────
 
-    def search(self, kb_name: str, query: str, limit: int = 20) -> list[dict]:
-        """Full-text search across wiki pages. Returns [{name, type, snippet}, ...]."""
-        wiki_dir = os.path.join(self._kb_path(kb_name), "wiki")
-        if not os.path.isdir(wiki_dir) or not query:
+    def search(self, kb_name: str, query: str | list[str], mode: str = "and",
+               page_type: str | None = None, tag: str | None = None,
+               source: str | None = None, limit: int = 20) -> list[dict]:
+        """Full-text search with inverted index. Returns [{name, title, type, tags, source, score, matched_tokens, snippet}, ...]."""
+        from cococat.kb.indexer import KBIndex
+        kb_path = self._kb_path(kb_name)
+        if not os.path.isdir(kb_path) or not query:
             return []
 
-        q = query.lower()
-        results = []
-        for root, _, files in os.walk(wiki_dir):
-            for fname in files:
-                if not fname.endswith(".md"):
-                    continue
-                path = os.path.join(root, fname)
-                with open(path, encoding="utf-8") as f:
-                    content = f.read(5000)
-                if q in content.lower():
-                    rel = os.path.relpath(root, wiki_dir)
-                    idx = content.lower().index(q)
-                    start = max(0, idx - 80)
-                    end = min(len(content), idx + len(q) + 120)
-                    snippet = content[start:end].strip()
-                    results.append({
-                        "name": fname[:-3],
-                        "type": rel,
-                        "snippet": snippet,
-                    })
-                if len(results) >= limit:
-                    break
-            if len(results) >= limit:
-                break
-        return results
+        index = KBIndex(kb_path)
+        return index.search(query, mode=mode, page_type=page_type, tag=tag,
+                           source=source, limit=limit)
 
     def read(self, kb_name: str, page_type: str, slug: str) -> dict | None:
         """Read a single wiki page. Returns {name, type, content} or None."""
