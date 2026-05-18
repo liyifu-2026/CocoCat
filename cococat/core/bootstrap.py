@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import asyncio
+import shutil
 
 import yaml
 
@@ -206,10 +207,14 @@ def _seed_cron_jobs(agent_id: str, entries: list[dict]) -> None:
         filepath = os.path.join(cron_dir, filename)
         if not os.path.exists(filepath):
             job = {
+                "id": f"{agent_id}-{name}",
                 "agent_id": agent_id,
                 "name": name,
                 "schedule": schedule,
                 "task": entry.get("task", f"Run {name} maintenance"),
+                "status": "active",
+                "last_run": 0,
+                "created_at": __import__("datetime").datetime.now().isoformat(),
             }
             with open(filepath, "w", encoding="utf-8") as f:
                 _json.dump(job, f, indent=2)
@@ -256,9 +261,9 @@ def _seed_default_residents(config_dir: str) -> None:
                 "page": "/knowledge", "model": "deepseek-chat",
                 "skills": ["knowledge-ingestion"],
                 "cron": [
-                    {"name": "lint", "schedule": "@daily"},
-                    {"name": "dedup", "schedule": "@weekly"},
-                    {"name": "overview", "schedule": "@weekly"},
+                    {"name": "lint", "schedule": "@daily", "task": "Call run_lint to check all knowledge bases for orphan pages, broken wikilinks, and missing frontmatter"},
+                    {"name": "dedup", "schedule": "@weekly", "task": "Call run_dedup to detect and merge duplicate content across all knowledge base wiki pages"},
+                    {"name": "overview", "schedule": "@weekly", "task": "Call gen_overview to generate a fresh global summary of all knowledge base content into overview.md"},
                 ],
             }, f, allow_unicode=True)
 
@@ -268,6 +273,16 @@ def _seed_default_residents(config_dir: str) -> None:
 def load_agents(app, args) -> None:
     """Orchestrate startup: create services, load agents into pool."""
     ctx = app.state.ctx
+
+    # Clean up stale sub-agent session directories from previous runs
+    agents_dir = "agents"
+    if os.path.isdir(agents_dir):
+        for name in os.listdir(agents_dir):
+            if name.startswith("sub-"):
+                path = os.path.join(agents_dir, name)
+                if os.path.isdir(path):
+                    shutil.rmtree(path, ignore_errors=True)
+                    logger.debug("Cleaned up stale sub-agent dir: %s", name)
 
     factory = _setup_providers(ctx, args.auth)
     dag_store = _setup_dag_store(ctx)
