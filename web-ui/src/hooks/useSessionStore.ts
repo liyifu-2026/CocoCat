@@ -2,8 +2,8 @@ import { useEffect, useReducer, useCallback } from "react"
 import { uuid } from "@/lib/utils"
 import type { Session, Message, ToolCallRecord } from "@/types/chat"
 
-const SESSION_STORAGE_KEY = "cococat_sessions"
-const CURRENT_SESSION_KEY = "cococat_current_session"
+function sessionStorageKey(ns: string) { return ns ? `cococat_sessions_${ns}` : "cococat_sessions" }
+function currentSessionKey(ns: string) { return ns ? `cococat_current_${ns}` : "cococat_current_session" }
 
 interface State {
   sessions: Session[]
@@ -18,21 +18,21 @@ type Action =
   | { type: "ADD_ASSISTANT_MESSAGE"; content: string; tools?: ToolCallRecord[]; dagRunIds?: string[]; reasoningText?: string }
   | { type: "UPDATE_TITLE"; title: string }
 
-function loadSessions(): Session[] {
-  try { return JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || "[]") }
+function loadSessions(ns: string): Session[] {
+  try { return JSON.parse(localStorage.getItem(sessionStorageKey(ns)) || "[]") }
   catch { return [] }
 }
 
-function saveSessions(sessions: Session[]) {
-  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessions))
+function saveSessions(ns: string, sessions: Session[]) {
+  localStorage.setItem(sessionStorageKey(ns), JSON.stringify(sessions))
 }
 
-function loadCurrentId(): string | null {
-  return localStorage.getItem(CURRENT_SESSION_KEY)
+function loadCurrentId(ns: string): string | null {
+  return localStorage.getItem(currentSessionKey(ns))
 }
 
-function saveCurrentId(id: string) {
-  localStorage.setItem(CURRENT_SESSION_KEY, id)
+function saveCurrentId(ns: string, id: string) {
+  localStorage.setItem(currentSessionKey(ns), id)
 }
 
 function reducer(state: State, action: Action): State {
@@ -92,17 +92,17 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-function initialState(): State {
-  const sessions = loadSessions()
-  const currentId = loadCurrentId() || ""
+function initialState(ns: string): State {
+  const sessions = loadSessions(ns)
+  const currentId = loadCurrentId(ns) || ""
   return { sessions, currentId }
 }
 
-export function useSessionStore() {
-  const [state, dispatch] = useReducer(reducer, null, initialState)
+export function useSessionStore(ns: string = "") {
+  const [state, dispatch] = useReducer(reducer, ns, initialState)
 
-  useEffect(() => { saveSessions(state.sessions) }, [state.sessions])
-  useEffect(() => { saveCurrentId(state.currentId) }, [state.currentId])
+  useEffect(() => { saveSessions(ns, state.sessions) }, [ns, state.sessions])
+  useEffect(() => { saveCurrentId(ns, state.currentId) }, [ns, state.currentId])
 
   const current = state.sessions.find(s => s.id === state.currentId)
   const messages = current?.messages || []

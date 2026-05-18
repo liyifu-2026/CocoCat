@@ -21,7 +21,7 @@ function formatArgs(args: string | undefined): string {
 export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName?: string }) {
   const isKb = agentId === "kb-agent"
   const { onMessage } = useLiveUpdates()
-  const store = useSessionStore()
+  const store = useSessionStore(isKb ? "kb" : "")
   const currentIdRef = useRef(store.currentId)
   currentIdRef.current = store.currentId
   const ctrl = useStreaming(currentIdRef)
