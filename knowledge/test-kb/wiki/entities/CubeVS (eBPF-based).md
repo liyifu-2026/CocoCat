@@ -1,3 +1,4 @@
+---
 type: entity
 title: CubeVS (eBPF-based)
 created: 2024-07-20

@@ -128,7 +128,7 @@ async def run_agent(
     if session is not None:
         history = await session.sanitized_read()
     else:
-        sid = session_id or "default"
+        sid = session_id or ""
         session_path = _resolve_session_path(config.agent_dir, sid)
         history = load_session(session_path)
     messages.extend(history)
@@ -201,7 +201,7 @@ async def run_agent(
         if session is not None:
             await session.append_pair(message, result)
         else:
-            sid = session_id or "default"
+            sid = session_id or ""
             session_path = _resolve_session_path(config.agent_dir, sid)
             save_session_pair(session_path, message, result)
     except Exception:
@@ -283,6 +283,9 @@ class Agent:
             on_reasoning=on_reasoning,
             max_iterations=max_iterations,
         )
+
+    def get_tools(self):
+        return self.config.tools
 
     async def init(self):
         pass

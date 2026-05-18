@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>定时任务表单 — 原型设计</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --card: #1a1d27;
+  --border: #2a2d3a;
+  --text: #e1e4ed;
+  --muted: #7b8191;
+  --accent: #3b82f6;
+  --accent-bg: rgba(59,130,246,0.08);
+  --green: #22c55e;
+  --amber: #f59e0b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.container { width: 100%; max-width: 560px; }
+h2 { font-size: 14px; display: flex; align-items: center; gap: 8px; margin-bottom: 20px; color: var(--muted); }
+.form-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px; }
+input, select, textarea {
+  width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 10px; padding: 9px 12px; font-size: 13px; color: var(--text);
+  outline: none; font-family: inherit; transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select { appearance: none; cursor: pointer; }
+textarea { resize: vertical; min-height: 68px; }
+
+/* Scroll wheel time picker */
+.time-picker-wrap {
+  position: relative; background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 8px 0; margin-bottom: 12px; overflow: hidden;
+}
+.time-picker-scroll {
+  display: flex; justify-content: center; gap: 4px; height: 120px; overflow: hidden;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
+}
+.time-col {
+  flex: 0 0 64px; overflow-y: scroll; scroll-snap-type: y mandatory;
+  cursor: grab; font-size: 26px; font-weight: 600; line-height: 40px; text-align: center; padding: 40px 0;
+}
+.time-col::-webkit-scrollbar { display: none; }
+.time-item { scroll-snap-align: center; height: 40px; color: var(--muted); transition: color 0.15s; user-select: none; }
+.time-item.selected { color: var(--accent); font-weight: 700; }
+.time-separator {
+  flex: 0 0 16px; font-size: 26px; font-weight: 300; color: var(--muted);
+  line-height: 120px; text-align: center; align-self: center;
+}
+.time-indicator {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 84%; height: 40px; border-top: 1px solid rgba(59,130,246,0.3);
+  border-bottom: 1px solid rgba(59,130,246,0.3); border-radius: 4px;
+  pointer-events: none; background: rgba(59,130,246,0.04);
+}
+.time-clear {
+  text-align: center; margin-top: 4px;
+}
+.time-clear button {
+  background: none; border: none; color: var(--muted); font-size: 11px;
+  cursor: pointer; padding: 2px 8px; border-radius: 6px; transition: color 0.15s;
+}
+.time-clear button:hover { color: var(--text); }
+
+.preview {
+  margin-top: 14px; padding: 10px 14px; background: var(--accent-bg);
+  border: 1px solid rgba(59,130,246,0.2); border-radius: 10px;
+  font-size: 12px; color: var(--accent); display: flex; align-items: center; gap: 8px;
+}
+.preview-icon { font-size: 18px; }
+.hint { font-size: 11px; color: var(--muted); margin-top: 6px; opacity: 0.7; }
+.btn { padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; border: none; cursor: pointer; transition: opacity 0.15s; }
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: var(--accent); color: white; }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+.btn-row { display: flex; gap: 8px; margin-top: 14px; }
+
+.mode-toggle { display: flex; background: rgba(255,255,255,0.03); border-radius: 10px; padding: 3px; margin-bottom: 16px; border: 1px solid var(--border); }
+.mode-btn { flex: 1; padding: 7px 12px; border-radius: 8px; font-size: 12px; text-align: center; cursor: pointer; border: none; background: transparent; color: var(--muted); transition: all 0.15s; }
+.mode-btn.active { background: var(--accent); color: white; }
+
+/* === Switcher bar === */
+.switcher {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 40px; padding: 8px 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4); z-index: 100;
+}
+.switcher button { background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: color 0.15s; }
+.switcher button:hover { color: var(--text); }
+.switcher .label { font-size: 12px; color: var(--muted); min-width: 80px; text-align: center; }
+.switcher .name { font-weight: 500; color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="container" id="root"></div>
+
+<div class="switcher">
+  <button onclick="cycle(-1)">◀</button>
+  <span class="label"><span class="name" id="variantName">A</span> / C</span>
+  <button onclick="cycle(1)">▶</button>
+</div>
+
+<script>
+const variants = ['A', 'B', 'C'];
+const names = { A: '频率下拉 + 滚动选时', B: 'Tab 切换（间隔/闹钟）', C: '自然语言输入' };
+let currentIdx = 0;
+
+function cycle(dir) {
+  currentIdx = (currentIdx + dir + variants.length) % variants.length;
+  render(variants[currentIdx]);
+  document.getElementById('variantName').textContent = variants[currentIdx] + ' — ' + names[variants[currentIdx]];
+}
+
+// ── scroll-wheel logic ──
+function initTimePickers(prefix) {
+  const hCol = document.getElementById(prefix + 'HourCol');
+  const mCol = document.getElementById(prefix + 'MinCol');
+  const preview = document.getElementById(prefix + 'TimePreview');
+  if (!hCol || !mCol || !preview) return;
+
+  function snapTime() {
+    const hIdx = Math.round(hCol.scrollTop / 40);
+    const mIdx = Math.round(mCol.scrollTop / 40);
+    const hItems = hCol.querySelectorAll('.time-item');
+    const mItems = mCol.querySelectorAll('.time-item');
+    hItems.forEach((el, i) => el.classList.toggle('selected', i === hIdx));
+    mItems.forEach((el, i) => el.classList.toggle('selected', i === mIdx));
+    const h = hItems[hIdx]?.textContent || '09';
+    const m = mItems[mIdx]?.textContent || '00';
+    if (preview) preview.textContent = h + ':' + m;
+  }
+
+  hCol.addEventListener('scroll', snapTime, { passive: true });
+  mCol.addEventListener('scroll', snapTime, { passive: true });
+
+  // scroll to default
+  hCol.scrollTo(0, 9 * 40); // 09
+  mCol.scrollTo(0, 0);      // 00
+
+  // touch/mouse click to snap
+  let hTimer, mTimer;
+  hCol.addEventListener('touchend', () => { clearTimeout(hTimer); hTimer = setTimeout(() => hCol.scrollTo({ top: Math.round(hCol.scrollTop / 40) * 40, behavior: 'smooth' }), 100); });
+  mCol.addEventListener('touchend', () => { clearTimeout(mTimer); mTimer = setTimeout(() => mCol.scrollTo({ top: Math.round(mCol.scrollTop / 40) * 40, behavior: 'smooth' }), 100); });
+  hCol.addEventListener('mouseup', () => { hCol.scrollTo({ top: Math.round(hCol.scrollTop / 40) * 40, behavior: 'smooth' }); });
+  mCol.addEventListener('mouseup', () => { mCol.scrollTo({ top: Math.round(mCol.scrollTop / 40) * 40, behavior: 'smooth' }); });
+}
+
+// ── shared time picker HTML ──
+function timePickerHTML(prefix) {
+  return `
+    <div class="time-picker-wrap">
+      <div class="time-indicator"></div>
+      <div class="time-picker-scroll">
+        <div class="time-col" id="${prefix}HourCol">
+          ${Array.from({length:24}, (_,i) => `<div class="time-item${i===9?' selected':''}">${String(i).padStart(2,'0')}</div>`).join('')}
+        </div>
+        <span class="time-separator">:</span>
+        <div class="time-col" id="${prefix}MinCol">
+          <div class="time-item selected">00</div><div class="time-item">05</div><div class="time-item">10</div><div class="time-item">15</div><div class="time-item">20</div><div class="time-item">25</div><div class="time-item">30</div><div class="time-item">35</div><div class="time-item">40</div><div class="time-item">45</div><div class="time-item">50</div><div class="time-item">55</div>
+        </div>
+      </div>
+    </div>
+    <div class="time-clear"><button onclick="document.getElementById('${prefix}HourCol').scrollTo(0,0);document.getElementById('${prefix}MinCol').scrollTo(0,0)">清除时间（回到间隔模式）</button></div>
+  `;
+}
+
+// ── Variant A: dropdown + scroll wheel time ──
+function variantA() {
+  initTimePickers('a');
+  return `
+    <h2><span style="font-size:18px;">⏰</span> 新建定时任务 — 模式 A</h2>
+    <div class="form-card">
+      <div style="margin-bottom:12px;">
+        <label>重复频率</label>
+        <select>
+          <option>每小时</option>
+          <option selected>每天</option>
+          <option>每周</option>
+          <option>每 15 分钟</option>
+          <option>每 30 分钟</option>
+          <option>每 6 小时</option>
+          <option>自定义...</option>
+        </select>
+      </div>
+      <label>精确时间（选填）</label>
+      ${timePickerHTML('a')}
+      <div class="preview">
+        <span class="preview-icon">🔔</span>
+        每天早上 <strong id="aTimePreview">09:00</strong> 准时执行
+      </div>
+      <div class="hint">不填 = 间隔模式；填了时间 = 闹钟模式，每到指定钟点执行</div>
+      <div style="margin-top:14px;">
+        <label>分配给</label>
+        <select><option>kb-agent（知识库）</option><option>coco</option></select>
+      </div>
+      <div style="margin-top:12px;">
+        <label>任务描述</label>
+        <textarea placeholder="描述要做什么...">检查知识库页面链接和格式</textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary">创建任务</button>
+        <button class="btn btn-ghost">取消</button>
+      </div>
+    </div>`;
+}
+
+// ── Variant B: tab switch ──
+function variantB() {
+  setTimeout(() => initTimePickers('b'), 50);
+  return `
+    <h2><span style="font-size:18px;">⏰</span> 新建定时任务 — 模式 B</h2>
+    <div class="form-card">
+      <div class="mode-toggle">
+        <button class="mode-btn active" data-mode="simple">🔄 间隔模式</button>
+        <button class="mode-btn" data-mode="precise">🔔 闹钟模式</button>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label>重复频率</label>
+        <select>
+          <option>每小时</option>
+          <option selected>每天</option>
+          <option>每周</option>
+          <option>每 6 小时</option>
+        </select>
+      </div>
+      <div id="bTimeRow" style="display:none;">
+        <label>执行时间</label>
+        ${timePickerHTML('b')}
+      </div>
+      <div class="preview" id="bPreview">
+        <span class="preview-icon">🔄</span>
+        每 24 小时执行一次（从上次执行开始计时）
+      </div>
+      <div style="margin-top:14px;">
+        <label>分配给</label>
+        <select><option>kb-agent（知识库）</option></select>
+      </div>
+      <div style="margin-top:12px;">
+        <label>任务描述</label>
+        <textarea placeholder="描述...">检查知识库页面链接和格式</textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary">创建任务</button>
+        <button class="btn btn-ghost">取消</button>
+      </div>
+    </div>`;
+}
+
+// ── Variant C: natural language ──
+function variantC() {
+  return `
+    <h2><span style="font-size:18px;">⏰</span> 新建定时任务 — 模式 C</h2>
+    <div class="form-card">
+      <div style="margin-bottom:14px;">
+        <label>什么时候执行？（大白话输入）</label>
+        <input id="cInput" type="text" value="每天早上 9:00" placeholder="例：每天早上 9:00、每周一 8:30、每 6 小时">
+      </div>
+      <div class="preview">
+        <span class="preview-icon" id="cIcon">🔔</span>
+        <span id="cPreview">每天 09:00 准时执行</span>
+      </div>
+      <div class="hint">支持：每天早上 9:00 / 每周一 8:30 / 每 6 小时</div>
+      <div style="margin-top:14px;">
+        <label>分配给</label>
+        <select><option>kb-agent（知识库）</option></select>
+      </div>
+      <div style="margin-top:12px;">
+        <label>任务描述</label>
+        <textarea placeholder="描述...">检查知识库页面链接和格式</textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary">创建任务</button>
+        <button class="btn btn-ghost">取消</button>
+      </div>
+    </div>`;
+}
+
+function parseNatural(text) {
+  const lower = text.toLowerCase();
+  let freq = '每天', time = null, mode = 'alarm';
+  if (/每\s*\d+\s*(小?时|分)/.test(text)) {
+    const m = text.match(/每\s*(\d+)\s*(小?时|分|秒)?/);
+    if (m) { freq = `每 ${m[1]} ${m[2] || '小时'}`; mode = 'interval'; }
+  }
+  if (/每天|每日/.test(text) || /daily/.test(lower)) freq = '每天';
+  if (/每周/.test(text) || /weekly/.test(lower)) freq = '每周';
+  if (/每小时/.test(text) || /hourly/.test(lower)) { freq = '每小时'; mode = 'interval'; }
+  const tm = text.match(/(\d{1,2}):(\d{2})/);
+  if (tm) time = `${tm[1].padStart(2,'0')}:${tm[2]}`;
+
+  const icon = document.getElementById('cIcon');
+  if (icon) icon.textContent = mode === 'alarm' && time ? '🔔' : '🔄';
+
+  if (mode === 'alarm' && time) return `${freq} ${time} 准时执行`;
+  return `${freq} 执行（间隔模式）`;
+}
+
+function render(v) {
+  const root = document.getElementById('root');
+  root.innerHTML = (v === 'A') ? variantA() : (v === 'B') ? variantB() : variantC();
+  bindExtraEvents(v);
+}
+
+function bindExtraEvents(v) {
+  if (v === 'B') {
+    document.querySelector('.mode-toggle')?.addEventListener('click', e => {
+      const btn = e.target.closest('.mode-btn');
+      if (!btn) return;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const timeRow = document.getElementById('bTimeRow');
+      const preview = document.getElementById('bPreview');
+      if (btn.dataset.mode === 'precise') {
+        timeRow.style.display = 'block';
+        preview.innerHTML = '<span class="preview-icon">🔔</span> 每天早上 <strong id="bTimePreview">09:00</strong> 准时执行';
+        setTimeout(() => initTimePickers('b'), 30);
+      } else {
+        timeRow.style.display = 'none';
+        preview.innerHTML = '<span class="preview-icon">🔄</span> 每 24 小时执行一次（从上次执行开始计时）';
+      }
+    });
+  }
+  if (v === 'C') {
+    const input = document.getElementById('cInput');
+    const preview = document.getElementById('cPreview');
+    if (input && preview) {
+      input.addEventListener('input', () => { preview.textContent = parseNatural(input.value); });
+      preview.textContent = parseNatural(input.value);
+    }
+  }
+}
+
+// keyboard
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'ArrowLeft') cycle(-1);
+  if (e.key === 'ArrowRight') cycle(1);
+});
+
+render('A');
+document.getElementById('variantName').textContent = 'A — ' + names['A'];
+</script>
+</body>
+</html>

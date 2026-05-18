@@ -17,6 +17,7 @@
 - 完全兼容 E2B
 - 基于 eBPF 的网络隔离
 - 模板（Template）
+- 实例
 
 ## Note
 - test-note

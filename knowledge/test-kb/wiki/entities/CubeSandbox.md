@@ -1,3 +1,4 @@
+---
 type: entity
 title: CubeSandbox
 created: 2024-07-20
@@ -34,5 +35,6 @@ CubeSandbox 的服务端架构包含以下核心层：
 
 ## 相关链接
 
-- 用户通过命令行工具（如 `cubemastercli`）管理沙箱[[模板]]，实现环境定义与快速克隆。
+- 用户通过命令行工具（如 `cubemastercli`）管理沙箱[[模板（Template）]]，实现环境定义与快速克隆。
 - 部署方案：非裸金属云服务器上可通过 [[PVM (Prologue Virtual Machine)]] 启用 KVM 能力。
+- [[test-note]]

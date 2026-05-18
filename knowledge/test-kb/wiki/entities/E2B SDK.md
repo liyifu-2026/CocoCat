@@ -1,3 +1,4 @@
+---
 type: entity
 title: E2B SDK
 created: 2024-07-20

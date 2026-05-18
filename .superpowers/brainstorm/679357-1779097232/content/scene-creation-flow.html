@@ -1,0 +1,222 @@
+<h2>场景创建流程 — 非技术用户视角</h2>
+<p class="subtitle">一个步骤向导，从零开始配置场景 + Agent。拖到最下面看完整流程。</p>
+
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">Step 1/5：这个场景是干什么的？</div>
+  <div class="mockup-body" style="padding:20px;background:#fff;">
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">场景名称 *</div>
+      <input class="mock-input" value="售后客服" style="width:100%;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">场景用途 *</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div style="border:2px solid #3b82f6;background:#eff6ff;border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:13px;">🎧 客服</div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:13px;">📝 内容写作</div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:13px;">📋 项目管理</div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:13px;">🔍 数据分析</div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">一句话描述</div>
+      <input class="mock-input" value="专门处理退换货和售后咨询" style="width:100%;">
+    </div>
+    <div style="text-align:right;">
+      <span style="background:#3b82f6;color:#fff;padding:6px 20px;border-radius:6px;font-size:13px;display:inline-block;">下一步 →</span>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">Step 2/5：Agent 是什么风格？</div>
+  <div class="mockup-body" style="padding:20px;background:#fff;">
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Agent 名称</div>
+      <input class="mock-input" value="售后小助手" style="width:100%;">
+      <div style="font-size:10px;color:#9ca3af;margin-top:2px;">默认等于场景名，可以改</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">说话风格</div>
+      <div style="display:flex;gap:6px;">
+        <div style="border:2px solid #3b82f6;background:#eff6ff;border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer;font-size:12px;flex:1;">😊 亲切友好</div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer;font-size:12px;flex:1;">👔 专业严谨</div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer;font-size:12px;flex:1;">⚡ 简洁高效</div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer;font-size:12px;flex:1;">🎭 幽默风趣</div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">语言</div>
+      <div style="display:flex;gap:6px;">
+        <div style="border:2px solid #3b82f6;background:#eff6ff;border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer;font-size:12px;">中文</div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer;font-size:12px;">English</div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer;font-size:12px;">中英混合</div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">AI 模型</div>
+      <select style="padding:6px;border:1px solid #d1d5db;border-radius:6px;width:100%;font-size:12px;">
+        <option>使用默认（DeepSeek V4 Pro）</option>
+        <option>DeepSeek V4 Pro</option>
+        <option>GPT-4o</option>
+        <option>Claude 3.5 Sonnet</option>
+      </select>
+    </div>
+    <div style="display:flex;justify-content:space-between;">
+      <span style="border:1px solid #d1d5db;color:#374151;padding:6px 20px;border-radius:6px;font-size:13px;">← 上一步</span>
+      <span style="background:#3b82f6;color:#fff;padding:6px 20px;border-radius:6px;font-size:13px;">下一步 →</span>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">Step 3/5：它需要知道什么？（知识库 + 技能）</div>
+  <div class="mockup-body" style="padding:20px;background:#fff;">
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">挂载知识库</div>
+      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;">
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #f3f4f6;">
+          <input type="checkbox" checked style="accent-color:#3b82f6;">
+          <span style="font-size:12px;">📚 退货政策 FAQ</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #f3f4f6;">
+          <input type="checkbox" style="accent-color:#3b82f6;">
+          <span style="font-size:12px;">📚 产品手册</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #f3f4f6;">
+          <input type="checkbox" style="accent-color:#3b82f6;">
+          <span style="font-size:12px;">📚 团队 Wiki</span>
+        </div>
+        <div style="text-align:center;padding:6px;color:#9ca3af;font-size:12px;cursor:pointer;">+ 上传新知识库</div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">启用技能</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <span style="border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;padding:4px 12px;border-radius:16px;font-size:11px;">🗣 communication ✓</span>
+        <span style="border:1px solid #e5e7eb;padding:4px 12px;border-radius:16px;font-size:11px;color:#6b7280;">📝 prd_writing</span>
+        <span style="border:1px solid #e5e7eb;padding:4px 12px;border-radius:16px;font-size:11px;color:#6b7280;">🔍 code_review</span>
+        <span style="border:1px solid #e5e7eb;padding:4px 12px;border-radius:16px;font-size:11px;color:#6b7280;">📂 file-ops</span>
+        <span style="border:1px solid #e5e7eb;padding:4px 12px;border-radius:16px;font-size:11px;color:#6b7280;">♟ strategy</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;">
+      <span style="border:1px solid #d1d5db;color:#374151;padding:6px 20px;border-radius:6px;font-size:13px;">← 上一步</span>
+      <span style="background:#3b82f6;color:#fff;padding:6px 20px;border-radius:6px;font-size:13px;">下一步 →</span>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">Step 4/5：用户从哪里找到它？（渠道）</div>
+  <div class="mockup-body" style="padding:20px;background:#fff;">
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">渠道入口（可多选）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="border:2px solid #3b82f6;background:#eff6ff;border-radius:8px;padding:12px;text-align:center;cursor:pointer;">
+          <div style="font-size:20px;">🌐</div>
+          <div style="font-size:12px;font-weight:600;margin-top:4px;">Web 聊天</div>
+          <div style="font-size:10px;color:#6b7280;">在网页端使用</div>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center;cursor:pointer;">
+          <div style="font-size:20px;">💬</div>
+          <div style="font-size:12px;font-weight:600;margin-top:4px;">微信</div>
+          <div style="font-size:10px;color:#6b7280;">公众号接入</div>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center;cursor:pointer;">
+          <div style="font-size:20px;">🐦</div>
+          <div style="font-size:12px;font-weight:600;margin-top:4px;">飞书</div>
+          <div style="font-size:10px;color:#6b7280;">飞书机器人</div>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center;cursor:pointer;">
+          <div style="font-size:20px;">🔌</div>
+          <div style="font-size:12px;font-weight:600;margin-top:4px;">API</div>
+          <div style="font-size:10px;color:#6b7280;">程序调用</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;">
+      <span style="border:1px solid #d1d5db;color:#374151;padding:6px 20px;border-radius:6px;font-size:13px;">← 上一步</span>
+      <span style="background:#3b82f6;color:#fff;padding:6px 20px;border-radius:6px;font-size:13px;">下一步 →</span>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">Step 5/5：确认并创建</div>
+  <div class="mockup-body" style="padding:20px;background:#fff;">
+    <div style="background:#f9fafb;border-radius:8px;padding:12px;">
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:12px;">
+        <span style="color:#6b7280;">场景名</span><span style="font-weight:600;">售后客服</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:12px;">
+        <span style="color:#6b7280;">用途</span><span style="font-weight:600;">客服</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:12px;">
+        <span style="color:#6b7280;">Agent</span><span style="font-weight:600;">售后小助手 · 亲切友好 · 中文</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:12px;">
+        <span style="color:#6b7280;">知识库</span><span style="font-weight:600;">退货政策 FAQ</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:12px;">
+        <span style="color:#6b7280;">技能</span><span style="font-weight:600;">communication</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:12px;">
+        <span style="color:#6b7280;">渠道</span><span style="font-weight:600;">Web 聊天</span>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:20px;">
+      <div style="background:#3b82f6;color:#fff;padding:10px 40px;border-radius:8px;display:inline-block;font-size:14px;font-weight:600;cursor:pointer;">🚀 创建场景</div>
+    </div>
+    <div style="text-align:center;margin-top:8px;">
+      <span style="font-size:11px;color:#6b7280;">← 上一步修改</span>
+    </div>
+  </div>
+</div>
+
+<hr style="margin:24px 0;">
+
+<h2>创建完成后 — 场景运行页</h2>
+<p class="subtitle">左边聊天，右边随时调配置</p>
+
+<div class="split">
+  <div class="mockup" style="flex:2;">
+    <div class="mockup-header">售后客服 — 聊天界面</div>
+    <div class="mockup-body" style="padding:12px;background:#fff;min-height:250px;">
+      <div style="background:#f3f4f6;padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:12px;display:inline-block;max-width:80%;">
+        你好！有什么可以帮你的？😊
+      </div>
+      <div style="text-align:right;margin-bottom:8px;">
+        <div style="background:#3b82f6;color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;display:inline-block;max-width:80%;text-align:left;">
+          我买的鞋子太大了，想换小一码
+        </div>
+      </div>
+      <div style="background:#f3f4f6;padding:8px 12px;border-radius:8px;font-size:12px;display:inline-block;max-width:80%;">
+        好的！根据退货政策，7天内可以免费换码。请提供订单号，我帮你处理 👟
+      </div>
+      <div style="margin-top:12px;border:1px solid #e5e7eb;border-radius:8px;padding:8px;">
+        <input class="mock-input" placeholder="输入消息..." style="width:calc(100% - 60px);border:none;display:inline-block;">
+        <span style="background:#3b82f6;color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;float:right;">发送</span>
+      </div>
+    </div>
+  </div>
+  <div class="mockup" style="flex:1;">
+    <div class="mockup-header">⚙ 场景设置（随时可调）</div>
+    <div class="mockup-body" style="padding:12px;background:#fff;">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:2px;">Agent</div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px;">售后小助手 <span style="color:#3b82f6;font-size:10px;cursor:pointer;">编辑</span></div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:2px;">风格</div>
+      <div style="font-size:12px;margin-bottom:8px;">😊 亲切友好</div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:2px;">知识库</div>
+      <div style="font-size:12px;margin-bottom:8px;">📚 退货政策 FAQ <span style="color:#3b82f6;font-size:10px;cursor:pointer;">+添加</span></div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:2px;">技能</div>
+      <div style="margin-bottom:8px;"><span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:10px;">communication</span> <span style="color:#3b82f6;font-size:10px;cursor:pointer;">+添加</span></div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:2px;">渠道</div>
+      <div style="font-size:12px;margin-bottom:8px;">🌐 Web <span style="color:#3b82f6;font-size:10px;cursor:pointer;">+添加</span></div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:2px;">模型</div>
+      <div style="font-size:12px;margin-bottom:12px;">默认（DeepSeek V4 Pro）</div>
+      <div style="text-align:center;">
+        <span style="background:#fee2e2;color:#dc2626;padding:4px 16px;border-radius:4px;font-size:11px;cursor:pointer;">暂停场景</span>
+      </div>
+    </div>
+  </div>
+</div>

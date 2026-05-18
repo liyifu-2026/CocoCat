@@ -407,7 +407,7 @@ def _connect_main_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
                     "content": msg.content,
                     "reply": reply_text,
                 })
-            except Exception as e:
+            except Exception:
                 logger.exception("Main channel message handler failed for %s", ct)
         _schedule_coro(_handle(), loop)
 
@@ -442,6 +442,112 @@ async def disconnect_channel(body: ChannelConnect):
 async def list_channel_types():
     """Return metadata for all supported channel types."""
     return {"types": CHANNEL_TYPES}
+
+
+def auto_reconnect_channels(ctx: AppContext):
+    """Auto-reconnect channels that are enabled and have saved credentials.
+
+    Called on app startup (lifespan). Checks main.yaml for channels with
+    enabled=true and valid credentials/config, then starts them.
+    """
+    cfg = _load_main_config()
+    channels = cfg.get("channels", {})
+    loop = asyncio.get_running_loop()
+
+    for ct, info in channels.items():
+        if not info.get("enabled"):
+            continue
+
+        config = info.get("config", {})
+        if not _channel_has_credentials(ct, config):
+            logger.info("Channel %s is enabled but has no credentials, skipping auto-reconnect", ct)
+            continue
+
+        key = f"main:main:{ct}"
+        if key in CHANNEL_INSTANCES:
+            continue
+
+        try:
+            create_channel = _get_channel_factory()
+            ch = create_channel(ct)
+            CHANNEL_INSTANCES[key] = ch
+
+            _wire_main_channel_auto(ch, ct, ctx, loop)
+            ch.start("main", config)
+
+            success, _ = ch.wait_startup(timeout=3)
+            status = "connected" if success else "connecting"
+
+            CHANNEL_STATUS[key] = {
+                "status": status,
+                "channel_type": ct,
+                "connected_since": datetime.datetime.now().isoformat() if success else None,
+                "message_count": 0,
+            }
+
+            if not success:
+                def _watch_startup():
+                    ok, err = ch.wait_startup(timeout=300)
+                    if ok:
+                        CHANNEL_STATUS[key] = {
+                            "status": "connected",
+                            "channel_type": ct,
+                            "connected_since": datetime.datetime.now().isoformat(),
+                            "message_count": 0,
+                        }
+                    else:
+                        CHANNEL_STATUS.pop(key, None)
+                        CHANNEL_INSTANCES.pop(key, None)
+                        try:
+                            ch.stop()
+                        except Exception:
+                            pass
+                threading.Thread(target=_watch_startup, daemon=True).start()
+
+            logger.info("Auto-reconnected channel: %s (status=%s)", ct, status)
+
+        except Exception as e:
+            logger.exception("Failed to auto-reconnect channel %s: %s", ct, e)
+
+
+def _channel_has_credentials(channel_type: str, config: dict) -> bool:
+    """Check if a channel has saved credentials or required config fields."""
+    if channel_type == "weixin":
+        return os.path.exists(os.path.join("agents", "_weixin_credentials.json"))
+    if channel_type == "feishu":
+        return bool(config.get("app_id") and config.get("app_secret"))
+    if channel_type in ("telegram", "discord"):
+        return bool(config.get("bot_token"))
+    if channel_type == "wechat":
+        return bool(config.get("app_id") and config.get("token"))
+    return bool(config)
+
+
+def _wire_main_channel_auto(ch, channel_type: str, ctx: AppContext, loop):
+    """Wire on_message for auto-reconnected main channel (same logic as _connect_main_channel)."""
+    bus = ctx.bus
+    sandbox_provider = ctx.sandbox_provider
+
+    def on_message(msg, ct=channel_type):
+        async def _handle():
+            try:
+                _send_thinking(ch, msg)
+                reply_text = await sandbox_provider.run_once(msg.content, agent_id="main")
+                reply = Reply(ReplyType.TEXT, reply_text)
+                user_ctx = Context(ContextType.TEXT, msg.content,
+                                   user_id=msg.user_id, receiver=msg.user_id)
+                ch.send(reply, user_ctx)
+                await bus.publish("main_message", {
+                    "channel": ct,
+                    "user_id": msg.user_id,
+                    "content": msg.content,
+                    "reply": reply_text,
+                })
+            except Exception:
+                logger.exception("Main channel message handler failed for %s", ct)
+        _schedule_coro(_handle(), loop)
+
+    ch.on_message = on_message
 
 
 @router.get("/qr/{channel_type}")

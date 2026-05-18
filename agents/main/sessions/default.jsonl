@@ -1,0 +1,14 @@
+{"role": "user", "content": "Hello"}
+{"role": "assistant", "content": "I'm the agent's response."}
+{"role": "user", "content": "Hello"}
+{"role": "assistant", "content": "I'm the agent's response."}
+{"role": "user", "content": "帮我查退款流程"}
+{"role": "assistant", "content": "Dispatched to agent_a"}
+{"role": "user", "content": "run this task"}
+{"role": "assistant", "content": "hello from agent"}
+{"role": "user", "content": "run this task"}
+{"role": "assistant", "content": "task completed"}
+{"role": "user", "content": "run this task"}
+{"role": "assistant", "content": "hello from agent"}
+{"role": "user", "content": "run this task"}
+{"role": "assistant", "content": "task completed"}

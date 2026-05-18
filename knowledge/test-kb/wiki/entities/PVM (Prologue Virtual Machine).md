@@ -1,3 +1,4 @@
+---
 type: entity
 title: PVM (Prologue Virtual Machine)
 created: 2024-07-20

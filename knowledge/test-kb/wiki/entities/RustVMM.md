@@ -1,3 +1,4 @@
+---
 type: entity
 title: RustVMM
 created: 2024-07-20
