@@ -168,6 +168,26 @@ async def kb_chat(body: KbChatRequest, ctx: AppContext = Depends(get_ctx)):
     return {"reply": reply, "msg_uuid": reply_uuid}
 
 
+@router.get("/kb-chat/history")
+async def kb_chat_history(ctx: AppContext = Depends(get_ctx), session_id: str = ""):
+    """Get kb-chat session history."""
+    import os, json
+    path = os.path.join("agents", "kb-agent", "sessions", f"{session_id}.jsonl") if session_id else os.path.join("agents", "kb-agent", "session.jsonl")
+    if not os.path.exists(path):
+        return {"messages": []}
+    messages = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    msg = json.loads(line)
+                    messages.append({"role": msg.get("role", ""), "content": msg.get("content", "")})
+                except json.JSONDecodeError:
+                    pass
+    return {"messages": messages}
+
+
 @router.get("/chat/history")
 async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "default", limit: int = 50):
     return {"messages": ctx.db.messages.get_chat_history(scene_id, limit)}

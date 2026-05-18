@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useContext, useCallback } from "react"
+import { useState, useRef, useEffect, useContext } from "react"
 import { Send, Loader2, Bot, Wrench, CheckCircle2 } from "lucide-react"
 import { KbChatContext, type ChatMessage } from "@/lib/KbChatContext"
 
@@ -72,7 +72,7 @@ export default function KbChatPanel({ kbName }: { kbName: string }) {
       const res = await fetch("/api/kb-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text, kb_name: kbName }),
+        body: JSON.stringify({ content: text, kb_name: kbName, session_id: ctx?.sessionId }),
       })
       const data = await res.json()
       // If streaming hasn't filled the message, use REST reply
@@ -94,8 +94,15 @@ export default function KbChatPanel({ kbName }: { kbName: string }) {
     <div className="flex flex-col h-full border-l border-border bg-card/30">
       <div className="px-3 py-2 border-b border-border flex items-center gap-2 shrink-0">
         <Bot className="size-4 text-primary" />
-        <span className="text-xs font-medium">kb-agent</span>
-        {loading && <Loader2 className="size-3 animate-spin ml-auto" />}
+        <span className="text-xs font-medium flex-1">kb-agent</span>
+        {loading && <Loader2 className="size-3 animate-spin" />}
+        <button
+          onClick={() => ctx?.newSession()}
+          className="text-[10px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-accent"
+          title="新建对话"
+        >
+          +新对话
+        </button>
       </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3 text-xs">
         {messages.length === 0 && (
