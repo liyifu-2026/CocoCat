@@ -63,6 +63,17 @@ class AgentPool:
             return agent
         return None
 
+    def get_scene_agent(self, scene_id: str) -> Agent | None:
+        """Find the agent associated with a scene by naming convention."""
+        scene_agent_id = f"scene-{scene_id}"
+        agent = self._agents.get(scene_agent_id)
+        if agent:
+            return agent
+        for a in self._agents.values():
+            if a.role == AgentRole.RESIDENT:
+                return a
+        return None
+
     def list_agents(self) -> list[Agent]:
         """List all agents in the pool."""
         return list(self._agents.values())
