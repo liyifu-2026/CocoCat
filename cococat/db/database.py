@@ -77,9 +77,22 @@ CREATE TABLE IF NOT EXISTS scenes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
-    roster TEXT NOT NULL DEFAULT '[]',
-    metadata TEXT NOT NULL DEFAULT '{}',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    context TEXT NOT NULL DEFAULT '',
+    agent_id TEXT,
+    status TEXT NOT NULL DEFAULT 'running'
+        CHECK (status IN ('running','paused','archived','deleted')),
+    purpose TEXT NOT NULL DEFAULT '',
+    kbs TEXT NOT NULL DEFAULT '[]',
+    skills TEXT NOT NULL DEFAULT '[]',
+    tools TEXT NOT NULL DEFAULT '[]',
+    channels TEXT NOT NULL DEFAULT '[]',
+    llm_config TEXT NOT NULL DEFAULT '{}',
+    visibility TEXT NOT NULL DEFAULT 'private'
+        CHECK (visibility IN ('private','shared')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    archived_at TEXT,
+    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS facts (
@@ -146,6 +159,29 @@ class Database:
                 )
             except sqlite3.OperationalError:
                 pass
+        self._migrate_scenes_table()
+
+    def _migrate_scenes_table(self) -> None:
+        """Add new columns to scenes table if they don't exist (2026-05-18)."""
+        new_columns = {
+            "description": "TEXT NOT NULL DEFAULT ''",
+            "context": "TEXT NOT NULL DEFAULT ''",
+            "agent_id": "TEXT",
+            "status": "TEXT NOT NULL DEFAULT 'running'",
+            "purpose": "TEXT NOT NULL DEFAULT ''",
+            "kbs": "TEXT NOT NULL DEFAULT '[]'",
+            "skills": "TEXT NOT NULL DEFAULT '[]'",
+            "tools": "TEXT NOT NULL DEFAULT '[]'",
+            "channels": "TEXT NOT NULL DEFAULT '[]'",
+            "llm_config": "TEXT NOT NULL DEFAULT '{}'",
+            "visibility": "TEXT NOT NULL DEFAULT 'private'",
+            "updated_at": "TEXT NOT NULL DEFAULT (datetime('now'))",
+            "archived_at": "TEXT",
+        }
+        existing = {row[1] for row in self._conn.execute("PRAGMA table_info(scenes)")}
+        for col_name, col_def in new_columns.items():
+            if col_name not in existing:
+                self._conn.execute(f"ALTER TABLE scenes ADD COLUMN {col_name} {col_def}")
 
     def query(self, sql: str, params: tuple = ()) -> list[dict]:
         """Run a SELECT query and return rows as dicts."""
