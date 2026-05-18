@@ -31,6 +31,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
             worker.set_dag_executor(sub_exec.dispatch)
         worker.set_dag_store(app.state.ctx.dag_store)
         worker.set_ws_manager(app.state.ctx.ws_manager)
+        worker.set_sandbox_provider(app.state.ctx.sandbox_provider)
         await worker.start()
         app.state.ctx.worker = worker
 
@@ -57,6 +58,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     from cococat.routes.scene_mgmt import router as scene_mgmt_router
     from cococat.routes.providers import router as providers_router
     from cococat.routes.channels import router as channels_router
+    from cococat.routes.cron import router as cron_router
     from cococat.routes.dag import router as dag_router
     from cococat.routes.settings import router as settings_router
 
@@ -70,6 +72,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     app.include_router(providers_router)
     app.include_router(channels_router)
     app.include_router(dag_router)
+    app.include_router(cron_router)
     app.include_router(settings_router)
 
     @app.get("/api/health")

@@ -44,6 +44,10 @@ class TaskWorker:
         """Set WebSocket manager for DAG completion notifications."""
         self._ws_manager = ws_manager
 
+    def set_sandbox_provider(self, sandbox_provider):
+        """Set sandbox provider for calling Coco on DAG completion."""
+        self._sandbox_provider = sandbox_provider
+
     async def start(self) -> None:
         self._running = True
         self._task = asyncio.create_task(self._loop())
@@ -79,9 +83,10 @@ class TaskWorker:
             logger.exception("TaskWorker: DAG task execution failed")
 
     async def _check_run_completion(self) -> None:
-        """Check if any DAG run is fully complete and notify via WS."""
+        """Check if any DAG run is fully complete, call Coco to report results."""
         if not self._ws_manager or not self._dag_store:
             return
+        sandbox = getattr(self, '_sandbox_provider', None)
         for data in self._dag_store.list_all():
             if data.get("status") == "done":
                 continue
@@ -98,15 +103,41 @@ class TaskWorker:
                 data["status"] = "done"
                 run_id = data.get("run_id", "?")
                 self._dag_store.save(run_id, data)
-                session_id = data.get("session_id")
-                summary = f"[DAG] 任务全部完成! {run_id[:8]} — {len(all_tasks)} 个任务已完成。"
+                session_id = data.get("session_id", "")
+                task_count = len(all_tasks)
+
+                # Broadcast system notification
                 await self._ws_manager.broadcast("dag.completed", {
                     "run_id": run_id,
                     "session_id": session_id,
-                    "summary": summary,
-                    "task_count": len(all_tasks),
+                    "task_count": task_count,
                 })
-                logger.info("TaskWorker: DAG run %s completed, notified session %s", run_id[:8], session_id)
+
+                # Call Coco to report results
+                if sandbox:
+                    from cococat.core.tools import create_main_ai_tools
+                    from cococat.core.sub_agent import SubAgentExecutor
+                    trigger = f"check_tasks for run {run_id}. Summarize the completed results and notify the user."
+                    try:
+                        async def on_text(delta):
+                            await self._ws_manager.broadcast("text_delta", {
+                                "content": delta, "agent_id": "main", "session_id": session_id,
+                            })
+                        async def on_tool(name, status, data=None):
+                            await self._ws_manager.broadcast("stream_tool", {
+                                "name": name, "status": status, "agent_id": "main",
+                                "session_id": session_id, **(data or {}),
+                            })
+                        sub_executor = SubAgentExecutor(bus=None, pool=self._pool)
+                        tools = create_main_ai_tools(sub_agent_executor=sub_executor.dispatch, dag_store=self._dag_store)
+                        await sandbox.run_once(
+                            prompt=trigger, agent_id="main", tools=tools,
+                            on_event=lambda et, d: None, session_id=session_id,
+                        )
+                    except Exception:
+                        logger.exception("Failed to auto-report DAG run %s", run_id[:8])
+
+                logger.info("TaskWorker: DAG run %s completed, %d tasks", run_id[:8], task_count)
 
     async def _process_kb(self) -> None:
         """Claim and process one pending KB task."""
