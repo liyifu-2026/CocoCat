@@ -55,6 +55,7 @@ class Agent:
         self.id = id
         self.name = name
         self.role = role
+        self.page = ""
         self.state = AgentState.IDLE
         self.bound_scene: str | None = None
         self._llm = llm

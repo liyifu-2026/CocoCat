@@ -141,6 +141,7 @@ def _load_residents(ctx, factory, sub_executor, dag_store) -> None:
             id=agent_id, name=name, role=AgentRole.RESIDENT,
             llm=provider, tools=tools, agent_dir=f"agents/{agent_id}",
         )
+        agent.page = cfg.get("page", "")
         pool.add_agent(agent)
 
         cron_entries = cfg.get("cron", [])
