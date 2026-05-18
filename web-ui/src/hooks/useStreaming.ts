@@ -103,17 +103,22 @@ export function useStreaming(currentIdRef: React.MutableRefObject<string>) {
     return () => clearInterval(timer)
   }, [currentIdRef])
 
-  // Poll DAG — global (3s)
-  useEffect(() => {
-    const poll = () => {
-      fetch("/api/dag").then(r => r.json()).then(d => {
-        setAllDagRuns(d.runs || [])
-      }).catch(() => {})
-    }
-    poll()
-    const timer = setInterval(poll, 3000)
-    return () => clearInterval(timer)
+  // Poll DAG — global (2s, plus WS-driven immediate refresh)
+  const fetchAllDag = useCallback(() => {
+    fetch("/api/dag").then(r => r.json()).then(d => {
+      setAllDagRuns(d.runs || [])
+    }).catch(() => {})
   }, [])
+  useEffect(() => {
+    fetchAllDag()
+    const timer = setInterval(fetchAllDag, 2000)
+    return () => clearInterval(timer)
+  }, [fetchAllDag])
+
+  // WS-triggered immediate DAG refresh
+  useEffect(() => {
+    return onMessage("dag.completed", () => { fetchAllDag() })
+  }, [onMessage, fetchAllDag])
 
   // Feed new DAG runs into current turn during streaming
   useEffect(() => {
