@@ -5,9 +5,7 @@ import tempfile
 import asyncio
 import pytest
 from cococat.core.session import Session, SessionManager
-from cococat.memory.ticker import MemoryTicker
-from cococat.memory.facts import FactsExtractor
-from cococat.memory.compiler import DailyCompiler
+from cococat.memory import MemoryStore
 from cococat.db import Database
 from cococat.providers.base import LLMResponse
 
@@ -40,11 +38,11 @@ async def test_memory_ticker_summarizes_session(tmp_dir, llm):
     await session.append("user", "What's the refund policy?")
     await session.append("assistant", "Refund policy: ...")
 
-    ticker = MemoryTicker(llm, session_mgr, memory_dir=os.path.join(tmp_dir, "memory"))
+    store = MemoryStore(llm, memory_dir=os.path.join(tmp_dir, "memory"))
 
     # Simulate 6 turns to trigger summary
     for i in range(6):
-        await ticker.notify_turn(session)
+        await store.notify_turn(session)
 
     await asyncio.sleep(0.05)
 
@@ -61,8 +59,8 @@ async def test_memory_ticker_skip_below_threshold(tmp_dir, llm):
     session_mgr = SessionManager()
     session = await session_mgr.create(tmp_dir)
 
-    ticker = MemoryTicker(llm, session_mgr, memory_dir=os.path.join(tmp_dir, "memory"))
-    await ticker.notify_turn(session)  # Only 1 turn — no summary yet
+    store = MemoryStore(llm, memory_dir=os.path.join(tmp_dir, "memory"))
+    await store.notify_turn(session)  # Only 1 turn — no summary yet
 
     summary_path = os.path.join(tmp_dir, "memory", "summaries")
     assert not os.path.exists(summary_path)
@@ -75,8 +73,8 @@ async def test_memory_ticker_on_session_end(tmp_dir, llm):
     await session.append("user", "Hello")
     await session.append("assistant", "Hi")
 
-    ticker = MemoryTicker(llm, session_mgr, memory_dir=os.path.join(tmp_dir, "memory"))
-    await ticker.notify_session_end(session)
+    store = MemoryStore(llm, memory_dir=os.path.join(tmp_dir, "memory"))
+    await store.notify_session_end(session)
 
     await asyncio.sleep(0.05)
 
@@ -91,15 +89,15 @@ async def test_memory_ticker_fingerprint_cache(tmp_dir, llm):
     await session.append("user", "cache test")
     await session.append("assistant", "response")
 
-    ticker = MemoryTicker(llm, session_mgr, memory_dir=os.path.join(tmp_dir, "memory"))
-    await ticker.notify_session_end(session)
+    store = MemoryStore(llm, memory_dir=os.path.join(tmp_dir, "memory"))
+    await store.notify_session_end(session)
     await asyncio.sleep(0.05)
 
     summary_path = os.path.join(tmp_dir, "memory", "summaries")
     files_before = os.listdir(summary_path)
 
     # Second call — should skip (fingerprint unchanged)
-    await ticker.notify_session_end(session)
+    await store.notify_session_end(session)
     await asyncio.sleep(0.05)
 
     files_after = os.listdir(summary_path)
@@ -115,8 +113,8 @@ async def test_facts_extractor(tmp_dir, llm):
     await session.append("assistant", "Ok")
 
     memory_dir = os.path.join(tmp_dir, "memory")
-    ticker = MemoryTicker(llm, session_mgr, memory_dir=memory_dir)
-    await ticker.notify_session_end(session)
+    store = MemoryStore(llm, memory_dir=memory_dir)
+    await store.notify_session_end(session)
     await asyncio.sleep(0.05)
 
     # Now extract facts
@@ -124,8 +122,8 @@ async def test_facts_extractor(tmp_dir, llm):
     db = Database(db_path)
     db.migrate()
 
-    extractor = FactsExtractor(llm, db, memory_dir=memory_dir)
-    count = await extractor.process_dirty()
+    store = MemoryStore(llm, db, memory_dir=memory_dir)
+    count = await store.extract_facts()
     assert count >= 1
 
     # Verify fact in DB
@@ -142,12 +140,12 @@ async def test_daily_compiler(tmp_dir, llm):
     await session.append("assistant", "Test response")
 
     memory_dir = os.path.join(tmp_dir, "memory")
-    ticker = MemoryTicker(llm, session_mgr, memory_dir=memory_dir)
-    await ticker.notify_session_end(session)
+    store = MemoryStore(llm, memory_dir=memory_dir)
+    await store.notify_session_end(session)
     await asyncio.sleep(0.05)
 
-    compiler = DailyCompiler(llm, memory_dir)
-    await compiler.compile_all()
+    store = MemoryStore(llm, memory_dir=memory_dir)
+    await store.compile()
 
     assert os.path.exists(os.path.join(memory_dir, "today.md"))
     assert os.path.exists(os.path.join(memory_dir, "memory.md"))
@@ -155,11 +153,11 @@ async def test_daily_compiler(tmp_dir, llm):
 
 @pytest.mark.asyncio
 async def test_daily_compiler_no_summaries(tmp_dir, llm):
-    """When no summaries exist, compile_all should return early without errors."""
+    """When no summaries exist, compile should return early without errors."""
     memory_dir = os.path.join(tmp_dir, "memory")
     os.makedirs(memory_dir, exist_ok=True)
-    compiler = DailyCompiler(llm, memory_dir)
-    await compiler.compile_all()
+    store = MemoryStore(llm, memory_dir=memory_dir)
+    await store.compile()
     assert not os.path.exists(os.path.join(memory_dir, "today.md"))
 
 
@@ -172,12 +170,12 @@ async def test_daily_compiler_week_appends(tmp_dir, llm):
     await session.append("assistant", "Response")
 
     memory_dir = os.path.join(tmp_dir, "memory")
-    ticker = MemoryTicker(llm, session_mgr, memory_dir=memory_dir)
-    await ticker.notify_session_end(session)
+    store = MemoryStore(llm, memory_dir=memory_dir)
+    await store.notify_session_end(session)
     await asyncio.sleep(0.05)
 
-    compiler = DailyCompiler(llm, memory_dir)
-    await compiler.compile_all()
+    store = MemoryStore(llm, memory_dir=memory_dir)
+    await store.compile()
     assert os.path.exists(os.path.join(memory_dir, "week.md"))
 
 
@@ -190,12 +188,12 @@ async def test_daily_compiler_memory_md_content(tmp_dir, llm):
     await session.append("assistant", "Ok")
 
     memory_dir = os.path.join(tmp_dir, "memory")
-    ticker = MemoryTicker(llm, session_mgr, memory_dir=memory_dir)
-    await ticker.notify_session_end(session)
+    store = MemoryStore(llm, memory_dir=memory_dir)
+    await store.notify_session_end(session)
     await asyncio.sleep(0.05)
 
-    compiler = DailyCompiler(llm, memory_dir)
-    await compiler.compile_all()
+    store = MemoryStore(llm, memory_dir=memory_dir)
+    await store.compile()
 
     with open(os.path.join(memory_dir, "memory.md")) as f:
         content = f.read()

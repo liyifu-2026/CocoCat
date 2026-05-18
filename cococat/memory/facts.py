@@ -1,41 +1,29 @@
-"""Memory facts extraction — writes atomic facts to SQLite FTS5."""
+"""FTS5 atomic fact extraction and indexing."""
 
 from __future__ import annotations
 
 import json
 import logging
 import os
-from typing import Any, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from cococat.db import Database
-
-logger = logging.getLogger("cococat.memory.facts")
+logger = logging.getLogger("cococat.memory")
 
 
-class FactsExtractor:
-    """Extracts atomic facts from session summaries into SQLite FTS5."""
+class _FactsMixin:
+    """Mixin providing FTS5 atomic fact extraction from session summaries."""
 
-    def __init__(self, llm: Any, db: Database, memory_dir: str = "memory"):
-        self._llm = llm
-        self._db = db
-        self._memory_dir = memory_dir
-        self._snapshots: dict[str, str] = {}  # session_id → last processed fingerprint
-
-    async def process_dirty(self) -> int:
-        """Process all sessions where summary fingerprint has changed. Returns count of new facts."""
+    async def extract_facts(self) -> int:
         summaries_dir = os.path.join(self._memory_dir, "summaries")
         if not os.path.isdir(summaries_dir):
             return 0
 
         count = 0
-        fact_store = self._db.facts
+        fact_store = self._db.facts if self._db else None
         for fname in os.listdir(summaries_dir):
             if not fname.endswith(".json"):
                 continue
             path = os.path.join(summaries_dir, fname)
             session_id = fname[:-5]
-
             try:
                 with open(path, encoding="utf-8") as f:
                     data = json.load(f)
@@ -43,11 +31,11 @@ class FactsExtractor:
                 continue
 
             fp = data.get("fingerprint", "")
-            if self._snapshots.get(session_id) == fp:
-                continue  # Already processed
+            if self._fact_snapshots.get(session_id) == fp:
+                continue
 
-            new_facts = await self._extract(data["summary"], session_id)
-            if new_facts:
+            new_facts = await self._extract_atomic(data["summary"], session_id)
+            if new_facts and fact_store:
                 for fact in new_facts:
                     fact_store.insert(
                         f"{session_id}-{fact['hash'][:8]}", "main",
@@ -57,26 +45,23 @@ class FactsExtractor:
                 fact_store.rebuild_index()
                 count += len(new_facts)
 
-            self._snapshots[session_id] = fp
+            self._fact_snapshots[session_id] = fp
 
         return count
 
-    async def _extract(self, summary: str, session_id: str) -> list[dict]:
-        """Extract atomic facts from a session summary via LLM."""
-        prompt = f"""Extract 1-3 key facts from this conversation summary.
-Each fact should be a single sentence. Add a tag (preference/decision/context).
-
-Summary: {summary[:1000]}
-
-Return JSON array: [{{"text": "...", "tags": "..."}}]"""
-
+    async def _extract_atomic(self, summary: str, session_id: str) -> list[dict]:
+        prompt = (
+            "Extract 1-3 key facts from this conversation summary.\n"
+            "Each fact should be a single sentence. Add a tag (preference/decision/context).\n\n"
+            f"Summary: {summary[:1000]}\n\n"
+            'Return JSON array: [{"text": "...", "tags": "..."}]'
+        )
+        llm = self._get_llm()
+        if not llm:
+            return []
         try:
-            result = await self._llm.chat(
-                messages=[{"role": "user", "content": prompt}],
-            )
+            result = await llm.chat(messages=[{"role": "user", "content": prompt}])
             content = result.content or ""
-
-            # Try to parse JSON from the response
             json_start = content.find("[")
             json_end = content.rfind("]") + 1
             if json_start >= 0 and json_end > json_start:
@@ -88,5 +73,4 @@ Return JSON array: [{{"text": "...", "tags": "..."}}]"""
                 ]
         except Exception:
             logger.exception("Facts extraction failed for %s", session_id)
-
         return []
