@@ -240,6 +240,13 @@ def create_core_tools(
     """Create the 26 core tools for sub-agents."""
     if tavily_api_key is None:
         tavily_api_key = os.environ.get("TAVILY_API_KEY")
+    if tavily_api_key is None:
+        try:
+            import json
+            with open("config/auth.json", encoding="utf-8") as f:
+                tavily_api_key = json.load(f).get("tavily")
+        except Exception:
+            pass
     return (
         _make_file_tools() +
         _make_execution_tools(sandbox_run) +
@@ -264,6 +271,13 @@ def create_main_ai_tools(
     """
     if tavily_api_key is None:
         tavily_api_key = os.environ.get("TAVILY_API_KEY")
+    if tavily_api_key is None:
+        try:
+            import json
+            with open("config/auth.json", encoding="utf-8") as f:
+                tavily_api_key = json.load(f).get("tavily")
+        except Exception:
+            pass
     return (
         _make_dag_tools(dag_store, sub_agent_executor) +
         _make_memory_tools() +
