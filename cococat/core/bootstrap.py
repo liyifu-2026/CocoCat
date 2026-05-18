@@ -206,12 +206,14 @@ def _seed_cron_jobs(agent_id: str, entries: list[dict]) -> None:
         filename = f"{agent_id}-{name}.json"
         filepath = os.path.join(cron_dir, filename)
         if not os.path.exists(filepath):
+            at_time = entry.get("at_time", "")
             job = {
                 "id": f"{agent_id}-{name}",
                 "agent_id": agent_id,
                 "name": name,
                 "schedule": schedule,
                 "task": entry.get("task", f"Run {name} maintenance"),
+                "at_time": at_time,
                 "status": "active",
                 "last_run": 0,
                 "created_at": __import__("datetime").datetime.now().isoformat(),

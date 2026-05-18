@@ -37,6 +37,8 @@ _NAMED = {
 def _parse_schedule(schedule: str) -> float | None:
     """Parse a schedule string into interval seconds. Returns None if unparseable."""
     schedule = schedule.strip().lower()
+    if schedule.startswith("@"):
+        schedule = schedule[1:]
 
     if schedule in _NAMED:
         return float(_NAMED[schedule])
@@ -53,8 +55,61 @@ def _parse_schedule(schedule: str) -> float | None:
     return None
 
 
+def _is_time_match(at_time: str, tolerance: float = 30.0) -> bool:
+    """Check if current wall-clock time matches at_time (HH:MM) within tolerance seconds."""
+    if not at_time:
+        return True
+    try:
+        parts = at_time.strip().split(":")
+        expected_h = int(parts[0])
+        expected_m = int(parts[1])
+    except (ValueError, IndexError):
+        return True
+    now = datetime.now()
+    now_minutes = now.hour * 60 + now.minute + now.second / 60.0
+    expected_minutes = expected_h * 60 + expected_m
+    diff = abs(now_minutes - expected_minutes) * 60
+    return diff <= tolerance
+
+
+def _to_timestamp(value) -> float:
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value).timestamp()
+        except ValueError:
+            return 0
+    if isinstance(value, (int, float)):
+        return float(value)
+    return 0
+
+
+async def _dispatch(task: str, target_agent_id: str, pool, sub_executor) -> None:
+    if target_agent_id and pool:
+        agent = pool.get_agent(target_agent_id)
+        if agent:
+            await agent.run(task)
+            return
+        if sub_executor:
+            result = await sub_executor.dispatch(task, from_agent="cron")
+            if not result:
+                raise RuntimeError(f"Sub-agent dispatch returned no result for task")
+            return
+        raise RuntimeError(f"Agent '{target_agent_id}' not found and no sub_executor available")
+
+    if sub_executor:
+        result = await sub_executor.dispatch(task, from_agent="cron")
+        if not result:
+            raise RuntimeError("Sub-agent dispatch returned no result for task")
+        return
+
+    main = pool.get_agent("main") if pool else None
+    if main:
+        await main.run(task)
+        return
+    raise RuntimeError("No dispatch target available")
+
+
 def _parse_cron_fields(fields: list[str]) -> float | None:
-    """Parse 5-field cron expression to seconds. Returns None if not simple enough."""
     minute = fields[0]
     hour = fields[1]
     dom = fields[2]
@@ -149,14 +204,12 @@ class CronWorker:
         if interval is None:
             return
 
-        last_run = entry.get("last_run", 0)
-        if isinstance(last_run, str):
-            try:
-                last_run = datetime.fromisoformat(last_run).timestamp()
-            except ValueError:
-                last_run = 0
-
+        last_run = _to_timestamp(entry.get("last_run", 0))
         if (now - last_run) < interval:
+            return
+
+        at_time = entry.get("at_time", "")
+        if at_time and interval >= 86400 and not _is_time_match(at_time):
             return
 
         entry["last_run"] = datetime.now().isoformat()
@@ -166,18 +219,11 @@ class CronWorker:
 
         task = entry.get("task", "")
         task_id = entry.get("id", "unknown")
-        logger.info("CronWorker dispatching %s: %s", task_id, task)
+        target_agent_id = entry.get("agent_id", "")
+        logger.info("CronWorker dispatching %s -> %s: %s", task_id, target_agent_id or "pool", task)
 
         try:
-            if self._sub_executor:
-                result = await self._sub_executor.dispatch(task, from_agent="cron")
-                if result:
-                    logger.info("CronWorker task %s dispatched → %s", task_id, result)
-            else:
-                main = self._pool.get_agent("main")
-                if main:
-                    await main.run(task)
-
+            await _dispatch(task, target_agent_id, self._pool, self._sub_executor)
             entry["status"] = "completed"
         except Exception as e:
             logger.exception("CronWorker task %s failed", task_id)

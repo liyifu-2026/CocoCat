@@ -341,3 +341,7 @@
 .dark .markdown-content th {
   background: oklch(0.25 0.01 70 / 0.3);
 }
+
+/* Scroll snap scrollbar hiding */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
