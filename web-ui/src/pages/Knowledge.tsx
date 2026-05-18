@@ -85,10 +85,71 @@ export default function KnowledgePage() {
     <div className="flex flex-col h-full">
       {/* Top: KB cards */}
       <div className="flex-1 overflow-y-auto p-6 pb-0">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <BookOpen className="size-5 text-muted-foreground" />
           <h1 className="text-lg font-bold">知识库</h1>
+          <div className="flex-1" />
+          <button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            <Plus className="size-4" />
+            创建知识库
+          </button>
         </div>
+        {showCreateForm && (
+          <div className="mb-6 rounded-xl border border-border/60 bg-card p-4">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (!newKbName.trim()) return
+                setCreateError("")
+                createKbMutation.mutate({ name: newKbName.trim(), purpose: newKbPurpose.trim() })
+              }}
+              className="space-y-3"
+            >
+              <input
+                autoFocus
+                value={newKbName}
+                onChange={(e) => setNewKbName(e.target.value)}
+                placeholder="知识库名称"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <textarea
+                value={newKbPurpose}
+                onChange={(e) => setNewKbPurpose(e.target.value)}
+                placeholder="用途说明 (可选)"
+                rows={2}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              />
+              {createError && (
+                <p className="text-xs text-red-500">{createError}</p>
+              )}
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={!newKbName.trim() || createKbMutation.isPending}
+                  className="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-opacity inline-flex items-center gap-1.5"
+                >
+                  {createKbMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
+                  创建
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateForm(false)
+                    setNewKbName("")
+                    setNewKbPurpose("")
+                    setCreateError("")
+                  }}
+                  className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  取消
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
         {kbs.length === 0 && (
           <p className="text-sm text-muted-foreground">暂无知识库</p>
         )}
