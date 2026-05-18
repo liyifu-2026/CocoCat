@@ -167,8 +167,13 @@ export function useStreaming(currentIdRef: React.MutableRefObject<string>) {
   }, [])
 
   const dismissCompleted = useCallback(() => {
+    // Delete completed runs from server
+    const completed = allDagRuns.filter((r: any) => r.status !== "running")
+    completed.forEach((r: any) => {
+      fetch(`/api/dag/${r.run_id}`, { method: "DELETE" }).catch(() => {})
+    })
     setAllDagRuns(prev => prev.filter((r: any) => r.status === "running"))
-  }, [])
+  }, [allDagRuns])
 
   const jumpToDagSession = useCallback((sessionId: string | undefined) => {
     if (!sessionId) return
