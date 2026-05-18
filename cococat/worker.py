@@ -119,20 +119,17 @@ class TaskWorker:
                     from cococat.core.sub_agent import SubAgentExecutor
                     trigger = f"check_tasks for run {run_id}. Summarize the completed results and notify the user."
                     try:
-                        async def on_text(delta):
-                            await self._ws_manager.broadcast("text_delta", {
-                                "content": delta, "agent_id": "main", "session_id": session_id,
-                            })
-                        async def on_tool(name, status, data=None):
-                            await self._ws_manager.broadcast("stream_tool", {
-                                "name": name, "status": status, "agent_id": "main",
-                                "session_id": session_id, **(data or {}),
+                        async def on_event(event_type, data):
+                            await self._ws_manager.broadcast(event_type, {
+                                **(data or {}),
+                                "agent_id": "main",
+                                "session_id": session_id,
                             })
                         sub_executor = SubAgentExecutor(bus=None, pool=self._pool)
                         tools = create_main_ai_tools(sub_agent_executor=sub_executor.dispatch, dag_store=self._dag_store)
                         await sandbox.run_once(
                             prompt=trigger, agent_id="main", tools=tools,
-                            on_event=lambda et, d: None, session_id=session_id,
+                            on_event=on_event, session_id=session_id,
                         )
                     except Exception:
                         logger.exception("Failed to auto-report DAG run %s", run_id[:8])
