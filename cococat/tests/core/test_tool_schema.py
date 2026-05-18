@@ -104,14 +104,17 @@ def test_no_duplicate_tool_names_across_all_sets():
     assert len(main) == len(main_names), "create_main_ai_tools has duplicate names"
 
 
-def test_main_ai_has_no_execution_tools():
-    """Main AI tools must not include web_search, web_fetch, bash, etc."""
+def test_main_ai_has_no_write_or_execution_tools():
+    """Main AI should have read tools + DAG + web, but NOT write_file/edit_file/bash/browser."""
     main = create_main_ai_tools()
     names = {t["name"] for t in main}
-    forbidden = {"web_search", "web_fetch", "read_file", "write_file",
-                 "edit_file", "bash", "glob", "grep", "browser"}
+    # Coco CAN directly: read_file, list_dir, glob, grep, web_search, web_fetch
+    forbidden = {"write_file", "edit_file", "bash", "browser"}
     overlap = names & forbidden
-    assert not overlap, f"Main AI has forbidden execution tools: {overlap}"
+    assert not overlap, f"Main AI has forbidden write/execution tools: {overlap}"
+    # Verify Coco DOES have read tools
+    assert "read_file" in names, "Main AI should have read_file"
+    assert "web_search" in names, "Main AI should have web_search"
 
 
 def test_core_tools_include_web_search_and_fetch():

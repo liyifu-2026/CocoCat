@@ -1,4 +1,4 @@
-"""Tests for create_main_ai_tools() — Coco has DAG orchestration + memory + meta ONLY."""
+"""Tests for create_main_ai_tools() — Coco has DAG + read tools + memory + meta."""
 
 
 def test_main_ai_has_orchestration_tools():
@@ -18,18 +18,18 @@ def test_main_ai_has_orchestration_tools():
     assert not missing, f"Coco missing orchestration tools: {missing}"
 
 
-def test_main_ai_has_no_direct_tools():
-    """Coco must NOT have any direct execution or read tools."""
+def test_main_ai_has_read_tools():
+    """Coco CAN directly read and search, but NOT write/execute."""
     from cococat.core.tools import create_main_ai_tools
 
     tools = create_main_ai_tools()
     names = {t["name"] for t in tools}
 
-    forbidden = {
-        "read_file", "list_dir", "web_search", "web_fetch",
-        "write_file", "edit_file", "bash", "glob", "grep", "browser",
-        "sub_agent",
-    }
-    overlap = names & forbidden
-    assert not overlap, f"Coco should not have these tools: {overlap}"
+    # Coco SHOULD have these
+    assert "read_file" in names, "Coco should have read_file"
+    assert "web_search" in names, "Coco should have web_search"
 
+    # Coco should NOT have these
+    forbidden = {"write_file", "edit_file", "bash", "browser", "sub_agent"}
+    overlap = names & forbidden
+    assert not overlap, f"Coco has forbidden write/execution tools: {overlap}"

@@ -6,7 +6,7 @@ channels:
     config:
       app_id: test
       app_secret: secret
-    enabled: true
+    enabled: false
   telegram:
     config: {}
     enabled: false

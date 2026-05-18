@@ -1,7 +1,7 @@
-import { useState, useRef, useContext } from "react"
+import { useState, useRef } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router-dom"
-import { BookOpen, Loader2, Upload, X, FileText } from "lucide-react"
+import { BookOpen, Loader2, Upload, X, FileText, Plus } from "lucide-react"
 import KbChatPanel from "@/components/KbChatPanel"
 
 export default function KnowledgePage() {
@@ -11,6 +11,10 @@ export default function KnowledgePage() {
   const [uploading, setUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [newKbName, setNewKbName] = useState("")
+  const [newKbPurpose, setNewKbPurpose] = useState("")
+  const [createError, setCreateError] = useState("")
 
   const { data, isLoading } = useQuery({
     queryKey: ["knowledge"],
@@ -38,6 +42,36 @@ export default function KnowledgePage() {
     onError: () => {
       setUploadStatus("上传失败")
       setTimeout(() => { setUploading(false); setUploadStatus("") }, 3000)
+    },
+  })
+
+  const createKbMutation = useMutation({
+    mutationFn: async ({ name, purpose }: { name: string; purpose: string }) => {
+      const res = await fetch("/api/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, purpose }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        if (res.status === 409) throw new Error("409")
+        throw new Error(data.error || "创建失败")
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["knowledge"] })
+      setShowCreateForm(false)
+      setNewKbName("")
+      setNewKbPurpose("")
+      setCreateError("")
+    },
+    onError: (err) => {
+      if ((err as Error).message === "409") {
+        setCreateError("知识库已存在")
+      } else {
+        setCreateError((err as Error).message)
+      }
     },
   })
 

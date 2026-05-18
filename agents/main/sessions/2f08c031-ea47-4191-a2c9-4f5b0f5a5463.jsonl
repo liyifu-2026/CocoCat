@@ -30,3 +30,11 @@
 {"role": "assistant", "content": "你好！有什么我可以帮你的吗？"}
 {"role": "user", "content": "？？？"}
 {"role": "assistant", "content": "抱歉走神了！回到正题——你的 B站账号 \"Leaif\"，我继续搜！\n\n搜到了！快看看第一条是不是你。"}
+{"role": "user", "content": "你好"}
+{"role": "assistant", "content": "你好！需要我继续搜你的 B站账号吗，还是想聊点别的？"}
+{"role": "user", "content": "你好啊"}
+{"role": "assistant", "content": "你好啊 Leiaf！😊 有什么想聊的，或者有任务要我做？"}
+{"role": "user", "content": "nihao"}
+{"role": "assistant", "content": "你好！需要我做点什么吗？"}
+{"role": "user", "content": "nihao"}
+{"role": "assistant", "content": "你好！有什么需要帮忙的吗？"}

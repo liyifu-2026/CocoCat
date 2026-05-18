@@ -19,3 +19,10 @@ user likes python
 user prefers dark mode
 用户需要查询退款流程
 任务被分派给agent_a处理
+知识库采用文件驱动的Markdown Wiki系统
+知识库存储结构为knowledge/{kb_name}/目录
+实体页面放在wiki/entities/目录
+概念页面放在wiki/concepts/目录
+用户上传文件存入raw/sources/目录
+Agent自动消化整理并更新索引和日志
+KBService提供搜索、读取、写入等能力

@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
+import traceback
 from typing import Callable
 
 from cococat.core.types import ToolContext
+
+logger = logging.getLogger("cococat.tool_executor")
 
 
 def make_assistant_msg(content: str, tool_calls: list, reasoning_content: str | None = None) -> dict:
@@ -52,6 +56,7 @@ async def execute_tool_calls(
             else:
                 result_str = f"Unknown tool: {tname}"
         except Exception as e:
+            logger.error("Tool '%s' execution failed:\n%s", tname, traceback.format_exc())
             result_str = f"Tool error: {e}"
 
         elapsed = round(time.time() - start_time, 2)
