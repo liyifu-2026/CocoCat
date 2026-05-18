@@ -11,7 +11,7 @@ interface Snapshot {
 
 function matchSession(data: Record<string, unknown> | undefined, currentId: string): boolean {
   if (!currentId) return false
-  if (!data?.session_id) return true // no session_id in payload → accept
+  if (!data?.session_id) return false // reject events without session_id
   return data.session_id === currentId
 }
 
