@@ -202,7 +202,13 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
                   const done = run.stages?.reduce((s: number, st: any) => s + (st.tasks?.filter((t: any) => t.status === "done").length || 0), 0) || 0
                   const pct = total > 0 ? Math.round((done / total) * 100) : 0
                   return (
-                    <div key={run.run_id} onClick={() => jumpToDagSession(run.session_id)} className="rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-accent/60 transition-colors">
+                    <div key={run.run_id} className="rounded-lg px-2.5 py-1.5 hover:bg-accent/60 transition-colors group relative cursor-pointer" onClick={() => jumpToDagSession(run.session_id)}>
+                      <div className="absolute right-1.5 top-1.5 opacity-0 group-hover:opacity-100">
+                        <button onClick={e => {
+                          e.stopPropagation()
+                          fetch(`/api/dag/${run.run_id}`, { method: "DELETE" }).catch(() => {})
+                        }} className="text-[10px] text-muted-foreground hover:text-red-500">✕</button>
+                      </div>
                       <div className="flex items-center gap-1.5 text-[11px]">
                         <span className="size-1.5 rounded-full bg-blue-500 shrink-0" />
                         <span className="font-medium truncate">{getSessionTitle(run.session_id)}</span>
