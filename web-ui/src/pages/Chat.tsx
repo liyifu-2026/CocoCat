@@ -53,33 +53,8 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
     messagesEnd.current?.scrollIntoView({ behavior: "smooth" })
   }, [store.messages, ctrl.streamText, ctrl.reasoningText])
 
-  useEffect(() => {
-    return onMessage("dag.completed", (data) => {
-      if (!data?.session_id || data.session_id !== currentIdRef.current) return
-      store.addAssistantMessage(
-        `✅ ${data.summary || "所有任务已完成!"}`,
-        { dagRunIds: data.run_id ? [data.run_id as string] : undefined },
-      )
-    })
-  }, [onMessage, store])
-
-  // Clear streaming state when switching sessions
-  useEffect(() => {
-    if (skipClearUntilId.current === store.currentId) {
-      skipClearUntilId.current = null
-      return
-    }
-    if (!ctrl.streaming) {
-      ctrl.clear()
-    }
-  }, [store.currentId, ctrl])
-
-
-  const send = useCallback(async () => {
-    if (!input.trim() || ctrl.streaming) return
-    const userMsg = input.trim()
-    setInput("")
-
+  const sendMessage = useCallback(async (userMsg: string) => {
+    if (ctrl.streaming) return
     const hadMessages = store.messages.length > 0
 
     if (!store.currentId) {
@@ -113,7 +88,35 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
       store.addAssistantMessage("Error: " + String(e))
     }
     ctrl.complete()
-  }, [input, store, ctrl])
+  }, [store, ctrl, isKb, kbName])
+
+  useEffect(() => {
+    return onMessage("dag.completed", (data) => {
+      if (!data?.session_id || data.session_id !== currentIdRef.current) return
+      if (ctrl.streaming) return
+      const msg = `[System] DAG run completed (${(data as any).task_count || 0} tasks, run ${((data as any).run_id || "").slice(0, 8)}). Please check_tasks and summarize the results for the user.`
+      sendMessage(msg)
+    })
+  }, [onMessage, store, ctrl, sendMessage])
+
+  // Clear streaming state when switching sessions
+  useEffect(() => {
+    if (skipClearUntilId.current === store.currentId) {
+      skipClearUntilId.current = null
+      return
+    }
+    if (!ctrl.streaming) {
+      ctrl.clear()
+    }
+  }, [store.currentId, ctrl])
+
+
+  const send = useCallback(async () => {
+    if (!input.trim() || ctrl.streaming) return
+    const userMsg = input.trim()
+    setInput("")
+    sendMessage(userMsg)
+  }, [input, ctrl, sendMessage])
 
   const handleModelChange = async (model: string) => {
     if (!model || model === currentModel) return
