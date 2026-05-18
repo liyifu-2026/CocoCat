@@ -1,0 +1,6 @@
+{
+  "agent_id": "kb-agent",
+  "name": "lint",
+  "schedule": "@daily",
+  "task": "Run lint maintenance"
+}

@@ -1,0 +1,6 @@
+{
+  "agent_id": "kb-agent",
+  "name": "overview",
+  "schedule": "@weekly",
+  "task": "Run overview maintenance"
+}

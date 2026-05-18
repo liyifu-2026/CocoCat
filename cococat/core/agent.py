@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Optional
 
@@ -234,7 +234,6 @@ class Agent:
                 resp = await llm.chat(
                     messages=messages,
                     tools=tools if tools else None,
-                    **asdict(context),
                 )
                 content = resp.content or ""
                 tool_calls = resp.tool_calls or None

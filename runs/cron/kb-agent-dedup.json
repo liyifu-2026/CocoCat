@@ -1,0 +1,6 @@
+{
+  "agent_id": "kb-agent",
+  "name": "dedup",
+  "schedule": "@weekly",
+  "task": "Run dedup maintenance"
+}
