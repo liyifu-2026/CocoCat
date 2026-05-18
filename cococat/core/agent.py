@@ -88,7 +88,7 @@ def load_agent_config(
     return AgentConfig(
         id=os.path.basename(agent_dir.rstrip("/")) if agent_dir else "agent",
         name=name,
-        role=scene_config and "worker" or "worker",
+        role="worker",
         system_prompt=system_prompt,
         tools=tools,
         agent_dir=agent_dir,

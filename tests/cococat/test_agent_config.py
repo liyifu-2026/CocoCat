@@ -19,7 +19,8 @@ def test_agent_config_is_immutable():
     assert config.tools == [{"name": "bash"}]
     assert config.agent_dir == "/tmp"
 
-    with pytest.raises(Exception):
+    from dataclasses import FrozenInstanceError
+    with pytest.raises(FrozenInstanceError):
         config.id = "changed"
 
 
