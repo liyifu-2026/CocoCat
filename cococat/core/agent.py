@@ -158,7 +158,7 @@ class Agent:
         on_text: Optional[Callable[[str], Any]] = None,
         on_tool: Optional[Callable[[str, str, dict], Any]] = None,
         on_reasoning: Optional[Callable[[str], Any]] = None,
-        max_iterations: int = 20,
+        max_iterations: int = 0,
         session: Session | None = None,
     ) -> str:
         """Run the agent on a message using ReAct loop.
@@ -194,6 +194,9 @@ class Agent:
         messages.append({"role": "user", "content": message})
 
         final_text: list[str] = []
+
+        if max_iterations <= 0:
+            max_iterations = int(os.environ.get("COCOCAT_MAX_ITERATIONS", "30"))
 
         for iteration in range(max_iterations):
             use_stream = iteration == 0 and hasattr(llm, "chat_stream")
