@@ -121,6 +121,7 @@ async def run_agent(
     context.agent_id = config.id
     context.agent_dir = config.agent_dir
     context.role = config.role
+    context.bound_scene = None  # agents created per scene, no dynamic binding
 
     tools = config.tools
 
