@@ -32,6 +32,15 @@ export function useStreaming(currentIdRef: React.MutableRefObject<string>) {
   const reasoningRef = useRef("")
   const turnDagRunsRef = useRef<any[]>([])
   const preStreamRunIds = useRef<Set<string>>(new Set())
+  const streamingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+    clearTimeout(streamingTimeout.current)
+    setStreaming(false)
+    }
+  }, [])
 
   // WS streaming listeners — wired once, stable callbacks, session-filtered
   useEffect(() => {
@@ -138,6 +147,9 @@ export function useStreaming(currentIdRef: React.MutableRefObject<string>) {
     setTurnDagRuns([])
     preStreamRunIds.current = new Set(existingDagRuns.map((r: any) => r.run_id))
     setStreaming(true)
+    // Safety: auto-reset streaming after 60s if stuck
+    clearTimeout(streamingTimeout.current)
+    streamingTimeout.current = setTimeout(() => setStreaming(false), 60000)
   }, [])
 
   const snapshot = useCallback((): Snapshot => ({
@@ -149,6 +161,7 @@ export function useStreaming(currentIdRef: React.MutableRefObject<string>) {
   }), [])
 
   const complete = useCallback(() => {
+    clearTimeout(streamingTimeout.current)
     setStreaming(false)
     setStreamText("")
     setReasoningText("")
