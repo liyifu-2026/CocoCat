@@ -228,5 +228,22 @@ async def delete_chat_session(session_id: str, ctx: AppContext = Depends(get_ctx
 
 
 @router.get("/chat/history")
-async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "default", limit: int = 50):
+async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "default", limit: int = 50, session_id: str = ""):
+    """Get chat history. If session_id provided, reads from session file."""
+    if session_id:
+        import os, json as _json
+        path = os.path.join("agents", "main", "sessions", f"{session_id}.jsonl")
+        if not os.path.exists(path):
+            return {"messages": []}
+        msgs = []
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        msg = _json.loads(line)
+                        msgs.append({"role": msg.get("role", ""), "content": msg.get("content", "")})
+                    except _json.JSONDecodeError:
+                        pass
+        return {"messages": msgs}
     return {"messages": ctx.db.messages.get_chat_history(scene_id, limit)}

@@ -17,6 +17,7 @@ type Action =
   | { type: "ADD_USER_MESSAGE"; content: string }
   | { type: "ADD_ASSISTANT_MESSAGE"; content: string; tools?: ToolCallRecord[]; dagRunIds?: string[]; reasoningText?: string }
   | { type: "UPDATE_TITLE"; title: string }
+  | { type: "CLEAR_MESSAGES" }
 
 function loadSessions(ns: string): Session[] {
   try { return JSON.parse(localStorage.getItem(sessionStorageKey(ns)) || "[]") }
@@ -89,6 +90,14 @@ function reducer(state: State, action: Action): State {
           s.id === state.currentId ? { ...s, title: action.title } : s
         ),
       }
+
+    case "CLEAR_MESSAGES":
+      return {
+        ...state,
+        sessions: state.sessions.map(s =>
+          s.id === state.currentId ? { ...s, messages: [] } : s
+        ),
+      }
   }
 }
 
@@ -115,6 +124,7 @@ export function useSessionStore(ns: string = "") {
     return id
   }, [])
   const deleteSession = useCallback((id: string) => dispatch({ type: "DELETE_SESSION", id }), [])
+  const clearMessages = useCallback(() => dispatch({ type: "CLEAR_MESSAGES" }), [])
   const addUserMessage = useCallback((content: string) => dispatch({ type: "ADD_USER_MESSAGE", content }), [])
   const addAssistantMessage = useCallback(
     (content: string, extras?: { tools?: ToolCallRecord[]; dagRunIds?: string[]; reasoningText?: string }) =>
@@ -127,6 +137,7 @@ export function useSessionStore(ns: string = "") {
     sessions: state.sessions,
     currentId: state.currentId,
     messages,
+    clearMessages,
     selectSession,
     newSession,
     createSession,

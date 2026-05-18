@@ -49,6 +49,29 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
     }).catch(() => {})
   }, [])
 
+  // Sync session from server on mount (source of truth)
+  useEffect(() => {
+    if (!store.currentId) return
+    const endpoint = isKb ? `/api/kb-chat/history?session_id=${store.currentId}` : `/api/chat/history?session_id=${store.currentId}`
+    fetch(endpoint).then(r => r.json()).then(d => {
+      if (!d.messages?.length) return
+      const serverMsgs = d.messages.map((m: any) => ({
+        role: m.role,
+        content: m.content,
+      }))
+      // Check if server has more/newer messages than localStorage
+      const localCount = store.messages.length
+      if (serverMsgs.length > localCount) {
+        // Server is newer — clear local and load from server
+        store.clearMessages()
+        serverMsgs.forEach((m: any) => {
+          if (m.role === "user") store.addUserMessage(m.content)
+          else store.addAssistantMessage(m.content)
+        })
+      }
+    }).catch(() => {})
+  }, [store.currentId])
+
   useEffect(() => {
     messagesEnd.current?.scrollIntoView({ behavior: "smooth" })
   }, [store.messages, ctrl.streamText, ctrl.reasoningText])
