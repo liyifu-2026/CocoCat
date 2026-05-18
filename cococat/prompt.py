@@ -6,8 +6,6 @@ import datetime
 import os
 from typing import Any, Optional
 
-from cococat.kb.service import get_kb_service
-
 
 # ── Behavior rules (static, no tool list) ──────────────────
 
@@ -177,6 +175,7 @@ def build_system_prompt(
         parts.append(f"\n## Scene Context\n{scene_context}")
 
     if scene_kbs:
+        from cococat.kb.service import get_kb_service
         service = get_kb_service()
         kb_overview = service.get_overview_context(scene_kbs)
         if kb_overview:
