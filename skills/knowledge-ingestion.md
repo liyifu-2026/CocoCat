@@ -2,7 +2,7 @@
 name: Knowledge Ingestion
 description: Ingest source material into knowledge bases
 tags: [knowledge-base, ingestion]
-as_tool: true
+as_tool: false
 ---
 
 # Knowledge Ingestion Skill

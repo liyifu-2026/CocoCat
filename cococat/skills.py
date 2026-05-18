@@ -104,7 +104,10 @@ def skills_to_tools(skills: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "description": s["description"],
             "parameters": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                    "input": {"type": "string", "description": "Input for this skill"}
+                },
+                "required": [],
             },
             "execute": lambda p=None, ctx=None, b=_body_ref: b[:MAX_TOOL_OUTPUT],
         })
