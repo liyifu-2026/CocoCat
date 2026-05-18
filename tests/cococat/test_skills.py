@@ -2,7 +2,7 @@
 import os
 import tempfile
 import pytest
-from cococat.skills import load_skill, resolve_skills, skills_to_prompt, skills_to_tools
+from cococat.core.agent_builder import load_skill, resolve_skills, skills_to_prompt, skills_to_tools
 
 
 def test_load_skill_with_frontmatter():

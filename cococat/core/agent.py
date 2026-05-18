@@ -7,9 +7,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional
 
-from cococat.prompt import build_system_prompt, load_memory_from_agent_dir, KB_AGENT_STATIC_PREFIX
-from cococat.skills import resolve_skills, skills_to_prompt, skills_to_tools
-from cococat.profile import load_agent_system_prompt, get_agent_skills
+from cococat.core.agent_builder import build_system_prompt, load_memory_from_agent_dir, KB_AGENT_STATIC_PREFIX
+from cococat.core.agent_builder import resolve_skills, skills_to_prompt, skills_to_tools
+from cococat.core.agent_builder import load_agent_system_prompt, get_agent_skills
 from cococat.core.session import Session, load_session, save_session_pair, maybe_trigger_dream
 from cococat.core.tool_executor import make_assistant_msg, execute_tool_calls
 from cococat.providers.base import ToolCallRequest

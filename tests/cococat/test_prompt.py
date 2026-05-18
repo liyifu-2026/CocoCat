@@ -2,7 +2,7 @@
 import os
 import tempfile
 import pytest
-from cococat.prompt import build_system_prompt, load_memory_from_agent_dir
+from cococat.core.agent_builder import build_system_prompt, load_memory_from_agent_dir
 from cococat.core.agent import Agent, AgentRole
 from cococat.providers.base import LLMResponse
 

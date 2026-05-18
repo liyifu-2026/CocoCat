@@ -2,7 +2,7 @@
 import os
 import pytest
 from cococat.core.tools import create_core_tools, ToolRegistry
-from cococat.prompt import load_memory_from_agent_dir
+from cococat.core.agent_builder import load_memory_from_agent_dir
 
 
 class TestMemoryPathAlignment:

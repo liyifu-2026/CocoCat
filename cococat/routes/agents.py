@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from cococat.app import get_ctx
 from cococat.context import AppContext
-from cococat.prompt import STATIC_PREFIX
+from cococat.core.agent_builder import STATIC_PREFIX
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -132,7 +132,7 @@ def _update_running_coco_prompt(prompt: str) -> None:
     """Hot-reload Coco's system prompt if running."""
     try:
         import importlib
-        from cococat import prompt as prompt_module
+        from cococat.core.agent_builder import prompt as prompt_module
         importlib.reload(prompt_module)
     except Exception:
         pass

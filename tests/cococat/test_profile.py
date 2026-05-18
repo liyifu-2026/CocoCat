@@ -2,7 +2,7 @@
 import os
 import tempfile
 import pytest
-from cococat.profile import load_agent_profile, profile_to_system_prompt, load_agent_system_prompt
+from cococat.core.agent_builder import load_agent_profile, profile_to_system_prompt, load_agent_system_prompt
 
 
 def test_load_profile_from_yaml():

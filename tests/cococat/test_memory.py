@@ -204,7 +204,7 @@ async def test_daily_compiler_memory_md_content(tmp_dir, llm):
 async def test_load_memory_empty_dir():
     """When memory dir has no files, should return empty strings."""
     with tempfile.TemporaryDirectory() as d:
-        from cococat.prompt import load_memory_from_agent_dir
+        from cococat.core.agent_builder import load_memory_from_agent_dir
         memory, pinned = load_memory_from_agent_dir(d)
         assert memory == ""
         assert pinned == ""
@@ -219,7 +219,7 @@ async def test_load_memory_with_pinned():
             f.write("memory content")
         with open(os.path.join(d, "pinned.md"), "w") as f:
             f.write("- pin1\n- pin2")
-        from cococat.prompt import load_memory_from_agent_dir
+        from cococat.core.agent_builder import load_memory_from_agent_dir
         memory, pinned = load_memory_from_agent_dir(d)
         assert "memory content" in memory
         assert "pin1" in pinned
