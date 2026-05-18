@@ -95,6 +95,128 @@ def load_agent_config(
     )
 
 
+def _resolve_session_path(agent_dir: str, session_id: str) -> str:
+    if session_id and session_id != "default":
+        sessions_dir = os.path.join(agent_dir, "sessions")
+        os.makedirs(sessions_dir, exist_ok=True)
+        return os.path.join(sessions_dir, f"{session_id}.jsonl")
+    os.makedirs(agent_dir, exist_ok=True)
+    return os.path.join(agent_dir, "session.jsonl")
+
+
+async def run_agent(
+    config: AgentConfig,
+    llm: Any,
+    message: str,
+    *,
+    session: Session | None = None,
+    session_id: str | None = None,
+    on_text: Optional[Callable[[str], Any]] = None,
+    on_tool: Optional[Callable[[str, str, dict], Any]] = None,
+    on_reasoning: Optional[Callable[[str], Any]] = None,
+    max_iterations: int = 0,
+) -> str:
+    """Execute ReAct loop: history → iterate LLM → execute tools → persist → dream."""
+    context = ToolContext()
+    context.agent_id = config.id
+    context.agent_dir = config.agent_dir
+    context.role = config.role
+
+    tools = config.tools
+
+    messages: list[dict] = [{"role": "system", "content": config.system_prompt}]
+
+    if session is not None:
+        history = await session.sanitized_read()
+    else:
+        sid = session_id or "default"
+        session_path = _resolve_session_path(config.agent_dir, sid)
+        history = load_session(session_path)
+    messages.extend(history)
+
+    messages.append({"role": "user", "content": message})
+
+    final_text: list[str] = []
+
+    if max_iterations <= 0:
+        max_iterations = int(os.environ.get("COCOCAT_MAX_ITERATIONS", "30"))
+
+    for iteration in range(max_iterations):
+        use_stream = iteration == 0 and hasattr(llm, "chat_stream")
+        reasoning = None
+
+        if use_stream:
+            collected_content = []
+            collected_tool_calls = []
+            collected_reasoning = []
+
+            async for event in llm.chat_stream(
+                messages=messages,
+                tools=tools if tools else None,
+            ):
+                if event["type"] == "delta" and on_text:
+                    r = on_text(event["content"])
+                    if callable(getattr(r, "__await__", None)):
+                        await r
+                if event["type"] == "reasoning" and on_reasoning:
+                    r = on_reasoning(event["content"])
+                    if callable(getattr(r, "__await__", None)):
+                        await r
+                if event["type"] == "reasoning":
+                    collected_reasoning.append(event["content"])
+                if event["type"] == "delta":
+                    collected_content.append(event["content"])
+                if event["type"] == "tool_call":
+                    collected_tool_calls.append({
+                        "id": event.get("id", ""),
+                        "name": event.get("name", ""),
+                        "arguments": event.get("arguments", ""),
+                    })
+
+            content = "".join(collected_content)
+            reasoning = "".join(collected_reasoning) if collected_reasoning else None
+            tool_calls = [ToolCallRequest(**tc) for tc in collected_tool_calls] if collected_tool_calls else []
+        else:
+            resp = await llm.chat(
+                messages=messages,
+                tools=tools if tools else None,
+            )
+            content = resp.content or ""
+            tool_calls = resp.tool_calls or None
+            reasoning = resp.reasoning_content or None
+
+        if tool_calls:
+            final_text.append(content) if content else None
+            messages.append(make_assistant_msg(content, tool_calls, reasoning))
+            await execute_tool_calls(tool_calls, messages, tools, context, on_tool)
+        else:
+            if content:
+                final_text.append(content)
+            break
+    else:
+        final_text.append("[ReAct loop exceeded max iterations]")
+
+    result = "\n\n".join(filter(None, final_text))
+
+    try:
+        if session is not None:
+            await session.append_pair(message, result)
+        else:
+            sid = session_id or "default"
+            session_path = _resolve_session_path(config.agent_dir, sid)
+            save_session_pair(session_path, message, result)
+    except Exception:
+        pass
+
+    try:
+        dream_path = session.path if session is not None else _resolve_session_path(config.agent_dir, session_id or "default")
+        maybe_trigger_dream(dream_path)
+    except Exception:
+        pass
+
+    return result
+
+
 class AgentState(Enum):
     IDLE = "idle"
     WORKING = "working"
