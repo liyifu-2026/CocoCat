@@ -52,3 +52,16 @@ def _web_fetch(url: str) -> str:
         return "Error: request timed out"
     except Exception as e:
         return f"Error fetching {url}: {e}"
+
+
+def make_web_tools(tavily_api_key=None) -> list:
+    from cococat.core.tools.types import Tool, _merge_ctx
+    from cococat.core.types import WebEnv
+    return [
+        Tool(name="web_search", description="Search the web",
+             parameters={"query": "string"},
+             execute=lambda p, ctx: _web_search(p.get("query", ""), _merge_ctx(ctx, web=WebEnv(tavily_api_key=tavily_api_key)))),
+        Tool(name="web_fetch", description="Fetch URL content",
+             parameters={"url": "string"},
+             execute=lambda p, ctx: _web_fetch(p.get("url", ""))),
+    ]

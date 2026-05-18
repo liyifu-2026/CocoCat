@@ -19,6 +19,7 @@ def agent():
         name="Test Agent",
         role=AgentRole.WORKER,
         llm=FakeLLM(),
+        tools=[{"name": "test", "description": "test tool", "parameters": {}, "execute": lambda **kw: "ok"}],
         agent_dir=None,
     )
 

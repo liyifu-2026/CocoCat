@@ -195,3 +195,45 @@ def _create_kb(params: dict, ctx: Any) -> str:
     with open(os.path.join(base, "log.md"), "w", encoding="utf-8") as f:
         f.write(f"# {kb_name} Change Log\n\n")
     return f"Created knowledge base '{kb_name}'"
+
+
+def make_kb_tools() -> list:
+    from cococat.core.tools.types import Tool, _ensure_tool_context
+    return [
+        Tool(name="search_kb", description="Search knowledge base with inverted index (supports multi-keyword AND/OR)",
+             parameters={"kb_name": "string", "query": "string", "mode": "string", "type": "string", "tag": "string", "source": "string", "limit": "integer"},
+             execute=lambda p, ctx: _search_kb(p, _ensure_tool_context(ctx))),
+        Tool(name="read_wiki", description="Read a wiki page",
+             parameters={"kb_name": "string", "type": "string", "slug": "string"},
+             execute=lambda p, ctx: _read_wiki(p, _ensure_tool_context(ctx))),
+        Tool(name="list_kbs", description="List available knowledge bases",
+             parameters={},
+             execute=lambda p, ctx: _list_kbs(p, _ensure_tool_context(ctx))),
+    ]
+
+
+def make_kb_admin_tools() -> list:
+    from cococat.core.tools.types import Tool, _ensure_tool_context
+    return [
+        Tool(name="create_kb", description="Create a new knowledge base with proper directory structure",
+             parameters={"kb_name": "string", "purpose": "string"},
+             execute=lambda p, ctx: _create_kb(p, _ensure_tool_context(ctx))),
+        Tool(name="write_wiki", description="Write a wiki page",
+             parameters={"kb_name": "string", "type": "string", "slug": "string", "content": "string", "title": "string"},
+             execute=lambda p, ctx: _write_wiki(p, _ensure_tool_context(ctx))),
+        Tool(name="run_dedup", description="Run KB dedup pipeline",
+             parameters={"kb_name": "string"},
+             execute=lambda p, ctx: _run_dedup(p, _ensure_tool_context(ctx))),
+        Tool(name="run_lint", description="Run KB health check",
+             parameters={"kb_name": "string"},
+             execute=lambda p, ctx: _run_lint(p, _ensure_tool_context(ctx))),
+        Tool(name="gen_overview", description="Generate KB overview",
+             parameters={"kb_name": "string"},
+             execute=lambda p, ctx: _gen_overview(p, _ensure_tool_context(ctx))),
+        Tool(name="cascade_del", description="Cascade delete source file from KB",
+             parameters={"kb_name": "string", "source_filename": "string"},
+             execute=lambda p, ctx: _cascade_del(p, _ensure_tool_context(ctx))),
+        Tool(name="get_graph", description="Get KB knowledge graph",
+             parameters={"kb_name": "string"},
+             execute=lambda p, ctx: _get_graph(p, _ensure_tool_context(ctx))),
+    ]

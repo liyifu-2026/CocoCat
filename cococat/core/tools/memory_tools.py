@@ -53,3 +53,24 @@ def _recall_experience(category: str, ctx: ToolContext) -> str:
         return "Error: 'category' is required"
     store = _get_store(ctx)
     return store.read_experiences(category, exp_path=ctx.memory.exp_path)
+
+
+def make_memory_tools() -> list:
+    from cococat.core.tools.types import Tool, _ensure_tool_context
+    return [
+        Tool(name="recall", description="Search memory by keyword (FTS5)",
+             parameters={"query": "string"},
+             execute=lambda p, ctx: _recall(p.get("query", ""), _ensure_tool_context(ctx))),
+        Tool(name="pin", description="Pin a fact to persistent context",
+             parameters={"fact": "string"},
+             execute=lambda p, ctx: _pin(p.get("fact", ""), _ensure_tool_context(ctx))),
+        Tool(name="unpin", description="Unpin a fact",
+             parameters={"keyword": "string"},
+             execute=lambda p, ctx: _unpin(p.get("keyword", ""), _ensure_tool_context(ctx))),
+        Tool(name="record_experience", description="Record a categorized experience",
+             parameters={"category": "string", "entry": "string"},
+             execute=lambda p, ctx: _record_experience(p.get("category", ""), p.get("entry", ""), _ensure_tool_context(ctx))),
+        Tool(name="recall_experience", description="Recall experiences by category",
+             parameters={"category": "string"},
+             execute=lambda p, ctx: _recall_experience(p.get("category", ""), _ensure_tool_context(ctx))),
+    ]

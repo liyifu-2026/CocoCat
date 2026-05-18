@@ -216,3 +216,29 @@ def _stop_task(task_id: str, ctx: ToolContext) -> str:
         return f"Cancellation requested for task '{task_id}'"
     except Exception as e:
         return f"Error cancelling task: {e}"
+
+
+def make_dag_tools(dag_store=None, sub_agent_executor=None) -> list:
+    from cococat.core.tools.types import Tool, _merge_ctx, _ensure_tool_context
+    from cococat.core.types import DagEnv
+    return [
+        Tool(name="define_dag", description="Define a DAG task graph",
+             parameters={"yaml": "string"},
+             execute=lambda p, ctx: _define_dag(p.get("yaml", ""), _merge_ctx(ctx, dag=DagEnv(store=dag_store)))),
+        Tool(name="append_stage", description="Append a stage to an existing DAG run",
+             parameters={"run_id": "string", "stage_yaml": "string"},
+             execute=lambda p, ctx: _append_stage(p.get("run_id", ""), p.get("stage_yaml", ""), _merge_ctx(ctx, dag=DagEnv(store=dag_store)))),
+        Tool(name="update_dag", description="Update a node in dag.yaml by dot-path",
+             parameters={"run_id": "string", "path": "string", "value": "string"},
+             execute=lambda p, ctx: _update_dag(p.get("run_id", ""), p.get("path", ""), p.get("value", ""), _merge_ctx(ctx, dag=DagEnv(store=dag_store)))),
+        Tool(name="dispatch_task", description="Dispatch a task in a DAG run",
+             parameters={"run_id": "string", "task_id": "string", "prompt": "string", "title": "string"},
+             execute=lambda p, ctx: _dispatch_task(p.get("run_id", ""), p.get("task_id", ""), p.get("prompt", ""),
+                 _merge_ctx(ctx, dag=DagEnv(store=dag_store, executor=sub_agent_executor)), p.get("title"))),
+        Tool(name="check_tasks", description="Check pending task status",
+             parameters={},
+             execute=lambda p, ctx: _check_tasks(_merge_ctx(ctx, dag=DagEnv(store=dag_store)))),
+        Tool(name="stop_task", description="Cancel a running task",
+             parameters={"task_id": "string"},
+             execute=lambda p, ctx: _stop_task(p.get("task_id", ""), _ensure_tool_context(ctx))),
+    ]

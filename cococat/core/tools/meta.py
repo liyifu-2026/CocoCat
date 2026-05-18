@@ -89,3 +89,21 @@ def _todo_write(todos, ctx: ToolContext) -> str:
         return f"Saved {len(todos)} todo items to {path}"
     except Exception as e:
         return f"Error saving todos: {e}"
+
+
+def make_meta_tools() -> list:
+    from cococat.core.tools.types import Tool, _ensure_tool_context
+    return [
+        Tool(name="todo_write", description="Structured task list",
+             parameters={"todos": "array"},
+             execute=lambda p, ctx: _todo_write(p.get("todos"), _ensure_tool_context(ctx))),
+        Tool(name="cron", description="Schedule a recurring task",
+             parameters={"schedule": "string", "task": "string"},
+             execute=lambda p, ctx: _cron(p.get("schedule", ""), p.get("task", ""), _ensure_tool_context(ctx))),
+        Tool(name="current_status", description="Agent runtime introspection",
+             parameters={},
+             execute=lambda p, ctx: _current_status(_ensure_tool_context(ctx))),
+        Tool(name="wait", description="Sleep for seconds",
+             parameters={"seconds": "number"},
+             execute=lambda p, ctx: _wait(p.get("seconds", 0))),
+    ]

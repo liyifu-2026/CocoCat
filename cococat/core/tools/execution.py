@@ -178,3 +178,18 @@ async def _browser(action_str: str) -> str:
                 await browser.close()
     except Exception as e:
         return f"Error in browser {action_type}: {e}"
+
+
+def make_execution_tools(sandbox_run=None) -> list:
+    from cococat.core.tools.types import Tool, _merge_ctx
+    from cococat.core.types import SandboxEnv
+    return [
+        Tool(name="bash", description="Execute shell command",
+             parameters={"command": "string"},
+             execute=lambda p, ctx: _bash(p.get("command", ""), _merge_ctx(ctx, sandbox=SandboxEnv(run=sandbox_run))),
+             requires_sandbox=True, sandbox_operation="exec"),
+        Tool(name="browser", description="Browser control — navigate, get_text, get_content, screenshot, click, type, scroll, execute_js, go_back",
+             parameters={"action": "string"},
+             execute=lambda p, ctx: _browser(p.get("action", "")),
+             requires_sandbox=True, sandbox_operation="exec"),
+    ]

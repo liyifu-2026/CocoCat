@@ -72,3 +72,53 @@ def _grep(pattern: str, path: str) -> str:
         return "Error: grep timed out (30s)"
     except Exception as e:
         return f"Error: {e}"
+
+
+def make_file_tools() -> list:
+    from cococat.core.tools.types import Tool
+    return [
+        Tool(name="read_file", description="Read a file with offset/limit",
+             parameters={"path": "string", "offset": "integer", "limit": "integer"},
+             execute=lambda p, ctx: _read_file(p.get("path", ""), p.get("offset", 0), p.get("limit", 2000)),
+             requires_sandbox=True, sandbox_operation="read"),
+        Tool(name="write_file", description="Write content to a file",
+             parameters={"path": "string", "content": "string"},
+             execute=lambda p, ctx: _write_file(p.get("path", ""), p.get("content", "")),
+             requires_sandbox=True, sandbox_operation="write"),
+        Tool(name="edit_file", description="Edit a file by replacing text",
+             parameters={"path": "string", "old": "string", "new": "string"},
+             execute=lambda p, ctx: _edit_file(p.get("path", ""), p.get("old", ""), p.get("new", "")),
+             requires_sandbox=True, sandbox_operation="write"),
+        Tool(name="list_dir", description="List directory contents",
+             parameters={"path": "string"},
+             execute=lambda p, ctx: _list_dir(p.get("path", ""))),
+        Tool(name="glob", description="Find files by glob pattern",
+             parameters={"pattern": "string"},
+             execute=lambda p, ctx: _glob(p.get("pattern", "")),
+             requires_sandbox=True, sandbox_operation="read"),
+        Tool(name="grep", description="Search file contents with regex",
+             parameters={"pattern": "string", "path": "string"},
+             execute=lambda p, ctx: _grep(p.get("pattern", ""), p.get("path", "")),
+             requires_sandbox=True, sandbox_operation="read"),
+    ]
+
+
+def make_readonly_file_tools() -> list:
+    from cococat.core.tools.types import Tool
+    return [
+        Tool(name="read_file", description="Read a file with offset/limit",
+             parameters={"path": "string", "offset": "integer", "limit": "integer"},
+             execute=lambda p, ctx: _read_file(p.get("path", ""), p.get("offset", 0), p.get("limit", 2000)),
+             requires_sandbox=True, sandbox_operation="read"),
+        Tool(name="list_dir", description="List directory contents",
+             parameters={"path": "string"},
+             execute=lambda p, ctx: _list_dir(p.get("path", ""))),
+        Tool(name="glob", description="Find files by glob pattern",
+             parameters={"pattern": "string"},
+             execute=lambda p, ctx: _glob(p.get("pattern", "")),
+             requires_sandbox=True, sandbox_operation="read"),
+        Tool(name="grep", description="Search file contents with regex",
+             parameters={"pattern": "string", "path": "string"},
+             execute=lambda p, ctx: _grep(p.get("pattern", ""), p.get("path", "")),
+             requires_sandbox=True, sandbox_operation="read"),
+    ]
