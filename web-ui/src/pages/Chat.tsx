@@ -94,8 +94,13 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
     return onMessage("dag.completed", (data) => {
       if (!data?.session_id || data.session_id !== currentIdRef.current) return
       if (ctrl.streaming) return
-      const msg = `[System] DAG run completed (${(data as any).task_count || 0} tasks, run ${((data as any).run_id || "").slice(0, 8)}). Please check_tasks and summarize the results for the user.`
-      sendMessage(msg)
+      // Show system notification in chat
+      const taskCount = (data as any).task_count || 0
+      store.addAssistantMessage(`📋 已派发 ${taskCount} 个后台任务均已完成，正在汇总结果...`, 
+        { dagRunIds: (data as any).run_id ? [(data as any).run_id as string] : undefined })
+      // Auto-trigger Coco to report
+      const triggerMsg = `check_tasks for run ${(data as any).run_id || ""} and summarize the results. The user is waiting.`
+      sendMessage(triggerMsg)
     })
   }, [onMessage, store, ctrl, sendMessage])
 
@@ -294,10 +299,12 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
           )}
 
           {/* Messages */}
-          {store.messages.map((m) => (
-            <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+          {store.messages.map((m) => {
+            const isSystemMsg = m.role === "assistant" && m.content?.startsWith("📋")
+            return (
+            <div key={m.id} className={`flex ${isSystemMsg ? "justify-center" : m.role === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[75%] md:max-w-[65%] space-y-1.5 ${m.role === "user" ? "" : "flex flex-col"}`}>
-                {m.role === "assistant" && m.reasoningText && (
+                {!isSystemMsg && m.role === "assistant" && m.reasoningText && (
                   <details className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden">
                     <summary className="flex items-center gap-2 px-4 py-2 text-[11px] font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
                       <Brain className="size-3.5 text-purple-500" />
@@ -306,7 +313,7 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
                     <div className="px-4 pb-3 text-xs text-muted-foreground/80 italic whitespace-pre-wrap max-h-48 overflow-y-auto">{m.reasoningText}</div>
                   </details>
                 )}
-                {m.role === "assistant" && m.tools && m.tools.length > 0 && (
+                {!isSystemMsg && m.role === "assistant" && m.tools && m.tools.length > 0 && (
                   <details className="rounded-xl border border-border/40 bg-accent/20 overflow-hidden">
                     <summary className="flex items-center gap-2 px-4 py-2 text-[11px] font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
                       <Wrench className="size-3.5 text-blue-500" />
@@ -333,7 +340,7 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
                     </div>
                   </details>
                 )}
-                {m.role === "assistant" && m.dagRunIds && m.dagRunIds.length > 0 && (() => {
+                {!isSystemMsg && m.role === "assistant" && m.dagRunIds && m.dagRunIds.length > 0 && (() => {
                   const runs = ctrl.allDagRuns.filter((r: any) => m.dagRunIds!.includes(r.run_id))
                   if (runs.length === 0) return (
                     <div className="rounded-xl border border-blue-500/15 bg-card px-4 py-2 text-[11px] text-muted-foreground/60">
@@ -386,7 +393,7 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
                     </details>
                   )
                 })()}
-                <div className={`${m.role === "user" ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md shadow-sm" : "bg-card text-card-foreground rounded-2xl rounded-bl-md shadow-sm border border-border/50"} px-4 py-3`}>
+                <div className={`${isSystemMsg ? "bg-muted/30 text-muted-foreground/70 rounded-xl px-4 py-2 text-xs text-center" : m.role === "user" ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md shadow-sm px-4 py-3" : "bg-card text-card-foreground rounded-2xl rounded-bl-md shadow-sm border border-border/50 px-4 py-3"}`}>
                   <div className="markdown-content text-sm leading-relaxed">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {m.content}
@@ -395,7 +402,8 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
                 </div>
               </div>
             </div>
-          ))}
+          );
+        })}
 
           {/* Response unit: Thinking → Tools → DAG → Reply — grouped after last user msg */}
           {ctrl.streaming && (
