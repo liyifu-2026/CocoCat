@@ -57,3 +57,7 @@ class DagRunStore:
                             "session_id": data.get("session_id"),
                         }
         return None
+
+    def delete(self, run_id: str) -> None:
+        self._db.execute("DELETE FROM dag_runs WHERE id = ?", (run_id,))
+        self._db.commit()

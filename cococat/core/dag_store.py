@@ -38,6 +38,11 @@ class DagStore(ABC):
         """List all DAG run data dicts (with run_id set in each)."""
         ...
 
+    @abstractmethod
+    def delete(self, run_id: str) -> None:
+        """Delete a DAG run by ID."""
+        ...
+
 
 class FileDagStore(DagStore):
     """Filesystem-backed DAG store using YAML under {dag_dir}/{run_id}/dag.yaml."""
@@ -104,6 +109,12 @@ class FileDagStore(DagStore):
                 continue
         return results
 
+    def delete(self, run_id: str) -> None:
+        import shutil
+        run_path = os.path.join(self._dag_dir, run_id)
+        if os.path.exists(run_path):
+            shutil.rmtree(run_path)
+
 
 class SqliteDagStore(DagStore):
     """SQLite-backed DAG store delegating to DagRunStore."""
@@ -122,3 +133,6 @@ class SqliteDagStore(DagStore):
 
     def list_all(self) -> list[dict]:
         return self._store.list_all()
+
+    def delete(self, run_id: str) -> None:
+        self._store.delete(run_id)

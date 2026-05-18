@@ -1,94 +1,75 @@
-"""DAG routes — list runs, run detail, delete."""
-import os
-import shutil
+"""DAG routes — list runs, run detail, delete (supports both SQLite and file storage)."""
+import json
 import logging
 
-import yaml
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from cococat.app import get_ctx
+from cococat.context import AppContext
 
 logger = logging.getLogger("cococat.routes.dag")
 
 router = APIRouter(prefix="/api", tags=["dag"])
 
 
-def _dag_dir() -> str:
-    return os.environ.get("COCOCAT_DAG_DIR", "runs")
+def _load_run_data(ctx: AppContext, run_id: str) -> dict | None:
+    """Load DAG run data from active store."""
+    store = ctx.dag_store
+    if store is None:
+        return None
+    return store.load(run_id)
+
+
+def _list_all_runs(ctx: AppContext) -> list[dict]:
+    """List all DAG runs from active store."""
+    store = ctx.dag_store
+    if store is None:
+        return []
+    return store.list_all()
 
 
 @router.get("/dag")
-async def list_dag_runs(session_id: str | None = Query(default=None)):
+async def list_dag_runs(session_id: str | None = Query(default=None), ctx: AppContext = Depends(get_ctx)):
     """List DAG runs. Optionally filter by session_id."""
-    dag_dir = _dag_dir()
-    if not os.path.isdir(dag_dir):
-        return {"runs": []}
-
-    runs = []
-    for run_dir in sorted(os.listdir(dag_dir)):
-        dag_path = os.path.join(dag_dir, run_dir, "dag.yaml")
-        if not os.path.exists(dag_path):
-            continue
-        try:
-            with open(dag_path, encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-        except (yaml.YAMLError, OSError):
-            continue
-
-        if session_id and data.get("session_id") != session_id:
-            continue
-
-        runs.append(data)
-
+    runs = _list_all_runs(ctx)
+    if session_id:
+        runs = [r for r in runs if r.get("session_id") == session_id]
     return {"runs": runs}
 
 
 @router.get("/dag/{run_id}")
-async def get_dag_run(run_id: str):
+async def get_dag_run(run_id: str, ctx: AppContext = Depends(get_ctx)):
     """Get a single DAG run by ID."""
-    dag_dir = _dag_dir()
-    dag_path = os.path.join(dag_dir, run_id, "dag.yaml")
-
-    if not os.path.exists(dag_path):
+    data = _load_run_data(ctx, run_id)
+    if data is None:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
-
-    try:
-        with open(dag_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-    except (yaml.YAMLError, OSError) as e:
-        raise HTTPException(status_code=500, detail=f"Error reading DAG: {e}")
-
     return data
 
 
 @router.delete("/dag/{run_id}")
-async def delete_dag_run(run_id: str):
-    """Delete a DAG run directory."""
-    dag_dir = _dag_dir()
-    run_path = os.path.join(dag_dir, run_id)
-    if not os.path.exists(run_path):
+async def delete_dag_run(run_id: str, ctx: AppContext = Depends(get_ctx)):
+    """Delete a DAG run."""
+    store = ctx.dag_store
+    if store is None:
+        raise HTTPException(status_code=404, detail="DAG store not available")
+    data = store.load(run_id)
+    if data is None:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
-    shutil.rmtree(run_path)
+    store.delete(run_id)
     return {"status": "deleted", "run_id": run_id}
 
 
 @router.delete("/dag")
-async def delete_dag_by_session(session_id: str = Query(...)):
+async def delete_dag_by_session(session_id: str = Query(...), ctx: AppContext = Depends(get_ctx)):
     """Delete all DAG runs for a session."""
-    dag_dir = _dag_dir()
-    if not os.path.isdir(dag_dir):
-        return {"status": "no_dags", "deleted": 0}
-    
+    store = ctx.dag_store
+    if store is None:
+        return {"status": "no_store", "deleted": 0}
+
     deleted = 0
-    for run_dir in sorted(os.listdir(dag_dir)):
-        dag_path = os.path.join(dag_dir, run_dir, "dag.yaml")
-        if not os.path.exists(dag_path):
-            continue
-        try:
-            with open(dag_path, encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-            if data.get("session_id") == session_id:
-                shutil.rmtree(os.path.join(dag_dir, run_dir))
-                deleted += 1
-        except (yaml.YAMLError, OSError):
-            continue
-    
+    for run in store.list_all():
+        if run.get("session_id") == session_id:
+            store.delete(run.get("run_id", ""))
+            deleted += 1
+
     return {"status": "deleted", "count": deleted}
