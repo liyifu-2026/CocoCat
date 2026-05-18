@@ -1,7 +1,7 @@
 """Tests for cococat.core.agent_pool."""
 import pytest
 from cococat.core.event_bus import EventBus
-from cococat.core.agent import Agent, AgentState, AgentRole
+from cococat.core.agent import Agent, AgentRole
 from cococat.providers.base import LLMResponse
 
 
@@ -40,25 +40,6 @@ async def test_pool_get_free_sub_agents(pool):
 
 
 @pytest.mark.asyncio
-async def test_pool_bind_unbind(pool):
-    ok = pool.bind_to_scene("agent_a", "customer-service")
-    assert ok is True
-    agent = pool.get_agent("agent_a")
-    assert agent.state == AgentState.WORKING
-    assert agent.bound_scene == "customer-service"
-
-    pool.unbind("agent_a")
-    agent = pool.get_agent("agent_a")
-    assert agent.state == AgentState.IDLE
-
-
-@pytest.mark.asyncio
-async def test_pool_bind_main_ai_fails(pool):
-    ok = pool.bind_to_scene("main", "customer-service")
-    assert ok is False
-
-
-@pytest.mark.asyncio
 async def test_pool_max_agents():
     from cococat.core.agent_pool import AgentPool
     bus = EventBus()
@@ -69,44 +50,9 @@ async def test_pool_max_agents():
 
 
 @pytest.mark.asyncio
-async def test_pool_get_free_after_bind(pool):
-    free_before = len(pool.get_free_sub_agents())
-    pool.bind_to_scene("agent_a", "scene-1")
-    free_after = len(pool.get_free_sub_agents())
-    assert free_after == free_before - 1
-
-
-@pytest.mark.asyncio
-async def test_get_scene_agent(pool):
-    pool.bind_to_scene("agent_a", "customer-service")
-    agent = pool.get_scene_agent("customer-service")
-    assert agent is not None
-    assert agent.id == "agent_a"
-    assert agent.state == AgentState.WORKING
-
-
-@pytest.mark.asyncio
-async def test_get_scene_agent_none(pool):
-    agent = pool.get_scene_agent("nonexistent")
-    assert agent is None
-
-
-@pytest.mark.asyncio
 async def test_get_agent_nonexistent(pool):
     agent = pool.get_agent("nonexistent")
     assert agent is None
-
-
-@pytest.mark.asyncio
-async def test_bind_nonexistent_agent(pool):
-    ok = pool.bind_to_scene("nonexistent", "scene-1")
-    assert ok is False
-
-
-@pytest.mark.asyncio
-async def test_unbind_nonexistent_agent(pool):
-    # Should not raise
-    pool.unbind("nonexistent")
 
 
 @pytest.mark.asyncio

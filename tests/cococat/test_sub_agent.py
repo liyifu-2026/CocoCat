@@ -2,7 +2,7 @@
 import asyncio
 import pytest
 from cococat.core.event_bus import EventBus
-from cococat.core.agent import Agent, AgentState, AgentRole
+from cococat.core.agent import Agent, AgentRole
 from cococat.core.agent_pool import AgentPool
 from cococat.core.sub_agent import SubAgentExecutor
 from cococat.core.sandbox import SandboxProvider, LocalExecutor
@@ -57,20 +57,14 @@ async def test_dispatch_to_free_sub_agent(executor, pool):
 
 
 @pytest.mark.asyncio
-async def test_dispatch_no_free_agents(executor, pool):
-    pool.bind_to_scene("agent_a", "scene-1")
-    pool.bind_to_scene("agent_b", "scene-2")
-
-    result = await executor.dispatch("Do task", from_agent="main")
+async def test_dispatch_no_free_agents():
+    from cococat.core.event_bus import EventBus
+    from cococat.core.agent_pool import AgentPool
+    from cococat.core.sub_agent import SubAgentExecutor
+    empty_pool = AgentPool(EventBus())
+    empty_exec = SubAgentExecutor(EventBus(), empty_pool)
+    result = await empty_exec.dispatch("Do task", from_agent="main")
     assert result is None
-
-
-@pytest.mark.asyncio
-async def test_agent_state_after_dispatch(executor, pool):
-    await executor.dispatch("Do task", from_agent="main")
-
-    free = pool.get_free_sub_agents()
-    assert len(free) == 2
 
 
 @pytest.mark.asyncio
