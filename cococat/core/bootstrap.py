@@ -292,7 +292,6 @@ def load_agents(app, args) -> None:
 
     factory = _setup_providers(ctx, args.auth)
     dag_store = _setup_dag_store(ctx)
-    _setup_config_store(ctx)
     sandbox_provider = _setup_sandbox(ctx, factory, args)
     sub_executor = _setup_sub_executor(ctx, sandbox_provider)
 
