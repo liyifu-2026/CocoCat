@@ -81,11 +81,31 @@ Password requirements (small-team, internal — deliberately minimal):
 | Resource | Storage |
 |---|---|
 | Scenes | `scenes` table, no user filter. Everyone can create/edit/delete. |
-| Scene channels | Shared `channels.json` — one bot per scene, team-wide |
+| Scene channels | Shared configurations — one bot per scene, team-wide |
+| Scene memory | `agents/scenes/{scene_id}/` — pinned, whiteboard, compiled. All admins can view. |
 | Cron jobs | Shared records, `created_by` field for attribution. Executes with shared key. |
 | Knowledge bases | Shared, no change |
-| Resident agents (coco, kb-agent) | Global instances, use shared admin key by default. Users can override their own key. |
+| Resident agents (coco, kb-agent) | Global instances, use shared admin key by default. Users can override. |
 | Provider registry (built-in) | Code-defined, global |
+
+### Channel Identity Binding
+
+External channel users (scene channels) are anonymous — no login, no binding. Sessions
+are identified by `{channel_type}_{channel_user_id}` as file names, not unified user IDs.
+
+Personal channels (Coco chat) require binding:
+
+```sql
+CREATE TABLE IF NOT EXISTS channel_identities (
+    user_id TEXT NOT NULL,
+    channel_type TEXT NOT NULL,
+    channel_user_id TEXT NOT NULL,
+    PRIMARY KEY (channel_type, channel_user_id)
+);
+```
+
+Bind flow: user logs into web → Settings → connects channel → backend maps
+`(user_id, channel_type, channel_user_id)`. Incoming channel message → lookup → routes to correct user's memory.
 
 ### API Key: Layered Fallback
 
