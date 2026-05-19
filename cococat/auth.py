@@ -21,7 +21,7 @@ API_KEY = os.environ.get("API_KEY", "")
 WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "admin")
 
 # Routes that skip auth
-PUBLIC_PATHS = {"/api/health", "/ws", "/api/auth/login", "/api/auth/init"}
+PUBLIC_PATHS = {"/api/health", "/ws", "/api/auth/login", "/api/auth/init", "/api/auth/status"}
 PUBLIC_PREFIXES = ["/api/channels"]
 
 

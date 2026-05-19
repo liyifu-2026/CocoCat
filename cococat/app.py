@@ -121,6 +121,12 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
 
         return {"access_token": token, "token_type": "bearer"}
 
+    @app.get("/api/auth/status")
+    async def auth_status():
+        db = app.state.ctx.db
+        has_users = db._conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0
+        return {"has_users": has_users}
+
     @app.post("/api/auth/init")
     async def init_admin(request: Request):
         """First-run: create initial admin user. Only works when no users exist."""

@@ -42,3 +42,5 @@
 {"role": "assistant", "content": "completed"}
 {"role": "user", "content": "do it"}
 {"role": "assistant", "content": "completed"}
+{"role": "user", "content": "do it"}
+{"role": "assistant", "content": "completed"}
