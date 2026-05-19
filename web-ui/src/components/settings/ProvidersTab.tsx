@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import { Loader2, Plus, Trash2, Eye, EyeOff, CheckCircle2, XCircle, ChevronsRight, ChevronRight, ChevronLeft, ChevronsLeft, Search } from "lucide-react"
+import { toast } from "sonner"
 import { PROVIDER_ICONS } from "@/lib/provider-icons"
 import { getCatalogModels, getCatalogMeta, isProviderSupported } from "@/lib/model-catalog"
 import type { ProviderInfo, TabData } from "@/types/settings"
@@ -177,6 +178,15 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
     if (provider) setBaseUrl(provider.base_url)
   }, [provider?.base_url])
 
+  // Load saved API key from backend
+  const [savedKey, setSavedKey] = useState("")
+  useEffect(() => {
+    fetch(`/api/providers/${encodeURIComponent(providerName)}/config`)
+      .then((r) => r.json())
+      .then((d) => { if (d.key) { setSavedKey(d.key); setKeyVal(d.key) } })
+      .catch(() => {})
+  }, [providerName])
+
   // Load enabled models from backend
   useEffect(() => {
     fetch(`/api/providers/${encodeURIComponent(providerName)}/models`)
@@ -235,6 +245,7 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
     setSaving(true)
     setConnStatus("idle")
     setConnError("")
+    const start = performance.now()
     try {
       const resp = await fetch("/api/providers/key", {
         method: "PUT",
@@ -242,15 +253,23 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
         body: JSON.stringify({ name: providerName, key: keyVal.trim() }),
       })
       const data = await resp.json()
+      const elapsed = Math.round(performance.now() - start)
       if (data.ok) {
         setConnStatus("ok")
-        setKeyVal("")
+        setSavedKey(keyVal.trim())
+        toast.success(`连接成功 · ${data.latency_ms ?? elapsed}ms`, { duration: 3000 })
       } else {
         setConnStatus("fail")
         setConnError(data.error || "Connection failed")
+        toast.error(data.error || "连接失败", { description: `${data.latency_ms ?? elapsed}ms`, duration: 4000 })
       }
       onUpdate()
-    } catch { setConnStatus("fail"); setConnError("Network error") }
+    } catch {
+      const elapsed = Math.round(performance.now() - start)
+      setConnStatus("fail")
+      setConnError("Network error")
+      toast.error("网络错误", { description: `${elapsed}ms`, duration: 4000 })
+    }
     finally { setSaving(false) }
   }
 
@@ -386,7 +405,7 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
           <div className="relative flex-1">
             <input
               type={showKey ? "text" : "password"}
-              placeholder={isConnected ? "••••••••（已保存）" : "输入 API Key"}
+              placeholder={savedKey ? "••••••••（已保存，点眼睛查看）" : "输入 API Key"}
               value={keyVal}
               onChange={e => { setKeyVal(e.target.value); setConnStatus("idle"); setConnError("") }}
               onKeyDown={e => { if (e.key === "Enter") handleSave() }}
