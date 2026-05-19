@@ -265,10 +265,9 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
       }
       onUpdate()
     } catch {
-      const elapsed = Math.round(performance.now() - start)
       setConnStatus("fail")
       setConnError("Network error")
-      toast.error("网络错误", { description: `${elapsed}ms`, duration: 4000 })
+      toast.error("网络错误，请检查后端服务是否运行")
     }
     finally { setSaving(false) }
   }
