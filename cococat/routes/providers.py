@@ -1,6 +1,6 @@
 """Provider routes — list, configure, test LLM providers and manage models."""
-import asyncio
 import json
+import httpx
 import logging
 import os
 import time
