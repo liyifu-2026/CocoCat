@@ -92,6 +92,25 @@ User reopens page
 
 **Dream trigger:** Incremental token count since last checkpoint, not global total. Default threshold 2000 tokens, configurable via `COCOCAT_DREAM_TOKEN_THRESHOLD`.
 
+### Dream Checkpoint Polling
+
+Dream is triggered by a polling loop, not a session-end hook:
+
+```
+Cron worker polls every 5 minutes:
+  for each sessions/*.jsonl modified > 30 minutes ago:
+    read {session_id}.dream_ckpt (last checkpoint line number)
+    if exists → count tokens from checkpoint+1 to end
+    if not    → count all tokens
+    if incremental ≥ 2000 tokens:
+      extract facts → append to memory.md
+      write new line number to {session_id}.dream_ckpt
+```
+
+The `.dream_ckpt` file is a single integer — the last JSONL line number processed.
+It lives next to its session file: `sessions/{session_id}.dream_ckpt`.
+Service restarts are safe — the checkpoint provides the exact resume position.
+
 ## Compile Chain (Cron-triggered)
 
 All three are idempotent — if no new content, they skip silently (zero token cost).
@@ -147,7 +166,7 @@ into a bounded profile — old content is not lost, it's re-compressed with new 
 | Trigger | Mechanism | Condition | Action |
 |---|---|---|---|
 | `summarize` | Per-turn hook | Ticker threshold | LLM compresses session → `summaries/{session_id}.json` |
-| `dream` | Archive checkpoint (30min idle) | Incremental ≥ 2000 tokens since last checkpoint | LLM extracts facts → append `memory.md` |
+| `dream` | Poll every 5 min (cron worker) | Session modified > 30 min ago + incremental ≥ 2000 tokens since `.dream_ckpt` | LLM extracts facts → append `memory.md` |
 | day compile | Cron `@daily 02:00` | New summaries since last run | LLM reads new summaries → `{date}.md` |
 | week compile | Cron `@weekly Sun 03:00` | New day files since last run | LLM reads new day files → `{year}-W{week}.md` |
 | longterm compile | Cron `@monthly 1st 04:00` | New week files since last run | LLM: new weeks + old longterm → new `{month}-longterm.md` |
@@ -287,7 +306,8 @@ agents/{username}/
     summaries/
       {session_id}.json               ← per-session ticker summaries
   sessions/
-    {session_id}.jsonl                ← Layer 1: raw message logs
+    {session_id}.jsonl             ← Layer 1: raw message logs
+    {session_id}.dream_ckpt        ← dream last-processed line number
 ```
 
 ## Migration from Current
