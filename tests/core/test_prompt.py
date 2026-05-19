@@ -18,7 +18,7 @@ def test_load_memory_from_agent_dir():
         with open(os.path.join(d, "memory", "memory.md"), "w") as f:
             f.write("- User prefers short answers\n- Project: CocoCat v2")
 
-        memory, pinned = load_memory_from_agent_dir(d)
+        memory, pinned, compiled = load_memory_from_agent_dir(d)
         assert "short answers" in memory
         assert pinned == ""
 

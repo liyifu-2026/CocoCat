@@ -37,11 +37,11 @@ def load_agent_config(
     """加载 profile / memory / skills → 合并 → 不可变 AgentConfig。"""
     name = "agent"
     profile_text = ""
-    memory_content, pinned = "", ""
+    memory_content, pinned, compiled = "", "", ""
 
     if agent_dir and os.path.isdir(agent_dir):
         profile_text = load_agent_system_prompt(agent_dir)
-        memory_content, pinned = load_memory_from_agent_dir(agent_dir)
+        memory_content, pinned, compiled = load_memory_from_agent_dir(agent_dir)
         skill_names = get_agent_skills(agent_dir)
         # 从 profile.yaml 提取 agent name
         profile_path = os.path.join(agent_dir, "profile.yaml")
@@ -76,6 +76,7 @@ def load_agent_config(
         agent_profile=agent_profile_str,
         memory_content=memory_content,
         pinned_facts=pinned,
+        compiled_content=compiled,
         scene_context=scene_config.context if scene_config else "",
         scene_kbs=scene_config.kbs if scene_config else [],
         scene_skills=skill_prompt,

@@ -1,4 +1,4 @@
-"""Test that pin/recall and load_memory_from_agent_dir use the same path."""
+"""Test that pin/recall and load_memory_from_agent_dir use consistent paths."""
 import os
 import pytest
 from cococat.core.tools import create_core_tools, ToolRegistry
@@ -7,8 +7,8 @@ from cococat.core.agent_builder import load_memory_from_agent_dir
 
 class TestMemoryPathAlignment:
     @pytest.mark.asyncio
-    async def test_pin_writes_to_agent_memory_subdir(self, tmp_path):
-        """Pin writes to {agent_dir}/memory/memory.md — same path load_memory_from_agent_dir reads."""
+    async def test_pin_writes_to_pinned_md_at_agent_dir(self, tmp_path):
+        """Pin writes to {agent_dir}/pinned.md — same file load_memory_from_agent_dir reads."""
         agent_dir = str(tmp_path / "agents" / "main")
 
         tools = create_core_tools()
@@ -18,18 +18,18 @@ class TestMemoryPathAlignment:
         await reg.execute("pin", {"fact": "user prefers dark mode"}, ctx)
         await reg.execute("pin", {"fact": "project is CocoCat"}, ctx)
 
-        memory_content, _ = load_memory_from_agent_dir(agent_dir)
-        assert "user prefers dark mode" in memory_content
-        assert "project is CocoCat" in memory_content
+        _, pinned_content, _ = load_memory_from_agent_dir(agent_dir)
+        assert "user prefers dark mode" in pinned_content
+        assert "project is CocoCat" in pinned_content
 
     @pytest.mark.asyncio
     async def test_recall_finds_pinned_facts(self, tmp_path):
-        """Recall searches the same memory.md that pin writes to."""
+        """Recall searches the same pinned.md that pin writes to."""
         agent_dir = str(tmp_path / "agents" / "main")
-        mem_dir = os.path.join(agent_dir, "memory")
-        os.makedirs(mem_dir, exist_ok=True)
-        mem_path = os.path.join(mem_dir, "memory.md")
-        with open(mem_path, "w") as f:
+        os.makedirs(agent_dir, exist_ok=True)
+
+        pinned_path = os.path.join(agent_dir, "pinned.md")
+        with open(pinned_path, "w") as f:
             f.write("user likes python\nuser from Beijing\n")
 
         tools = create_core_tools()
@@ -40,17 +40,15 @@ class TestMemoryPathAlignment:
         assert "Beijing" in result
 
     @pytest.mark.asyncio
-    async def test_pin_default_path_is_memory_subdir(self, tmp_path):
-        """Without explicit memory_path, pin writes to agents/main/memory/memory.md."""
+    async def test_pin_default_path_is_pinned_md(self, tmp_path):
+        """Without explicit memory_path, pin writes to {agent_dir}/pinned.md."""
         agent_dir = str(tmp_path / "agents" / "main")
 
         tools = create_core_tools()
         reg = ToolRegistry(tools)
-        # Simulate what agent.run() should pass
         ctx = {"agent_dir": agent_dir}
 
         await reg.execute("pin", {"fact": "default path test"}, ctx)
 
-        # Should be loadable by load_memory_from_agent_dir (same path)
-        memory_content, _ = load_memory_from_agent_dir(agent_dir)
-        assert "default path test" in memory_content
+        _, pinned_content, _ = load_memory_from_agent_dir(agent_dir)
+        assert "default path test" in pinned_content

@@ -9,9 +9,10 @@ import { SkillsTab } from "@/components/settings/SkillsTab"
 import { KBTab } from "@/components/settings/KBTab"
 import { ChannelsTab } from "@/components/settings/ChannelsTab"
 import { UsersTab } from "@/components/settings/UsersTab"
+import { PinnedTab } from "@/components/settings/PinnedTab"
 import { AppearanceTab } from "@/components/settings/AppearanceTab"
 import { GeneralTab } from "@/components/settings/GeneralTab"
-import { Cpu, Plug, Layers, Wrench, Book, Radio, Users, Palette, Settings } from "lucide-react"
+import { Cpu, Plug, Layers, Wrench, Book, Radio, Users, Pin, Palette, Settings } from "lucide-react"
 
 const TABS: TabItem[] = [
   { label: "智能体", icon: Cpu },
@@ -21,6 +22,7 @@ const TABS: TabItem[] = [
   { label: "知识库", icon: Book },
   { label: "渠道", icon: Radio },
   { label: "用户", icon: Users },
+  { label: "钉选", icon: Pin },
   { label: "外观", icon: Palette },
   { label: "通用", icon: Settings },
 ]
@@ -51,8 +53,9 @@ function SettingsContent({ tab, data, onUpdate }: { tab: number; data: TabData; 
     case 4: return <KBTab data={data} onUpdate={onUpdate} />
     case 5: return <ChannelsTab />
     case 6: return <UsersTab />
-    case 7: return <AppearanceTab />
-    case 8: return <GeneralTab data={data} onUpdate={onUpdate} />
+    case 7: return <PinnedTab />
+    case 8: return <AppearanceTab />
+    case 9: return <GeneralTab data={data} onUpdate={onUpdate} />
     default: return null
   }
 }

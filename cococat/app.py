@@ -73,6 +73,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     from cococat.routes.dag import router as dag_router
     from cococat.routes.settings import router as settings_router
     from cococat.routes.users import router as users_router
+    from cococat.routes.pinned import router as pinned_router
 
     app.include_router(agents_router)
     app.include_router(scenes_router)
@@ -87,6 +88,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     app.include_router(cron_router)
     app.include_router(settings_router)
     app.include_router(users_router)
+    app.include_router(pinned_router)
 
     @app.get("/api/health")
     async def health():

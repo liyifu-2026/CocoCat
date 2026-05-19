@@ -146,6 +146,7 @@ def build_system_prompt(
     scene_skills: Optional[list[str]] = None,
     memory_content: str = "",
     pinned_facts: str = "",
+    compiled_content: str = "",
     workspace: str = "workspace",
     static_prefix: str | None = None,
     tools: list[dict[str, Any]] | None = None,
@@ -184,6 +185,9 @@ def build_system_prompt(
     if scene_skills:
         parts.append(f"\n{scene_skills}")
 
+    if compiled_content:
+        parts.append(f"\n## Recent Memory\n{compiled_content}")
+
     if memory_content:
         parts.append(f"\n## Memory\n{memory_content}")
 
@@ -196,13 +200,14 @@ def build_system_prompt(
     return "\n".join(parts)
 
 
-def load_memory_from_agent_dir(agent_dir: str) -> tuple[str, str]:
-    """Load memory.md and pinned.md from an agent directory.
+def load_memory_from_agent_dir(agent_dir: str) -> tuple[str, str, str]:
+    """Load memory.md, pinned.md, and compiled memory from an agent directory.
 
-    Returns (memory_content, pinned_facts). Empty strings if files don't exist.
+    Returns (memory_content, pinned_facts, compiled_content).
     """
     memory_content = ""
     pinned = ""
+    compiled = ""
 
     memory_path = os.path.join(agent_dir, "memory", "memory.md")
     if os.path.exists(memory_path):
@@ -220,4 +225,21 @@ def load_memory_from_agent_dir(agent_dir: str) -> tuple[str, str]:
         except OSError:
             pass
 
-    return memory_content, pinned
+    compiled_dir = os.path.join(agent_dir, "memory", "compiled")
+    if os.path.isdir(compiled_dir):
+        files = sorted(
+            f for f in os.listdir(compiled_dir)
+            if f.endswith(".md") and not f.startswith(".")
+        )
+        day_files = [f for f in files if not f.startswith("20") or len(f) < 12]
+        week_files = [f for f in files if "-W" in f]
+        longterm_files = [f for f in files if "longterm" in f]
+        selected = day_files[-3:] + week_files[-2:] + longterm_files[-1:]
+        for fname in selected:
+            try:
+                with open(os.path.join(compiled_dir, fname), encoding="utf-8") as f:
+                    compiled += f"\n--- {fname} ---\n" + f.read(2000)
+            except OSError:
+                pass
+
+    return memory_content, pinned, compiled

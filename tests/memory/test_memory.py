@@ -147,8 +147,10 @@ async def test_daily_compiler(tmp_dir, llm):
     store = MemoryStore(llm, memory_dir=memory_dir)
     await store.compile()
 
-    assert os.path.exists(os.path.join(memory_dir, "today.md"))
-    assert os.path.exists(os.path.join(memory_dir, "memory.md"))
+    compiled_dir = os.path.join(memory_dir, "compiled")
+    assert os.path.isdir(compiled_dir)
+    day_files = [f for f in os.listdir(compiled_dir) if f.endswith(".md") and not f.startswith(".") and not "W" in f and not "longterm" in f]
+    assert len(day_files) >= 1
 
 
 @pytest.mark.asyncio
@@ -158,12 +160,14 @@ async def test_daily_compiler_no_summaries(tmp_dir, llm):
     os.makedirs(memory_dir, exist_ok=True)
     store = MemoryStore(llm, memory_dir=memory_dir)
     await store.compile()
-    assert not os.path.exists(os.path.join(memory_dir, "today.md"))
+    compiled_dir = os.path.join(memory_dir, "compiled")
+    day_files = [f for f in os.listdir(compiled_dir) if f.endswith(".md") and not f.startswith(".") and not "W" in f and not "longterm" in f] if os.path.isdir(compiled_dir) else []
+    assert len(day_files) == 0
 
 
 @pytest.mark.asyncio
 async def test_daily_compiler_week_appends(tmp_dir, llm):
-    """Week compilation appends today.md content to week.md."""
+    """Week compilation creates a week file from day files."""
     session_mgr = SessionManager()
     session = await session_mgr.create(tmp_dir)
     await session.append("user", "Week test")
@@ -176,12 +180,14 @@ async def test_daily_compiler_week_appends(tmp_dir, llm):
 
     store = MemoryStore(llm, memory_dir=memory_dir)
     await store.compile()
-    assert os.path.exists(os.path.join(memory_dir, "week.md"))
+    compiled_dir = os.path.join(memory_dir, "compiled")
+    week_files = [f for f in os.listdir(compiled_dir) if "W" in f] if os.path.isdir(compiled_dir) else []
+    assert len(week_files) >= 1
 
 
 @pytest.mark.asyncio
 async def test_daily_compiler_memory_md_content(tmp_dir, llm):
-    """memory.md should contain content from today.md."""
+    """compile does not overwrite memory.md — it writes to compiled/ instead."""
     session_mgr = SessionManager()
     session = await session_mgr.create(tmp_dir)
     await session.append("user", "Memory check")
@@ -195,9 +201,10 @@ async def test_daily_compiler_memory_md_content(tmp_dir, llm):
     store = MemoryStore(llm, memory_dir=memory_dir)
     await store.compile()
 
-    with open(os.path.join(memory_dir, "memory.md")) as f:
-        content = f.read()
-    assert len(content) > 0
+    compiled_dir = os.path.join(memory_dir, "compiled")
+    assert os.path.isdir(compiled_dir)
+    md_files = [f for f in os.listdir(compiled_dir) if f.endswith(".md") and not f.startswith(".")]
+    assert len(md_files) >= 1
 
 
 @pytest.mark.asyncio
@@ -205,7 +212,7 @@ async def test_load_memory_empty_dir():
     """When memory dir has no files, should return empty strings."""
     with tempfile.TemporaryDirectory() as d:
         from cococat.core.agent_builder import load_memory_from_agent_dir
-        memory, pinned = load_memory_from_agent_dir(d)
+        memory, pinned, compiled = load_memory_from_agent_dir(d)
         assert memory == ""
         assert pinned == ""
 
@@ -220,6 +227,6 @@ async def test_load_memory_with_pinned():
         with open(os.path.join(d, "pinned.md"), "w") as f:
             f.write("- pin1\n- pin2")
         from cococat.core.agent_builder import load_memory_from_agent_dir
-        memory, pinned = load_memory_from_agent_dir(d)
+        memory, pinned, compiled = load_memory_from_agent_dir(d)
         assert "memory content" in memory
         assert "pin1" in pinned

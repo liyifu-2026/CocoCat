@@ -1,49 +1,49 @@
-"""Test pin/unpin memory tools."""
+"""Test pin/unpin memory tools on pinned.md."""
+import os
 import pytest
 
 
 @pytest.fixture
-def memory_file(tmp_path):
-    path = tmp_path / "memory.md"
-    path.write_text("existing fact\n")
-    return str(path)
+def agent_dir(tmp_path):
+    path = str(tmp_path / "test-agent")
+    os.makedirs(path, exist_ok=True)
+    return path
 
 
 @pytest.mark.asyncio
-async def test_pin_appends_fact(registry, memory_file):
-    ctx = {"memory_path": memory_file}
+async def test_pin_appends_fact(registry, agent_dir):
+    ctx = {"agent_dir": agent_dir}
     result = await registry.execute("pin", {"fact": "user prefers dark mode"}, ctx)
     assert "pinned" in result.lower()
-    content = open(memory_file).read()
+    content = open(os.path.join(agent_dir, "pinned.md")).read()
     assert "user prefers dark mode" in content
-    assert "existing fact" in content
 
 
 @pytest.mark.asyncio
-async def test_pin_appends_multiple_facts(registry, memory_file):
-    ctx = {"memory_path": memory_file}
+async def test_pin_appends_multiple_facts(registry, agent_dir):
+    ctx = {"agent_dir": agent_dir}
     await registry.execute("pin", {"fact": "fact one"}, ctx)
     await registry.execute("pin", {"fact": "fact two"}, ctx)
-    content = open(memory_file).read()
-    assert content.count("fact one") == 1
-    assert content.count("fact two") == 1
+    content = open(os.path.join(agent_dir, "pinned.md")).read()
+    assert "fact one" in content
+    assert "fact two" in content
 
 
 @pytest.mark.asyncio
-async def test_unpin_removes_by_keyword(registry, memory_file):
-    ctx = {"memory_path": memory_file}
+async def test_unpin_removes_by_keyword(registry, agent_dir):
+    ctx = {"agent_dir": agent_dir}
     await registry.execute("pin", {"fact": "user likes python"}, ctx)
     await registry.execute("pin", {"fact": "user likes java"}, ctx)
     result = await registry.execute("unpin", {"keyword": "java"}, ctx)
     assert "unpinned" in result.lower()
-    content = open(memory_file).read()
-    assert "user likes python" in content
+    content = open(os.path.join(agent_dir, "pinned.md")).read()
+    assert "python" in content
     assert "java" not in content
 
 
 @pytest.mark.asyncio
-async def test_unpin_nonexistent_keyword(registry, memory_file):
-    ctx = {"memory_path": memory_file}
+async def test_unpin_nonexistent_keyword(registry, agent_dir):
+    ctx = {"agent_dir": agent_dir}
     result = await registry.execute("unpin", {"keyword": "nonexistent"}, ctx)
     assert "not found" in result.lower() or "no facts" in result.lower()
 

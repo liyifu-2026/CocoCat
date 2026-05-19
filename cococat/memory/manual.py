@@ -27,19 +27,43 @@ class ManualMemory:
         return self._pin(text)
 
     def recall(self, query: str) -> str:
-        """Search memory.md + FTS5 + experiences/ for query. Returns formatted results."""
+        """Search all memory layers for query."""
         q = query.lower()
         results = []
 
-        # 1. Search memory.md
+        # 1. Search memory.md (whiteboard)
         mem_path = os.path.join(self._memory_dir, "memory.md")
         if os.path.exists(mem_path):
             with open(mem_path, encoding="utf-8") as f:
                 for line in f:
                     if q in line.lower():
-                        results.append(("memory", line.strip()))
+                        results.append(("whiteboard", line.strip()))
 
-        # 2. Search FTS5
+        # 2. Search pinned.md
+        agent_dir = os.path.dirname(self._memory_dir)
+        pinned_path = os.path.join(agent_dir, "pinned.md")
+        if os.path.exists(pinned_path):
+            with open(pinned_path, encoding="utf-8") as f:
+                for line in f:
+                    if q in line.lower():
+                        results.append(("pinned", line.strip()))
+
+        # 3. Search compiled/ directory
+        compiled_dir = os.path.join(self._memory_dir, "compiled")
+        if os.path.isdir(compiled_dir):
+            for fname in sorted(os.listdir(compiled_dir), reverse=True):
+                if fname.startswith(".") or not fname.endswith(".md"):
+                    continue
+                fpath = os.path.join(compiled_dir, fname)
+                try:
+                    with open(fpath, encoding="utf-8") as f:
+                        content = f.read()
+                    if q in content.lower():
+                        results.append(("compiled:" + fname, content.strip()[:200]))
+                except OSError:
+                    pass
+
+        # 4. Search FTS5
         if self._db:
             try:
                 rows = self._db.execute(
