@@ -168,6 +168,53 @@ into a bounded profile — old content is not lost, it's re-compressed with new 
 
 **Removed:** `record_experience`, `recall_experience` (covered by pin + compiled memory).
 
+## Cross-Channel Identity Binding
+
+Each user connects channels independently. Memory must route to the right user regardless of which channel the message comes from.
+
+### Database
+
+```sql
+CREATE TABLE IF NOT EXISTS channel_identities (
+    user_id TEXT NOT NULL,
+    channel_type TEXT NOT NULL,      -- "weixin" | "feishu" | "web"
+    channel_user_id TEXT NOT NULL,   -- platform-specific user ID
+    PRIMARY KEY (channel_type, channel_user_id)
+);
+```
+
+### Bind Flow
+
+```
+User logs into web as "alice"
+  → Settings → Channels → "Connect WeChat"
+  → Backend generates QR code for WeChat login
+  → User scans QR code with WeChat app
+  → WeChat callback returns openid
+  → Backend: INSERT INTO channel_identities (alice, weixin, openid)
+
+Later, WeChat message arrives:
+  → Channel handler receives openid = "wx_abc123"
+  → Query: SELECT user_id FROM channel_identities
+    WHERE channel_type='weixin' AND channel_user_id='wx_abc123'
+  → user_id = "alice"
+  → ctx.user_id = "alice"
+  → Memory routes to agents/alice/memory/
+  → Chat history saved with user_id = "alice"
+```
+
+### Unbind
+
+```
+User in web settings → Channels → "Disconnect WeChat"
+  → DELETE FROM channel_identities
+  → Channel connection dropped
+  → Memory remains intact at agents/alice/
+```
+
+Key: Channel identity binding happens only when the web user is already authenticated.
+No unauthenticated channel message can access memory.
+
 ## Prompt Injection
 
 ```
