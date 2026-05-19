@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class AppContext:
+    user_id: str | None = None         # extracted from JWT by auth middleware
     db: Database = field(default=None)
     bus: EventBus = field(default=None)
     pool: AgentPool = field(default=None)

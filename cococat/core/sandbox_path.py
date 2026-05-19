@@ -52,8 +52,14 @@ class PathSandbox:
 
     @staticmethod
     def is_safe_path(path: str) -> bool:
-        """Reject path traversal attempts."""
+        """Reject path traversal attempts and suspicious inputs."""
+        if "\0" in path:
+            return False
         if ".." in Path(path).parts:
+            return False
+        # URL-encoded path separators
+        lowered = path.lower()
+        if "%2f" in lowered or "%5c" in lowered:
             return False
         if os.path.isabs(path) and not path.startswith(("/tmp", "/home", "/workspace")):
             return False
@@ -72,7 +78,7 @@ def wrap_tool_with_sandbox(tool_def, sandbox: PathSandbox):
     def sandboxed(params: dict, context: ToolContext):
         path = params.get("path") or params.get("file_path") or ""
 
-        if path and not PathSandbox.is_safe_path(path):
+        if not PathSandbox.is_safe_path(path):
             return f"Error: path traversal detected for '{path}'"
 
         if op == "read" and path:

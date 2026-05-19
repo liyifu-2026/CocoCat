@@ -72,6 +72,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     from cococat.routes.cron import router as cron_router
     from cococat.routes.dag import router as dag_router
     from cococat.routes.settings import router as settings_router
+    from cococat.routes.users import router as users_router
 
     app.include_router(agents_router)
     app.include_router(scenes_router)
@@ -85,6 +86,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     app.include_router(dag_router)
     app.include_router(cron_router)
     app.include_router(settings_router)
+    app.include_router(users_router)
 
     @app.get("/api/health")
     async def health():
@@ -92,17 +94,67 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
 
     @app.post("/api/auth/login")
     async def login(request: Request):
-        from cococat.auth import create_access_token, verify_password
+        from cococat.auth import create_access_token, verify_password, verify_user_password
+        from fastapi.responses import JSONResponse
         try:
             body = await request.json()
         except Exception:
-            from fastapi.responses import JSONResponse
             return JSONResponse(status_code=400, content={"detail": "Invalid JSON"})
-        if not verify_password(body.get("password", "")):
-            from fastapi.responses import JSONResponse
-            return JSONResponse(status_code=401, content={"detail": "Incorrect password"})
-        token = create_access_token({"sub": "admin"})
+        password = body.get("password", "")
+        username = body.get("username", "")
+
+        # Multi-user: check against users table if username provided and table has rows
+        db = app.state.ctx.db
+        has_users = db._conn.execute(
+            "SELECT COUNT(*) FROM users"
+        ).fetchone()[0] > 0 if username else False
+
+        if has_users:
+            if not verify_user_password(username, password, db):
+                return JSONResponse(status_code=401, content={"detail": "Incorrect username or password"})
+            token = create_access_token({"sub": username})
+        else:
+            # Legacy single-password auth (dev mode / pre-migration)
+            if not verify_password(password):
+                return JSONResponse(status_code=401, content={"detail": "Incorrect password"})
+            token = create_access_token({"sub": "admin"})
+
         return {"access_token": token, "token_type": "bearer"}
+
+    @app.post("/api/auth/init")
+    async def init_admin(request: Request):
+        """First-run: create initial admin user. Only works when no users exist."""
+        from cococat.auth import create_access_token
+        from fastapi.responses import JSONResponse
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse(status_code=400, content={"detail": "Invalid JSON"})
+
+        db = app.state.ctx.db
+        has_users = db._conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0
+        if has_users:
+            return JSONResponse(status_code=400, content={"detail": "Users already exist"})
+
+        username = (body.get("username", "")).strip()
+        password = (body.get("password", ""))
+        if not username or len(password) < 4:
+            return JSONResponse(status_code=400, content={"detail": "Username required, password >= 4 chars"})
+
+        import bcrypt
+        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        db._conn.execute(
+            "INSERT INTO users (id, password_hash, display_name) VALUES (?, ?, ?)",
+            (username, password_hash, username),
+        )
+        db._conn.commit()
+
+        import os
+        os.makedirs(f"config/users/{username}", exist_ok=True)
+        os.makedirs(f"agents/{username}", exist_ok=True)
+
+        token = create_access_token({"sub": username})
+        return {"access_token": token, "token_type": "bearer", "username": username}
 
     return app
 

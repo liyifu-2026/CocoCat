@@ -64,10 +64,10 @@ class TestChannelManager:
         manager._instances["main:main:test"] = fake_channel
         assert manager.get_instance("main:main:test") is fake_channel
 
+    @patch("cococat.core.channel_manager.asyncio.get_running_loop")
     @patch("cococat.core.channels.factory.create_channel")
-    def test_connect_creates_instance_and_status(self, mock_create, manager, ctx, fake_channel):
+    def test_connect_scene_creates_and_wires_channel(self, mock_create, mock_get_loop, manager, ctx, fake_channel):
         mock_create.return_value = fake_channel
-        manager._wire_scene = MagicMock()
 
         status = manager.connect("scene", "s200", "wechat", {}, ctx)
 
@@ -75,35 +75,40 @@ class TestChannelManager:
         assert manager.get_instance("scene:s200:wechat") is fake_channel
         assert manager.get_status("scene:s200:wechat")["status"] == "connected"
         assert status == {"status": "connected"}
-        manager._wire_scene.assert_called_once_with(fake_channel, "s200", "wechat", ctx)
+        assert fake_channel.on_message is not None
+        assert fake_channel.started is True
+        assert fake_channel.start_args == ("s200", {})
 
+    @patch("cococat.core.channel_manager.threading.Thread")
+    @patch("cococat.core.channel_manager.asyncio.get_running_loop")
     @patch("cococat.core.channels.factory.create_channel")
-    def test_connect_sets_connecting_status(self, mock_create, manager, ctx, fake_channel):
+    def test_connect_sets_connecting_status_on_failure(self, mock_create, mock_get_loop, mock_thread, manager, ctx, fake_channel):
         fake_channel._connect_success = False
         mock_create.return_value = fake_channel
-        manager._wire_scene = MagicMock()
-        manager._watch_async = MagicMock()
 
         status = manager.connect("scene", "s200", "wechat", {}, ctx)
 
         assert status == {"status": "connecting"}
         assert manager.get_status("scene:s200:wechat")["status"] == "connecting"
 
+    @patch("cococat.core.channel_manager.asyncio.get_running_loop")
     @patch("cococat.core.channels.factory.create_channel")
-    def test_connect_calls_wire_main_for_main_target(self, mock_create, manager, ctx, fake_channel):
+    def test_connect_main_wires_channel(self, mock_create, mock_get_loop, manager, ctx, fake_channel):
         mock_create.return_value = fake_channel
-        manager._wire_main = MagicMock()
 
         manager.connect("main", "main", "telegram", {}, ctx)
 
-        manager._wire_main.assert_called_once_with(fake_channel, "telegram", ctx, reuse_instance=False)
+        mock_create.assert_called_once_with("telegram")
+        assert fake_channel.on_message is not None
+        assert fake_channel.started is True
+        assert fake_channel.start_args == ("main", {})
 
+    @patch("cococat.core.channel_manager.asyncio.get_running_loop")
     @patch("cococat.core.channels.factory.create_channel")
-    def test_connect_replaces_old_channel(self, mock_create, manager, ctx):
+    def test_connect_replaces_old_channel(self, mock_create, mock_get_loop, manager, ctx):
         old_ch = FakeChannel()
         new_ch = FakeChannel()
         mock_create.return_value = new_ch
-        manager._wire_scene = MagicMock()
         manager._instances["scene:s200:wechat"] = old_ch
 
         manager.connect("scene", "s200", "wechat", {}, ctx)
@@ -124,43 +129,39 @@ class TestChannelManager:
     def test_disconnect_nonexistent_no_error(self, manager):
         manager.disconnect("main", "main", "nonexistent")
 
-    @patch("cococat.core.channel_manager._channel_has_credentials")
     @patch("cococat.core.channels.factory.create_channel")
-    def test_auto_reconnect_skips_disabled(self, mock_create, mock_has_creds, manager, ctx):
+    def test_auto_reconnect_skips_disabled_channel(self, mock_create, manager, ctx):
         ctx.config_store.get_channel_configs.return_value = {
             "channels": {"telegram": {"enabled": False, "config": {"bot_token": "x"}}}
         }
-        mock_has_creds.return_value = True
 
         manager.auto_reconnect(ctx, loop=None)
 
         mock_create.assert_not_called()
 
-    @patch("cococat.core.channel_manager._channel_has_credentials")
     @patch("cococat.core.channels.factory.create_channel")
-    def test_auto_reconnect_skips_no_credentials(self, mock_create, mock_has_creds, manager, ctx):
+    def test_auto_reconnect_skips_no_credentials(self, mock_create, manager, ctx):
         ctx.config_store.get_channel_configs.return_value = {
             "channels": {"telegram": {"enabled": True, "config": {}}}
         }
-        mock_has_creds.return_value = False
 
         manager.auto_reconnect(ctx, loop=None)
 
         mock_create.assert_not_called()
 
-    @patch("cococat.core.channel_manager._channel_has_credentials")
+    @patch("cococat.core.channel_manager.asyncio.get_running_loop")
     @patch("cococat.core.channels.factory.create_channel")
-    def test_auto_reconnect_creates_channel(self, mock_create, mock_has_creds, manager, ctx, fake_channel):
+    def test_auto_reconnect_creates_and_wires_channel(self, mock_create, mock_get_loop, manager, ctx, fake_channel):
         ctx.config_store.get_channel_configs.return_value = {
             "channels": {"telegram": {"enabled": True, "config": {"bot_token": "abc"}}}
         }
-        mock_has_creds.return_value = True
         mock_create.return_value = fake_channel
-        manager._wire_main = MagicMock()
 
         manager.auto_reconnect(ctx, loop=None)
 
         mock_create.assert_called_once_with("telegram")
         assert manager.get_instance("main:main:telegram") is fake_channel
         assert manager.get_status("main:main:telegram")["status"] == "connected"
+        assert fake_channel.on_message is not None
         assert fake_channel.started is True
+        assert fake_channel.start_args == ("main", {"bot_token": "abc"})

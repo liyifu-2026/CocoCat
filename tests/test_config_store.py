@@ -34,17 +34,14 @@ def test_auth_cache_hit(store):
     assert store.get_auth("openai") == "sk-abc"
 
 
-def test_auth_env_override(tmp_path):
+def test_auth_env_override(tmp_path, monkeypatch):
     alt_path = tmp_path / "alt" / "auth.json"
     alt_path.parent.mkdir(parents=True, exist_ok=True)
     alt_path.write_text('{"openai": "sk-from-env"}')
-    os.environ["COCOCAT_AUTH_FILE"] = str(alt_path)
-    try:
-        s = ConfigStore(config_dir=str(tmp_path / "config"))
-        assert s.auth_path == alt_path
-        assert s.get_auth("openai") == "sk-from-env"
-    finally:
-        del os.environ["COCOCAT_AUTH_FILE"]
+    monkeypatch.setenv("COCOCAT_AUTH_FILE", str(alt_path))
+    s = ConfigStore(config_dir=str(tmp_path / "config"))
+    assert s.auth_path == alt_path
+    assert s.get_auth("openai") == "sk-from-env"
 
 
 # ── defaults ──────────────────────────────────────────────────
@@ -144,14 +141,11 @@ def test_delete_coco_prompt_when_no_file(store):
 
 # ── env ───────────────────────────────────────────────────────
 
-def test_get_env_reads_os_environ(store):
-    os.environ["COCOCAT_TEST_KEY"] = "test_value"
-    try:
-        assert store.get_env("COCOCAT_TEST_KEY") == "test_value"
-        assert store.get_env("NONEXISTENT") is None
-        assert store.get_env("NONEXISTENT", "fallback") == "fallback"
-    finally:
-        del os.environ["COCOCAT_TEST_KEY"]
+def test_get_env_reads_os_environ(store, monkeypatch):
+    monkeypatch.setenv("COCOCAT_TEST_KEY", "test_value")
+    assert store.get_env("COCOCAT_TEST_KEY") == "test_value"
+    assert store.get_env("NONEXISTENT") is None
+    assert store.get_env("NONEXISTENT", "fallback") == "fallback"
 
 
 def test_set_env_writes_to_dotenv(store):
@@ -186,27 +180,21 @@ def test_invalidate_clears_all_caches(store):
 
 # ── path overrides ────────────────────────────────────────────
 
-def test_models_file_env_override(tmp_path):
+def test_models_file_env_override(tmp_path, monkeypatch):
     alt_path = tmp_path / "alt_models.json"
     alt_path.parent.mkdir(parents=True, exist_ok=True)
     alt_path.write_text('{"custom_model": {"size": "small"}}')
-    os.environ["COCOCAT_MODELS_FILE"] = str(alt_path)
-    try:
-        s = ConfigStore(config_dir=str(tmp_path / "config"))
-        assert s.models_path == alt_path
-        assert s.get_models() == {"custom_model": {"size": "small"}}
-    finally:
-        del os.environ["COCOCAT_MODELS_FILE"]
+    monkeypatch.setenv("COCOCAT_MODELS_FILE", str(alt_path))
+    s = ConfigStore(config_dir=str(tmp_path / "config"))
+    assert s.models_path == alt_path
+    assert s.get_models() == {"custom_model": {"size": "small"}}
 
 
-def test_env_file_override(tmp_path):
+def test_env_file_override(tmp_path, monkeypatch):
     alt_env = tmp_path / "custom.env"
     alt_env.write_text("CUSTOM_VAR=from_custom_env\n")
-    os.environ["COCOCAT_ENV_FILE"] = str(alt_env)
-    try:
-        s = ConfigStore(config_dir=str(tmp_path / "config"))
-        assert s._env_file_path() == alt_env
-        keys = s.env_keys()
-        assert keys.get("CUSTOM_VAR") == "from_custom_env"
-    finally:
-        del os.environ["COCOCAT_ENV_FILE"]
+    monkeypatch.setenv("COCOCAT_ENV_FILE", str(alt_env))
+    s = ConfigStore(config_dir=str(tmp_path / "config"))
+    assert s._env_file_path() == alt_env
+    keys = s.env_keys()
+    assert keys.get("CUSTOM_VAR") == "from_custom_env"

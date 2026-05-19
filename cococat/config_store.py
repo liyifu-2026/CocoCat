@@ -27,7 +27,11 @@ class ConfigStore:
         self,
         config_dir: str = "config",
         env_path: str = ".env",
+        user_id: str | None = None,
     ):
+        self._user_id = user_id
+        if user_id:
+            config_dir = f"config/users/{user_id}"
         self._config_dir = Path(config_dir)
         self._env_path = Path(env_path)
 

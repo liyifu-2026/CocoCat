@@ -1,68 +1,82 @@
 """Integration tests for scene creation and lifecycle management."""
 import pytest
-import pytest_asyncio
-import tempfile
-import os
-from httpx import AsyncClient, ASGITransport
+from fastapi.testclient import TestClient
 from cococat.app import create_app
 
 
-@pytest_asyncio.fixture
-async def client():
-    db_path = os.path.join(tempfile.mkdtemp(), "test.db")
-    app = create_app(db_path)
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+@pytest.fixture
+def client(tmp_path):
+    app = create_app(str(tmp_path / "test.db"))
+    with TestClient(app) as c:
+        yield c
 
 
-@pytest.mark.asyncio
-async def test_scene_create_and_lifecycle(client):
-    """Test full scene lifecycle: create -> pause -> resume -> archive."""
+def _create_scene(client, scene_id, name="Test Scene"):
     payload = {
-        "id": "test-scene-1",
-        "name": "测试场景",
-        "description": "一个测试场景",
+        "id": scene_id,
+        "name": name,
+        "description": "A test scene",
         "purpose": "customer_service",
-        "agent_name": "测试助手",
+        "agent_name": "Test Agent",
         "agent_tone": "friendly",
         "agent_language": "zh",
-        "kbs": ["test-kb"],
-        "skills": ["communication"],
-        "channels": ["web"],
-        "visibility": "private",
     }
-    resp = await client.post("/api/scenes/full", json=payload)
+    resp = client.post("/api/scenes/full", json=payload)
+    assert resp.status_code == 200
+    return resp.json()
+
+
+def test_create_scene_returns_running_status(client):
+    """Given a scene payload, When created, Then it returns running status."""
+    payload = {
+        "id": "test-create-1",
+        "name": "创建测试场景",
+        "purpose": "customer_service",
+        "agent_tone": "friendly",
+        "agent_language": "zh",
+    }
+    resp = client.post("/api/scenes/full", json=payload)
     assert resp.status_code == 200
     data = resp.json()
-    assert data["id"] == "test-scene-1"
+    assert data["id"] == "test-create-1"
     assert data["status"] == "running"
-    assert data["agent_id"] == "test-scene-1"
+    assert data["agent_id"] == "test-create-1"
 
-    # Pause scene
-    resp = await client.post("/api/scenes/test-scene-1/lifecycle", json={"action": "pause"})
+
+def test_pause_running_scene_sets_paused(client):
+    """Given a running scene, When paused, Then status is paused."""
+    _create_scene(client, "test-pause-1")
+    resp = client.post("/api/scenes/test-pause-1/lifecycle", json={"action": "pause"})
     assert resp.status_code == 200
     assert resp.json()["status"] == "paused"
 
-    # Resume scene
-    resp = await client.post("/api/scenes/test-scene-1/lifecycle", json={"action": "resume"})
+
+def test_resume_paused_scene_sets_running(client):
+    """Given a paused scene, When resumed, Then status is running."""
+    _create_scene(client, "test-resume-1")
+    client.post("/api/scenes/test-resume-1/lifecycle", json={"action": "pause"})
+    resp = client.post("/api/scenes/test-resume-1/lifecycle", json={"action": "resume"})
     assert resp.status_code == 200
     assert resp.json()["status"] == "running"
 
-    # Archive scene
-    resp = await client.post("/api/scenes/test-scene-1/lifecycle", json={"action": "archive"})
+
+def test_archive_running_scene_sets_archived(client):
+    """Given a running scene, When archived, Then status is archived."""
+    _create_scene(client, "test-archive-1")
+    resp = client.post("/api/scenes/test-archive-1/lifecycle", json={"action": "archive"})
     assert resp.status_code == 200
     assert resp.json()["status"] == "archived"
 
-    # Cannot pause an archived scene (invalid transition)
-    resp = await client.post("/api/scenes/test-scene-1/lifecycle", json={"action": "pause"})
+
+def test_cannot_pause_archived_scene(client):
+    """Given an archived scene, When pause is attempted, Then it returns 400."""
+    _create_scene(client, "test-archive-2")
+    client.post("/api/scenes/test-archive-2/lifecycle", json={"action": "archive"})
+    resp = client.post("/api/scenes/test-archive-2/lifecycle", json={"action": "pause"})
     assert resp.status_code == 400
 
 
-@pytest.mark.asyncio
-async def test_scene_list_excludes_deleted(client):
-    """Test that deleted scenes are excluded from the list."""
-    # Create a scene
+def test_scene_list_excludes_deleted(client):
     payload = {
         "id": "test-list-1",
         "name": "列表测试",
@@ -70,24 +84,20 @@ async def test_scene_list_excludes_deleted(client):
         "agent_tone": "friendly",
         "agent_language": "zh",
     }
-    resp = await client.post("/api/scenes/full", json=payload)
+    resp = client.post("/api/scenes/full", json=payload)
     assert resp.status_code == 200
 
-    # Delete it
-    resp = await client.post("/api/scenes/test-list-1/lifecycle", json={"action": "delete"})
+    resp = client.post("/api/scenes/test-list-1/lifecycle", json={"action": "delete"})
     assert resp.status_code == 200
 
-    # List should not include deleted scenes
-    resp = await client.get("/api/scenes")
+    resp = client.get("/api/scenes")
     assert resp.status_code == 200
     scenes = resp.json()
     scene_ids = [s["id"] for s in scenes]
     assert "test-list-1" not in scene_ids
 
 
-@pytest.mark.asyncio
-async def test_scene_list_includes_running(client):
-    """Test that running scenes appear in the list."""
+def test_scene_list_includes_running(client):
     payload = {
         "id": "test-list-2",
         "name": "运行中场景",
@@ -95,10 +105,10 @@ async def test_scene_list_includes_running(client):
         "agent_tone": "professional",
         "agent_language": "zh",
     }
-    resp = await client.post("/api/scenes/full", json=payload)
+    resp = client.post("/api/scenes/full", json=payload)
     assert resp.status_code == 200
 
-    resp = await client.get("/api/scenes")
+    resp = client.get("/api/scenes")
     assert resp.status_code == 200
     scenes = resp.json()
     scene_ids = [s["id"] for s in scenes]

@@ -165,3 +165,76 @@ async def test_session_append_pair(tmp_dir, session_mgr):
 async def test_session_manager_open_nonexistent(tmp_dir, session_mgr):
     with pytest.raises(FileNotFoundError):
         await session_mgr.open("bad_id", tmp_dir)
+
+
+@pytest.mark.asyncio
+async def test_session_append_empty_string(tmp_dir, session_mgr):
+    """Appending an empty string content is stored and read back as-is."""
+    session = await session_mgr.create(tmp_dir)
+    await session.append("user", "")
+    messages = await session.read()
+    assert messages[-1] == {"role": "user", "content": ""}
+
+
+@pytest.mark.asyncio
+async def test_session_append_none_content(tmp_dir, session_mgr):
+    """Appending None content is coerced to empty string."""
+    session = await session_mgr.create(tmp_dir)
+    await session.append("user", None)
+    messages = await session.read()
+    assert messages[-1] == {"role": "user", "content": ""}
+
+
+@pytest.mark.asyncio
+async def test_session_read_empty_file(tmp_dir, session_mgr):
+    """Reading from an existing but empty session file returns an empty list."""
+    session = await session_mgr.create(tmp_dir)
+    path = session.path
+    with open(path, "w") as f:
+        f.write("")
+    messages = await session.read()
+    assert messages == []
+
+
+@pytest.mark.asyncio
+async def test_session_append_multiple_preserves_order(tmp_dir, session_mgr):
+    """Appending many user/assistant pairs preserves insertion order on read."""
+    session = await session_mgr.create(tmp_dir)
+    expected = []
+    for i in range(10):
+        await session.append("user", f"question {i}")
+        expected.append({"role": "user", "content": f"question {i}"})
+        await session.append("assistant", f"answer {i}")
+        expected.append({"role": "assistant", "content": f"answer {i}"})
+    messages = await session.read()
+    assert messages == expected
+
+
+@pytest.mark.asyncio
+async def test_session_read_skips_bad_json(tmp_dir, session_mgr):
+    """Lines with invalid JSON are silently skipped during read."""
+    session = await session_mgr.create(tmp_dir)
+    await session.append("user", "valid message")
+    with open(session.path, "a") as f:
+        f.write("{this is not json}\n")
+    await session.append("assistant", "another valid")
+    messages = await session.read()
+    assert len(messages) == 2
+    assert messages[0]["content"] == "valid message"
+    assert messages[1]["content"] == "another valid"
+
+
+@pytest.mark.asyncio
+async def test_session_close_reopen_state_reset(tmp_dir, session_mgr):
+    """Closing a session then re-opening via manager resets the closed flag."""
+    session = await session_mgr.create(tmp_dir)
+    await session.append("user", "before close")
+    await session.close()
+    assert session._closed is True
+
+    reopened = await session_mgr.open(session.id, tmp_dir)
+    assert reopened.id == session.id
+    assert reopened._closed is False
+    await reopened.append("user", "after reopen")
+    messages = await reopened.read()
+    assert any(m["content"] == "after reopen" for m in messages)

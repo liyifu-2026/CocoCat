@@ -58,3 +58,67 @@ def test_inject_kb_context_no_overview(kb_dir):
     """When KBs exist but produce empty overview, prompt should be unchanged."""
     result = inject_kb_context("Base prompt", [], knowledge_dir=kb_dir)
     assert result == "Base prompt"
+
+
+def test_load_kb_overview_empty_name_string(tmp_path):
+    """KB name is empty string — os.path.join resolves to knowledge_dir itself."""
+    result = load_kb_overview([""], knowledge_dir=str(tmp_path))
+    # Empty name joins to knowledge_dir which is a real dir, so it shows as "### "
+    assert "### " in result
+    assert "Available Knowledge Bases" in result
+
+
+def test_load_kb_overview_no_purpose_md(tmp_path):
+    """KB directory exists but has no purpose.md — still produces overview from index."""
+    kb = tmp_path / "kb-no-purpose"
+    kb.mkdir()
+    (kb / "index.md").write_text("# Entities\n- foo\n- bar")
+
+    result = load_kb_overview(["kb-no-purpose"], knowledge_dir=str(tmp_path))
+    assert "kb-no-purpose" in result
+    assert "foo" in result
+    assert "bar" in result
+    assert "Purpose" not in result
+
+
+def test_load_kb_overview_malformed_yaml_in_config(tmp_path):
+    """KB directory contains a config.yaml with broken YAML — load_kb_overview ignores it."""
+    kb = tmp_path / "kb-broken-config"
+    kb.mkdir()
+    (kb / "purpose.md").write_text("Valid purpose.")
+    (kb / "index.md").write_text("# Entities\n- entity-a")
+    (kb / "config.yaml").write_text("key: [unclosed\n  nested: ::broken")
+
+    result = load_kb_overview(["kb-broken-config"], knowledge_dir=str(tmp_path))
+    assert "kb-broken-config" in result
+    assert "Valid purpose." in result
+    assert "entity-a" in result
+
+
+def test_inject_kb_context_with_empty_list():
+    """inject_kb_context with empty KB list returns prompt unchanged."""
+    prompt = "System prompt"
+    result = inject_kb_context(prompt, [])
+    assert result == prompt
+
+
+def test_inject_kb_context_with_nonexistent_kb_name():
+    """inject_kb_context with a nonexistent KB name returns prompt unchanged."""
+    prompt = "System prompt"
+    result = inject_kb_context(prompt, ["ghost-kb"])
+    assert result == prompt
+
+
+def test_load_kb_overview_with_mixed_existent_nonexistent(tmp_path):
+    """load_kb_overview includes existing KBs, silently skips nonexistent ones."""
+    kb_a = tmp_path / "kb-a"
+    kb_a.mkdir()
+    (kb_a / "purpose.md").write_text("Purpose A.")
+    (kb_a / "index.md").write_text("# Entities\n- entity-a")
+
+    result = load_kb_overview(["ghost-kb", "kb-a", "phantom-kb"], knowledge_dir=str(tmp_path))
+    assert "kb-a" in result
+    assert "Purpose A." in result
+    assert "entity-a" in result
+    assert "ghost-kb" not in result
+    assert "phantom-kb" not in result

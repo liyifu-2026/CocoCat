@@ -1,5 +1,4 @@
 """Tests for cococat.providers."""
-import os
 import json
 import tempfile
 import pytest
@@ -54,15 +53,14 @@ def test_credentials_load_json():
     assert cm.get("nonexistent") is None
 
 
-def test_credentials_env_var_fallback():
-    os.environ["TEST_PROVIDER_KEY"] = "env-key-789"
+def test_credentials_env_var_fallback(monkeypatch):
+    monkeypatch.setenv("TEST_PROVIDER_KEY", "env-key-789")
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump({"test_provider": "${TEST_PROVIDER_KEY}"}, f)
         path = f.name
 
     cm = CredentialManager(path)
     assert cm.get("test_provider") == "env-key-789"
-    del os.environ["TEST_PROVIDER_KEY"]
 
 
 def test_credentials_file_not_found():
@@ -126,12 +124,11 @@ def test_module_find_by_model_nonexistent():
     assert find_by_model("nonexistent-model-12345") is None
 
 
-def test_module_find_by_env():
-    os.environ["DEEPSEEK_API_KEY"] = "sk-test"
+def test_module_find_by_env(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
     spec = find_by_env()
     assert spec is not None
     assert spec.name == "deepseek"
-    del os.environ["DEEPSEEK_API_KEY"]
 
 
 def test_module_find_by_env_none_set():
@@ -282,7 +279,7 @@ async def test_openai_compat_chat_stream_yields_events(monkeypatch):
 # ── Provider Factory ──
 
 @pytest.mark.asyncio
-async def test_factory_create_with_model():
+async def test_factory_create_with_model(monkeypatch):
     from cococat.providers.factory import ProviderFactory
     from cococat.providers.registry import ProviderRegistry
     from cococat.providers.credentials import CredentialManager
@@ -298,12 +295,11 @@ async def test_factory_create_with_model():
     ))
 
     # Set key in env so factory finds it
-    os.environ["DEEPSEEK_API_KEY"] = "sk-test"
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
     factory = ProviderFactory(credential_manager=creds, registry=reg)
     provider = await factory.create("deepseek-chat")
     assert provider is not None
     assert provider.model == "deepseek-chat"
-    del os.environ["DEEPSEEK_API_KEY"]
 
 
 @pytest.mark.asyncio

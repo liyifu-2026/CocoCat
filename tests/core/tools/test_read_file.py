@@ -33,3 +33,34 @@ async def test_read_file_nonexistent(registry):
 async def test_read_file_unknown_tool(registry):
     with pytest.raises(ValueError, match="Unknown tool"):
         await registry.execute("nonexistent_tool", {})
+
+
+@pytest.mark.asyncio
+async def test_read_file_empty(registry, tmp_path):
+    path = tmp_path / "empty.txt"
+    path.write_text("", encoding="utf-8")
+    result = await registry.execute("read_file", {"path": str(path)})
+    assert result == ""
+
+
+@pytest.mark.asyncio
+async def test_read_file_whitespace_only(registry, tmp_path):
+    path = tmp_path / "whitespace.txt"
+    content = "   \n\n\t\n"
+    path.write_text(content, encoding="utf-8")
+    result = await registry.execute("read_file", {"path": str(path)})
+    assert result == content
+
+
+@pytest.mark.asyncio
+async def test_read_file_none_path(registry):
+    result = await registry.execute("read_file", {"path": None})
+    assert "Error" in result
+
+
+@pytest.mark.asyncio
+async def test_read_file_nonexistent_detailed(registry):
+    path = "/nonexistent/detailed_test_file.txt"
+    result = await registry.execute("read_file", {"path": path})
+    assert "Error" in result
+    assert path in result

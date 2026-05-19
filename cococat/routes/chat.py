@@ -75,10 +75,11 @@ def _build_chat_tools(ctx: AppContext, preset: str) -> list:
 @router.post("/chat")
 async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
     """Send a message to Main AI via SandboxProvider."""
+    user_id = ctx.user_id or body.user_id or "local"
     msg_uuid = new_uuid()
     msg_store = ctx.db.messages
     msg_store.save(
-        msg_uuid=msg_uuid, agent_id="main", user_id=body.user_id,
+        msg_uuid=msg_uuid, agent_id="main", user_id=user_id,
         role="user", content=body.content, scene_id=body.scene_id,
         channel_type="web",
     )
@@ -91,7 +92,7 @@ async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
 
     reply_uuid = new_uuid()
     msg_store.save(
-        msg_uuid=reply_uuid, agent_id="main", user_id=body.user_id,
+        msg_uuid=reply_uuid, agent_id="main", user_id=user_id,
         role="assistant", content=reply, scene_id=body.scene_id,
     )
     return {"reply": reply, "msg_uuid": reply_uuid}
@@ -204,4 +205,4 @@ async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "defa
                     except _json.JSONDecodeError:
                         pass
         return {"messages": msgs}
-    return {"messages": ctx.db.messages.get_chat_history(scene_id, limit)}
+    return {"messages": ctx.db.messages.get_chat_history(scene_id, limit, user_id=ctx.user_id)}

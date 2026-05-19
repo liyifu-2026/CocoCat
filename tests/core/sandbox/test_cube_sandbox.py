@@ -1,5 +1,4 @@
 """Test CubeSandboxExecutor — wraps e2b_code_interpreter SDK."""
-import os
 import pytest
 from unittest.mock import patch
 from cococat.core.sandbox import Sandbox
@@ -116,20 +115,15 @@ class TestCubeSandboxExecutor:
                 await executor.create("default", {})
 
     @pytest.mark.asyncio
-    async def test_accepts_config_from_env(self):
+    async def test_accepts_config_from_env(self, monkeypatch):
         """CubeSandboxExecutor reads config from environment variables."""
-        os.environ["E2B_API_URL"] = "http://cube:3000"
-        os.environ["E2B_API_KEY"] = "dummy"
-        os.environ["CUBESANDBOX_TEMPLATE_ID"] = "env-template"
+        monkeypatch.setenv("E2B_API_URL", "http://cube:3000")
+        monkeypatch.setenv("E2B_API_KEY", "dummy")
+        monkeypatch.setenv("CUBESANDBOX_TEMPLATE_ID", "env-template")
 
-        try:
-            from cococat.core.sandbox import CubeSandboxExecutor
-            executor = CubeSandboxExecutor()
-            assert executor._template_id == "env-template"
-        finally:
-            del os.environ["E2B_API_URL"]
-            del os.environ["E2B_API_KEY"]
-            del os.environ["CUBESANDBOX_TEMPLATE_ID"]
+        from cococat.core.sandbox import CubeSandboxExecutor
+        executor = CubeSandboxExecutor()
+        assert executor._template_id == "env-template"
 
     @pytest.mark.asyncio
     async def test_sandbox_provider_with_cube_executor(self):

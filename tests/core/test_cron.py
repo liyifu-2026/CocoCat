@@ -1,4 +1,5 @@
 """Test cron tool and worker."""
+import asyncio
 import json
 import os
 import time
@@ -81,12 +82,14 @@ class TestCronWorker:
         os.makedirs(cron_dir, exist_ok=True)
 
         dispatched = []
+        event = asyncio.Event()
 
         class FakePool:
             def get_agent(self, name):
                 class FakeAgent:
                     async def run(self, task):
                         dispatched.append(task)
+                        event.set()
                         return "ok"
                 return FakeAgent()
 
@@ -104,7 +107,7 @@ class TestCronWorker:
 
         worker = CronWorker(pool=FakePool(), poll_interval=0.1, cron_dir=cron_dir)
         await worker.start()
-        await __import__("asyncio").sleep(1.5)
+        await asyncio.wait_for(event.wait(), timeout=5.0)
         await worker.stop()
 
         assert len(dispatched) >= 1
@@ -143,7 +146,7 @@ class TestCronWorker:
 
         worker = CronWorker(pool=FakePool(), poll_interval=0.1, cron_dir=cron_dir)
         await worker.start()
-        await __import__("asyncio").sleep(0.5)
+        await asyncio.wait_for(asyncio.sleep(0.3), timeout=1.0)
         await worker.stop()
 
         assert len(dispatched) == 0
@@ -176,6 +179,6 @@ class TestCronWorker:
 
         worker = CronWorker(pool=FakePool(), poll_interval=0.1, cron_dir=cron_dir)
         await worker.start()
-        await __import__("asyncio").sleep(1.0)
+        await asyncio.wait_for(asyncio.sleep(0.3), timeout=1.0)
         await worker.stop()
         assert len(dispatched) == 0

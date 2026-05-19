@@ -1,4 +1,4 @@
-"""Authentication — JWT + API key middleware."""
+"""Authentication — JWT + API key middleware with multi-user bcrypt support."""
 from __future__ import annotations
 
 import hashlib
@@ -7,6 +7,7 @@ import os
 import time
 from typing import Any
 
+import bcrypt
 import jwt as pyjwt
 
 logger = logging.getLogger("cococat.auth")
@@ -20,7 +21,7 @@ API_KEY = os.environ.get("API_KEY", "")
 WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "admin")
 
 # Routes that skip auth
-PUBLIC_PATHS = {"/api/health", "/ws", "/api/auth/login"}
+PUBLIC_PATHS = {"/api/health", "/ws", "/api/auth/login", "/api/auth/init"}
 PUBLIC_PREFIXES = ["/api/channels"]
 
 
@@ -49,6 +50,16 @@ def verify_password(password: str) -> bool:
     return hashlib.sha256(password.encode()).hexdigest() == _password_hash()
 
 
+def verify_user_password(username: str, password: str, db) -> bool:
+    """Verify username/password against the users table using bcrypt."""
+    row = db._conn.execute(
+        "SELECT password_hash FROM users WHERE id = ?", (username,)
+    ).fetchone()
+    if not row:
+        return False
+    return bcrypt.checkpw(password.encode(), row["password_hash"].encode())
+
+
 # ── Middleware ─────────────────────────────────────────────
 
 async def auth_middleware(request, call_next):
@@ -69,7 +80,12 @@ async def auth_middleware(request, call_next):
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
-        if verify_token(token):
+        payload = verify_token(token)
+        if payload:
+            # Inject user_id into AppContext
+            ctx = getattr(request.app.state, "ctx", None)
+            if ctx:
+                ctx.user_id = payload.get("sub")
             return await call_next(request)
 
     # Try API key

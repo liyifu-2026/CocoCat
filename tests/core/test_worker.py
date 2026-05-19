@@ -48,9 +48,16 @@ async def test_worker_claims_and_processes_task(db, pool):
          "pending"),
     )
 
+    event = asyncio.Event()
+    original_complete = db.tasks.complete
+    def complete(task_uuid, result):
+        original_complete(task_uuid, result)
+        event.set()
+    db.tasks.complete = complete
+
     worker = TaskWorker(db, pool, poll_interval=0.05)
     await worker.start()
-    await asyncio.sleep(0.2)
+    await asyncio.wait_for(event.wait(), timeout=5.0)
     await worker.stop()
 
     tasks = db.execute("SELECT status, result FROM tasks WHERE task_uuid = 'task-1'")
@@ -63,7 +70,7 @@ async def test_worker_no_pending_tasks(db, pool):
     """Worker handles empty task queue gracefully."""
     worker = TaskWorker(db, pool, poll_interval=0.05)
     await worker.start()
-    await asyncio.sleep(0.15)
+    await asyncio.wait_for(asyncio.sleep(0.15), timeout=1.0)
     await worker.stop()
     # Should not crash
 
@@ -101,7 +108,7 @@ async def test_worker_task_already_claimed(db, pool):
 
     worker = TaskWorker(db, pool, poll_interval=0.05)
     await worker.start()
-    await asyncio.sleep(0.15)
+    await asyncio.wait_for(asyncio.sleep(0.15), timeout=1.0)
     await worker.stop()
 
     tasks = db.execute("SELECT status FROM tasks WHERE task_uuid = 'task-3'")

@@ -95,6 +95,13 @@ CREATE TABLE IF NOT EXISTS scenes (
     FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    password_hash TEXT NOT NULL,
+    display_name TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS dag_runs (
     id TEXT PRIMARY KEY,
     data TEXT NOT NULL,

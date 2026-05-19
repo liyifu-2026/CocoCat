@@ -20,11 +20,19 @@ class MessageStore:
             (msg_uuid, agent_id, user_id, role, content, scene_id, channel_type),
         )
 
-    def get_chat_history(self, scene_id: str = "default", limit: int = 50) -> list[dict]:
-        rows = self._db.query(
-            "SELECT role, content, created_at FROM messages "
-            "WHERE scene_id = ? AND chat_group = 'general' "
-            "ORDER BY id DESC LIMIT ?",
-            (scene_id, limit),
-        )
+    def get_chat_history(self, scene_id: str = "default", limit: int = 50, user_id: str | None = None) -> list[dict]:
+        if user_id:
+            rows = self._db.query(
+                "SELECT role, content, created_at FROM messages "
+                "WHERE scene_id = ? AND chat_group = 'general' AND user_id = ? "
+                "ORDER BY id DESC LIMIT ?",
+                (scene_id, user_id, limit),
+            )
+        else:
+            rows = self._db.query(
+                "SELECT role, content, created_at FROM messages "
+                "WHERE scene_id = ? AND chat_group = 'general' "
+                "ORDER BY id DESC LIMIT ?",
+                (scene_id, limit),
+            )
         return [dict(r) for r in reversed(rows)]

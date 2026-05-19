@@ -14,15 +14,10 @@ from cococat.core.bootstrap import (
     _setup_providers,
     _setup_sub_executor,
 )
+from cococat.config_store import ConfigStore
 from cococat.providers.credentials import CredentialManager
 from cococat.providers.factory import ProviderFactory
 from cococat.core.sub_agent import SubAgentExecutor
-
-
-def _make_config_store():
-    store = MagicMock()
-    store.cron_dir = os.path.join("runs", "cron")
-    return store
 
 
 # ── _create_stub_llm ────────────────────────────────────────
@@ -86,11 +81,17 @@ def test_seed_default_residents_idempotent(tmp_path):
 
 # ── _seed_cron_jobs ─────────────────────────────────────────
 
-def test_seed_cron_jobs_creates_file_with_fields():
+def _isolated_config_store(tmp_path):
+    store = ConfigStore(config_dir=str(tmp_path))
+    return store
+
+
+def test_seed_cron_jobs_creates_file_with_fields(tmp_path, monkeypatch):
+    monkeypatch.setenv("COCOCAT_RUNS_DIR", str(tmp_path))
+    store = _isolated_config_store(tmp_path)
     entries = [{"name": "lint", "schedule": "@daily", "task": "Run lint"}]
-    config_store = _make_config_store()
-    _seed_cron_jobs("agent-x", entries, config_store)
-    path = os.path.join("runs", "cron", "agent-x-lint.json")
+    _seed_cron_jobs("agent-x", entries, store)
+    path = os.path.join(str(store.cron_dir), "agent-x-lint.json")
     assert os.path.exists(path)
     with open(path) as f:
         job = json.load(f)
@@ -99,30 +100,29 @@ def test_seed_cron_jobs_creates_file_with_fields():
     assert job["schedule"] == "@daily"
     assert job["task"] == "Run lint"
     assert job["agent_id"] == "agent-x"
-    os.remove(path)
 
 
-def test_seed_cron_jobs_defaults():
+def test_seed_cron_jobs_defaults(tmp_path, monkeypatch):
+    monkeypatch.setenv("COCOCAT_RUNS_DIR", str(tmp_path))
+    store = _isolated_config_store(tmp_path)
     entries = [{"name": "cleanup"}]
-    config_store = _make_config_store()
-    _seed_cron_jobs("agent-x", entries, config_store)
-    path = os.path.join("runs", "cron", "agent-x-cleanup.json")
+    _seed_cron_jobs("agent-x", entries, store)
+    path = os.path.join(str(store.cron_dir), "agent-x-cleanup.json")
     with open(path) as f:
         job = json.load(f)
     assert job["schedule"] == "@daily"
     assert job["task"] == "Run cleanup maintenance"
-    os.remove(path)
 
 
-def test_seed_cron_jobs_idempotent():
+def test_seed_cron_jobs_idempotent(tmp_path, monkeypatch):
+    monkeypatch.setenv("COCOCAT_RUNS_DIR", str(tmp_path))
+    store = _isolated_config_store(tmp_path)
     entries = [{"name": "idem", "schedule": "@daily"}]
-    config_store = _make_config_store()
-    _seed_cron_jobs("agent-x", entries, config_store)
-    path = os.path.join("runs", "cron", "agent-x-idem.json")
+    _seed_cron_jobs("agent-x", entries, store)
+    path = os.path.join(str(store.cron_dir), "agent-x-idem.json")
     mtime1 = os.path.getmtime(path)
-    _seed_cron_jobs("agent-x", entries, config_store)
+    _seed_cron_jobs("agent-x", entries, store)
     assert os.path.getmtime(path) == mtime1
-    os.remove(path)
 
 
 # ── _setup_providers ────────────────────────────────────────

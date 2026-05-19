@@ -326,26 +326,33 @@ async def list_enabled_models(ctx: AppContext = Depends(get_ctx)):
     return {"providers": result}
 
 
+def _get_user_config_store(ctx: AppContext):
+    """Return a ConfigStore scoped to ctx.user_id, or global fallback."""
+    if ctx.user_id:
+        from cococat.config_store import ConfigStore
+        return ConfigStore(user_id=ctx.user_id)
+    return ctx.config_store
+
+
 @router.put("/providers/key")
 async def save_provider_key(req: SetKeyRequest, ctx: AppContext = Depends(get_ctx)):
     """Save API key and test connectivity. Returns {saved, ok, error?, status}."""
-    # Resolve provider spec (builtin or custom)
     reg = create_builtin_registry()
     spec = reg.find_by_name(req.name)
     custom_prov = None
     base_url = ""
+    store = _get_user_config_store(ctx)
 
     if spec:
         base_url = spec.default_api_base
     else:
-        custom_prov = _find_custom_provider(req.name, ctx.config_store)
+        custom_prov = _find_custom_provider(req.name, store)
         if custom_prov:
             base_url = custom_prov.get("base_url", "")
         else:
             raise HTTPException(status_code=400, detail=f"Unknown provider: {req.name}")
 
-    # Save key
-    _save_auth_key(req.name, req.key, ctx.config_store)
+    _save_auth_key(req.name, req.key, store)
 
     # Set env var immediately
     env_key = spec.env_key if spec else custom_prov.get("env_key", "") if custom_prov else ""
@@ -378,7 +385,8 @@ async def test_provider_connection(req: TestKeyRequest):
 @router.get("/providers/{name}/config")
 async def get_provider_config(name: str, ctx: AppContext = Depends(get_ctx)):
     """Get provider config: base_url, display_name, and saved API key."""
-    custom = _load_custom_providers(ctx.config_store)
+    store = _get_user_config_store(ctx)
+    custom = _load_custom_providers(store)
     c = next((p for p in custom if p["name"] == name), None)
     base_url = c.get("base_url", "") if c else ""
     display_name = c.get("display_name", "") if c else ""
@@ -389,7 +397,7 @@ async def get_provider_config(name: str, ctx: AppContext = Depends(get_ctx)):
         base_url = spec.default_api_base
         display_name = display_name or spec.display_name
 
-    key = _resolve_key(name, ctx.creds, spec.env_key if spec else "")
+    key = store.get_auth(name)
 
     return {
         "name": name,

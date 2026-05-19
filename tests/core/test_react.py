@@ -5,6 +5,7 @@ import os
 import pytest
 from cococat.core.agent import Agent, AgentRole
 from cococat.core.tools import create_core_tools, ToolRegistry
+from cococat.core.tools.types import Tool
 from cococat.providers.base import LLMResponse, ToolCallRequest
 
 
@@ -162,3 +163,88 @@ async def test_react_unknown_tool():
     agent = Agent("unknown", "Unknown", AgentRole.WORKER, UnknownToolLLM(), create_core_tools())
     result = await agent.run("do unknown")
     assert "didn't exist" in result
+
+
+@pytest.mark.asyncio
+async def test_react_empty_prompt():
+    """Empty prompt string should still trigger the loop and produce a result."""
+    class EmptyPromptLLM:
+        def __init__(self):
+            self.calls = 0
+
+        async def chat(self, messages, tools=None, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                return LLMResponse(
+                    content="processing",
+                    tool_calls=[ToolCallRequest(
+                        id="call_1",
+                        name="read_file",
+                        arguments=json.dumps({"path": "/tmp/test_empty.txt"}),
+                    )],
+                )
+            return LLMResponse(content="got the file")
+
+    with open("/tmp/test_empty.txt", "w") as f:
+        f.write("empty prompt works")
+
+    agent = Agent("empty", "Empty", AgentRole.WORKER, EmptyPromptLLM(), create_core_tools())
+    result = await agent.run("")
+    assert "got the file" in result
+
+
+@pytest.mark.asyncio
+async def test_react_tool_exception_continues_loop():
+    """Tool that raises an exception is caught; ReAct loop continues."""
+    def _failing_tool(params, ctx):
+        raise RuntimeError("deliberate test failure")
+
+    class ExceptionToolLLM:
+        def __init__(self):
+            self.calls = 0
+
+        async def chat(self, messages, tools=None, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                return LLMResponse(
+                    content="",
+                    tool_calls=[ToolCallRequest(
+                        id="call_err",
+                        name="failing_tool",
+                        arguments="{}",
+                    )],
+                )
+            return LLMResponse(content="recovered after tool error")
+
+    tools = create_core_tools() + [
+        Tool(name="failing_tool", description="Always raises",
+             parameters={}, execute=_failing_tool,
+             requires_sandbox=True, sandbox_operation="read"),
+    ]
+    agent = Agent("err", "Error", AgentRole.WORKER, ExceptionToolLLM(), tools)
+    result = await agent.run("trigger error")
+    assert "recovered after tool error" in result
+    assert agent._llm.calls == 2
+
+
+@pytest.mark.asyncio
+async def test_react_max_iterations_exact():
+    """Tool-calling LLM that never emits final text is stopped at max_iterations."""
+    class StubbornLLM:
+        def __init__(self):
+            self.calls = 0
+
+        async def chat(self, messages, tools=None, **kwargs):
+            self.calls += 1
+            return LLMResponse(
+                content="",
+                tool_calls=[ToolCallRequest(
+                    id=f"call_{self.calls}",
+                    name="bash",
+                    arguments=json.dumps({"command": "echo again"}),
+                )],
+            )
+
+    agent = Agent("stubborn", "Stubborn", AgentRole.WORKER, StubbornLLM(), create_core_tools())
+    result = await agent.run("loop", max_iterations=2)
+    assert "exceeded max iterations" in result

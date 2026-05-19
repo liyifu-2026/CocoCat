@@ -19,6 +19,7 @@ dependencies = [
     "e2b-code-interpreter>=2.0.0",
     "pyjwt>=2.0.0",
     "python-multipart>=0.0.9",
+    "bcrypt>=4.0.0",
 ]
 
 [project.urls]

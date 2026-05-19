@@ -94,17 +94,18 @@ class TestSubAgentViaSandbox:
         provider = SandboxProvider(executor=LocalExecutor())
         executor = SubAgentExecutor(bus, sandbox_provider=provider)
         results = []
+        event = asyncio.Event()
 
         async def on_complete(data):
             results.append(data)
+            event.set()
 
         bus.subscribe("sub_agent_complete", on_complete)
 
         result = await executor.dispatch("say hello", from_agent="main")
-        # With sandbox provider and no LLM, returns error message
         assert result is not None
 
-        await asyncio.sleep(2.0)
+        await asyncio.wait_for(event.wait(), timeout=5.0)
 
         if results:
             assert results[0]["agent_id"].startswith("sub-")

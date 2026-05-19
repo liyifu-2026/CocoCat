@@ -217,3 +217,168 @@ class TestSandboxProvider:
         assert s1 != s2
         await provider.destroy(s1)
         await provider.destroy(s2)
+
+
+# ── PathSandbox edge case tests ──
+
+def test_is_allowed_read_rejects_empty_string(sandbox):
+    """Empty string path should not be allowed for read access."""
+    assert not sandbox.is_allowed_read("")
+
+
+def test_is_allowed_write_rejects_empty_string(sandbox):
+    """Empty string path should not be allowed for write access."""
+    assert not sandbox.is_allowed_write("")
+
+
+def test_is_allowed_read_rejects_none(sandbox):
+    """None path should raise TypeError (not silently pass)."""
+    with pytest.raises(TypeError):
+        sandbox.is_allowed_read(None)
+
+
+def test_is_allowed_write_rejects_none(sandbox):
+    """None path should raise TypeError (not silently pass)."""
+    with pytest.raises(TypeError):
+        sandbox.is_allowed_write(None)
+
+
+def test_is_allowed_read_rejects_null_byte_injection(sandbox):
+    """Null byte injection 'safe\\0/etc/passwd' should be rejected for read."""
+    assert not sandbox.is_allowed_read("safe\0/etc/passwd")
+
+
+def test_is_allowed_write_rejects_null_byte_injection(sandbox):
+    """Null byte injection 'safe\\0/etc/passwd' should be rejected for write."""
+    assert not sandbox.is_allowed_write("safe\0/etc/passwd")
+
+
+def test_is_allowed_read_rejects_absolute_path(sandbox):
+    """Absolute path /etc/passwd should be rejected for read."""
+    assert not sandbox.is_allowed_read("/etc/passwd")
+
+
+def test_is_allowed_write_rejects_absolute_path(sandbox):
+    """Absolute path /etc/shadow should be rejected for write."""
+    assert not sandbox.is_allowed_write("/etc/shadow")
+
+
+def test_is_allowed_read_rejects_triple_dotdot_traversal(sandbox):
+    """Triple dot-dot traversal ../../../etc/passwd should be rejected for read."""
+    assert not sandbox.is_allowed_read("../../../etc/passwd")
+
+
+def test_is_allowed_write_rejects_triple_dotdot_traversal(sandbox):
+    """Triple dot-dot traversal ../../../etc/passwd should be rejected for write."""
+    assert not sandbox.is_allowed_write("../../../etc/passwd")
+
+
+def test_is_allowed_read_rejects_dot_slash_traversal(sandbox):
+    """Traversal via './../../../root/.ssh' should be rejected for read."""
+    assert not sandbox.is_allowed_read("./../../../root/.ssh")
+
+
+def test_is_allowed_write_rejects_dot_slash_traversal(sandbox):
+    """Traversal via './../../../root/.ssh' should be rejected for write."""
+    assert not sandbox.is_allowed_write("./../../../root/.ssh")
+
+
+# ── PathSandbox.is_safe_path edge case tests ──
+
+def test_is_safe_path_rejects_empty_string():
+    """Empty string path is safe (not a traversal) — the tool handles missing params."""
+    assert PathSandbox.is_safe_path("") is True
+
+
+def test_is_safe_path_rejects_none():
+    """None path should raise TypeError."""
+    with pytest.raises(TypeError):
+        PathSandbox.is_safe_path(None)
+
+
+def test_is_safe_path_rejects_null_byte_injection():
+    """Path with embedded null byte should be rejected as unsafe."""
+    assert PathSandbox.is_safe_path("safe\0/etc/passwd") is False
+
+
+def test_is_safe_path_rejects_sole_dotdot():
+    """A bare '../' path should be rejected."""
+    assert PathSandbox.is_safe_path("../") is False
+
+
+def test_is_safe_path_rejects_dot_slash_traversal():
+    """Traversal hidden behind './' with ../ should be rejected."""
+    assert PathSandbox.is_safe_path("./../../../root/.ssh") is False
+
+
+def test_is_safe_path_rejects_url_encoded_traversal():
+    """URL-encoded traversal '..%2F..%2F..%2Fetc/passwd' should be rejected."""
+    assert PathSandbox.is_safe_path("..%2F..%2F..%2Fetc/passwd") is False
+
+
+def test_is_safe_path_rejects_absolute_path_root():
+    """Absolute path /root/.ssh should be rejected."""
+    assert PathSandbox.is_safe_path("/root/.ssh") is False
+
+
+def test_is_safe_path_rejects_absolute_path_var():
+    """Absolute path /var/log should be rejected."""
+    assert PathSandbox.is_safe_path("/var/log") is False
+
+
+# ── wrap_tool_with_sandbox edge case tests ──
+
+def test_wrap_empty_path_passes_through(sandbox):
+    """Empty path tool passes through — tool handles missing params on its own."""
+    tool = _tool("read_file", "read", lambda p, c: "reached")
+    wrapped = wrap_tool_with_sandbox(tool, sandbox)
+    result = _call(wrapped, {"path": ""})
+    assert result == "reached"
+
+
+def test_wrap_none_path_handled_gracefully(sandbox):
+    """None path should not crash and should result in an error response."""
+    tool = _tool("read_file", "read", lambda p, c: "should not reach")
+    wrapped = wrap_tool_with_sandbox(tool, sandbox)
+    result = _call(wrapped, {"path": None})
+    assert isinstance(result, str)
+
+
+def test_wrap_triple_dotdot_traversal_blocked(sandbox):
+    """Triple dot-dot traversal ../../../etc/passwd should be blocked."""
+    tool = _tool("read_file", "read", lambda p, c: "should not reach")
+    wrapped = wrap_tool_with_sandbox(tool, sandbox)
+    result = _call(wrapped, {"path": "../../../etc/passwd"})
+    assert "path traversal" in result.lower()
+
+
+def test_wrap_dot_slash_traversal_blocked(sandbox):
+    """Traversal via './../../../root/.ssh' should be blocked."""
+    tool = _tool("read_file", "read", lambda p, c: "should not reach")
+    wrapped = wrap_tool_with_sandbox(tool, sandbox)
+    result = _call(wrapped, {"path": "./../../../root/.ssh"})
+    assert "path traversal" in result.lower()
+
+
+def test_wrap_absolute_path_blocked(sandbox):
+    """Absolute path /etc/passwd should be blocked by sandbox."""
+    tool = _tool("read_file", "read", lambda p, c: "should not reach")
+    wrapped = wrap_tool_with_sandbox(tool, sandbox)
+    result = _call(wrapped, {"path": "/etc/passwd"})
+    assert "path traversal" in result.lower()
+
+
+def test_wrap_write_absolute_path_blocked(sandbox):
+    """Absolute path /etc/crontab should be blocked for write."""
+    tool = _tool("write_file", "write", lambda p, c: "should not reach")
+    wrapped = wrap_tool_with_sandbox(tool, sandbox)
+    result = _call(wrapped, {"path": "/etc/crontab", "content": "x"})
+    assert "path traversal" in result.lower() or "denied" in result.lower()
+
+
+def test_wrap_null_byte_path_blocked(sandbox):
+    """Null byte injection in read path should be caught."""
+    tool = _tool("read_file", "read", lambda p, c: "should not reach")
+    wrapped = wrap_tool_with_sandbox(tool, sandbox)
+    result = _call(wrapped, {"path": "workspace/\0/etc/passwd"})
+    assert "path traversal" in result.lower() or "denied" in result.lower()

@@ -27,6 +27,8 @@ class Session:
         if self._closed:
             raise RuntimeError("Session is closed.")
         os.makedirs(self._dir, exist_ok=True)
+        if content is None:
+            content = ""
         entry = {"role": role, "content": content}
         with open(self._path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -39,8 +41,12 @@ class Session:
         with open(self._path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
-                if line:
+                if not line:
+                    continue
+                try:
                     messages.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
         return messages
 
     async def close(self) -> None:
@@ -90,8 +96,10 @@ class SessionManager:
     async def open(self, session_id: str, dir_path: str) -> Session:
         """Open an existing session by ID."""
         if session_id in self._cache:
+            session = self._cache[session_id]
             self._cache.move_to_end(session_id)
-            return self._cache[session_id]
+            session._closed = False
+            return session
 
         session = Session(session_id, dir_path)
         if not os.path.exists(session.path):

@@ -54,31 +54,25 @@ class TestProvidersApi:
 
 class TestProviderKeySave:
     @pytest.mark.asyncio
-    async def test_save_provider_key(self, tmp_path, client):
+    async def test_save_provider_key(self, tmp_path, client, monkeypatch):
         """PUT /api/providers/key saves key to auth.json and GET reflects it."""
         auth_path = tmp_path / "auth.json"
         auth_path.write_text('{"existing": "old-key"}')
 
-        import os as _os
-        original = _os.environ.copy()
-        _os.environ["COCOCAT_AUTH_FILE"] = str(auth_path)
+        monkeypatch.setenv("COCOCAT_AUTH_FILE", str(auth_path))
 
-        try:
-            # Save key
-            resp = await client.put("/api/providers/key", json={
-                "name": "deepseek",
-                "key": "sk-test-123",
-            })
-            assert resp.status_code == 200
-            assert resp.json()["saved"] is True
+        # Save key
+        resp = await client.put("/api/providers/key", json={
+            "name": "deepseek",
+            "key": "sk-test-123",
+        })
+        assert resp.status_code == 200
+        assert resp.json()["saved"] is True
 
-            # Verify auth.json was updated
-            auth_data = json.loads(auth_path.read_text())
-            assert auth_data["deepseek"] == "sk-test-123"
-            assert auth_data["existing"] == "old-key"
-        finally:
-            _os.environ.clear()
-            _os.environ.update(original)
+        # Verify auth.json was updated
+        auth_data = json.loads(auth_path.read_text())
+        assert auth_data["deepseek"] == "sk-test-123"
+        assert auth_data["existing"] == "old-key"
 
     @pytest.mark.asyncio
     async def test_save_key_missing_params(self, client):
