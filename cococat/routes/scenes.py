@@ -5,7 +5,6 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from cococat.scene.config import load_scene_config, list_scenes as list_fs_scenes
 from cococat.app import get_ctx
 from cococat.context import AppContext
 

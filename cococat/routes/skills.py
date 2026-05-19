@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, Request, Query
 from pydantic import BaseModel
 
-from cococat.core.agent_builder import load_skill, resolve_skills
+from cococat.core.agent_builder import load_skill
 
 router = APIRouter(prefix="/api/skills", tags=["skills"])
 

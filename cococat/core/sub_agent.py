@@ -1,7 +1,6 @@
 """Sub-agent executor — async fire-and-forget task delegation."""
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 from typing import TYPE_CHECKING

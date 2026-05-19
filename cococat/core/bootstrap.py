@@ -4,7 +4,6 @@ Each service has its own factory function.  load_agents() orchestrates them in o
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import asyncio
@@ -23,7 +22,7 @@ def _setup_providers(ctx, auth_path: str):
     from cococat.providers.credentials import CredentialManager
     from cococat.providers.factory import ProviderFactory
 
-    creds = CredentialManager(auth_path)
+    creds = CredentialManager(auth_path, config_store=ctx.config_store)
     factory = ProviderFactory(credential_manager=creds)
     ctx.creds = creds
     ctx.provider_factory = factory
@@ -34,7 +33,7 @@ def _setup_dag_store(ctx):
     from cococat.dag.store import SqliteDagStore, FileDagStore
 
     db = ctx.db
-    dag_store = SqliteDagStore(db) if db is not None else FileDagStore("runs")
+    dag_store = SqliteDagStore(db) if db is not None else FileDagStore(str(ctx.config_store.runs_dir))
     ctx.dag_store = dag_store
     return dag_store
 
@@ -45,7 +44,7 @@ def _setup_sandbox(ctx, factory, args):
     db = ctx.db
 
     def get_llm(agent_id: str):
-        model = _load_worker_default_model()
+        model = ctx.config_store.get_default("worker_model") or "deepseek-chat"
         try:
             stored_model = db.agents.get_model(agent_id)
             if stored_model:
@@ -61,7 +60,9 @@ def _setup_sandbox(ctx, factory, args):
         logger.info("CubeSandbox enabled (template=%s)", args.cube_sandbox_template)
     else:
         from cococat.core.sandbox.local_executor import LocalExecutor
-        sandbox_provider = SandboxProvider(executor=LocalExecutor(get_llm=get_llm))
+        from cococat.core.tools import resolve_tavily_key
+        tavily_key = resolve_tavily_key(ctx.config_store)
+        sandbox_provider = SandboxProvider(executor=LocalExecutor(get_llm=get_llm, tavily_api_key=tavily_key))
 
     ctx.sandbox_provider = sandbox_provider
     return sandbox_provider
@@ -75,6 +76,12 @@ def _setup_sub_executor(ctx, sandbox_provider):
     )
     ctx.sub_executor = sub_executor
     return sub_executor
+
+
+def _setup_config_store(ctx):
+    from cococat.config_store import ConfigStore
+    ctx.config_store = ConfigStore()
+    return ctx.config_store
 
 
 # ── Agent loading ──────────────────────────────────────────
@@ -91,11 +98,17 @@ def _create_stub_llm(model: str):
 
 def _load_residents(ctx, factory, sub_executor, dag_store) -> None:
     import glob as glob_mod
-    from cococat.core.tools import create_resident_tools
+    from cococat.core.tools import ToolCatalog, resolve_tavily_key
 
     pool = ctx.pool
     db = ctx.db
-    config_dir = "config/residents"
+    config_dir = str(ctx.config_store.residents_dir)
+    tavily_key = resolve_tavily_key(ctx.config_store)
+    catalog = ToolCatalog(
+        sub_agent_executor=sub_executor.dispatch,
+        dag_store=dag_store,
+        tavily_api_key=tavily_key,
+    )
 
     if not os.path.isdir(config_dir):
         os.makedirs(config_dir, exist_ok=True)
@@ -124,7 +137,7 @@ def _load_residents(ctx, factory, sub_executor, dag_store) -> None:
 
         skills = cfg.get("skills", [])
         if skills:
-            profile_dir = f"agents/{agent_id}"
+            profile_dir = str(ctx.config_store.agents_dir / agent_id)
             os.makedirs(profile_dir, exist_ok=True)
             profile_path = os.path.join(profile_dir, "profile.yaml")
             if not os.path.exists(profile_path):
@@ -132,22 +145,18 @@ def _load_residents(ctx, factory, sub_executor, dag_store) -> None:
                     yaml.dump({"skills": skills}, f, default_flow_style=False)
                 logger.info("Created %s with skills: %s", profile_path, skills)
 
-        tools = create_resident_tools(
-            sub_agent_executor=sub_executor.dispatch,
-            dag_store=dag_store,
-            is_kb_agent=is_kb,
-        )
+        tools = catalog.resident(kb_agent=is_kb)
 
         agent = Agent(
             id=agent_id, name=name, role=AgentRole.RESIDENT,
-            llm=provider, tools=tools, agent_dir=f"agents/{agent_id}",
+            llm=provider, tools=tools, agent_dir=str(ctx.config_store.agents_dir / agent_id),
         )
         agent.page = cfg.get("page", "")
         pool.add_agent(agent)
 
         cron_entries = cfg.get("cron", [])
         if cron_entries:
-            _seed_cron_jobs(agent_id, cron_entries)
+            _seed_cron_jobs(agent_id, cron_entries, ctx.config_store)
 
         existing = db._conn.execute("SELECT id FROM agents WHERE id = ?", (agent_id,)).fetchone()
         if not existing:
@@ -161,10 +170,16 @@ def _load_residents(ctx, factory, sub_executor, dag_store) -> None:
 
 
 def _load_workers(ctx, factory, sub_executor, dag_store) -> None:
-    from cococat.core.tools import create_core_tools
+    from cococat.core.tools import ToolCatalog, resolve_tavily_key
 
     pool = ctx.pool
     db = ctx.db
+    tavily_key = resolve_tavily_key(ctx.config_store)
+    catalog = ToolCatalog(
+        sub_agent_executor=sub_executor.dispatch,
+        dag_store=dag_store,
+        tavily_api_key=tavily_key,
+    )
 
     for r in db.agents.list_running():
         role = _map_role(r["role"])
@@ -182,23 +197,20 @@ def _load_workers(ctx, factory, sub_executor, dag_store) -> None:
                 pass
         provider = provider or _create_stub_llm(model)
 
-        worker_tools = create_core_tools(
-            sub_agent_executor=sub_executor.dispatch,
-            dag_store=dag_store,
-        )
+        worker_tools = catalog.worker()
 
         agent = Agent(
             id=r["id"], name=r["name"], role=role,
             llm=provider, tools=worker_tools,
-            agent_dir=f"agents/{r['id']}",
+            agent_dir=str(ctx.config_store.agents_dir / r['id']),
         )
         pool.add_agent(agent)
         logger.info("Worker loaded: %s (%s) → %s", r["name"], r["id"], model)
 
 
-def _seed_cron_jobs(agent_id: str, entries: list[dict]) -> None:
+def _seed_cron_jobs(agent_id: str, entries: list[dict], config_store) -> None:
     import json as _json
-    cron_dir = os.path.join("runs", "cron")
+    cron_dir = str(config_store.cron_dir)
     os.makedirs(cron_dir, exist_ok=True)
     for entry in entries:
         name = entry.get("name", "task")
@@ -237,14 +249,6 @@ def _map_role(role_str: str):
         return role_map.get(role_str)
 
 
-def _load_worker_default_model() -> str:
-    try:
-        with open("config/defaults.json", encoding="utf-8") as f:
-            return json.load(f).get("worker_model", "deepseek-chat")
-    except Exception:
-        return "deepseek-chat"
-
-
 def _seed_default_residents(config_dir: str) -> None:
     coco_path = os.path.join(config_dir, "coco.yaml")
     if not os.path.exists(coco_path):
@@ -277,7 +281,7 @@ def load_agents(app, args) -> None:
     ctx = app.state.ctx
 
     # Clean up stale sub-agent session directories from previous runs
-    agents_dir = "agents"
+    agents_dir = str(ctx.config_store.agents_dir)
     if os.path.isdir(agents_dir):
         for name in os.listdir(agents_dir):
             if name.startswith("sub-"):
@@ -288,6 +292,7 @@ def load_agents(app, args) -> None:
 
     factory = _setup_providers(ctx, args.auth)
     dag_store = _setup_dag_store(ctx)
+    _setup_config_store(ctx)
     sandbox_provider = _setup_sandbox(ctx, factory, args)
     sub_executor = _setup_sub_executor(ctx, sandbox_provider)
 

@@ -30,7 +30,7 @@ def test_agent_inits_with_memory():
             f.write("- User is a Python developer")
 
         agent = Agent("test", "Test", AgentRole.WORKER, FakeLLM(), agent_dir=d)
-        assert "Python developer" in agent._system_prompt
+        assert "Python developer" in agent.config.system_prompt
 
 
 def test_build_prompt_with_memory():

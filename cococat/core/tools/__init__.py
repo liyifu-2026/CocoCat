@@ -1,29 +1,89 @@
-"""Tool system — create_core_tools() / create_main_ai_tools() / create_resident_tools()."""
-import os
-from typing import Any, Callable, Awaitable
+"""Tool system — ToolCatalog centralises tool assembly per agent role."""
 
 from cococat.core.tools.types import Tool, ToolRegistry, _make, _merge_ctx, _ensure_tool_context  # noqa: F401 — re-export
-from cococat.core.tools.file_ops import (
-    _read_file, _write_file, _edit_file, _list_dir, _glob, _grep,
-    make_file_tools, make_readonly_file_tools,
-)
-from cococat.core.tools.execution import _bash, _browser, make_execution_tools
-from cococat.core.tools.web import _web_search, _web_fetch, make_web_tools
-from cococat.core.tools.dag import (
-    _define_dag, _append_stage, _update_dag, _dispatch_task, _check_tasks, _stop_task,
-    make_dag_tools,
-)
-from cococat.core.tools.memory_tools import (
-    _pin, _unpin, _recall, _record_experience, _recall_experience,
-    make_memory_tools,
-)
-from cococat.core.tools.meta import _cron, _wait, _current_status, _todo_write, make_meta_tools
-from cococat.core.tools.kb_tools import (
-    _search_kb, _read_wiki, _write_wiki, _run_dedup,
-    _run_lint, _gen_overview, _cascade_del, _get_graph, _call_worker, _list_kbs,
-    _create_kb, make_kb_tools, make_kb_admin_tools,
-)
-from cococat.core.types import ToolContext, DagEnv, SandboxEnv, WebEnv
+from cococat.core.tools.file_ops import make_file_tools, make_readonly_file_tools
+from cococat.core.tools.execution import make_execution_tools
+from cococat.core.tools.web import make_web_tools
+from cococat.core.tools.dag import make_dag_tools
+from cococat.core.tools.memory_tools import make_memory_tools
+from cococat.core.tools.meta import make_meta_tools
+from cococat.core.tools.kb_tools import _call_worker, make_kb_tools, make_kb_admin_tools
+from cococat.core.types import DagEnv
+
+import os
+
+
+def resolve_tavily_key(config_store=None) -> str | None:
+    key = os.environ.get("TAVILY_API_KEY")
+    if key:
+        return key
+    if config_store:
+        try:
+            return config_store.get_auth("tavily")
+        except Exception:
+            pass
+    return None
+
+
+class ToolCatalog:
+    """Single source of truth for agent tool assembly.
+
+    Callers ask for a preset by role instead of composing make_* functions inline.
+
+        catalog = ToolCatalog(sub_agent_executor=dispatch, dag_store=store)
+        worker_tools = catalog.worker()      # full tool set
+        main_tools  = catalog.main_ai()      # orchestration tools
+        res_tools   = catalog.resident(kb=True)  # resident tools
+    """
+
+    def __init__(self, *, sub_agent_executor=None, dag_store=None, sandbox_run=None, tavily_api_key=None):
+        self._sub_agent_executor = sub_agent_executor
+        self._dag_store = dag_store
+        self._sandbox_run = sandbox_run
+        self._tavily_api_key = tavily_api_key
+
+    def worker(self) -> list[Tool]:
+        """Full tool set for worker agents (file r/w, bash, browser, web, dag, ...)."""
+        return (
+            make_file_tools() +
+            make_execution_tools(self._sandbox_run) +
+            make_web_tools(self._tavily_api_key) +
+            make_dag_tools(self._dag_store, self._sub_agent_executor) +
+            _make_sub_agent_tool(self._sub_agent_executor) +
+            make_memory_tools() +
+            make_meta_tools() +
+            make_kb_tools()
+        )
+
+    def main_ai(self) -> list[Tool]:
+        """Orchestration tools for the main AI agent (dag, readonly files, web, kb)."""
+        return (
+            make_dag_tools(self._dag_store, self._sub_agent_executor) +
+            make_memory_tools() +
+            make_meta_tools() +
+            make_readonly_file_tools() +
+            make_web_tools(self._tavily_api_key) +
+            make_kb_tools()
+        )
+
+    def resident(self, *, kb_agent: bool = False) -> list[Tool]:
+        """Tools for resident (page-bound) agents. Set kb_agent=True for KB admin."""
+        if kb_agent:
+            return (
+                make_file_tools() +
+                make_memory_tools() +
+                make_meta_tools() +
+                _make_call_worker_tool(self._sub_agent_executor) +
+                make_kb_tools() +
+                make_kb_admin_tools()
+            )
+        return (
+            make_dag_tools(self._dag_store, self._sub_agent_executor) +
+            make_memory_tools() +
+            make_meta_tools() +
+            _make_call_worker_tool(self._sub_agent_executor) +
+            make_kb_tools()
+        )
 
 
 def _make_sub_agent_tool(sub_agent_executor=None) -> list[Tool]:
@@ -44,64 +104,33 @@ def _make_call_worker_tool(sub_agent_executor=None) -> list[Tool]:
     ]
 
 
-def _resolve_tavily_key() -> str | None:
-    key = os.environ.get("TAVILY_API_KEY")
-    if key:
-        return key
-    try:
-        import json
-        with open("config/auth.json", encoding="utf-8") as f:
-            return json.load(f).get("tavily")
-    except Exception:
-        return None
-
+# ── backward-compat aliases ──────────────────────────────────
 
 def create_core_tools(
     sub_agent_executor=None, dag_store=None, tavily_api_key=None, sandbox_run=None,
 ) -> list:
-    key = tavily_api_key or _resolve_tavily_key()
-    return (
-        make_file_tools() +
-        make_execution_tools(sandbox_run) +
-        make_web_tools(key) +
-        make_dag_tools(dag_store, sub_agent_executor) +
-        _make_sub_agent_tool(sub_agent_executor) +
-        make_memory_tools() +
-        make_meta_tools() +
-        make_kb_tools()
-    )
+    return ToolCatalog(
+        sub_agent_executor=sub_agent_executor,
+        dag_store=dag_store,
+        sandbox_run=sandbox_run,
+        tavily_api_key=tavily_api_key,
+    ).worker()
 
 
 def create_main_ai_tools(
     sub_agent_executor=None, dag_store=None, tavily_api_key=None,
 ) -> list:
-    key = tavily_api_key or _resolve_tavily_key()
-    return (
-        make_dag_tools(dag_store, sub_agent_executor) +
-        make_memory_tools() +
-        make_meta_tools() +
-        make_readonly_file_tools() +
-        make_web_tools(key) +
-        make_kb_tools()
-    )
+    return ToolCatalog(
+        sub_agent_executor=sub_agent_executor,
+        dag_store=dag_store,
+        tavily_api_key=tavily_api_key,
+    ).main_ai()
 
 
 def create_resident_tools(
     sub_agent_executor=None, dag_store=None, is_kb_agent=False,
 ) -> list:
-    if is_kb_agent:
-        return (
-            make_file_tools() +
-            make_memory_tools() +
-            make_meta_tools() +
-            _make_call_worker_tool(sub_agent_executor) +
-            make_kb_tools() +
-            make_kb_admin_tools()
-        )
-    return (
-        make_dag_tools(dag_store, sub_agent_executor) +
-        make_memory_tools() +
-        make_meta_tools() +
-        _make_call_worker_tool(sub_agent_executor) +
-        make_kb_tools()
-    )
+    return ToolCatalog(
+        sub_agent_executor=sub_agent_executor,
+        dag_store=dag_store,
+    ).resident(kb_agent=is_kb_agent)

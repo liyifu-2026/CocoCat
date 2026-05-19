@@ -26,6 +26,7 @@ async def _make_and_run_agent(
     resolve_llm: Callable[[str], Any],
     session_id: str | None = None,
     on_event: Callable | None = None,
+    agents_dir: str = "agents",
 ) -> str:
     """Create an Agent with SUB role and run it, returning the result.
 
@@ -38,7 +39,7 @@ async def _make_and_run_agent(
     if not llm:
         return f"[System] No LLM provider for agent '{agent_id}'"
 
-    agent_dir = f"agents/{agent_id}"
+    agent_dir = _os.path.join(agents_dir, agent_id)
     agent = Agent(
         id=agent_id,
         name=agent_id,
@@ -58,7 +59,6 @@ async def _make_and_run_agent(
         )
         return result
     except Exception as e:
-        import traceback
         logger.exception("_make_and_run_agent failed for %s", agent_id)
         return f"Error: {e}"
 

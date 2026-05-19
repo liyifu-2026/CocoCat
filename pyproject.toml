@@ -17,7 +17,12 @@ dependencies = [
     "tavily-python>=0.3.0",
     "e2b>=2.0.0",
     "e2b-code-interpreter>=2.0.0",
+    "pyjwt>=2.0.0",
+    "python-multipart>=0.0.9",
 ]
+
+[project.urls]
+Repository = "https://github.com/liyifu-2026/CocoCat"
 
 [project.scripts]
 cococat = "cococat.__main__:main"

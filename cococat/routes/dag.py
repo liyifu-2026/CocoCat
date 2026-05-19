@@ -1,5 +1,4 @@
 """DAG routes — list runs, run detail, delete (supports both SQLite and file storage)."""
-import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query

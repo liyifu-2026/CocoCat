@@ -1,8 +1,14 @@
 """Tests for PathSandbox and tool sandbox wrapping."""
 import os
-import tempfile
 import pytest
-from cococat.core.sandbox import PathSandbox, wrap_tool_with_sandbox
+from cococat.core.sandbox_path import PathSandbox, wrap_tool_with_sandbox
+
+
+class ToolDef(dict):
+    def __getattr__(self, name):
+        if name in self:
+            return self[name]
+        raise AttributeError(name)
 
 
 @pytest.fixture
@@ -14,8 +20,11 @@ def sandbox():
     )
 
 
+def _tool(name, sandbox_operation, execute):
+    return ToolDef(name=name, parameters={}, execute=execute, sandbox_operation=sandbox_operation)
+
+
 def _call(wrapped, params, ctx=None):
-    """Call a sandbox-wrapped tool dict by its 'execute' key."""
     return wrapped["execute"](params, ctx or {})
 
 
@@ -87,78 +96,77 @@ def test_is_safe_path_relative_ok():
 # ── wrap_tool_with_sandbox ──
 
 def test_wrap_read_allowed(sandbox):
-    tool = {"name": "read_file", "parameters": {}, "execute": lambda p, c: f"read {p['path']}"}
+    tool = _tool("read_file", "read", lambda p, c: f"read {p['path']}")
     wrapped = wrap_tool_with_sandbox(tool, sandbox)
     result = _call(wrapped, {"path": "workspace/doc.md"})
     assert result == "read workspace/doc.md"
 
 
 def test_wrap_read_denied(sandbox):
-    tool = {"name": "read_file", "parameters": {}, "execute": lambda p, c: "should not reach"}
+    tool = _tool("read_file", "read", lambda p, c: "should not reach")
     wrapped = wrap_tool_with_sandbox(tool, sandbox)
     result = _call(wrapped, {"path": "knowledge/team-wiki/page.md"})
     assert "access denied" in result.lower()
 
 
 def test_wrap_write_allowed(sandbox):
-    tool = {"name": "write_file", "parameters": {}, "execute": lambda p, c: "ok"}
+    tool = _tool("write_file", "write", lambda p, c: "ok")
     wrapped = wrap_tool_with_sandbox(tool, sandbox)
     result = _call(wrapped, {"path": "workspace/new.md", "content": "x"})
     assert result == "ok"
 
 
 def test_wrap_write_denied(sandbox):
-    tool = {"name": "write_file", "parameters": {}, "execute": lambda p, c: "should not reach"}
+    tool = _tool("write_file", "write", lambda p, c: "should not reach")
     wrapped = wrap_tool_with_sandbox(tool, sandbox)
     result = _call(wrapped, {"path": "knowledge/product-manual/page.md", "content": "x"})
     assert "denied" in result.lower()
 
 
 def test_wrap_bash_workspace_allowed(sandbox):
-    tool = {"name": "bash", "parameters": {}, "execute": lambda p, c: "exec ok"}
+    tool = _tool("bash", "exec", lambda p, c: "exec ok")
     wrapped = wrap_tool_with_sandbox(tool, sandbox)
     result = _call(wrapped, {"path": "workspace", "command": "ls"})
     assert result == "exec ok"
 
 
 def test_wrap_bash_denied(sandbox):
-    tool = {"name": "bash", "parameters": {}, "execute": lambda p, c: "should not reach"}
+    tool = _tool("bash", "exec", lambda p, c: "should not reach")
     wrapped = wrap_tool_with_sandbox(tool, sandbox)
     result = _call(wrapped, {"path": "knowledge/product-manual", "command": "rm -rf /"})
     assert "denied" in result.lower()
 
 
 def test_wrap_path_traversal_blocked(sandbox):
-    tool = {"name": "read_file", "parameters": {}, "execute": lambda p, c: "should not reach"}
+    tool = _tool("read_file", "read", lambda p, c: "should not reach")
     wrapped = wrap_tool_with_sandbox(tool, sandbox)
     result = _call(wrapped, {"path": "../../etc/passwd"})
     assert "path traversal" in result.lower()
 
 
 def test_wrap_no_path_passes_through(sandbox):
-    """Tool without a path param should bypass sandbox check."""
-    tool = {"name": "current_status", "parameters": {}, "execute": lambda p, c: "status ok"}
+    tool = _tool("current_status", "", lambda p, c: "status ok")
     wrapped = wrap_tool_with_sandbox(tool, sandbox)
     result = _call(wrapped, {})
     assert result == "status ok"
 
 
 def test_wrap_grep_allowed(sandbox):
-    tool = {"name": "grep", "parameters": {}, "execute": lambda p, c: f"found in {p['path']}"}
+    tool = _tool("grep", "read", lambda p, c: f"found in {p['path']}")
     wrapped = wrap_tool_with_sandbox(tool, sandbox)
     result = _call(wrapped, {"path": "workspace/log.txt", "pattern": "error"})
     assert "workspace" in result
 
 
 def test_wrap_glob_allowed(sandbox):
-    tool = {"name": "glob", "parameters": {}, "execute": lambda p, c: "2 files"}
+    tool = _tool("glob", "read", lambda p, c: "2 files")
     wrapped = wrap_tool_with_sandbox(tool, sandbox)
     result = _call(wrapped, {"path": "knowledge/product-manual/"})
     assert result == "2 files"
 
 
 def test_wrap_edit_file_write_denied(sandbox):
-    tool = {"name": "edit_file", "parameters": {}, "execute": lambda p, c: "should not reach"}
+    tool = _tool("edit_file", "write", lambda p, c: "should not reach")
     wrapped = wrap_tool_with_sandbox(tool, sandbox)
     result = _call(wrapped, {"path": "knowledge/product-manual/page.md", "old": "x", "new": "y"})
     assert "denied" in result.lower()
