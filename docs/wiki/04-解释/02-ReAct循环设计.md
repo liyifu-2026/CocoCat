@@ -5,7 +5,7 @@ sidebar_position: 2
 
 # ReAct 循环设计
 
-ReAct（Reasoning + Acting）是 Agent 的核心决策循环，实现位于 `py-agent/agent_loop.py`。
+ReAct（Reasoning + Acting）是 Agent 的核心决策循环，实现位于 `cococat/core/agent.py`。
 
 ## 基本流程
 

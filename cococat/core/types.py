@@ -51,7 +51,6 @@ class ToolContext:
     memory: MemoryEnv = field(default_factory=MemoryEnv)
     web: WebEnv = field(default_factory=WebEnv)
     cron_path: str = "runs/cron"
-    todos_path: str = "todos.json"
     _llm: Any = None             # LLM instance (for kb tools)
 
     @classmethod
@@ -93,7 +92,7 @@ class ToolContext:
         )
 
         direct_keys = {"agent_id", "agent_dir", "bound_scene", "role", "session_id",
-                       "db", "cron_path", "todos_path", "_llm"}
+                       "db", "cron_path", "_llm"}
         direct = {k: v for k, v in d.items() if k in direct_keys}
 
         return cls(

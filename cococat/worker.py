@@ -48,6 +48,10 @@ class TaskWorker:
         """Set sandbox provider for calling Coco on DAG completion."""
         self._sandbox_provider = sandbox_provider
 
+    def set_config_store(self, config_store):
+        """Set config store for resolving credentials (e.g. tavily key)."""
+        self._config_store = config_store
+
     async def start(self) -> None:
         self._running = True
         self._task = asyncio.create_task(self._loop())
@@ -115,7 +119,7 @@ class TaskWorker:
 
                 # Call Coco to report results
                 if sandbox:
-                    from cococat.core.tools import create_main_ai_tools
+                    from cococat.core.tools import ToolCatalog, resolve_tavily_key
                     from cococat.core.sub_agent import SubAgentExecutor
                     trigger = f"check_tasks for run {run_id}. Summarize the completed results and notify the user."
                     try:
@@ -126,7 +130,9 @@ class TaskWorker:
                                 "session_id": session_id,
                             })
                         sub_executor = SubAgentExecutor(bus=None, pool=self._pool)
-                        tools = create_main_ai_tools(sub_agent_executor=sub_executor.dispatch, dag_store=self._dag_store)
+                        tavily_key = resolve_tavily_key(self._config_store)
+                        catalog = ToolCatalog(sub_agent_executor=sub_executor.dispatch, dag_store=self._dag_store, tavily_api_key=tavily_key)
+                        tools = catalog.main_ai()
                         await sandbox.run_once(
                             prompt=trigger, agent_id="main", tools=tools,
                             on_event=on_event, session_id=session_id,

@@ -6,10 +6,12 @@ import logging
 import os
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from cococat.core.cron_worker import CRON_DIR, _parse_schedule, _to_timestamp
+from cococat.app import get_ctx
+from cococat.context import AppContext
+from cococat.core.cron_worker import _parse_schedule, _to_timestamp
 
 logger = logging.getLogger("cococat.routes.cron")
 
@@ -45,8 +47,8 @@ class CronUpdate(BaseModel):
     at_time: str | None = None
 
 
-def _read_cron_file(filename: str) -> dict | None:
-    filepath = os.path.join(CRON_DIR, filename)
+def _read_cron_file(filename: str, cron_dir: str) -> dict | None:
+    filepath = os.path.join(cron_dir, filename)
     if not os.path.exists(filepath):
         return None
     try:
@@ -56,9 +58,9 @@ def _read_cron_file(filename: str) -> dict | None:
         return None
 
 
-def _write_cron_file(filename: str, entry: dict) -> None:
-    os.makedirs(CRON_DIR, exist_ok=True)
-    filepath = os.path.join(CRON_DIR, filename)
+def _write_cron_file(filename: str, entry: dict, cron_dir: str) -> None:
+    os.makedirs(cron_dir, exist_ok=True)
+    filepath = os.path.join(cron_dir, filename)
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(entry, f, indent=2, ensure_ascii=False)
 
@@ -86,14 +88,15 @@ def _compute_next_run(entry: dict) -> str | None:
 
 
 @router.get("")
-async def list_cron():
-    if not os.path.isdir(CRON_DIR):
+async def list_cron(ctx: AppContext = Depends(get_ctx)):
+    cron_dir = str(ctx.config_store.cron_dir)
+    if not os.path.isdir(cron_dir):
         return {"entries": []}
     entries = []
-    for filename in sorted(os.listdir(CRON_DIR)):
+    for filename in sorted(os.listdir(cron_dir)):
         if not filename.endswith(".json"):
             continue
-        entry = _read_cron_file(filename)
+        entry = _read_cron_file(filename, cron_dir)
         if entry is None:
             continue
         entry["next_run"] = _compute_next_run(entry)
@@ -102,9 +105,10 @@ async def list_cron():
 
 
 @router.post("")
-async def create_cron(body: CronCreate):
+async def create_cron(body: CronCreate, ctx: AppContext = Depends(get_ctx)):
+    cron_dir = str(ctx.config_store.cron_dir)
     filename = f"{body.id}.json"
-    if os.path.exists(os.path.join(CRON_DIR, filename)):
+    if os.path.exists(os.path.join(cron_dir, filename)):
         raise HTTPException(status_code=409, detail=f"Cron job '{body.id}' already exists")
     if _parse_schedule(body.schedule) is None:
         raise HTTPException(status_code=400, detail=f"Unparseable schedule: {body.schedule}")
@@ -119,14 +123,15 @@ async def create_cron(body: CronCreate):
         "last_run": 0,
         "created_at": datetime.now().isoformat(),
     }
-    _write_cron_file(filename, entry)
+    _write_cron_file(filename, entry, cron_dir)
     return entry
 
 
 @router.patch("/{cron_id}")
-async def update_cron(cron_id: str, body: CronUpdate):
+async def update_cron(cron_id: str, body: CronUpdate, ctx: AppContext = Depends(get_ctx)):
+    cron_dir = str(ctx.config_store.cron_dir)
     filename = f"{cron_id}.json"
-    entry = _read_cron_file(filename)
+    entry = _read_cron_file(filename, cron_dir)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"Cron job '{cron_id}' not found")
     changed = False
@@ -147,15 +152,16 @@ async def update_cron(cron_id: str, body: CronUpdate):
         entry["status"] = body.status
         changed = True
     if changed:
-        _write_cron_file(filename, entry)
+        _write_cron_file(filename, entry, cron_dir)
     entry["next_run"] = _compute_next_run(entry)
     return entry
 
 
 @router.delete("/{cron_id}")
-async def delete_cron(cron_id: str):
+async def delete_cron(cron_id: str, ctx: AppContext = Depends(get_ctx)):
+    cron_dir = str(ctx.config_store.cron_dir)
     filename = f"{cron_id}.json"
-    filepath = os.path.join(CRON_DIR, filename)
+    filepath = os.path.join(cron_dir, filename)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail=f"Cron job '{cron_id}' not found")
     os.remove(filepath)

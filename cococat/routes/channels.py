@@ -1,37 +1,19 @@
-"""Channel management routes."""
-import asyncio
-import datetime
-import logging
-import os
-import random
-import threading
+"""Channel management routes — thin delegation to ChannelManager."""
 
-import yaml
+import logging
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from cococat.app import get_ctx
 from cococat.context import AppContext
-from cococat.core.channels.context import Reply, ReplyType, Context, ContextType
 
 logger = logging.getLogger("cococat.routes.channels")
 router = APIRouter(prefix="/api/channels", tags=["channels"])
 
 
-def _get_channel_factory():
-    """Lazily load channel_factory from channels package."""
-    try:
-        from cococat.core.channels.factory import create_channel
-        return create_channel
-    except ImportError as e:
-        raise RuntimeError(
-            "Cannot import channel_factory. Ensure cococat is installed."
-        ) from e
-
-
 class ChannelConnect(BaseModel):
-    target_type: str  # "scene" or "main"
+    target_type: str
     target_id: str
     channel_type: str
     config: dict = {}
@@ -42,20 +24,6 @@ class MainChannelConfig(BaseModel):
     config: dict = {}
 
 
-CHANNEL_STATUS: dict[str, dict] = {}
-CHANNEL_INSTANCES: dict[str, object] = {}
-
-
-def _schedule_coro(coro, loop):
-    """Schedule a coroutine from a non-async context onto the given event loop."""
-    try:
-        asyncio.run_coroutine_threadsafe(coro, loop)
-    except Exception:
-        logger.warning("Cannot schedule coroutine")
-
-
-# ── Channel type metadata (static) ──
-
 CHANNEL_TYPES = [
     {
         "channel_type": "feishu",
@@ -65,17 +33,13 @@ CHANNEL_TYPES = [
         "capabilities": {
             "receive": ["text", "image", "voice", "file", "video", "sticker", "link", "post"],
             "send": ["text", "card", "image", "voice", "file", "video"],
-            "streaming": True,
-            "cards": True,
-            "reactions": True,
-            "threads": True,
+            "streaming": True, "cards": True, "reactions": True, "threads": True,
         },
         "config_fields": [
             {"key": "app_id", "label": "App ID", "required": True, "type": "text", "placeholder": "cli_a6b..."},
             {"key": "app_secret", "label": "App Secret", "required": True, "type": "password", "placeholder": ""},
         ],
-        "notes": "",
-        "icon_type": "hand",
+        "notes": "", "icon_type": "hand",
     },
     {
         "channel_type": "wechat",
@@ -85,18 +49,14 @@ CHANNEL_TYPES = [
         "capabilities": {
             "receive": ["text", "image", "voice", "location", "link", "event"],
             "send": ["text", "image", "voice", "card"],
-            "streaming": False,
-            "cards": True,
-            "reactions": False,
-            "threads": False,
+            "streaming": False, "cards": True, "reactions": False, "threads": False,
         },
         "config_fields": [
             {"key": "app_id", "label": "App ID", "required": True, "type": "text", "placeholder": "wxXXXXXXXXXXXXXXXX"},
             {"key": "token", "label": "Token", "required": True, "type": "text", "placeholder": "从微信后台获取"},
             {"key": "encoding_aes_key", "label": "Encoding AES Key", "required": False, "type": "text", "placeholder": "消息加解密密钥（可选）"},
         ],
-        "notes": "需要公网 IP 和已备案域名以接收微信回调",
-        "icon_type": "simple",
+        "notes": "需要公网 IP 和已备案域名以接收微信回调", "icon_type": "simple",
     },
     {
         "channel_type": "weixin",
@@ -106,14 +66,10 @@ CHANNEL_TYPES = [
         "capabilities": {
             "receive": ["text", "image", "voice", "file", "video", "sticker"],
             "send": ["text", "image", "file", "video", "card"],
-            "streaming": False,
-            "cards": True,
-            "reactions": False,
-            "threads": False,
+            "streaming": False, "cards": True, "reactions": False, "threads": False,
         },
         "config_fields": [],
-        "notes": "自动通过二维码扫码登录，无需手动填写凭证",
-        "icon_type": "hand",
+        "notes": "自动通过二维码扫码登录，无需手动填写凭证", "icon_type": "hand",
     },
     {
         "channel_type": "telegram",
@@ -123,16 +79,12 @@ CHANNEL_TYPES = [
         "capabilities": {
             "receive": ["text", "image", "voice", "file", "video", "sticker"],
             "send": ["text", "image", "file", "video"],
-            "streaming": False,
-            "cards": False,
-            "reactions": False,
-            "threads": False,
+            "streaming": False, "cards": False, "reactions": False, "threads": False,
         },
         "config_fields": [
             {"key": "bot_token", "label": "Bot Token", "required": True, "type": "password", "placeholder": "从 @BotFather 获取"},
         ],
-        "notes": "",
-        "icon_type": "simple",
+        "notes": "", "icon_type": "simple",
     },
     {
         "channel_type": "discord",
@@ -142,16 +94,12 @@ CHANNEL_TYPES = [
         "capabilities": {
             "receive": ["text", "image", "voice", "file", "video"],
             "send": ["text", "image", "file", "video", "card"],
-            "streaming": False,
-            "cards": True,
-            "reactions": False,
-            "threads": False,
+            "streaming": False, "cards": True, "reactions": False, "threads": False,
         },
         "config_fields": [
             {"key": "bot_token", "label": "Bot Token", "required": True, "type": "password", "placeholder": "从 Discord Developer Portal 获取"},
         ],
-        "notes": "",
-        "icon_type": "simple",
+        "notes": "", "icon_type": "simple",
     },
     {
         "channel_type": "web_api",
@@ -161,42 +109,23 @@ CHANNEL_TYPES = [
         "capabilities": {
             "receive": ["text"],
             "send": ["text"],
-            "streaming": False,
-            "cards": False,
-            "reactions": False,
-            "threads": False,
+            "streaming": False, "cards": False, "reactions": False, "threads": False,
         },
         "config_fields": [
             {"key": "endpoint", "label": "Endpoint URL", "required": True, "type": "text", "placeholder": "https://example.com/api/chat"},
             {"key": "api_key", "label": "API Key", "required": False, "type": "password", "placeholder": "可选认证密钥"},
         ],
-        "notes": "",
-        "icon_type": "hand",
+        "notes": "", "icon_type": "hand",
     },
 ]
 
-MAIN_CONFIG_PATH = os.path.join("config", "main.yaml")
 
-
-def _load_main_config() -> dict:
-    """Load main.yaml channel config."""
-    if not os.path.exists(MAIN_CONFIG_PATH):
-        return {"channels": {}}
-    with open(MAIN_CONFIG_PATH, encoding="utf-8") as f:
-        return yaml.safe_load(f) or {"channels": {}}
-
-
-def _save_main_config(data: dict):
-    """Write main.yaml channel config."""
-    os.makedirs(os.path.dirname(MAIN_CONFIG_PATH), exist_ok=True)
-    with open(MAIN_CONFIG_PATH, "w", encoding="utf-8") as f:
-        yaml.safe_dump(data, f, allow_unicode=True, default_flow_style=False)
-
+# ── routes ───────────────────────────────────────────────────
 
 @router.get("")
-async def list_channels():
-    """List all configured channels."""
+async def list_channels(ctx: AppContext = Depends(get_ctx)):
     from cococat.scene.config import list_scenes as list_scene_configs
+    mgr = ctx.channel_manager
 
     result = []
     for config in list_scene_configs():
@@ -206,22 +135,21 @@ async def list_channels():
                 "target_type": "scene",
                 "target_id": config.id,
                 "channel_type": ch["type"],
-                "status": CHANNEL_STATUS.get(key, {}).get("status", "stopped"),
+                "status": mgr.get_status(key).get("status", "stopped") if mgr else "stopped",
             })
-
     return {"channels": result}
 
 
 @router.get("/main")
-async def list_main_channels():
-    """List Main AI configured channels with runtime status."""
-    cfg = _load_main_config()
-    channels = cfg["channels"]
+async def list_main_channels(ctx: AppContext = Depends(get_ctx)):
+    mgr = ctx.channel_manager
+    store = ctx.config_store
+    channels = store.get_channel_configs().get("channels", {}) if store else {}
     result = []
 
     for ct, info in channels.items():
         key = f"main:main:{ct}"
-        status = CHANNEL_STATUS.get(key, {}).get("status", "stopped")
+        status = mgr.get_status(key).get("status", "stopped") if mgr else "stopped"
         if status == "connected":
             ch_status = "connected"
         elif status == "connecting":
@@ -238,321 +166,62 @@ async def list_main_channels():
         result.append({
             "channel_type": ct,
             "display_name": display_name,
-                "enabled": info.get("enabled", False),
-                "status": ch_status,
-                "connected_since": CHANNEL_STATUS.get(key, {}).get("connected_since"),
-                "message_count": CHANNEL_STATUS.get(key, {}).get("message_count", 0),
-            })
-
+            "enabled": info.get("enabled", False),
+            "status": ch_status,
+            "connected_since": mgr.get_status(key).get("connected_since") if mgr else None,
+            "message_count": mgr.get_status(key).get("message_count", 0) if mgr else 0,
+        })
     return {"channels": result}
 
 
 @router.post("/main/config")
-async def save_main_channel_config(body: MainChannelConfig):
-    """Save or update a channel's configuration in main.yaml."""
-    cfg = _load_main_config()
+async def save_main_channel_config(body: MainChannelConfig, ctx: AppContext = Depends(get_ctx)):
+    store = ctx.config_store
+    cfg = store.get_channel_configs()
     if "channels" not in cfg:
         cfg["channels"] = {}
     channels = cfg["channels"]
-
     if body.channel_type not in channels:
         channels[body.channel_type] = {"enabled": False, "config": {}}
-
     channels[body.channel_type]["config"] = body.config
     channels[body.channel_type]["enabled"] = True
-
-    _save_main_config(cfg)
+    store.save_channel_configs(cfg)
     return {"status": "ok"}
 
 
 @router.post("/connect")
 async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ctx)):
-    """Connect/start a channel."""
-    key = f"{body.target_type}:{body.target_id}:{body.channel_type}"
-
+    mgr = ctx.channel_manager
     try:
-        create_channel = _get_channel_factory()
-
-        # Stop any existing channel with this key
-        old = CHANNEL_INSTANCES.pop(key, None)
-        if old:
-            try:
-                old.stop()
-            except Exception:
-                pass
-
-        ch = create_channel(body.channel_type)
-        CHANNEL_INSTANCES[key] = ch
-
-        if body.target_type == "scene":
-            _connect_scene_channel(ch, body, ctx, key)
-        elif body.target_type == "main":
-            _connect_main_channel(ch, body, ctx, key)
-
-        # Check if startup finished immediately (non-QR channels succeed fast)
-        success, _ = ch.wait_startup(timeout=0.5)
-        status = "connected" if success else "connecting"
-
-        # For channels that take time to start (QR login), watch in background
-        if not success:
-            def _watch_startup():
-                ok, err = ch.wait_startup(timeout=300)
-                if ok:
-                    CHANNEL_STATUS[key] = {
-                        "status": "connected",
-                        "channel_type": body.channel_type,
-                        "connected_since": datetime.datetime.now().isoformat(),
-                        "message_count": 0,
-                    }
-                else:
-                    CHANNEL_STATUS.pop(key, None)
-                    CHANNEL_INSTANCES.pop(key, None)
-                    try:
-                        ch.stop()
-                    except Exception:
-                        pass
-            threading.Thread(target=_watch_startup, daemon=True).start()
-
-        CHANNEL_STATUS[key] = {
-            "status": status,
-            "channel_type": body.channel_type,
-            "connected_since": datetime.datetime.now().isoformat() if success else None,
-            "message_count": 0,
-        }
-        return {"status": status}
-
+        return mgr.connect(body.target_type, body.target_id, body.channel_type, body.config, ctx)
     except Exception as e:
         logger.exception("Failed to connect channel %s", body.channel_type)
         return {"status": "error", "error": str(e)}
 
 
-THINKING_MESSAGES = [
-    "(Coco思考中...)",
-    "(让我想想...)",
-    "(整理思路中...)",
-    "(Coco回复中...)",
-    "(稍等一下~)",
-    "(理解消息中...)",
-    "(接收中...)",
-    "(马上就好...)",
-]
-
-
-def _send_thinking(ch, msg):
-    """Send a random thinking indicator before the AI reply."""
-    text = random.choice(THINKING_MESSAGES)
-    thinking_reply = Reply(ReplyType.TEXT, text)
-    thinking_ctx = Context(ContextType.TEXT, msg.content,
-                           user_id=msg.user_id, receiver=msg.user_id)
-    ch.send(thinking_reply, thinking_ctx)
-
-
-def _connect_scene_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
-    """Wire a scene-bound channel: on_message → agent.run → send reply."""
-    pool = ctx.pool
-    bus = ctx.bus
-    loop = asyncio.get_running_loop()
-
-    def on_message(msg, scene_id=body.target_id, ct=body.channel_type):
-        async def _handle():
-            agent = pool.get_scene_agent(scene_id)
-            if not agent:
-                logger.warning("No agent bound to scene %s", scene_id)
-                return
-
-            # Thinking indicator
-            _send_thinking(ch, msg)
-
-            reply_text = await agent.run(msg.content)
-            reply = Reply(ReplyType.TEXT, reply_text)
-            user_ctx = Context(ContextType.TEXT, msg.content,
-                               user_id=msg.user_id, scene_id=scene_id)
-            ch.send(reply, user_ctx)
-
-            await bus.publish("scene_message", {
-                "scene_id": scene_id,
-                "channel": ct,
-                "user_id": msg.user_id,
-                "content": msg.content,
-            })
-        _schedule_coro(_handle(), loop)
-
-    ch.on_message = on_message
-    ch.start(body.target_id, body.config)
-
-
-def _connect_main_channel(ch, body: ChannelConnect, ctx: AppContext, key: str):
-    """Wire a main-AI channel: on_message → sandbox.run_once → send reply → publish to bus."""
-    bus = ctx.bus
-    sandbox_provider = ctx.sandbox_provider
-    loop = asyncio.get_running_loop()
-
-    def on_message(msg, ct=body.channel_type):
-        async def _handle():
-            try:
-                logger.info("Main channel handler: msg from %s/%s: %s", ct, msg.user_id, msg.content[:50])
-
-                # Thinking indicator
-                _send_thinking(ch, msg)
-
-                reply_text = await sandbox_provider.run_once(msg.content, agent_id="main")
-                reply = Reply(ReplyType.TEXT, reply_text)
-                user_ctx = Context(ContextType.TEXT, msg.content,
-                                   user_id=msg.user_id, receiver=msg.user_id)
-                ch.send(reply, user_ctx)
-
-                await bus.publish("main_message", {
-                    "channel": ct,
-                    "user_id": msg.user_id,
-                    "content": msg.content,
-                    "reply": reply_text,
-                })
-            except Exception:
-                logger.exception("Main channel message handler failed for %s", ct)
-        _schedule_coro(_handle(), loop)
-
-    ch.on_message = on_message
-    ch.start(body.target_id, body.config)
-
-
 @router.post("/disconnect")
-async def disconnect_channel(body: ChannelConnect):
-    """Disconnect/stop a channel."""
-    key = f"{body.target_type}:{body.target_id}:{body.channel_type}"
-    CHANNEL_STATUS.pop(key, None)
-    ch = CHANNEL_INSTANCES.pop(key, None)
-    if ch:
-        try:
-            ch.stop()
-        except Exception:
-            pass
+async def disconnect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ctx)):
+    mgr = ctx.channel_manager
+    store = ctx.config_store
+    mgr.disconnect(body.target_type, body.target_id, body.channel_type)
 
-    # Clear main.yaml channel config so it shows as "unconfigured"
     if body.target_type == "main":
-        cfg = _load_main_config()
+        cfg = store.get_channel_configs()
         channels = cfg.get("channels", {})
         if body.channel_type in channels:
             channels[body.channel_type]["enabled"] = False
-            _save_main_config(cfg)
+            store.save_channel_configs(cfg)
 
     return {"status": "disconnected"}
 
 
 @router.get("/types")
 async def list_channel_types():
-    """Return metadata for all supported channel types."""
     return {"types": CHANNEL_TYPES}
-
-
-def auto_reconnect_channels(ctx: AppContext):
-    """Auto-reconnect channels that are enabled and have saved credentials.
-
-    Called on app startup (lifespan). Checks main.yaml for channels with
-    enabled=true and valid credentials/config, then starts them.
-    """
-    cfg = _load_main_config()
-    channels = cfg.get("channels", {})
-    loop = asyncio.get_running_loop()
-
-    for ct, info in channels.items():
-        if not info.get("enabled"):
-            continue
-
-        config = info.get("config", {})
-        if not _channel_has_credentials(ct, config):
-            logger.info("Channel %s is enabled but has no credentials, skipping auto-reconnect", ct)
-            continue
-
-        key = f"main:main:{ct}"
-        if key in CHANNEL_INSTANCES:
-            continue
-
-        try:
-            create_channel = _get_channel_factory()
-            ch = create_channel(ct)
-            CHANNEL_INSTANCES[key] = ch
-
-            _wire_main_channel_auto(ch, ct, ctx, loop)
-            ch.start("main", config)
-
-            success, _ = ch.wait_startup(timeout=3)
-            status = "connected" if success else "connecting"
-
-            CHANNEL_STATUS[key] = {
-                "status": status,
-                "channel_type": ct,
-                "connected_since": datetime.datetime.now().isoformat() if success else None,
-                "message_count": 0,
-            }
-
-            if not success:
-                def _watch_startup():
-                    ok, err = ch.wait_startup(timeout=300)
-                    if ok:
-                        CHANNEL_STATUS[key] = {
-                            "status": "connected",
-                            "channel_type": ct,
-                            "connected_since": datetime.datetime.now().isoformat(),
-                            "message_count": 0,
-                        }
-                    else:
-                        CHANNEL_STATUS.pop(key, None)
-                        CHANNEL_INSTANCES.pop(key, None)
-                        try:
-                            ch.stop()
-                        except Exception:
-                            pass
-                threading.Thread(target=_watch_startup, daemon=True).start()
-
-            logger.info("Auto-reconnected channel: %s (status=%s)", ct, status)
-
-        except Exception as e:
-            logger.exception("Failed to auto-reconnect channel %s: %s", ct, e)
-
-
-def _channel_has_credentials(channel_type: str, config: dict) -> bool:
-    """Check if a channel has saved credentials or required config fields."""
-    if channel_type == "weixin":
-        return os.path.exists(os.path.join("agents", "_weixin_credentials.json"))
-    if channel_type == "feishu":
-        return bool(config.get("app_id") and config.get("app_secret"))
-    if channel_type in ("telegram", "discord"):
-        return bool(config.get("bot_token"))
-    if channel_type == "wechat":
-        return bool(config.get("app_id") and config.get("token"))
-    return bool(config)
-
-
-def _wire_main_channel_auto(ch, channel_type: str, ctx: AppContext, loop):
-    """Wire on_message for auto-reconnected main channel (same logic as _connect_main_channel)."""
-    bus = ctx.bus
-    sandbox_provider = ctx.sandbox_provider
-
-    def on_message(msg, ct=channel_type):
-        async def _handle():
-            try:
-                _send_thinking(ch, msg)
-                reply_text = await sandbox_provider.run_once(msg.content, agent_id="main")
-                reply = Reply(ReplyType.TEXT, reply_text)
-                user_ctx = Context(ContextType.TEXT, msg.content,
-                                   user_id=msg.user_id, receiver=msg.user_id)
-                ch.send(reply, user_ctx)
-                await bus.publish("main_message", {
-                    "channel": ct,
-                    "user_id": msg.user_id,
-                    "content": msg.content,
-                    "reply": reply_text,
-                })
-            except Exception:
-                logger.exception("Main channel message handler failed for %s", ct)
-        _schedule_coro(_handle(), loop)
-
-    ch.on_message = on_message
 
 
 @router.get("/qr/{channel_type}")
 async def get_qr_state(channel_type: str):
-    """Get QR code login state for weixin channel."""
     if channel_type != "weixin":
         return {"error": "QR login only supported for weixin"}
     try:

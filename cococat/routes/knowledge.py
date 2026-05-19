@@ -22,7 +22,7 @@ async def upload_file(
     """Upload a file to a knowledge base for ingestion."""
     import os
 
-    kb_dir = os.path.join("knowledge", kb_name)
+    kb_dir = str(ctx.config_store.knowledge_dir / kb_name)
     raw_dir = os.path.join(kb_dir, "raw", "sources")
     os.makedirs(raw_dir, exist_ok=True)
 
@@ -47,10 +47,10 @@ async def upload_file(
 
 
 @router.get("")
-async def list_kbs():
+async def list_kbs(ctx: AppContext = Depends(get_ctx)):
     """List all knowledge bases."""
     import os
-    kb_dir = "knowledge"
+    kb_dir = str(ctx.config_store.knowledge_dir)
     if not os.path.isdir(kb_dir):
         return {"kbs": []}
 
@@ -69,10 +69,10 @@ async def list_kbs():
 
 
 @router.post("")
-async def create_knowledge(body: CreateKBRequest):
+async def create_knowledge(body: CreateKBRequest, ctx: AppContext = Depends(get_ctx)):
     """Create a new knowledge base."""
     import os
-    base = os.path.join("knowledge", body.name)
+    base = str(ctx.config_store.knowledge_dir / body.name)
     if os.path.exists(os.path.join(base, "wiki")):
         raise HTTPException(status_code=409, detail=f"Knowledge base '{body.name}' already exists")
     dirs = [
@@ -92,10 +92,10 @@ async def create_knowledge(body: CreateKBRequest):
 
 
 @router.get("/{kb_name}/wiki")
-async def wiki_index(kb_name: str):
+async def wiki_index(kb_name: str, ctx: AppContext = Depends(get_ctx)):
     """Get wiki index for a KB."""
     import os
-    kb_path = os.path.join("knowledge", kb_name)
+    kb_path = str(ctx.config_store.knowledge_dir / kb_name)
     if not os.path.isdir(kb_path):
         return {"error": "not found"}, 404
 
@@ -106,10 +106,10 @@ async def wiki_index(kb_name: str):
 
 
 @router.get("/{kb_name}/wiki/{page_type}/{page_name}")
-async def wiki_page(kb_name: str, page_type: str, page_name: str):
+async def wiki_page(kb_name: str, page_type: str, page_name: str, ctx: AppContext = Depends(get_ctx)):
     """Read a wiki page."""
     import os
-    path = os.path.join("knowledge", kb_name, "wiki", page_type, f"{page_name}.md")
+    path = str(ctx.config_store.knowledge_dir / kb_name / "wiki" / page_type / f"{page_name}.md")
     if not os.path.exists(path):
         return {"error": "not found"}, 404
 
@@ -120,10 +120,10 @@ async def wiki_page(kb_name: str, page_type: str, page_name: str):
 
 
 @router.get("/{kb_name}/search")
-async def search_kb(kb_name: str, q: str = ""):
+async def search_kb(kb_name: str, q: str = "", ctx: AppContext = Depends(get_ctx)):
     """Search KB wiki pages."""
     import os
-    wiki_dir = os.path.join("knowledge", kb_name, "wiki")
+    wiki_dir = str(ctx.config_store.knowledge_dir / kb_name / "wiki")
     if not os.path.isdir(wiki_dir) or not q:
         return {"results": []}
 
@@ -147,12 +147,12 @@ async def search_kb(kb_name: str, q: str = ""):
 
 
 @router.get("/{kb_name}/graph")
-async def knowledge_graph(kb_name: str):
+async def knowledge_graph(kb_name: str, ctx: AppContext = Depends(get_ctx)):
     """Get knowledge graph data for visualization."""
     import os
     from cococat.ingest.graph import KnowledgeGraph
 
-    kb_path = os.path.join("knowledge", kb_name)
+    kb_path = str(ctx.config_store.knowledge_dir / kb_name)
     if not os.path.isdir(kb_path):
         return {"error": "not found"}, 404
 

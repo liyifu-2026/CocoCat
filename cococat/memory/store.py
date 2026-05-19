@@ -1,25 +1,29 @@
-"""MemoryStore — unified memory: file-based + SQLite FTS5, manual + automated."""
+"""MemoryStore — unified memory: file-based + SQLite FTS5, manual + automated.
+
+Composes 5 standalone sub-systems (no multiple inheritance).
+Each sub-system receives its dependencies explicitly in its constructor.
+"""
 
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from cococat.memory.manual import _ManualMixin
-from cococat.memory.dream import _DreamMixin
-from cococat.memory.summarize import _SummarizeMixin
-from cococat.memory.compile import _CompileMixin
-from cococat.memory.facts import _FactsMixin
+from cococat.memory.manual import ManualMemory
+from cococat.memory.dream import DreamMemory
+from cococat.memory.summarize import SummarizeMemory
+from cococat.memory.compile import CompileMemory
+from cococat.memory.facts import FactsMemory
 
 logger = logging.getLogger("cococat.memory")
 
 _DREAM_MODEL_CANDIDATES = ["deepseek-chat"]
 
 
-class MemoryStore(_ManualMixin, _DreamMixin, _SummarizeMixin, _CompileMixin, _FactsMixin):
+class MemoryStore:
     """Unified memory layer.
 
-    Sub-modules:
+    Sub-modules (explicit composition, no mixins):
       manual    — remember / recall / forget / pin / experiences
       dream     — auto-extract facts from conversation sessions
       summarize — on-the-fly session summarization (Ticker)
@@ -28,12 +32,78 @@ class MemoryStore(_ManualMixin, _DreamMixin, _SummarizeMixin, _CompileMixin, _Fa
     """
 
     def __init__(self, llm: Any = None, db: Any = None, memory_dir: str = "memory"):
+        get_llm = self._get_llm
+
+        self._manual = ManualMemory(memory_dir=memory_dir, db=db)
+        self._dream = DreamMemory(get_llm=get_llm)
+        self._summarize = SummarizeMemory(memory_dir=memory_dir, get_llm=get_llm)
+        self._compile = CompileMemory(memory_dir=memory_dir, get_llm=get_llm)
+        self._facts = FactsMemory(memory_dir=memory_dir, db=db, get_llm=get_llm)
+
         self._llm = llm
         self._db = db
         self._memory_dir = memory_dir
-        self._turn_counts: dict[str, int] = {}
-        self._fingerprints: dict[str, str] = {}
-        self._fact_snapshots: dict[str, str] = {}
+
+    # ── public API ───────────────────────────────────────────
+
+    # manual
+    def remember(self, text: str, category: str | None = None, exp_path: str = "") -> str:
+        return self._manual.remember(text, category, exp_path)
+
+    def recall(self, query: str) -> str:
+        return self._manual.recall(query)
+
+    def forget(self, keyword: str) -> str:
+        return self._manual.forget(keyword)
+
+    def load_for_system_prompt(self) -> str:
+        return self._manual.load_for_system_prompt()
+
+    def read_experiences(self, category: str, exp_path: str = "") -> str:
+        return self._manual.read_experiences(category, exp_path)
+
+    # dream
+    async def dream(self, session_path: str) -> None:
+        return await self._dream.dream(session_path)
+
+    # summarize
+    async def notify_turn(self, session: Any) -> None:
+        return await self._summarize.notify_turn(session)
+
+    async def notify_session_end(self, session: Any) -> None:
+        return await self._summarize.notify_session_end(session)
+
+    # compile
+    async def compile(self) -> None:
+        return await self._compile.compile()
+
+    # facts
+    async def extract_facts(self) -> int:
+        return await self._facts.extract_facts()
+
+    # ── internal helpers (kept for backward compat) ──────────
+
+    def _pin(self, fact: str) -> str:
+        return self._manual._pin(fact)
+
+    def _record_experience(self, category: str, entry: str, exp_path: str = "") -> str:
+        return self._manual._record_experience(category, entry, exp_path)
+
+    @staticmethod
+    def _dream_prompt(session_history: str, existing_memory: str) -> str:
+        return DreamMemory._dream_prompt(session_history, existing_memory)
+
+    def _memory_path_from_session(self, session_path: str) -> str:
+        return self._dream._memory_path_from_session(session_path)
+
+    @staticmethod
+    def _hash_messages(messages: list[dict]) -> str:
+        return SummarizeMemory._hash_messages(messages)
+
+    def _load_summaries(self) -> list[dict]:
+        return self._compile._load_summaries()
+
+    # ── lazy LLM resolution ──────────────────────────────────
 
     def _get_llm(self):
         if self._llm:

@@ -95,24 +95,6 @@ CREATE TABLE IF NOT EXISTS scenes (
     FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL
 );
 
-CREATE TABLE IF NOT EXISTS facts (
-    id TEXT PRIMARY KEY,
-    agent_id TEXT NOT NULL,
-    fact TEXT NOT NULL,
-    search_text TEXT NOT NULL,
-    tags TEXT NOT NULL DEFAULT '',
-    session_id TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS facts_fts USING fts5(
-    fact,
-    search_text,
-    tags,
-    content='facts',
-    content_rowid='rowid'
-);
-
 CREATE TABLE IF NOT EXISTS dag_runs (
     id TEXT PRIMARY KEY,
     data TEXT NOT NULL,
@@ -160,6 +142,8 @@ class Database:
             except sqlite3.OperationalError:
                 pass
         self._migrate_scenes_table()
+        from cococat.db.migrations import apply_migrations
+        apply_migrations(self._conn)
 
     def _migrate_scenes_table(self) -> None:
         """Add new columns to scenes table if they don't exist (2026-05-18)."""
@@ -245,13 +229,6 @@ class Database:
             from cococat.db.fact_store import FactStore
             self._facts = FactStore(self)
         return self._facts
-
-    @property
-    def todos(self):
-        if not hasattr(self, "_todos"):
-            from cococat.db.todo_store import TodoStore
-            self._todos = TodoStore(self)
-        return self._todos
 
     @property
     def dag_runs(self):

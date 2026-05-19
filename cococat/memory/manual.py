@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 
-class _ManualMixin:
-    """Mixin providing manual memory operations: remember, recall, forget, pin, experiences."""
+class ManualMemory:
+    """Manual memory operations: remember, recall, forget, experiences.
+
+    Dependencies are explicit in __init__ — no hidden superclass state.
+    """
+
+    def __init__(self, memory_dir: str = "memory", db: Any = None):
+        self._memory_dir = memory_dir
+        self._db = db
 
     def remember(self, text: str, category: str | None = None, exp_path: str = "") -> str:
         """Add a fact or experience.

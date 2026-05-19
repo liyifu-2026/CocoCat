@@ -4,8 +4,11 @@ import logging
 import subprocess
 import shutil
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from cococat.app import get_ctx
+from cococat.context import AppContext
 
 logger = logging.getLogger("cococat.routes.settings")
 
@@ -17,84 +20,24 @@ KNOWN_KEYS = [
 ]
 
 
-def _env_path() -> str:
-    return os.environ.get("COCOCAT_ENV_FILE", ".env")
-
-
-def _read_env() -> dict[str, str]:
-    """Parse .env file into key-value dict."""
-    path = _env_path()
-    result = {}
-    if not os.path.exists(path):
-        return result
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" in line:
-                k, _, v = line.partition("=")
-                result[k.strip()] = v.strip().strip('"').strip("'")
-    return result
-
-
-def _write_env(data: dict[str, str]) -> None:
-    """Write key-value dict to .env file, preserving existing content."""
-    path = _env_path()
-    existing = {}
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as f:
-            original_lines = f.readlines()
-    else:
-        original_lines = []
-
-    lines = []
-    seen = set()
-    for line in original_lines:
-        stripped = line.strip()
-        if stripped and not stripped.startswith("#") and "=" in stripped:
-            k = stripped.split("=", 1)[0].strip()
-            if k in data:
-                lines.append(f"{k}={data[k]}\n")
-                seen.add(k)
-                continue
-            if k in existing:
-                continue
-        lines.append(line)
-
-    # Add new keys not seen in original file
-    for k, v in data.items():
-        if k not in seen:
-            lines.append(f"{k}={v}\n")
-
-    with open(path, "w", encoding="utf-8") as f:
-        f.writelines(lines)
-
-
 class SetKeyRequest(BaseModel):
     name: str
     value: str
 
 
 @router.get("/settings")
-async def get_settings():
+async def get_settings(ctx: AppContext = Depends(get_ctx)):
     """Return API key status, max iterations, and current workspace."""
     from cococat.core.workspace import WorkspaceManager
-    env_vars = _read_env()
+    store = ctx.config_store
+    env_vars = store.env_keys() if store else {}
 
     keys = []
     for spec in KNOWN_KEYS:
         env_key = spec["env_key"]
-        # Check env var, .env file, and auth.json
         has_key = bool(env_vars.get(env_key) or os.environ.get(env_key))
-        if not has_key:
-            try:
-                import json
-                with open("config/auth.json", encoding="utf-8") as f:
-                    auth = json.load(f)
-                has_key = bool(auth.get(spec["name"]))
-            except Exception:
-                pass
+        if not has_key and store:
+            has_key = bool(store.get_auth(spec["name"]))
         keys.append({
             "name": spec["name"],
             "env_key": env_key,
@@ -112,16 +55,15 @@ async def get_settings():
 
 
 @router.put("/settings/key")
-async def set_api_key(req: SetKeyRequest):
+async def set_api_key(req: SetKeyRequest, ctx: AppContext = Depends(get_ctx)):
     """Save an API key to .env file."""
     spec = next((k for k in KNOWN_KEYS if k["name"] == req.name), None)
     if not spec:
         raise HTTPException(status_code=400, detail=f"Unknown key: {req.name}")
 
     env_key = spec["env_key"]
-    _write_env({env_key: req.value})
-
-    # Also set in current process env for immediate use
+    if ctx.config_store:
+        ctx.config_store.set_env(env_key, req.value)
     os.environ[env_key] = req.value
 
     return {"saved": True, "name": req.name}
@@ -136,24 +78,26 @@ class SetMaxIterationsRequest(BaseModel):
 
 
 @router.put("/settings/max-iterations")
-async def set_max_iterations(req: SetMaxIterationsRequest):
+async def set_max_iterations(req: SetMaxIterationsRequest, ctx: AppContext = Depends(get_ctx)):
     """Save max iterations to .env file."""
     if req.value < 1:
         raise HTTPException(status_code=400, detail="Must be >= 1")
     val = str(req.value)
-    _write_env({"COCOCAT_MAX_ITERATIONS": val})
+    if ctx.config_store:
+        ctx.config_store.set_env("COCOCAT_MAX_ITERATIONS", val)
     os.environ["COCOCAT_MAX_ITERATIONS"] = val
     return {"saved": True, "max_iterations": req.value}
 
 
 @router.put("/settings/workspace")
-async def set_workspace(req: SetWorkspaceRequest):
+async def set_workspace(req: SetWorkspaceRequest, ctx: AppContext = Depends(get_ctx)):
     """Save workspace path to .env and reload WorkspaceManager."""
     value = req.value.strip()
     if not value:
         raise HTTPException(status_code=422, detail="Workspace path is required")
 
-    _write_env({"COCOCAT_WORKSPACE": value})
+    if ctx.config_store:
+        ctx.config_store.set_env("COCOCAT_WORKSPACE", value)
     os.environ["COCOCAT_WORKSPACE"] = value
 
     from cococat.core.workspace import WorkspaceManager

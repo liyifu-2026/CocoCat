@@ -71,59 +71,45 @@ async def update_agent(agent_id: str, body: AgentUpdate, ctx: AppContext = Depen
 
 # ── Coco system prompt ──
 
-def _coco_prompt_path() -> str:
-    return os.environ.get("COCOCAT_COCO_PROMPT", "config/prompts/coco.txt")
-
-
-def _read_coco_prompt() -> str | None:
-    path = _coco_prompt_path()
-    if os.path.exists(path):
-        try:
-            with open(path, encoding="utf-8") as f:
-                content = f.read().strip()
-                return content if content else None
-        except OSError:
-            pass
+def _read_coco_prompt(store=None) -> str | None:
+    if store is not None:
+        return store.get_coco_prompt()
     return None
 
 
-def _get_effective_coco_prompt() -> str:
-    custom = _read_coco_prompt()
+def _get_effective_coco_prompt(store=None) -> str:
+    custom = _read_coco_prompt(store)
     return custom or STATIC_PREFIX
 
 
 @router.get("/main/prompt")
-async def get_main_prompt():
+async def get_main_prompt(ctx: AppContext = Depends(get_ctx)):
     """Get Coco's current system prompt (custom or default)."""
-    custom = _read_coco_prompt()
+    custom = _read_coco_prompt(ctx.config_store)
     return {
-        "prompt": _get_effective_coco_prompt(),
+        "prompt": _get_effective_coco_prompt(ctx.config_store),
         "is_custom": custom is not None,
         "default": STATIC_PREFIX,
     }
 
 
 @router.put("/main/prompt")
-async def save_main_prompt(req: SavePromptRequest):
+async def save_main_prompt(req: SavePromptRequest, ctx: AppContext = Depends(get_ctx)):
     """Save a custom system prompt for Coco."""
     prompt = req.prompt.strip()
     if not prompt:
         raise HTTPException(status_code=400, detail="prompt cannot be empty")
-    path = _coco_prompt_path()
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(prompt)
-    # Update running agent's prompt if available
+    if ctx.config_store:
+        ctx.config_store.save_coco_prompt(prompt)
     _update_running_coco_prompt(prompt)
     return {"saved": True}
 
 
 @router.delete("/main/prompt")
-async def reset_main_prompt():
+async def reset_main_prompt(ctx: AppContext = Depends(get_ctx)):
     """Reset Coco's system prompt to default."""
-    path = _coco_prompt_path()
-    if os.path.exists(path):
-        os.remove(path)
+    if ctx.config_store:
+        ctx.config_store.delete_coco_prompt()
     _update_running_coco_prompt(STATIC_PREFIX)
     return {"reset": True}
 
@@ -144,18 +130,16 @@ def _worker_config_path() -> str:
     return os.environ.get("COCOCAT_CONFIG_FILE", "config/defaults.json")
 
 
-def _load_worker_config() -> dict:
-    path = _worker_config_path()
-    if os.path.exists(path):
-        try:
-            with open(path, encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError):
-            pass
+def _load_worker_config(store=None) -> dict:
+    if store is not None:
+        return store.get_default() or {}
     return {}
 
 
-def _save_worker_config(config: dict) -> None:
+def _save_worker_config(config: dict, store=None) -> None:
+    if store is not None:
+        store.save_defaults(config)
+        return
     path = _worker_config_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
@@ -163,18 +147,18 @@ def _save_worker_config(config: dict) -> None:
 
 
 @router.get("/config")
-async def get_agent_config():
+async def get_agent_config(ctx: AppContext = Depends(get_ctx)):
     """Get global agent config (worker default model, etc.)."""
-    config = _load_worker_config()
+    config = _load_worker_config(ctx.config_store)
     return {
         "worker_model": config.get("worker_model", "deepseek-chat"),
     }
 
 
 @router.put("/config")
-async def save_agent_config(req: WorkerConfigRequest):
+async def save_agent_config(req: WorkerConfigRequest, ctx: AppContext = Depends(get_ctx)):
     """Save worker default model."""
-    config = _load_worker_config()
+    config = _load_worker_config(ctx.config_store)
     config["worker_model"] = req.model
-    _save_worker_config(config)
+    _save_worker_config(config, ctx.config_store)
     return {"saved": True}

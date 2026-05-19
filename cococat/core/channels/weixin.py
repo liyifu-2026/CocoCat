@@ -9,7 +9,7 @@ logger = logging.getLogger("cococat.weixin")
 API_BASE = "https://ilinkai.weixin.qq.com"
 CHANNEL_VERSION = "2.0.0"
 CLIENT_VERSION = "131072"
-CREDENTIALS_FILE = os.path.join("agents", "_weixin_credentials.json")
+CREDENTIALS_FILE = os.environ.get("COCOCAT_WEIXIN_CREDENTIALS", os.path.join("agents", "_weixin_credentials.json"))
 
 _qr_state: dict = {"qrcode_url": "", "qrcode_id": "", "status": "idle"}
 _qr_lock = threading.Lock()

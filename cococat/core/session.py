@@ -145,5 +145,15 @@ def maybe_trigger_dream(session_path: str) -> None:
         line_count = sum(1 for _ in f)
     if line_count < 50:
         return
-    from cococat.core.dream import try_auto_dream
-    asyncio.create_task(try_auto_dream(None, session_path))
+
+    async def _dream():
+        from cococat.memory.store import MemoryStore
+        store = MemoryStore()
+        try:
+            await store.dream(session_path)
+        except Exception:
+            import logging
+            logger = logging.getLogger("cococat.dream")
+            logger.warning("auto_dream failed, retry next session", exc_info=True)
+
+    asyncio.create_task(_dream())

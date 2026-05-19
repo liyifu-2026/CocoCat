@@ -142,23 +142,25 @@ def _parse_cron_fields(fields: list[str]) -> float | None:
 
 
 class CronWorker:
-    """Background worker that polls runs/cron/ and dispatches due tasks."""
+    """Background worker that polls the cron directory and dispatches due tasks."""
 
     def __init__(
         self,
         pool: AgentPool,
         sub_executor: SubAgentExecutor | None = None,
         poll_interval: float = POLL_INTERVAL,
+        cron_dir: str = CRON_DIR,
     ):
         self._pool = pool
         self._sub_executor = sub_executor
         self._poll_interval = poll_interval
+        self._cron_dir = cron_dir
         self._running = False
         self._task: asyncio.Task | None = None
 
     async def start(self) -> None:
         self._running = True
-        os.makedirs(CRON_DIR, exist_ok=True)
+        os.makedirs(self._cron_dir, exist_ok=True)
         self._task = asyncio.create_task(self._loop())
         logger.info("CronWorker started (poll every %.0fs)", self._poll_interval)
 
@@ -178,13 +180,13 @@ class CronWorker:
             await asyncio.sleep(self._poll_interval)
 
     async def _process_cron_dir(self) -> None:
-        if not os.path.isdir(CRON_DIR):
+        if not os.path.isdir(self._cron_dir):
             return
 
         now = time.time()
-        entries = [f for f in os.listdir(CRON_DIR) if f.endswith(".json")]
+        entries = [f for f in os.listdir(self._cron_dir) if f.endswith(".json")]
         for filename in entries:
-            filepath = os.path.join(CRON_DIR, filename)
+            filepath = os.path.join(self._cron_dir, filename)
             try:
                 await self._process_entry(filepath, now)
             except Exception:

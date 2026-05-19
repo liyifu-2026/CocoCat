@@ -15,7 +15,6 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   dispatch_task:      "派发任务",
   check_tasks:        "检查进度",
   stop_task:          "停止任务",
-  todo_write:         "任务清单",
   recall:             "记忆搜索",
   pin:                "固定事实",
   unpin:              "取消固定",

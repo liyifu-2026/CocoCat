@@ -3,5 +3,8 @@
     "deepseek-v4-flash",
     "deepseek-v4-pro"
   ],
-  "dashscope": []
+  "dashscope": [],
+  "__defaults__": {
+    "deepseek": "deepseek-v4-flash"
+  }
 }

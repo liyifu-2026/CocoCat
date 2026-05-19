@@ -7,6 +7,8 @@ sidebar_position: 1
 
 欢迎来到 CocoCat 文档 Wiki。CocoCat 是一个多智能体 AI 协作平台，多个 AI Agent 以虚拟团队的形式协同工作。
 
+**仓库：** [https://github.com/liyifu-2026/CocoCat](https://github.com/liyifu-2026/CocoCat)
+
 ## 导航指南
 
 ### 新手入门

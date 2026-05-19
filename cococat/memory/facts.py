@@ -5,12 +5,22 @@ from __future__ import annotations
 import json
 import logging
 import os
+from typing import Any, Callable
 
 logger = logging.getLogger("cococat.memory")
 
 
-class _FactsMixin:
-    """Mixin providing FTS5 atomic fact extraction from session summaries."""
+class FactsMemory:
+    """FTS5 atomic fact extraction from session summaries.
+
+    Owns its own state (_fact_snapshots) — no shared mutable dicts.
+    """
+
+    def __init__(self, memory_dir: str = "memory", db: Any = None, get_llm: Callable[[], Any] | None = None):
+        self._memory_dir = memory_dir
+        self._db = db
+        self._get_llm = get_llm or (lambda: None)
+        self._fact_snapshots: dict[str, str] = {}
 
     async def extract_facts(self) -> int:
         summaries_dir = os.path.join(self._memory_dir, "summaries")

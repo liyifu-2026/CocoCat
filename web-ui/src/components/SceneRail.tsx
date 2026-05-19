@@ -49,7 +49,7 @@ export function SceneRail({ onOpenSettings }: SceneRailProps) {
         title={t("component.dashboard")}
         aria-label={t("component.dashboard")}
       >
-        <span className="text-xs font-display font-bold tracking-wider">Cc</span>
+        <img src="/app/logo.png" alt="CocoCat" className="w-8 h-8 object-contain" />
       </NavLink>
       {collapsed && (
         <button onClick={toggle} title={t("component.show_sidebar")}

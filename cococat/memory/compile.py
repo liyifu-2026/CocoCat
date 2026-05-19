@@ -6,12 +6,20 @@ import json
 import logging
 import os
 from datetime import datetime
+from typing import Any, Callable
 
 logger = logging.getLogger("cococat.memory")
 
 
-class _CompileMixin:
-    """Mixin providing periodic compilation of session summaries into structured memory files."""
+class CompileMemory:
+    """Periodic compilation of session summaries into structured memory files.
+
+    Owns no mutable state — works from files on disk.
+    """
+
+    def __init__(self, memory_dir: str = "memory", get_llm: Callable[[], Any] | None = None):
+        self._memory_dir = memory_dir
+        self._get_llm = get_llm or (lambda: None)
 
     async def compile(self) -> None:
         summaries = self._load_summaries()

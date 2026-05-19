@@ -131,7 +131,7 @@ def build_sub_agent_section() -> str:
     exec_tools = [t for t in all_tools if t["name"] not in (
         "define_dag", "append_stage", "update_dag", "dispatch_task", "check_tasks", "stop_task",
         "pin", "unpin", "recall", "record_experience", "recall_experience",
-        "todo_write", "cron", "wait", "current_status",
+        "cron", "wait", "current_status",
     )]
     names = [t["name"] for t in exec_tools]
     return f"Sub-agents have FULL execution tools: {', '.join(names)}."

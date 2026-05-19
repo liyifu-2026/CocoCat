@@ -85,6 +85,84 @@ ToolContext
 - 删除死代码: `web/main.py`, `py-agent/`
 - 提取 `routes/chat.py` 中 WebSocket 流回调为 `_make_event_handler()` / `_make_stream_callbacks()`
 
+### 8. 配置集中化 + 工具装配 + DI 修复 (2026-05-19)
+
+#### 8a. 删除死代码
+
+- 删除 `web/` 目录（空包，零引用）
+- 删除 `cococat/core/dream.py`（17 行透传，内联到 `session.py:maybe_trigger_dream`）
+
+#### 8b. ConfigStore 集中化 (`cococat/config_store.py`)
+
+**前**: 配置加载散落在 50+ 处，用不一致的错误处理和缓存策略：
+- `tools/__init__.py` 中 `_resolve_tavily_key()` 内联 `json.load("config/auth.json")`
+- `bootstrap.py` 中 `_load_worker_default_model()` 独立函数
+- `routes/settings.py` 中 `_read_env()` / `_write_env()` 
+- `routes/channels.py` 中 `_load_main_config()` / `_save_main_config()`
+- `routes/providers.py` 中 `_load_user_models()` / `_load_custom_providers()` 等
+
+**后**: 单一 `ConfigStore` 模块提供类型化接口：
+- `get_auth()` / `set_auth()` — auth.json
+- `get_env()` / `set_env()` — .env + os.environ  
+- `get_default()` / `save_defaults()` — defaults.json
+- `get_channel_configs()` / `save_channel_configs()` — main.yaml
+- `get_models()` / `save_models()` — models.json
+- `get_custom_providers()` / `save_custom_providers()` — providers.json
+- `get_coco_prompt()` / `save_coco_prompt()` — prompts/coco.txt
+- `get_resident_configs()` / `save_resident_config()` — residents/*.yaml
+
+路径支持环境变量覆盖：`COCOCAT_AUTH_FILE`, `COCOCAT_MODELS_FILE`, `COCOCAT_CUSTOM_PROVIDERS_FILE`, `COCOCAT_ENV_FILE`。
+
+ConfigStore 在 `app.py:create_app()` 初始化并注入 `AppContext.config_store`。路由处理器通过 FastAPI `Depends(get_ctx)` 获取。
+
+#### 8c. ToolCatalog 工具装配 (`cococat/core/tools/__init__.py`)
+
+**前**: 3 个函数 `create_core_tools()`, `create_main_ai_tools()`, `create_resident_tools()` 各自拼接 `make_*()` 函数，调用方分布在 5+ 处。
+
+**后**: `ToolCatalog` 类提供命名预设：
+- `catalog.worker()` — Worker 全工具集
+- `catalog.main_ai()` — Main AI 编排工具
+- `catalog.resident(kb_agent=True/False)` — Resident 工具
+
+旧函数保留为向后兼容别名（委托给 ToolCatalog）。生产调用方（routes、bootstrap、worker、local_executor）已迁移至 ToolCatalog。
+
+#### 8d. DI 修复
+
+**前**: `routes/settings.py` 和 `routes/agents.py` 的部分路由处理器直接调用 `get_ctx_static()` 而非使用 FastAPI `Depends(get_ctx)`。
+
+**后**: 所有路由处理器统一使用 `ctx: AppContext = Depends(get_ctx)` 进行依赖注入。
+
+### 9. ChannelManager 提取 (2026-05-19)
+
+**前**: `routes/channels.py` (562 行) 混杂 HTTP 路由、频道生命周期管理（启动/停止线程）、配置 I/O、消息处理和内联工具构建。模块级字典 `CHANNEL_STATUS` 和 `CHANNEL_INSTANCES` 管理全局状态。
+
+**后**: 提取 `cococat/core/channel_manager.py` 的 `ChannelManager` 类：
+- 拥有 `_instances` 和 `_status` 的管理
+- 提供 `connect()` / `disconnect()` / `auto_reconnect()` 方法
+- 统一了场景频道和主频道两种连线逻辑（`_wire_scene` / `_wire_main`）
+- 路由处理器变为薄委托层，仅调用 `ctx.channel_manager.connect(...)` 等
+
+`routes/channels.py` 从 569 行瘦身至约 200 行。频道生命周期逻辑集中在单一模块，支持为测试提供内存 adapter。
+
+### 10. MemoryStore 多继承 → 组合 (2026-05-19)
+
+**前**: `MemoryStore` 通过 5 个 mixin 类多继承 (`_ManualMixin`, `_DreamMixin`, `_SummarizeMixin`, `_CompileMixin`, `_FactsMixin`)，接口分布在 6 个文件中。每个 mixin 隐式依赖 `self._llm`、`self._db`、`self._memory_dir` 等状态，契约不显式。
+
+**后**: 5 个 mixin 转为独立类（`ManualMemory`, `DreamMemory`, `SummarizeMemory`, `CompileMemory`, `FactsMemory`），每个在构造函数中显式声明依赖。`MemoryStore` 改为组合模式：
+```python
+class MemoryStore:
+    def __init__(self, llm=None, db=None, memory_dir="memory"):
+        get_llm = self._get_llm
+        self._manual = ManualMemory(memory_dir=memory_dir, db=db)
+        self._dream = DreamMemory(get_llm=get_llm)
+        ...
+```
+
+- `_turn_counts` 和 `_fingerprints` 移入 `SummarizeMemory` 自身状态
+- `_fact_snapshots` 移入 `FactsMemory` 自身状态
+- 每个子系统可独立测试（如 `DreamMemory(get_llm=mock_llm)`）
+- 公共 API 不变（委托模式保持向后兼容）
+
 ## 测试
 
-全部 160 个测试通过，lint 零新增。
+全部 246 个测试通过（1 个预制 `test_dag_api.py:test_list_dag_runs_with_data` 失败除外）。

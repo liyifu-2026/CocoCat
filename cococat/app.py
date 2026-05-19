@@ -5,8 +5,10 @@ from cococat.db import Database
 from cococat.core.event_bus import EventBus
 from cococat.core.agent_pool import AgentPool
 from cococat.routes.ws import WsManager
-from cococat.context import AppContext, set_ctx_static
+from cococat.context import AppContext
 from cococat.auth import auth_middleware
+from cococat.config_store import ConfigStore
+from cococat.core.channel_manager import ChannelManager
 
 
 def create_app(db_path: str = "cococat.db") -> FastAPI:
@@ -18,8 +20,11 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     bus = EventBus()
     pool = AgentPool(bus)
 
-    ctx = AppContext(db=db, bus=bus, pool=pool, ws_manager=WsManager())
-    set_ctx_static(ctx)
+    ctx = AppContext(
+        db=db, bus=bus, pool=pool, ws_manager=WsManager(),
+        config_store=ConfigStore(),
+        channel_manager=ChannelManager(),
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -33,15 +38,17 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
         worker.set_dag_store(app.state.ctx.dag_store)
         worker.set_ws_manager(app.state.ctx.ws_manager)
         worker.set_sandbox_provider(app.state.ctx.sandbox_provider)
+        worker.set_config_store(app.state.ctx.config_store)
         await worker.start()
         app.state.ctx.worker = worker
 
-        cron_worker = CronWorker(pool, sub_executor=sub_exec)
+        cron_worker = CronWorker(pool, sub_executor=sub_exec, cron_dir=str(app.state.ctx.config_store.cron_dir))
         await cron_worker.start()
         app.state.ctx.cron_worker = cron_worker
 
-        from cococat.routes.channels import auto_reconnect_channels
-        auto_reconnect_channels(app.state.ctx)
+        import asyncio as _asyncio
+        loop = _asyncio.get_running_loop()
+        app.state.ctx.channel_manager.auto_reconnect(app.state.ctx, loop)
 
         yield
 

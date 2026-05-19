@@ -1,4 +1,4 @@
-"""Meta tools — cron, wait, current_status, todo_write."""
+"""Meta tools — cron, wait, current_status."""
 import json
 import os
 
@@ -68,35 +68,9 @@ def _current_status(ctx: ToolContext) -> str:
     return "\n".join(parts)
 
 
-def _todo_write(todos, ctx: ToolContext) -> str:
-    ctx = _resolve(ctx)
-    if todos is None:
-        return "Error: 'todos' is required"
-
-    if ctx.db is not None:
-        try:
-            agent_id = ctx.agent_id or "main"
-            ctx.db.todos.save(todos, agent_id=agent_id)
-            return f"Saved {len(todos)} todo items (DB)"
-        except Exception as e:
-            return f"Error saving todos to DB: {e}"
-
-    path = ctx.todos_path
-    try:
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(todos, f, indent=2, ensure_ascii=False)
-        return f"Saved {len(todos)} todo items to {path}"
-    except Exception as e:
-        return f"Error saving todos: {e}"
-
-
 def make_meta_tools() -> list:
     from cococat.core.tools.types import Tool, _ensure_tool_context
     return [
-        Tool(name="todo_write", description="Structured task list",
-             parameters={"todos": "array"},
-             execute=lambda p, ctx: _todo_write(p.get("todos"), _ensure_tool_context(ctx))),
         Tool(name="cron", description="Schedule a recurring task",
              parameters={"schedule": "string", "task": "string"},
              execute=lambda p, ctx: _cron(p.get("schedule", ""), p.get("task", ""), _ensure_tool_context(ctx))),

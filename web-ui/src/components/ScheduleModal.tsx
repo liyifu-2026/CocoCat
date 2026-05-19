@@ -54,8 +54,8 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
   const [h, m] = (value || "09:00").split(":")
 
   useEffect(() => {
-    const hIdx = HOURS.indexOf(h)
-    const mIdx = MINUTES.indexOf(m)
+    const hIdx = HOURS.indexOf(h || "09")
+    const mIdx = MINUTES.indexOf(m || "00")
     if (hourRef.current) hourRef.current.scrollTop = Math.max(0, hIdx - 1) * 36
     if (minRef.current) minRef.current.scrollTop = Math.max(0, mIdx - 1) * 36
   }, [value])

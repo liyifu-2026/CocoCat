@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any, Callable
 
 from cococat.core.sandbox.sandbox import Sandbox
@@ -22,12 +23,14 @@ class LocalExecutor:
         max_workers: int = 4,
         get_llm: Callable[[str], Any] | None = None,
         sandbox_run: Callable[[str], Any] | None = None,
+        tavily_api_key: str | None = None,
     ):
         self._max_workers = max_workers
         self._semaphore = asyncio.Semaphore(max_workers)
         self._counter = 0
         self._get_llm_fn = get_llm
         self._sandbox_run = sandbox_run
+        self._tavily_api_key = tavily_api_key
 
     async def create(self, template: str, permissions: dict) -> Sandbox:
         self._counter += 1
@@ -41,7 +44,7 @@ class LocalExecutor:
 
     async def _do_run(self, sandbox: Sandbox, task: dict, on_event: Callable | None) -> str:
         logger.info("LocalExecutor: running task in %s", sandbox.id)
-        from cococat.core.tools import create_core_tools
+        from cococat.core.tools import ToolCatalog
         from cococat.core.sandbox import _make_and_run_agent
 
         prompt = task.get("prompt", "")
@@ -52,7 +55,7 @@ class LocalExecutor:
         if provided_tools:
             tools = provided_tools
         else:
-            tools = create_core_tools(sandbox_run=self._sandbox_run)
+            tools = ToolCatalog(sandbox_run=self._sandbox_run, tavily_api_key=self._tavily_api_key).worker()
 
         return await _make_and_run_agent(
             agent_id=agent_id,
@@ -61,6 +64,7 @@ class LocalExecutor:
             resolve_llm=self._resolve_llm,
             session_id=session_id,
             on_event=on_event,
+            agents_dir=os.environ.get("COCOCAT_AGENTS_DIR", "agents"),
         )
 
     async def destroy(self, sandbox: Sandbox) -> None:

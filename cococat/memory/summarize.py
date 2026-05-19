@@ -6,15 +6,24 @@ import hashlib
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, Callable
 
 logger = logging.getLogger("cococat.memory")
 
 TURNS_PER_SUMMARY = 6
 
 
-class _SummarizeMixin:
-    """Mixin providing on-the-fly session summarization with fingerprint caching."""
+class SummarizeMemory:
+    """On-the-fly session summarization with fingerprint caching.
+
+    Owns its own state (_turn_counts, _fingerprints) — no shared mutable dicts.
+    """
+
+    def __init__(self, memory_dir: str = "memory", get_llm: Callable[[], Any] | None = None):
+        self._memory_dir = memory_dir
+        self._get_llm = get_llm or (lambda: None)
+        self._turn_counts: dict[str, int] = {}
+        self._fingerprints: dict[str, str] = {}
 
     async def notify_turn(self, session: Any) -> None:
         sid = session.id

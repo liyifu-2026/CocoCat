@@ -102,6 +102,52 @@ def _resolve_session_path(agent_dir: str, session_id: str) -> str:
     return os.path.join(agent_dir, "session.jsonl")
 
 
+async def _invoke_llm(
+    llm: Any,
+    messages: list[dict],
+    tools: list | None,
+    *,
+    on_text: Optional[Callable[[str], Any]] = None,
+    on_reasoning: Optional[Callable[[str], Any]] = None,
+):
+    """Invoke LLM (streaming or non-streaming). Returns (content, tool_calls, reasoning)."""
+    if hasattr(llm, "chat_stream"):
+        collected_content: list[str] = []
+        collected_tool_calls: list[dict] = []
+        collected_reasoning: list[str] = []
+
+        async for event in llm.chat_stream(messages=messages, tools=tools):
+            if event["type"] == "delta" and on_text:
+                r = on_text(event["content"])
+                if callable(getattr(r, "__await__", None)):
+                    await r
+            if event["type"] == "reasoning" and on_reasoning:
+                r = on_reasoning(event["content"])
+                if callable(getattr(r, "__await__", None)):
+                    await r
+            if event["type"] == "reasoning":
+                collected_reasoning.append(event["content"])
+            if event["type"] == "delta":
+                collected_content.append(event["content"])
+            if event["type"] == "tool_call":
+                collected_tool_calls.append({
+                    "id": event.get("id", ""),
+                    "name": event.get("name", ""),
+                    "arguments": event.get("arguments", ""),
+                })
+
+        content = "".join(collected_content)
+        reasoning = "".join(collected_reasoning) if collected_reasoning else None
+        tool_calls = [ToolCallRequest(**tc) for tc in collected_tool_calls] if collected_tool_calls else []
+        return content, tool_calls, reasoning
+
+    resp = await llm.chat(messages=messages, tools=tools)
+    content = resp.content or ""
+    tool_calls = resp.tool_calls or None
+    reasoning = resp.reasoning_content or None
+    return content, tool_calls, reasoning
+
+
 async def run_agent(
     config: AgentConfig,
     llm: Any,
@@ -117,9 +163,9 @@ async def run_agent(
     """Execute ReAct loop: history → iterate LLM → execute tools → persist → dream."""
     context = ToolContext()
     context.agent_id = config.id
-    context.agent_dir = config.agent_dir or f"agents/{config.id}"
+    context.agent_dir = config.agent_dir or f"agents/{config.id}"  # fallback — callers should pass explicit agent_dir
     context.role = config.role
-    context.bound_scene = None  # agents created per scene, no dynamic binding
+    context.bound_scene = None
 
     tools = config.tools
 
@@ -141,51 +187,16 @@ async def run_agent(
         max_iterations = int(os.environ.get("COCOCAT_MAX_ITERATIONS", "30"))
 
     for iteration in range(max_iterations):
-        use_stream = iteration == 0 and hasattr(llm, "chat_stream")
-        reasoning = None
-
-        if use_stream:
-            collected_content = []
-            collected_tool_calls = []
-            collected_reasoning = []
-
-            async for event in llm.chat_stream(
-                messages=messages,
-                tools=tools if tools else None,
-            ):
-                if event["type"] == "delta" and on_text:
-                    r = on_text(event["content"])
-                    if callable(getattr(r, "__await__", None)):
-                        await r
-                if event["type"] == "reasoning" and on_reasoning:
-                    r = on_reasoning(event["content"])
-                    if callable(getattr(r, "__await__", None)):
-                        await r
-                if event["type"] == "reasoning":
-                    collected_reasoning.append(event["content"])
-                if event["type"] == "delta":
-                    collected_content.append(event["content"])
-                if event["type"] == "tool_call":
-                    collected_tool_calls.append({
-                        "id": event.get("id", ""),
-                        "name": event.get("name", ""),
-                        "arguments": event.get("arguments", ""),
-                    })
-
-            content = "".join(collected_content)
-            reasoning = "".join(collected_reasoning) if collected_reasoning else None
-            tool_calls = [ToolCallRequest(**tc) for tc in collected_tool_calls] if collected_tool_calls else []
-        else:
-            resp = await llm.chat(
-                messages=messages,
-                tools=tools if tools else None,
-            )
-            content = resp.content or ""
-            tool_calls = resp.tool_calls or None
-            reasoning = resp.reasoning_content or None
+        is_first = iteration == 0
+        content, tool_calls, reasoning = await _invoke_llm(
+            llm, messages, tools,
+            on_text=on_text if is_first else None,
+            on_reasoning=on_reasoning if is_first else None,
+        )
 
         if tool_calls:
-            final_text.append(content) if content else None
+            if content:
+                final_text.append(content)
             messages.append(make_assistant_msg(content, tool_calls, reasoning))
             await execute_tool_calls(tool_calls, messages, tools, context, on_tool)
         else:
@@ -234,7 +245,7 @@ class Agent:
         tools: list[dict] | None = None,
         agent_dir: str | None = None,
     ):
-        agent_dir_path = agent_dir or f"agents/{id}"
+        agent_dir_path = agent_dir or f"agents/{id}"  # fallback — callers should pass explicit agent_dir
         config = load_agent_config(
             agent_dir_path,
             base_tools=tools,

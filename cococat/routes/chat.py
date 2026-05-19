@@ -23,6 +23,52 @@ class KbChatRequest(BaseModel):
     session_id: str | None = None
 
 
+# ── shared sandbox chat runner ──────────────────────────────
+
+async def _run_sandbox_chat(
+    ctx: AppContext,
+    agent_id: str,
+    prompt: str,
+    session_id: str | None,
+    tools: list,
+) -> str:
+    """Execute a chat prompt through SandboxProvider with WebSocket event broadcast."""
+    sandbox_provider = ctx.sandbox_provider
+    if not sandbox_provider:
+        return f"[System] SandboxProvider not available for agent '{agent_id}'"
+
+    async def on_event(event_type: str, data: dict):
+        await ctx.ws_manager.broadcast(event_type, {
+            **(data or {}),
+            "agent_id": agent_id,
+            "session_id": session_id,
+        })
+
+    return await sandbox_provider.run_once(
+        prompt=prompt,
+        agent_id=agent_id,
+        tools=tools,
+        on_event=on_event,
+        session_id=session_id,
+    )
+
+
+def _build_chat_tools(ctx: AppContext, preset: str) -> list:
+    """Construct tool list for a given preset ('main_ai' or 'resident_kb')."""
+    from cococat.core.tools import ToolCatalog, resolve_tavily_key
+
+    sub_executor = ctx.sub_executor
+    tavily_key = resolve_tavily_key(ctx.config_store)
+    catalog = ToolCatalog(
+        sub_agent_executor=sub_executor.dispatch if sub_executor else None,
+        dag_store=ctx.dag_store,
+        tavily_api_key=tavily_key,
+    )
+    if preset == "main_ai":
+        return catalog.main_ai()
+    return catalog.resident(kb_agent=True)
+
+
 # ── Routes ─────────────────────────────────────────────────
 
 
@@ -37,40 +83,9 @@ async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
         channel_type="web",
     )
 
-    sandbox_provider = ctx.sandbox_provider
-    if not sandbox_provider:
-        reply_uuid = new_uuid()
-        msg_store.save(
-            msg_uuid=reply_uuid, agent_id="main", user_id=body.user_id,
-            role="assistant",
-            content=f"[System] SandboxProvider not available. Received: {body.content[:200]}",
-            scene_id=body.scene_id,
-        )
-        return {"reply": "SandboxProvider not available", "msg_uuid": reply_uuid}
-
     try:
-        async def on_event(event_type: str, data: dict):
-            await ctx.ws_manager.broadcast(event_type, {
-                **(data or {}),
-                "agent_id": "main",
-                "session_id": body.session_id,
-            })
-
-        from cococat.core.tools import create_main_ai_tools
-
-        sub_executor = ctx.sub_executor
-        main_ai_tools = create_main_ai_tools(
-            sub_agent_executor=sub_executor.dispatch if sub_executor else None,
-            dag_store=ctx.dag_store,
-        )
-
-        reply = await sandbox_provider.run_once(
-            prompt=body.content,
-            agent_id="main",
-            tools=main_ai_tools,
-            on_event=on_event,
-            session_id=body.session_id,
-        )
+        tools = _build_chat_tools(ctx, "main_ai")
+        reply = await _run_sandbox_chat(ctx, "main", body.content, body.session_id, tools)
     except Exception as e:
         reply = f"Error: {e}"
 
@@ -87,44 +102,16 @@ async def kb_chat(body: KbChatRequest, ctx: AppContext = Depends(get_ctx)):
     """Send a message to kb-agent via sandbox (same pattern as Coco)."""
     msg_uuid = new_uuid()
     msg_store = ctx.db.messages
+    prompt = f"[KB: {body.kb_name}] {body.content}"
     msg_store.save(
         msg_uuid=msg_uuid, agent_id="kb-agent", user_id=body.user_id,
-        role="user", content=f"[KB:{body.kb_name}] {body.content}",
+        role="user", content=prompt,
         scene_id="knowledge", channel_type="web",
     )
 
-    sandbox_provider = ctx.sandbox_provider
-    if not sandbox_provider:
-        reply = "kb-agent sandbox not available"
-        reply_uuid = new_uuid()
-        msg_store.save(msg_uuid=reply_uuid, agent_id="kb-agent", user_id=body.user_id,
-                       role="assistant", content=reply, scene_id="knowledge")
-        return {"reply": reply, "msg_uuid": reply_uuid}
-
-    from cococat.core.tools import create_resident_tools
-    sub_executor = ctx.sub_executor
-    kb_tools = create_resident_tools(
-        sub_agent_executor=sub_executor.dispatch if sub_executor else None,
-        dag_store=ctx.dag_store,
-        is_kb_agent=True,
-    )
-
-    ws = ctx.ws_manager
-    async def on_event(event_type: str, data: dict):
-        await ws.broadcast(event_type, {
-            **(data or {}),
-            "agent_id": "kb-agent",
-            "session_id": body.session_id,
-        })
-
     try:
-        reply = await sandbox_provider.run_once(
-            prompt=f"[KB: {body.kb_name}] {body.content}",
-            agent_id="kb-agent",
-            tools=kb_tools,
-            on_event=on_event,
-            session_id=body.session_id,
-        )
+        tools = _build_chat_tools(ctx, "resident_kb")
+        reply = await _run_sandbox_chat(ctx, "kb-agent", prompt, body.session_id, tools)
     except Exception as e:
         import traceback, logging
         logger = logging.getLogger("cococat.routes.chat")
@@ -143,7 +130,7 @@ async def kb_chat(body: KbChatRequest, ctx: AppContext = Depends(get_ctx)):
 async def kb_chat_history(ctx: AppContext = Depends(get_ctx), session_id: str = ""):
     """Get kb-chat session history."""
     import os, json
-    path = os.path.join("agents", "kb-agent", "sessions", f"{session_id}.jsonl") if session_id else os.path.join("agents", "kb-agent", "session.jsonl")
+    path = str(ctx.config_store.agents_dir / "kb-agent" / "sessions" / f"{session_id}.jsonl") if session_id else str(ctx.config_store.agents_dir / "kb-agent" / "session.jsonl")
     if not os.path.exists(path):
         return {"messages": []}
     messages = []
@@ -175,18 +162,18 @@ async def delete_chat_session(session_id: str, ctx: AppContext = Depends(get_ctx
 
     # 2. Delete main agent session file
     for agent_id in ["main", "kb-agent"]:
-        session_path = os.path.join("agents", agent_id, "sessions", f"{session_id}.jsonl")
+        session_path = str(ctx.config_store.agents_dir / agent_id / "sessions" / f"{session_id}.jsonl")
         if os.path.exists(session_path):
             os.remove(session_path)
             deleted["session_files"] += 1
         # Also delete the default session file if it exists
-        default_path = os.path.join("agents", agent_id, "session.jsonl")
+        default_path = str(ctx.config_store.agents_dir / agent_id / "session.jsonl")
         if os.path.exists(default_path):
             os.remove(default_path)
             deleted["session_files"] += 1
 
     # 3. Delete sub-agent session dirs
-    agents_dir = "agents"
+    agents_dir = str(ctx.config_store.agents_dir)
     if os.path.isdir(agents_dir):
         for name in os.listdir(agents_dir):
             if name.startswith("sub-"):
@@ -203,7 +190,7 @@ async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "defa
     """Get chat history. If session_id provided, reads from session file."""
     if session_id:
         import os, json as _json
-        path = os.path.join("agents", "main", "sessions", f"{session_id}.jsonl")
+        path = str(ctx.config_store.agents_dir / "main" / "sessions" / f"{session_id}.jsonl")
         if not os.path.exists(path):
             return {"messages": []}
         msgs = []

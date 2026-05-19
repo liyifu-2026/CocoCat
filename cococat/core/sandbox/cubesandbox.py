@@ -94,6 +94,7 @@ class CubeSandboxExecutor:
             resolve_llm=self._resolve_llm,
             session_id=session_id,
             on_event=on_event,
+            agents_dir=os.environ.get("COCOCAT_AGENTS_DIR", "agents"),
         )
 
     async def _sandbox_run(self, sandbox_id: str, code: str) -> str:

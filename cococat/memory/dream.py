@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Callable, Any
 
 logger = logging.getLogger("cococat.memory")
 
@@ -11,8 +12,14 @@ DREAM_THRESHOLD = 50
 KEEP_LINES = 30
 
 
-class _DreamMixin:
-    """Mixin providing auto-extraction of facts from session files."""
+class DreamMemory:
+    """Auto-extract facts from conversation sessions into memory.
+
+    Dependencies are explicit: get_llm is a callable, not a hidden superclass method.
+    """
+
+    def __init__(self, get_llm: Callable[[], Any] | None = None):
+        self._get_llm = get_llm or (lambda: None)
 
     async def dream(self, session_path: str) -> None:
         """Fire-and-forget: extract facts from session, pin to memory.md, truncate session."""
