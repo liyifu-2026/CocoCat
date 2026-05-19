@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext"
 import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -19,10 +20,10 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
     try {
-      await login(password)
+      await login(username.trim(), password)
       navigate("/chat", { replace: true })
     } catch {
-      setError("密码错误")
+      setError("用户名或密码错误")
     } finally {
       setLoading(false)
     }
@@ -33,20 +34,27 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="w-full max-w-sm mx-4 space-y-4">
         <div className="text-center space-y-2">
           <h1 className="text-xl font-bold">CocoCat</h1>
-          <p className="text-sm text-muted-foreground">输入密码登录管理面板</p>
+          <p className="text-sm text-muted-foreground">登录管理面板</p>
         </div>
+        <input
+          type="text"
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+          placeholder="用户名"
+          autoFocus
+          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
         <input
           type="password"
           value={password}
           onChange={e => setPassword(e.target.value)}
-          placeholder="请输入密码"
-          autoFocus
+          placeholder="密码"
           className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
         {error && <p className="text-sm text-destructive">{error}</p>}
         <button
           type="submit"
-          disabled={loading || !password.trim()}
+          disabled={loading || !username.trim() || !password.trim()}
           className="w-full rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-40"
         >
           {loading ? <Loader2 className="size-4 animate-spin mx-auto" /> : "登录"}

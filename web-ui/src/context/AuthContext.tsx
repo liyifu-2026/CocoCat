@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useCallback } from "react"
 interface AuthContextType {
   token: string | null
   isAuthenticated: boolean
-  login: (password: string) => Promise<void>
+  login: (username: string, password: string) => Promise<void>
   logout: () => void
 }
 
@@ -16,11 +16,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAuthenticated = !!token
 
-  const login = useCallback(async (password: string) => {
+  const login = useCallback(async (username: string, password: string) => {
     const resp = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
     })
     if (!resp.ok) throw new Error("Invalid password")
     const data = await resp.json()
