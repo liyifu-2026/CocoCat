@@ -1,4 +1,5 @@
-"""KB upload route — handles file upload and ingest task creation."""
+"""KB upload route — handles file upload, routed through sandbox for processing."""
+import asyncio
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from cococat.app import get_ctx
@@ -18,7 +19,6 @@ async def upload_file(
     ctx: AppContext = Depends(get_ctx),
     file: UploadFile = File(...),
 ):
-    """Upload a file to a knowledge base for ingestion."""
     import os
 
     kb_dir = str(ctx.config_store.knowledge_dir / kb_name)
@@ -29,6 +29,23 @@ async def upload_file(
     file_path = os.path.join(raw_dir, file.filename or "upload.bin")
     with open(file_path, "wb") as f:
         f.write(content)
+
+    sandbox = ctx.sandbox_provider
+    if sandbox:
+        from cococat.core.tools import resolve_tools_for_mode, resolve_tavily_key
+        sub_executor = ctx.sub_executor
+        tavily_key = resolve_tavily_key(ctx.config_store)
+        tools = resolve_tools_for_mode(
+            "kb-admin",
+            sub_agent_executor=sub_executor.dispatch if sub_executor else None,
+            tavily_api_key=tavily_key,
+        )
+        asyncio.create_task(sandbox.run_once(
+            prompt=f"Ingest file '{file.filename}' into knowledge base '{kb_name}'",
+            agent_id="kb",
+            mode="kb-admin",
+            tools=tools,
+        ))
 
     return {
         "status": "queued",

@@ -14,13 +14,7 @@ class ChatRequest(BaseModel):
     user_id: str = "local"
     scene_id: str = "default"
     session_id: str | None = None
-
-
-class KbChatRequest(BaseModel):
-    content: str
-    kb_name: str
-    user_id: str = "local"
-    session_id: str | None = None
+    mode: str = "default"
 
 
 # ── shared sandbox chat runner ──────────────────────────────
@@ -31,8 +25,8 @@ async def _run_sandbox_chat(
     prompt: str,
     session_id: str | None,
     tools: list,
+    mode: str = "default",
 ) -> str:
-    """Execute a chat prompt through ExecutorProvider with WebSocket event broadcast."""
     sandbox_provider = ctx.sandbox_provider
     if not sandbox_provider:
         return f"[System] ExecutorProvider not available for agent '{agent_id}'"
@@ -50,18 +44,8 @@ async def _run_sandbox_chat(
         tools=tools,
         on_event=on_event,
         session_id=session_id,
+        mode=mode,
     )
-
-
-def _build_chat_tools(ctx: AppContext, preset: str) -> list:
-    """Construct tool list for a given preset ('main_ai' or 'resident_kb')."""
-    from cococat.core.tools import resolve_tools_for_mode, resolve_tavily_key
-
-    sub_executor = ctx.sub_executor
-    tavily_key = resolve_tavily_key(ctx.config_store)
-    if preset == "main_ai":
-        return resolve_tools_for_mode("default", sub_agent_executor=sub_executor.dispatch if sub_executor else None, tavily_api_key=tavily_key)
-    return resolve_tools_for_mode("kb-admin", sub_agent_executor=sub_executor.dispatch if sub_executor else None, tavily_api_key=tavily_key)
 
 
 # ── Routes ─────────────────────────────────────────────────
@@ -69,7 +53,6 @@ def _build_chat_tools(ctx: AppContext, preset: str) -> list:
 
 @router.post("/chat")
 async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
-    """Send a message to Main AI via ExecutorProvider."""
     user_id = ctx.user_id or body.user_id or "local"
     msg_uuid = new_uuid()
     msg_store = ctx.db.messages
@@ -79,9 +62,17 @@ async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
         channel_type="web",
     )
 
+    from cococat.core.tools import resolve_tools_for_mode, resolve_tavily_key
+    sub_executor = ctx.sub_executor
+    tavily_key = resolve_tavily_key(ctx.config_store)
+    tools = resolve_tools_for_mode(
+        body.mode,
+        sub_agent_executor=sub_executor.dispatch if sub_executor else None,
+        tavily_api_key=tavily_key,
+    )
+
     try:
-        tools = _build_chat_tools(ctx, "main_ai")
-        reply = await _run_sandbox_chat(ctx, "main", body.content, body.session_id, tools)
+        reply = await _run_sandbox_chat(ctx, "main", body.content, body.session_id, tools, mode=body.mode)
     except Exception as e:
         reply = f"Error: {e}"
 
@@ -93,74 +84,21 @@ async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
     return {"reply": reply, "msg_uuid": reply_uuid}
 
 
-@router.post("/kb-chat")
-async def kb_chat(body: KbChatRequest, ctx: AppContext = Depends(get_ctx)):
-    """Send a message to kb-agent via sandbox (same pattern as Coco)."""
-    msg_uuid = new_uuid()
-    msg_store = ctx.db.messages
-    prompt = f"[KB: {body.kb_name}] {body.content}"
-    msg_store.save(
-        msg_uuid=msg_uuid, agent_id="kb-agent", user_id=body.user_id,
-        role="user", content=prompt,
-        scene_id="knowledge", channel_type="web",
-    )
-
-    try:
-        tools = _build_chat_tools(ctx, "resident_kb")
-        reply = await _run_sandbox_chat(ctx, "kb-agent", prompt, body.session_id, tools)
-    except Exception as e:
-        import traceback, logging
-        logger = logging.getLogger("cococat.routes.chat")
-        logger.error("kb-chat error: %s\n%s", e, traceback.format_exc())
-        reply = f"Error: {e}"
-
-    reply_uuid = new_uuid()
-    msg_store.save(
-        msg_uuid=reply_uuid, agent_id="kb-agent", user_id=body.user_id,
-        role="assistant", content=reply, scene_id="knowledge",
-    )
-    return {"reply": reply, "msg_uuid": reply_uuid}
-
-
-@router.get("/kb-chat/history")
-async def kb_chat_history(ctx: AppContext = Depends(get_ctx), session_id: str = ""):
-    """Get kb-chat session history."""
-    import os, json
-    path = str(ctx.config_store.agents_dir / "kb-agent" / "sessions" / f"{session_id}.jsonl") if session_id else str(ctx.config_store.agents_dir / "kb-agent" / "session.jsonl")
-    if not os.path.exists(path):
-        return {"messages": []}
-    messages = []
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                try:
-                    msg = json.loads(line)
-                    messages.append({"role": msg.get("role", ""), "content": msg.get("content", "")})
-                except json.JSONDecodeError:
-                    pass
-    return {"messages": messages}
-
-
 @router.delete("/chat/session/{session_id}")
 async def delete_chat_session(session_id: str, ctx: AppContext = Depends(get_ctx)):
-    """Delete a chat session and all associated records (DAG runs, sub-agent dirs, session files)."""
     import os, shutil
     deleted = {"session_files": 0, "sub_agent_dirs": 0}
 
-    # 1. Delete main agent session file
-    for agent_id in ["main", "kb-agent"]:
+    for agent_id in ["main"]:
         session_path = str(ctx.config_store.agents_dir / agent_id / "sessions" / f"{session_id}.jsonl")
         if os.path.exists(session_path):
             os.remove(session_path)
             deleted["session_files"] += 1
-        # Also delete the default session file if it exists
         default_path = str(ctx.config_store.agents_dir / agent_id / "session.jsonl")
         if os.path.exists(default_path):
             os.remove(default_path)
             deleted["session_files"] += 1
 
-    # 3. Delete sub-agent session dirs
     agents_dir = str(ctx.config_store.agents_dir)
     if os.path.isdir(agents_dir):
         for name in os.listdir(agents_dir):

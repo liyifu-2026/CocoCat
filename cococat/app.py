@@ -52,7 +52,6 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     app.state.ctx = ctx
     app.middleware("http")(auth_middleware)
 
-    from cococat.routes.agents import router as agents_router
     from cococat.routes.scenes import router as scenes_router
     from cococat.routes.chat import router as chat_router
     from cococat.routes.ws import router as ws_router
@@ -66,7 +65,6 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     from cococat.routes.users import router as users_router
     from cococat.routes.pinned import router as pinned_router
 
-    app.include_router(agents_router)
     app.include_router(scenes_router)
     app.include_router(chat_router)
     app.include_router(ws_router)

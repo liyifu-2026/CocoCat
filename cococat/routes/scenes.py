@@ -32,10 +32,7 @@ class SceneCreateFull(BaseModel):
     name: str
     description: str = ""
     purpose: str = ""
-    agent_name: str = ""
-    agent_tone: str = "friendly"
-    agent_language: str = "zh"
-    agent_model: str = ""
+    context: str = ""
     kbs: list[str] = Field(default_factory=list)
     skills: list[str] = Field(default_factory=list)
     tools: list[str] = Field(default_factory=list)
@@ -52,10 +49,6 @@ class SceneUpdateFull(BaseModel):
     tools: list[str] | None = None
     channels: list[str] | None = None
     visibility: str | None = None
-    agent_name: str | None = None
-    agent_tone: str | None = None
-    agent_language: str | None = None
-    agent_model: str | None = None
 
 
 @router.get("")
@@ -102,23 +95,11 @@ async def delete_scene(scene_id: str, ctx: AppContext = Depends(get_ctx)):
 
 @router.post("/full", response_model=dict)
 async def create_scene_full(body: SceneCreateFull, ctx: AppContext = Depends(get_ctx)):
-    from cococat.scene.generator import generate_scene_config, AGENT_TONES
-
-    gen = generate_scene_config(
-        purpose=body.purpose,
-        name=body.name,
-        description=body.description,
-        tone=body.agent_tone,
-        language=body.agent_language,
-        agent_name=body.agent_name or body.name,
-        agent_model=body.agent_model or "",
-    )
-
     scene_config = {
         "id": body.id,
         "name": body.name,
         "description": body.description,
-        "context": gen["context"],
+        "context": body.context,
         "status": "running",
         "purpose": body.purpose,
         "kbs": body.kbs,
