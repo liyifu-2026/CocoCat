@@ -159,7 +159,9 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
 
         import os
         os.makedirs(f"config/users/{username}", exist_ok=True)
-        os.makedirs(f"agents/{username}", exist_ok=True)
+        os.makedirs(f"agents/{username}/memory/compiled", exist_ok=True)
+        os.makedirs(f"agents/{username}/memory/summaries", exist_ok=True)
+        os.makedirs(f"agents/{username}/sessions", exist_ok=True)
 
         token = create_access_token({"sub": username})
         return {"access_token": token, "token_type": "bearer", "username": username}

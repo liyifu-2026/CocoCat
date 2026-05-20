@@ -184,7 +184,7 @@ async def _poll_dream_for_user(user_dir: str) -> None:
             continue
 
         new_lines = lines[last_line:]
-        new_tokens = sum(len(l.split()) for l in new_lines)
+        new_tokens = sum(max(1, len(l) // 3) for l in new_lines)
 
         if new_tokens >= threshold:
             from cococat.memory.store import MemoryStore

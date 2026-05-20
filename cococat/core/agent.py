@@ -211,7 +211,7 @@ async def run_agent(
         sid = session_id or "default"
         summary_dir = os.path.join(config.agent_dir, "memory", "summaries") if config.agent_dir else "memory/summaries"
         messages = await compress_session(messages, sid, summary_dir=summary_dir,
-                                          last_activity=time.time() if is_first else None)
+                                          last_activity=time.time())
     else:
         final_text.append("[ReAct loop exceeded max iterations]")
 

@@ -73,6 +73,10 @@ async def auth_middleware(request, call_next):
     if path in PUBLIC_PATHS or path.startswith("/ws"):
         return await call_next(request)
 
+    for prefix in PUBLIC_PREFIXES:
+        if path.startswith(prefix):
+            return await call_next(request)
+
     # Auth disabled — no credentials configured
     if not API_KEY and JWT_SECRET == "change-me":
         return await call_next(request)

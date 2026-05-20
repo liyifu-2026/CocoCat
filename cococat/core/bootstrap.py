@@ -51,6 +51,18 @@ def _setup_sandbox(ctx, factory, args):
                 model = stored_model
         except Exception:
             pass
+
+        # Use per-user credentials when available
+        if ctx.user_id:
+            from cococat.config_store import ConfigStore
+            from cococat.providers.credentials import CredentialManager
+            from cococat.providers.factory import ProviderFactory
+            user_creds = CredentialManager(config_store=ConfigStore(user_id=ctx.user_id))
+            user_factory = ProviderFactory(credential_manager=user_creds)
+            provider = user_factory.create_sync(model)
+            if provider:
+                return provider
+
         return factory.create_sync(model)
 
     if args.cube_sandbox:

@@ -46,7 +46,9 @@ async def create_user(body: CreateUserRequest, ctx: AppContext = Depends(get_ctx
 
     import os
     os.makedirs(f"config/users/{username}", exist_ok=True)
-    os.makedirs(f"agents/{username}", exist_ok=True)
+    os.makedirs(f"agents/{username}/memory/compiled", exist_ok=True)
+    os.makedirs(f"agents/{username}/memory/summaries", exist_ok=True)
+    os.makedirs(f"agents/{username}/sessions", exist_ok=True)
 
     return {"id": username, "status": "created"}
 
