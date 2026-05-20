@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from cococat.app import get_ctx
 from cococat.context import AppContext
-from cococat.core.agent_builder import STATIC_PREFIX
+from cococat.core.modes import load_mode
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -77,9 +77,13 @@ def _read_coco_prompt(store=None) -> str | None:
     return None
 
 
+def _get_default_coco_prompt() -> str:
+    return load_mode("default").system_prompt
+
+
 def _get_effective_coco_prompt(store=None) -> str:
     custom = _read_coco_prompt(store)
-    return custom or STATIC_PREFIX
+    return custom or _get_default_coco_prompt()
 
 
 @router.get("/main/prompt")
@@ -89,7 +93,7 @@ async def get_main_prompt(ctx: AppContext = Depends(get_ctx)):
     return {
         "prompt": _get_effective_coco_prompt(ctx.config_store),
         "is_custom": custom is not None,
-        "default": STATIC_PREFIX,
+        "default": _get_default_coco_prompt(),
     }
 
 
@@ -101,7 +105,7 @@ async def save_main_prompt(req: SavePromptRequest, ctx: AppContext = Depends(get
         raise HTTPException(status_code=400, detail="prompt cannot be empty")
     if ctx.config_store:
         ctx.config_store.save_coco_prompt(prompt)
-    _update_running_coco_prompt(prompt)
+    _update_running_coco_prompt()
     return {"saved": True}
 
 
@@ -110,18 +114,13 @@ async def reset_main_prompt(ctx: AppContext = Depends(get_ctx)):
     """Reset Coco's system prompt to default."""
     if ctx.config_store:
         ctx.config_store.delete_coco_prompt()
-    _update_running_coco_prompt(STATIC_PREFIX)
+    _update_running_coco_prompt()
     return {"reset": True}
 
 
-def _update_running_coco_prompt(prompt: str) -> None:
-    """Hot-reload Coco's system prompt if running."""
-    try:
-        import importlib
-        from cococat.core.agent_builder import prompt as prompt_module
-        importlib.reload(prompt_module)
-    except Exception:
-        pass
+def _update_running_coco_prompt() -> None:
+    """Hot-reload Coco's system prompt from Mode YAML on next request."""
+    pass
 
 
 # ── Worker default config ──

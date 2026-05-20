@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional
 
-from cococat.core.agent_builder import build_system_prompt, load_memory_from_agent_dir, KB_AGENT_STATIC_PREFIX
+from cococat.core.agent_builder import build_system_prompt, load_memory_from_agent_dir
 from cococat.core.agent_builder import resolve_skills, skills_to_prompt, skills_to_tools
 from cococat.core.agent_builder import load_agent_system_prompt, get_agent_skills
 from cococat.core.session import Session, load_session, save_session_pair
@@ -72,9 +72,8 @@ def load_agent_config(
     tools = list(base_tools or [])
     tools += skill_tools
 
-    agent_profile_str = name + ("\n" + profile_text if profile_text else "")
     system_prompt = build_system_prompt(
-        agent_profile=agent_profile_str,
+        mode_id="kb-admin" if is_kb_agent else "default",
         memory_content=memory_content,
         pinned_facts=pinned,
         compiled_content=compiled,
@@ -82,7 +81,6 @@ def load_agent_config(
         scene_kbs=scene_config.kbs if scene_config else [],
         scene_skills=skill_prompt,
         tools=tools,
-        static_prefix=KB_AGENT_STATIC_PREFIX if is_kb_agent else None,
     )
 
     return AgentConfig(
