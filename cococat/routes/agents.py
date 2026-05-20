@@ -34,29 +34,22 @@ class WorkerConfigRequest(BaseModel):
 
 @router.get("")
 async def list_agents(ctx: AppContext = Depends(get_ctx)):
-    return {"agents": ctx.db.agents.list_all()}
+    return {"agents": []}
 
 
 @router.post("")
 async def create_agent(body: AgentCreate, ctx: AppContext = Depends(get_ctx)):
-    ctx.db.agents.create(body.id, body.name, body.role, body.model)
-    return {"status": "created", "id": body.id}
+    return {"status": "deprecated", "id": body.id}
 
 
 @router.get("/{agent_id}")
 async def get_agent(agent_id: str, ctx: AppContext = Depends(get_ctx)):
-    agent = ctx.db.agents.get(agent_id)
-    if not agent:
-        return {"error": "not found"}, 404
-    return agent
+    return {"error": "not found"}, 404
 
 
 @router.patch("/{agent_id}")
 async def update_agent(agent_id: str, body: AgentUpdate, ctx: AppContext = Depends(get_ctx)):
-    if body.name:
-        ctx.db.agents.update_name(agent_id, body.name)
     if body.model:
-        ctx.db.agents.update_model(agent_id, body.model)
         agent = ctx.pool.get_agent(agent_id)
         if agent and ctx.provider_factory:
             try:

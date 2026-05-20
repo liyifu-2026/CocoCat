@@ -91,19 +91,6 @@ async def get_scene(scene_id: str, ctx: AppContext = Depends(get_ctx)):
     if not scene:
         raise HTTPException(status_code=404, detail="Scene not found")
 
-    agent_id = scene.get("agent_id")
-    if agent_id:
-        agent = ctx.db.agents.get(agent_id)
-        if agent:
-            personality = ctx.db.agents.get_personality(agent_id)
-            scene["agent"] = {
-                "id": agent_id,
-                "name": agent.get("name", ""),
-                "model": agent.get("model", ""),
-                "personality": personality.get("personality", ""),
-                "tone": personality.get("tone", ""),
-                "language": personality.get("language", ""),
-            }
     return scene
 
 
@@ -127,27 +114,11 @@ async def create_scene_full(body: SceneCreateFull, ctx: AppContext = Depends(get
         agent_model=body.agent_model or "",
     )
 
-    agent_id = body.id
-    agent_config = {
-        "id": agent_id,
-        "name": body.agent_name or body.name,
-        "role": "resident",
-        "model": body.agent_model or "",
-        "scene_id": body.id,
-        "status": "running",
-        "system_prompt": gen["agent_system_prompt"],
-        "personality": AGENT_TONES.get(body.agent_tone, ""),
-        "tone": body.agent_tone,
-        "language": body.agent_language,
-    }
-    ctx.db.agents.create_full(agent_config)
-
     scene_config = {
         "id": body.id,
         "name": body.name,
         "description": body.description,
         "context": gen["context"],
-        "agent_id": agent_id,
         "status": "running",
         "purpose": body.purpose,
         "kbs": body.kbs,
@@ -194,18 +165,6 @@ async def scene_lifecycle(scene_id: str, body: SceneLifecycleAction,
 
     ctx.db.scenes.set_status(scene_id, new_status)
 
-    agent_id = scene.get("agent_id")
-    if agent_id:
-        if new_status in ("paused", "archived", "deleted"):
-            ctx.db._conn.execute(
-                "UPDATE agents SET status = 'stopped' WHERE id = ?", (agent_id,)
-            )
-        elif new_status == "running":
-            ctx.db._conn.execute(
-                "UPDATE agents SET status = 'running' WHERE id = ?", (agent_id,)
-            )
-        ctx.db._conn.commit()
-
     return {"id": scene_id, "status": new_status, "previous_status": status}
 
 
@@ -228,31 +187,5 @@ async def update_scene_full(scene_id: str, body: SceneUpdateFull,
 
     if scene_updates:
         ctx.db.scenes.update(scene_id, scene_updates)
-
-    agent_id = scene.get("agent_id")
-    if agent_id:
-        agent_updates = {}
-        if body.agent_name is not None:
-            agent_updates["name"] = body.agent_name
-        if body.agent_model is not None:
-            agent_updates["model"] = body.agent_model
-        if body.agent_tone is not None or body.agent_language is not None:
-            row = ctx.db._conn.execute(
-                "SELECT metadata FROM agents WHERE id = ?", (agent_id,)
-            ).fetchone()
-            existing_meta = json.loads(row["metadata"] if row else "{}")
-            if body.agent_tone is not None:
-                existing_meta["tone"] = body.agent_tone
-            if body.agent_language is not None:
-                existing_meta["language"] = body.agent_language
-            agent_updates["metadata"] = json.dumps(existing_meta)
-
-        if agent_updates:
-            set_clauses = ", ".join(f"{k} = ?" for k in agent_updates)
-            values = list(agent_updates.values()) + [agent_id]
-            ctx.db._conn.execute(
-                f"UPDATE agents SET {set_clauses} WHERE id = ?", values
-            )
-            ctx.db._conn.commit()
 
     return ctx.db.scenes.get_full(scene_id)

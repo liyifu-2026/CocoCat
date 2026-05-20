@@ -1,7 +1,6 @@
 """KB upload route — handles file upload and ingest task creation."""
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from pydantic import BaseModel
-from cococat.db import new_uuid
 from cococat.app import get_ctx
 from cococat.context import AppContext
 
@@ -31,18 +30,10 @@ async def upload_file(
     with open(file_path, "wb") as f:
         f.write(content)
 
-    task_uuid = new_uuid()
-    ctx.db.tasks.create(
-        task_uuid=task_uuid,         target_agent="kb-agent", source="kb",
-        method="process_kb_source",
-        params=f'{{"kb_name": "{kb_name}", "filename": "{file.filename}"}}',
-    )
-
     return {
         "status": "queued",
-        "task_uuid": task_uuid,
-        "kb_name": kb_name,
         "filename": file.filename,
+        "kb_name": kb_name,
     }
 
 

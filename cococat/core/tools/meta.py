@@ -24,13 +24,6 @@ def _cron(schedule: str, task: str, ctx: ToolContext) -> str:
         "created_at": str(__import__("datetime").datetime.now()),
         "status": "active",
     }
-    if ctx.db is not None:
-        try:
-            ctx.db.dag_runs.save(f"cron:{entry_id}", entry)
-            return f"Scheduled task '{task}' with schedule '{schedule}' (id: {entry_id})"
-        except Exception as e:
-            return f"Error scheduling task to DB: {e}"
-
     cron_path = ctx.cron_path
     try:
         os.makedirs(cron_path, exist_ok=True)

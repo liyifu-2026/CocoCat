@@ -47,40 +47,4 @@ class TaskWorker:
             await asyncio.sleep(self._poll_interval)
 
     async def _process_kb(self) -> None:
-        """Claim and process one pending KB task."""
-        row = self._db.tasks.claim_pending_kb()
-        if not row:
-            return
-
-        task_uuid = row["task_uuid"]
-        target_agent = row["target_agent"]
-
-        import json
-        try:
-            params = json.loads(row["params"])
-        except json.JSONDecodeError:
-            params = {}
-
-        logger.warning("_process_kb: no agent pool available, failing task %s", task_uuid)
-        self._db.tasks.fail(task_uuid, "Agent pool not available")
-        return
-
-        kb_name = params.get("kb_name", "unknown")
-        filename = params.get("filename", "unknown")
-
-        logger.info("Processing KB task %s: %s/%s", task_uuid, kb_name, filename)
-
-        try:
-            from cococat.ingest.ingest import IngestPipeline
-            kb_dir = f"knowledge/{kb_name}"
-            pipeline = IngestPipeline(agent._llm, kb_dir)
-            ingest_result = await pipeline.ingest(filename, kb_name=kb_name)
-
-            if ingest_result.skipped:
-                summary = f"Skipped (cache hit): {filename}"
-            else:
-                summary = f"Ingested {filename} -> {len(ingest_result.written_files)} wiki pages"
-
-            self._db.tasks.complete(task_uuid, summary)
-        except Exception as e:
-            self._db.tasks.fail(task_uuid, str(e)[:500])
+        pass

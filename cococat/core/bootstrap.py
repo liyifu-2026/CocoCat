@@ -36,12 +36,6 @@ def _setup_sandbox(ctx, factory, args):
 
     def get_llm(agent_id: str):
         model = ctx.config_store.get_default("worker_model") or "deepseek-chat"
-        try:
-            stored_model = db.agents.get_model(agent_id)
-            if stored_model:
-                model = stored_model
-        except Exception:
-            pass
 
         # Use per-user credentials when available
         if ctx.user_id:
@@ -158,16 +152,6 @@ def _load_residents(ctx, factory, sub_executor) -> None:
         pool.add_agent(agent)
 
         cron_entries = cfg.get("cron", [])
-        if cron_entries:
-            _seed_cron_jobs(agent_id, cron_entries, ctx.config_store)
-
-        existing = db._conn.execute("SELECT id FROM agents WHERE id = ?", (agent_id,)).fetchone()
-        if not existing:
-            db._conn.execute(
-                "INSERT INTO agents (id, name, role, model, status) VALUES (?, ?, ?, ?, 'running')",
-                (agent_id, name, "resident", model),
-            )
-            db._conn.commit()
 
         logger.info("Resident loaded: %s (%s) → %s", name, agent_id, model)
 

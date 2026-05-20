@@ -166,7 +166,6 @@ async def get_ctx(request: Request) -> AppContext:
 
 def _seed_defaults(db: Database) -> None:
     """Seed default data if tables are empty."""
-    db.agents.seed_main()
     _seed_scenes_from_yaml(db)
 
 
@@ -181,7 +180,6 @@ def _seed_scenes_from_yaml(db: Database) -> None:
             "name": sc.name or sc.id,
             "description": "",
             "context": sc.context,
-            "agent_id": None,
             "status": "running",
             "purpose": "",
             "kbs": sc.kbs,

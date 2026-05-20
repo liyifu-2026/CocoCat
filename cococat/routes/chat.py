@@ -146,17 +146,9 @@ async def kb_chat_history(ctx: AppContext = Depends(get_ctx), session_id: str = 
 async def delete_chat_session(session_id: str, ctx: AppContext = Depends(get_ctx)):
     """Delete a chat session and all associated records (DAG runs, sub-agent dirs, session files)."""
     import os, shutil
-    deleted = {"dag_runs": 0, "session_files": 0, "sub_agent_dirs": 0}
+    deleted = {"session_files": 0, "sub_agent_dirs": 0}
 
-    # 1. Delete DAG runs for this session
-    store = getattr(ctx, "dag_store", None)
-    if store:
-        for run in store.list_all():
-            if run.get("session_id") == session_id:
-                store.delete(run.get("run_id", ""))
-                deleted["dag_runs"] += 1
-
-    # 2. Delete main agent session file
+    # 1. Delete main agent session file
     for agent_id in ["main", "kb-agent"]:
         session_path = str(ctx.config_store.agents_dir / agent_id / "sessions" / f"{session_id}.jsonl")
         if os.path.exists(session_path):

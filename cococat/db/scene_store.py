@@ -37,15 +37,14 @@ class SceneStore:
         """Create a scene with full configuration. Returns scene_id."""
         scene_id = config["id"]
         self._db.execute_insert(
-            "INSERT INTO scenes (id, name, description, context, agent_id, status, "
+            "INSERT INTO scenes (id, name, description, context, status, "
             "purpose, kbs, skills, tools, channels, llm_config, visibility) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 scene_id,
                 config["name"],
                 config.get("description", ""),
                 config.get("context", ""),
-                config.get("agent_id"),
                 config.get("status", "running"),
                 config.get("purpose", ""),
                 json.dumps(config.get("kbs", [])),

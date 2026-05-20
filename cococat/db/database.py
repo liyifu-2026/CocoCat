@@ -15,24 +15,10 @@ PRAGMA foreign_keys=ON;
 PRAGMA busy_timeout=5000;
 PRAGMA cache_size=-64000;
 
-CREATE TABLE IF NOT EXISTS agents (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    role TEXT NOT NULL,
-    model TEXT NOT NULL,
-    scene_id TEXT NOT NULL DEFAULT 'default',
-    status TEXT NOT NULL DEFAULT 'stopped'
-        CHECK (status IN ('stopped','running','error')),
-    system_prompt TEXT NOT NULL DEFAULT '',
-    metadata TEXT NOT NULL DEFAULT '{}',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    last_heartbeat_at TEXT
-);
-
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     msg_uuid TEXT UNIQUE NOT NULL,
-    agent_id TEXT REFERENCES agents(id),
+    agent_id TEXT,
     user_id TEXT,
     role TEXT NOT NULL CHECK (role IN ('user','assistant','system','tool')),
     content TEXT NOT NULL,
@@ -48,37 +34,11 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_messages_scene_group
     ON messages(scene_id, chat_group, created_at);
 
-CREATE TABLE IF NOT EXISTS tasks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_uuid TEXT UNIQUE NOT NULL,
-    target_agent TEXT NOT NULL REFERENCES agents(id),
-    source TEXT NOT NULL,
-    method TEXT NOT NULL,
-    params TEXT NOT NULL DEFAULT '{}',
-    status TEXT NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending','running','completed','failed','cancelled')),
-    result TEXT,
-    error TEXT,
-    retry_count INTEGER NOT NULL DEFAULT 0,
-    max_retries INTEGER NOT NULL DEFAULT 3,
-    task_type TEXT NOT NULL DEFAULT 'one_time',
-    recurrence TEXT,
-    parent_task_id INTEGER REFERENCES tasks(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    started_at TEXT,
-    completed_at TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_tasks_status_target
-    ON tasks(status, target_agent)
-    WHERE status IN ('pending','running');
-
 CREATE TABLE IF NOT EXISTS scenes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     context TEXT NOT NULL DEFAULT '',
-    agent_id TEXT,
     status TEXT NOT NULL DEFAULT 'running'
         CHECK (status IN ('running','paused','archived','deleted')),
     purpose TEXT NOT NULL DEFAULT '',
@@ -91,8 +51,7 @@ CREATE TABLE IF NOT EXISTS scenes (
         CHECK (visibility IN ('private','shared')),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    archived_at TEXT,
-    FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE SET NULL
+    archived_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -109,16 +68,6 @@ CREATE TABLE IF NOT EXISTS channel_identities (
     PRIMARY KEY (channel_type, channel_user_id)
 );
 
-CREATE TABLE IF NOT EXISTS dag_runs (
-    id TEXT PRIMARY KEY,
-    data TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'running',
-    session_id TEXT,
-    created_by TEXT NOT NULL DEFAULT 'main',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
     source,
     content,
@@ -132,7 +81,7 @@ class Database:
     """SQLite database wrapper with WAL mode.
 
     Provides connection management, migrations, and low-level query/execute.
-    Entity-specific operations live in Store classes (AgentStore, TaskStore, etc.).
+    Entity-specific operations live in Store classes (SceneStore, MessageStore, etc.).
     """
 
     def __init__(self, path: str = "cococat.db"):
@@ -163,7 +112,6 @@ class Database:
         new_columns = {
             "description": "TEXT NOT NULL DEFAULT ''",
             "context": "TEXT NOT NULL DEFAULT ''",
-            "agent_id": "TEXT",
             "status": "TEXT NOT NULL DEFAULT 'running'",
             "purpose": "TEXT NOT NULL DEFAULT ''",
             "kbs": "TEXT NOT NULL DEFAULT '[]'",
@@ -209,20 +157,6 @@ class Database:
         self._conn.commit()
 
     @property
-    def agents(self):
-        if not hasattr(self, "_agents"):
-            from cococat.db.agent_store import AgentStore
-            self._agents = AgentStore(self)
-        return self._agents
-
-    @property
-    def tasks(self):
-        if not hasattr(self, "_tasks"):
-            from cococat.db.task_store import TaskStore
-            self._tasks = TaskStore(self)
-        return self._tasks
-
-    @property
     def scenes(self):
         if not hasattr(self, "_scenes"):
             from cococat.db.scene_store import SceneStore
@@ -235,13 +169,6 @@ class Database:
             from cococat.db.message_store import MessageStore
             self._messages = MessageStore(self)
         return self._messages
-
-    @property
-    def dag_runs(self):
-        if not hasattr(self, "_dag_runs"):
-            from cococat.db.dag_run_store import DagRunStore
-            self._dag_runs = DagRunStore(self)
-        return self._dag_runs
 
     def close(self) -> None:
         self._conn.close()
