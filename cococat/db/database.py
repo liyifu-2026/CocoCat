@@ -238,13 +238,6 @@ class Database:
         return self._messages
 
     @property
-    def facts(self):
-        if not hasattr(self, "_facts"):
-            from cococat.db.fact_store import FactStore
-            self._facts = FactStore(self)
-        return self._facts
-
-    @property
     def dag_runs(self):
         if not hasattr(self, "_dag_runs"):
             from cococat.db.dag_run_store import DagRunStore

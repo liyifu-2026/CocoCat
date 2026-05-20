@@ -1,5 +1,4 @@
-"""Manual memory operations — remember / recall / forget / experiences."""
-
+"""Manual memory — remember / recall / forget."""
 from __future__ import annotations
 
 import os
@@ -7,7 +6,7 @@ from typing import Any
 
 
 class ManualMemory:
-    """Manual memory operations: remember, recall, forget, experiences.
+    """Manual memory: remember, recall, forget.
 
     Dependencies are explicit in __init__ — no hidden superclass state.
     """
@@ -17,13 +16,7 @@ class ManualMemory:
         self._db = db
 
     def remember(self, text: str, category: str | None = None, exp_path: str = "") -> str:
-        """Add a fact or experience.
-
-        category=None → append to memory.md (pin).
-        Otherwise → write to {exp_path or memory_dir/experiences}/{category}/{slug}.md.
-        """
-        if category:
-            return self._record_experience(category, text, exp_path)
+        """Append a fact to memory.md (whiteboard)."""
         return self._pin(text)
 
     def recall(self, query: str) -> str:
@@ -74,20 +67,6 @@ class ManualMemory:
             except Exception:
                 pass
 
-        # 3. Search experiences/ (under memory_dir)
-        exp_path = os.path.join(self._memory_dir, "experiences")
-        if os.path.isdir(exp_path):
-            for root, _, files in os.walk(exp_path):
-                for fname in files:
-                    if not fname.endswith(".md"):
-                        continue
-                    fpath = os.path.join(root, fname)
-                    with open(fpath, encoding="utf-8") as f:
-                        content = f.read()
-                    if q in content.lower():
-                        results.append(
-                            (os.path.relpath(root, exp_path), content.strip()[:200])
-                        )
 
         if not results:
             return "No matches found"
@@ -119,35 +98,9 @@ class ManualMemory:
             return ""
 
     # ── Internal manual helpers ─────────────────────────────
-
     def _pin(self, fact: str) -> str:
         mem_path = os.path.join(self._memory_dir, "memory.md")
         os.makedirs(self._memory_dir, exist_ok=True)
         with open(mem_path, "a", encoding="utf-8") as f:
             f.write(fact if fact.endswith("\n") else fact + "\n")
         return f"Pinned: {fact}"
-
-    def _record_experience(self, category: str, entry: str, exp_path: str = "") -> str:
-        root = exp_path or os.path.join(self._memory_dir, "experiences")
-        cat_dir = os.path.join(root, category)
-        os.makedirs(cat_dir, exist_ok=True)
-        slug = entry.lower().strip()[:60].replace(" ", "-").replace("/", "-")
-        fpath = os.path.join(cat_dir, f"{slug}.md")
-        with open(fpath, "w", encoding="utf-8") as f:
-            f.write(entry if entry.endswith("\n") else entry + "\n")
-        return f"Recorded experience in '{category}': {entry[:80]}"
-
-    def read_experiences(self, category: str, exp_path: str = "") -> str:
-        root = exp_path or os.path.join(self._memory_dir, "experiences")
-        cat_dir = os.path.join(root, category)
-        if not os.path.isdir(cat_dir):
-            return f"No experiences found for category '{category}'"
-        entries = []
-        for fname in sorted(os.listdir(cat_dir)):
-            if not fname.endswith(".md"):
-                continue
-            with open(os.path.join(cat_dir, fname), encoding="utf-8") as f:
-                entries.append(f"{fname[:-3]}:\n{f.read().strip()}")
-        if not entries:
-            return f"No experiences found for category '{category}'"
-        return "\n\n".join(entries)

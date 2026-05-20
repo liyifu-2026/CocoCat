@@ -1,9 +1,3 @@
-"""MemoryStore — unified memory: file-based + SQLite FTS5, manual + automated.
-
-Composes 5 standalone sub-systems (no multiple inheritance).
-Each sub-system receives its dependencies explicitly in its constructor.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -13,7 +7,6 @@ from cococat.memory.manual import ManualMemory
 from cococat.memory.dream import DreamMemory
 from cococat.memory.summarize import SummarizeMemory
 from cococat.memory.compile import CompileMemory
-from cococat.memory.facts import FactsMemory
 
 logger = logging.getLogger("cococat.memory")
 
@@ -21,14 +14,13 @@ _DREAM_MODEL_CANDIDATES = ["deepseek-chat"]
 
 
 class MemoryStore:
-    """Unified memory layer.
+    """Unified memory layer — 4 sub-systems.
 
     Sub-modules (explicit composition, no mixins):
-      manual    — remember / recall / forget / pin / experiences
+      manual    — remember / recall / forget / pin
       dream     — auto-extract facts from conversation sessions
       summarize — on-the-fly session summarization (Ticker)
       compile   — periodic daily → weekly → longterm compilation
-      facts     — FTS5 atomic fact extraction and indexing
     """
 
     def __init__(self, llm: Any = None, db: Any = None, memory_dir: str = "memory"):
@@ -38,7 +30,6 @@ class MemoryStore:
         self._dream = DreamMemory(get_llm=get_llm)
         self._summarize = SummarizeMemory(memory_dir=memory_dir, get_llm=get_llm)
         self._compile = CompileMemory(memory_dir=memory_dir, get_llm=get_llm)
-        self._facts = FactsMemory(memory_dir=memory_dir, db=db, get_llm=get_llm)
 
         self._llm = llm
         self._db = db
@@ -58,9 +49,6 @@ class MemoryStore:
 
     def load_for_system_prompt(self) -> str:
         return self._manual.load_for_system_prompt()
-
-    def read_experiences(self, category: str, exp_path: str = "") -> str:
-        return self._manual.read_experiences(category, exp_path)
 
     # dream
     async def dream(self, session_path: str) -> None:
@@ -86,11 +74,7 @@ class MemoryStore:
     async def compile_longterm(self) -> None:
         return await self._compile.compile_longterm()
 
-    # facts
-    async def extract_facts(self) -> int:
-        return await self._facts.extract_facts()
-
-    # ── internal helpers (kept for backward compat) ──────────
+    # ── internal helpers ──────────────────────────────────────
 
     def _pin(self, fact: str) -> str:
         return self._manual._pin(fact)

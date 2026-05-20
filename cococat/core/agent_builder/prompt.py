@@ -185,14 +185,14 @@ def build_system_prompt(
     if scene_skills:
         parts.append(f"\n{scene_skills}")
 
+    if pinned_facts:
+        parts.append(f"\n## Pinned Facts (always remember these)\n{pinned_facts}")
+
     if compiled_content:
         parts.append(f"\n## Recent Memory\n{compiled_content}")
 
     if memory_content:
-        parts.append(f"\n## Memory\n{memory_content}")
-
-    if pinned_facts:
-        parts.append(f"\n## Pinned Facts (always remember these)\n{pinned_facts}")
+        parts.append(f"\n## Working Notes\n{memory_content}")
 
     parts.append(f"\n## Environment\n- Workspace: {workspace}")
     parts.append(f"- Current time: {datetime.datetime.now().isoformat()}")

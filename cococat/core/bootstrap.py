@@ -317,6 +317,7 @@ def _migrate_legacy_config(ctx) -> None:
     if os.path.exists("config/auth.json") and not os.path.exists(f"{admin_config}/auth.json"):
         os.makedirs(admin_config, exist_ok=True)
         _shutil.copy2("config/auth.json", f"{admin_config}/auth.json")
+        os.remove("config/auth.json")
         logger.info("Migrated config/auth.json → config/users/admin/auth.json")
 
     # Migrate agents/ → agents/admin/
