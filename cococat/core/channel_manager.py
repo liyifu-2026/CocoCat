@@ -239,6 +239,9 @@ class ChannelManager:
                 try:
                     logger.info("Main channel handler: msg from %s/%s: %s",
                                 ct, msg.user_id, msg.content[:50])
+                    resolved = _resolve_channel_user(ctx, ct, msg.user_id)
+                    if resolved:
+                        ctx.user_id = resolved
                     _send_thinking(ch, msg)
                     reply_text = await sandbox_provider.run_once(msg.content, agent_id="main")
                     reply = Reply(ReplyType.TEXT, reply_text)
@@ -310,3 +313,20 @@ def _channel_has_credentials(channel_type: str, config: dict, agents_dir: str = 
     if channel_type == "wechat":
         return bool(config.get("app_id") and config.get("token"))
     return bool(config)
+
+
+def _resolve_channel_user(ctx, channel_type: str, channel_user_id: str) -> str | None:
+    """Look up channel_identities table to map channel sender to CocoCat user."""
+    if not channel_user_id:
+        return None
+    db = getattr(ctx, 'db', None)
+    if not db:
+        return None
+    try:
+        row = db._conn.execute(
+            "SELECT user_id FROM channel_identities WHERE channel_type = ? AND channel_user_id = ?",
+            (channel_type, channel_user_id),
+        ).fetchone()
+        return row["user_id"] if row else None
+    except Exception:
+        return None
