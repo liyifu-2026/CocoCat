@@ -354,3 +354,11 @@
 {"role": "assistant", "content": "sub done"}
 {"role": "user", "content": "查退款流程"}
 {"role": "assistant", "content": "task completed"}
+{"role": "user", "content": "Do task"}
+{"role": "assistant", "content": "sub done"}
+{"role": "user", "content": "task 1"}
+{"role": "assistant", "content": "sub done"}
+{"role": "user", "content": "task 2"}
+{"role": "assistant", "content": "sub done"}
+{"role": "user", "content": "查退款流程"}
+{"role": "assistant", "content": "task completed"}

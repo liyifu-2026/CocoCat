@@ -119,12 +119,11 @@ CREATE TABLE IF NOT EXISTS dag_runs (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS todos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    agent_id TEXT NOT NULL DEFAULT 'main',
-    data TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+    source,
+    content,
+    agent_dir,
+    tokenize='unicode61'
 );
 """
 

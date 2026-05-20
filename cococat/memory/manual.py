@@ -56,14 +56,20 @@ class ManualMemory:
                 except OSError:
                     pass
 
-        # 4. Search FTS5
+        # 4. Search FTS5 (ranked, with BM25)
         if self._db:
             try:
-                rows = self._db.execute(
-                    "SELECT fact FROM facts_fts WHERE facts_fts MATCH ?", (query,)
-                )
-                for row in rows:
-                    results.append(("fts5", row[0].strip()))
+                from cococat.memory.fts5 import search_fts, index_memory
+                agent_dir = os.path.dirname(self._memory_dir)
+                # Index if not yet indexed (lazy)
+                row = self._db.execute(
+                    "SELECT COUNT(*) FROM memory_fts WHERE agent_dir = ?", (agent_dir,)
+                ).fetchone()
+                if row and row[0] == 0:
+                    index_memory(agent_dir, self._db)
+                fts_results = search_fts(query, agent_dir, self._db)
+                for r in fts_results:
+                    results.append((f"fts5:{r['source']}", f"{r['snippet']} (rank:{r['rank']})".replace("<b>","").replace("</b>","")))
             except Exception:
                 pass
 

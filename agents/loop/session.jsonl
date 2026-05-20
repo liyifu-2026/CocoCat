@@ -88,3 +88,5 @@
 {"role": "assistant", "content": "[ReAct loop exceeded max iterations]"}
 {"role": "user", "content": "loop"}
 {"role": "assistant", "content": "[ReAct loop exceeded max iterations]"}
+{"role": "user", "content": "loop"}
+{"role": "assistant", "content": "[ReAct loop exceeded max iterations]"}
