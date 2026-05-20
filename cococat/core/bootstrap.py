@@ -297,3 +297,8 @@ def load_agents(app, args) -> None:
 
     _load_residents(ctx, factory, sub_executor, dag_store)
     _load_workers(ctx, factory, sub_executor, dag_store)
+
+    # Register system cron tasks (compile chain + dream poll)
+    from cococat.core.cron_tasks import register_compile_handlers, bootstrap_system_cron_tasks
+    register_compile_handlers()
+    bootstrap_system_cron_tasks(str(ctx.config_store.cron_dir))

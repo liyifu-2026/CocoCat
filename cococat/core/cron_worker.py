@@ -9,7 +9,7 @@ import os
 import re
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from cococat.core.agent_pool import AgentPool
@@ -40,9 +40,16 @@ def _parse_schedule(schedule: str) -> float | None:
     if schedule.startswith("@"):
         schedule = schedule[1:]
 
+    # "every N minutes" style
+    for pat, multiplier in _INTERVAL_PATTERNS:
+        m = pat.match(schedule)
+        if m:
+            return float(m.group(1)) * multiplier
+
     if schedule in _NAMED:
         return float(_NAMED[schedule])
 
+    # "every N minutes" without @
     for pat, multiplier in _INTERVAL_PATTERNS:
         m = pat.match(schedule)
         if m:
@@ -53,6 +60,21 @@ def _parse_schedule(schedule: str) -> float | None:
         return _parse_cron_fields(fields)
 
     return None
+
+
+# ── System task routing ───────────────────────────────────────
+
+_SYSTEM_TASK_HANDLERS: dict[str, Callable] = {}
+
+def register_system_task(name: str, handler: Callable) -> None:
+    _SYSTEM_TASK_HANDLERS[name] = handler
+
+
+async def _dispatch_system_task(name: str) -> str:
+    handler = _SYSTEM_TASK_HANDLERS.get(name)
+    if not handler:
+        return f"Unknown system task: {name}"
+    return await handler()
 
 
 def _is_time_match(at_time: str, tolerance: float = 30.0) -> bool:
@@ -222,11 +244,16 @@ class CronWorker:
         task = entry.get("task", "")
         task_id = entry.get("id", "unknown")
         target_agent_id = entry.get("agent_id", "")
+        is_system = entry.get("type") == "system" or task.startswith("__")
+
         logger.info("CronWorker dispatching %s -> %s: %s", task_id, target_agent_id or "pool", task)
 
         try:
-            await _dispatch(task, target_agent_id, self._pool, self._sub_executor)
-            entry["status"] = "completed"
+            if is_system and task.startswith("__"):
+                entry["status"] = await _dispatch_system_task(task)
+            else:
+                await _dispatch(task, target_agent_id, self._pool, self._sub_executor)
+                entry["status"] = "completed"
         except Exception as e:
             logger.exception("CronWorker task %s failed", task_id)
             entry["status"] = "failed"

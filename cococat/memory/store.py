@@ -77,6 +77,15 @@ class MemoryStore:
     async def compile(self) -> None:
         return await self._compile.compile()
 
+    async def compile_day(self) -> None:
+        return await self._compile.compile_day()
+
+    async def compile_week(self) -> None:
+        return await self._compile.compile_week()
+
+    async def compile_longterm(self) -> None:
+        return await self._compile.compile_longterm()
+
     # facts
     async def extract_facts(self) -> int:
         return await self._facts.extract_facts()
