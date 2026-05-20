@@ -1,7 +1,7 @@
 """Integration tests for the brain→hands→web_search/fetch chain.
 
 Simulates the full flow:
-1. Chat route creates main AI tools → SandboxProvider.run_once()
+1. Chat route creates main AI tools → ExecutorProvider.run_once()
 2. Main AI defines DAG → dispatches task
 3. TaskWorker picks up pending task → SubAgentExecutor.dispatch()
 4. Sub-agent runs with create_core_tools() → calls web_search/web_fetch
@@ -56,16 +56,16 @@ async def _run_sub_agent_with_tool(
 
     Returns (agent_result, llm_mock) for assertions.
     """
-    from cococat.core.sandbox import SandboxProvider, LocalExecutor
+    from cococat.core.sandbox import ExecutorProvider, InProcessExecutor
     from cococat.core.sub_agent import SubAgentExecutor
     from cococat.core.event_bus import EventBus
 
     mock_llm = _make_mock_llm(tool_name, tool_args)
 
-    executor = LocalExecutor()
+    executor = InProcessExecutor()
     executor._resolve_llm = lambda agent_id: mock_llm
 
-    provider = SandboxProvider(executor=executor)
+    provider = ExecutorProvider(executor=executor)
     bus = EventBus()
 
     sub = SubAgentExecutor(bus=bus, sandbox_provider=provider)
@@ -84,11 +84,11 @@ class TestBrainHandsWebSearchChain:
     @pytest.mark.asyncio
     async def test_sub_agent_gets_web_search_in_tools(self, monkeypatch):
         """Sub-agent must have web_search available in its tool list."""
-        from cococat.core.sandbox import LocalExecutor
+        from cococat.core.sandbox import InProcessExecutor
         from cococat.core.tools import create_core_tools
 
         mock_llm = _make_mock_llm("web_search", {"query": "test"})
-        executor = LocalExecutor()
+        executor = InProcessExecutor()
         executor._resolve_llm = lambda agent_id: mock_llm
 
         # Simulate what _do_run does

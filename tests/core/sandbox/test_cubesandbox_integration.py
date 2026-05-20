@@ -48,12 +48,12 @@ class TestCubeSandboxIntegration:
         assert len(calls) == 0
 
 
-class TestLocalExecutorWithSandboxRun:
-    """Verify LocalExecutor passes sandbox_run to create_core_tools."""
+class TestInProcessExecutorWithSandboxRun:
+    """Verify InProcessExecutor passes sandbox_run to create_core_tools."""
 
     @pytest.mark.asyncio
     async def test_local_executor_accepts_sandbox_run(self):
-        from cococat.core.sandbox import LocalExecutor, Sandbox
+        from cococat.core.sandbox import InProcessExecutor, Sandbox
 
         sandbox_calls = []
 
@@ -61,7 +61,7 @@ class TestLocalExecutorWithSandboxRun:
             sandbox_calls.append(code)
             return "ok"
 
-        executor = LocalExecutor(sandbox_run=sb_run)
+        executor = InProcessExecutor(sandbox_run=sb_run)
         assert executor._sandbox_run is sb_run
 
         sandbox = Sandbox(id="test-1", template="default", permissions={})
@@ -72,13 +72,13 @@ class TestLocalExecutorWithSandboxRun:
 
     @pytest.mark.asyncio
     async def test_sandbox_provider_with_custom_executor(self):
-        from cococat.core.sandbox import SandboxProvider, LocalExecutor
+        from cococat.core.sandbox import ExecutorProvider, InProcessExecutor
 
         async def sb_run(code: str) -> str:
             return "sandbox: ok"
 
-        executor = LocalExecutor(sandbox_run=sb_run)
-        provider = SandboxProvider(executor=executor)
+        executor = InProcessExecutor(sandbox_run=sb_run)
+        provider = ExecutorProvider(executor=executor)
         assert provider._executor is executor
         assert provider._executor._sandbox_run is sb_run
 

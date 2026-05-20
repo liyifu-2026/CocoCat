@@ -1,4 +1,4 @@
-"""LocalExecutor — runs Agent in-process (development mode, no hardware isolation)."""
+"""InProcessExecutor — in-process agent executor (development mode, no hardware isolation)."""
 from __future__ import annotations
 
 import asyncio
@@ -11,8 +11,8 @@ from cococat.core.sandbox.sandbox import Sandbox
 logger = logging.getLogger("cococat.sandbox.local")
 
 
-class LocalExecutor:
-    """Local in-process executor — runs Agent code in same Python process.
+class InProcessExecutor:
+    """In-process agent executor — runs Agent code in same Python process.
 
     Creates temporary Agent instances on each run() call.
     Accepts optional sandbox_run callable to route bash tool execution to CubeSandbox MicroVM.
@@ -35,7 +35,7 @@ class LocalExecutor:
     async def create(self, template: str, permissions: dict) -> Sandbox:
         self._counter += 1
         sandbox_id = f"local-{self._counter}"
-        logger.info("LocalExecutor: created %s", sandbox_id)
+        logger.info("InProcessExecutor: created %s", sandbox_id)
         return Sandbox(id=sandbox_id, template=template, permissions=permissions)
 
     async def run(self, sandbox: Sandbox, task: dict, on_event: Callable | None) -> str:
@@ -43,7 +43,7 @@ class LocalExecutor:
             return await self._do_run(sandbox, task, on_event)
 
     async def _do_run(self, sandbox: Sandbox, task: dict, on_event: Callable | None) -> str:
-        logger.info("LocalExecutor: running task in %s", sandbox.id)
+        logger.info("InProcessExecutor: running task in %s", sandbox.id)
         from cococat.core.tools import ToolCatalog
         from cococat.core.sandbox import _make_and_run_agent
 
@@ -68,7 +68,7 @@ class LocalExecutor:
         )
 
     async def destroy(self, sandbox: Sandbox) -> None:
-        logger.info("LocalExecutor: destroyed %s", sandbox.id)
+        logger.info("InProcessExecutor: destroyed %s", sandbox.id)
 
     def _resolve_llm(self, agent_id: str):
         """Resolve LLM provider via injected callable."""

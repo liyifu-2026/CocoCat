@@ -1,4 +1,4 @@
-"""Test chat route uses SandboxProvider instead of AgentPool."""
+"""Test chat route uses ExecutorProvider instead of AgentPool."""
 import tempfile
 import pytest
 import pytest_asyncio
@@ -15,7 +15,7 @@ class MockProvider:
         self.captured_prompts.append(prompt)
         if tools:
             self.captured_tools.append([t["name"] for t in tools])
-        return "SandboxProvider says: hello"
+        return "ExecutorProvider says: hello"
 
 
 @pytest_asyncio.fixture
@@ -37,7 +37,7 @@ async def client():
 
 @pytest.mark.asyncio
 async def test_chat_uses_sandbox_provider(client):
-    """POST /api/chat should call SandboxProvider.run_once() instead of AgentPool."""
+    """POST /api/chat should call ExecutorProvider.run_once() instead of AgentPool."""
     resp = await client.post("/api/chat", json={
         "content": "Hello world",
         "user_id": "test",
@@ -45,5 +45,5 @@ async def test_chat_uses_sandbox_provider(client):
 
     assert resp.status_code == 200
     data = resp.json()
-    assert "SandboxProvider says" in data["reply"]
+    assert "ExecutorProvider says" in data["reply"]
     assert "not connected" not in data["reply"]

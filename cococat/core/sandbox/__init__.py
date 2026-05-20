@@ -1,7 +1,7 @@
-"""SandboxProvider — abstract execution environment for agents.
+"""ExecutorProvider — unified execution provider for agents.
 
-用法:
-  provider = SandboxProvider(executor=LocalExecutor())
+Usage:
+  provider = ExecutorProvider(executor=InProcessExecutor())
   result = await provider.run_once("your prompt", agent_id="main", tools=...)
 """
 from __future__ import annotations
@@ -10,8 +10,10 @@ import logging
 from typing import Any, Callable
 
 from cococat.core.sandbox.sandbox import Sandbox  # noqa: F401 — re-export
-from cococat.core.sandbox.local_executor import LocalExecutor  # noqa: F401 — re-export
+from cococat.core.sandbox.local_executor import InProcessExecutor  # noqa: F401 — re-export
 from cococat.core.sandbox.cubesandbox import CubeSandboxExecutor  # noqa: F401 — re-export
+
+__all__ = ["Sandbox", "ExecutorProvider", "InProcessExecutor", "CubeSandboxExecutor"]
 
 logger = logging.getLogger("cococat.sandbox")
 
@@ -30,7 +32,7 @@ async def _make_and_run_agent(
 ) -> str:
     """Create an Agent with SUB role and run it, returning the result.
 
-    Shared by LocalExecutor and CubeSandboxExecutor to avoid
+    Shared by InProcessExecutor and CubeSandboxExecutor to avoid
     duplicating Agent construction and agent.run() boilerplate.
     """
     from cococat.core.agent import Agent, AgentRole
@@ -75,15 +77,15 @@ class Executor:
         raise NotImplementedError
 
 
-class SandboxProvider:
-    """Manages agent execution environments.
+class ExecutorProvider:
+    """Unified execution provider — manages agent execution environments.
 
-    create() / destroy() 管理沙箱生命周期。
-    run() 在沙箱内执行一个 agent 任务。
+    create() / destroy() manage execution lifecycle.
+    run() executes an agent task within an execution environment.
     """
 
     def __init__(self, executor=None):
-        self._executor = executor or LocalExecutor()
+        self._executor = executor or InProcessExecutor()
         self._sandboxes: dict[str, Sandbox] = {}
 
     async def create(self, template: str = "default", permissions: dict | None = None) -> str:

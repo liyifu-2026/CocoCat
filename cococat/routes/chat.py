@@ -32,10 +32,10 @@ async def _run_sandbox_chat(
     session_id: str | None,
     tools: list,
 ) -> str:
-    """Execute a chat prompt through SandboxProvider with WebSocket event broadcast."""
+    """Execute a chat prompt through ExecutorProvider with WebSocket event broadcast."""
     sandbox_provider = ctx.sandbox_provider
     if not sandbox_provider:
-        return f"[System] SandboxProvider not available for agent '{agent_id}'"
+        return f"[System] ExecutorProvider not available for agent '{agent_id}'"
 
     async def on_event(event_type: str, data: dict):
         await ctx.ws_manager.broadcast(event_type, {
@@ -74,7 +74,7 @@ def _build_chat_tools(ctx: AppContext, preset: str) -> list:
 
 @router.post("/chat")
 async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
-    """Send a message to Main AI via SandboxProvider."""
+    """Send a message to Main AI via ExecutorProvider."""
     user_id = ctx.user_id or body.user_id or "local"
     msg_uuid = new_uuid()
     msg_store = ctx.db.messages

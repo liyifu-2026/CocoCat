@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from cococat.core.agent_pool import AgentPool
     from cococat.routes.ws import WsManager
     from cococat.core.sub_agent import SubAgentExecutor
-    from cococat.core.sandbox import SandboxProvider
+    from cococat.core.sandbox import ExecutorProvider
     from cococat.dag.store import DagStore
     from cococat.providers.credentials import CredentialManager
     from cococat.providers.factory import ProviderFactory
@@ -27,7 +27,7 @@ class AppContext:
     pool: AgentPool = field(default=None)
     ws_manager: WsManager = field(default=None)
 
-    sandbox_provider: SandboxProvider = field(default=None)
+    sandbox_provider: ExecutorProvider = field(default=None)
     sub_executor: SubAgentExecutor | None = field(default=None)
     creds: CredentialManager | None = field(default=None)
     provider_factory: ProviderFactory | None = field(default=None)

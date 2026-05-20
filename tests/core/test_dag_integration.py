@@ -219,12 +219,12 @@ class _patch_executor:
         self._original = None
 
     def __enter__(self):
-        from cococat.core.sandbox import SandboxProvider, LocalExecutor
+        from cococat.core.sandbox import ExecutorProvider, InProcessExecutor
         llm_factory = self._dag_env["llm_factory"]
         executor = self._dag_env["executor"]
         
-        local = LocalExecutor(get_llm=lambda aid: llm_factory.get(aid))
-        sbx = SandboxProvider(executor=local)
+        local = InProcessExecutor(get_llm=lambda aid: llm_factory.get(aid))
+        sbx = ExecutorProvider(executor=local)
         self._original = executor._sandbox
         executor._sandbox = sbx
         return self

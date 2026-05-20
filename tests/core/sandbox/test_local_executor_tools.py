@@ -1,15 +1,15 @@
-"""Tests for LocalExecutor accepting custom tools from task dict."""
+"""Tests for InProcessExecutor accepting custom tools from task dict."""
 import pytest
 
 
 CUSTOM_TOOLS = [{"name": "my_tool", "description": "A test tool", "parameters": {}, "execute": lambda p, ctx: "ok"}]
 
 
-class TestLocalExecutorTools:
+class TestInProcessExecutorTools:
     @pytest.mark.asyncio
     async def test_uses_custom_tools_from_task(self, monkeypatch):
-        """When task has tools, LocalExecutor should use them instead of full set."""
-        from cococat.core.sandbox import LocalExecutor, Sandbox
+        """When task has tools, InProcessExecutor should use them instead of full set."""
+        from cococat.core.sandbox import InProcessExecutor, Sandbox
 
         captured_tools = []
 
@@ -25,7 +25,7 @@ class TestLocalExecutorTools:
         async def fake_llm(*a, **kw):
             return "done"
 
-        executor = LocalExecutor()
+        executor = InProcessExecutor()
         executor._resolve_llm = lambda agent_id: fake_llm
 
         sandbox = Sandbox(id="test-1", template="default", permissions={})
@@ -40,8 +40,8 @@ class TestLocalExecutorTools:
 
     @pytest.mark.asyncio
     async def test_falls_back_to_default_tools_when_none_provided(self, monkeypatch):
-        """When task has no tools, LocalExecutor should use create_core_tools()."""
-        from cococat.core.sandbox import LocalExecutor, Sandbox
+        """When task has no tools, InProcessExecutor should use create_core_tools()."""
+        from cococat.core.sandbox import InProcessExecutor, Sandbox
 
         captured_tools = []
 
@@ -57,7 +57,7 @@ class TestLocalExecutorTools:
         async def fake_llm(*a, **kw):
             return "done"
 
-        executor = LocalExecutor()
+        executor = InProcessExecutor()
         executor._resolve_llm = lambda agent_id: fake_llm
 
         sandbox = Sandbox(id="test-2", template="default", permissions={})

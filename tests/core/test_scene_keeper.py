@@ -1,15 +1,15 @@
 """Test SceneKeeper — lightweight channel-message router."""
 import pytest
 from cococat.core.scene_keeper import SceneKeeper
-from cococat.core.sandbox import SandboxProvider, LocalExecutor
+from cococat.core.sandbox import ExecutorProvider, InProcessExecutor
 
 
 class TestSceneKeeper:
     @pytest.mark.asyncio
     async def test_receives_message_and_calls_sandbox(self):
         """SceneKeeper receives a message, extracts identity, calls sandbox, sends reply."""
-        # Mock SandboxProvider
-        provider = SandboxProvider(executor=LocalExecutor())
+        # Mock ExecutorProvider
+        provider = ExecutorProvider(executor=InProcessExecutor())
         reply_sent = {}
 
         async def send_reply(user_id: str, text: str):
@@ -41,7 +41,7 @@ class TestSceneKeeper:
     @pytest.mark.asyncio
     async def test_parses_identity_from_message(self):
         """SceneKeeper uses channel.parse_identity to get user_id."""
-        provider = SandboxProvider(executor=LocalExecutor())
+        provider = ExecutorProvider(executor=InProcessExecutor())
         users_seen = []
 
         class MockChannel:
@@ -67,7 +67,7 @@ class TestSceneKeeper:
     @pytest.mark.asyncio
     async def test_scene_keeper_has_scene_id(self):
         """SceneKeeper stores its scene_id."""
-        provider = SandboxProvider(executor=LocalExecutor())
+        provider = ExecutorProvider(executor=InProcessExecutor())
 
         class MockChannel:
             async def parse_identity(self, raw_msg: dict) -> str: return "user-1"

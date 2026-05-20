@@ -39,7 +39,7 @@ def _setup_dag_store(ctx):
 
 
 def _setup_sandbox(ctx, factory, args):
-    from cococat.core.sandbox import SandboxProvider
+    from cococat.core.sandbox import ExecutorProvider
 
     db = ctx.db
 
@@ -68,13 +68,13 @@ def _setup_sandbox(ctx, factory, args):
     if args.cube_sandbox:
         from cococat.core.sandbox.cubesandbox import CubeSandboxExecutor
         executor = CubeSandboxExecutor(template_id=args.cube_sandbox_template, get_llm=get_llm)
-        sandbox_provider = SandboxProvider(executor=executor)
+        sandbox_provider = ExecutorProvider(executor=executor)
         logger.info("CubeSandbox enabled (template=%s)", args.cube_sandbox_template)
     else:
-        from cococat.core.sandbox.local_executor import LocalExecutor
+        from cococat.core.sandbox.local_executor import InProcessExecutor
         from cococat.core.tools import resolve_tavily_key
         tavily_key = resolve_tavily_key(ctx.config_store)
-        sandbox_provider = SandboxProvider(executor=LocalExecutor(get_llm=get_llm, tavily_api_key=tavily_key))
+        sandbox_provider = ExecutorProvider(executor=InProcessExecutor(get_llm=get_llm, tavily_api_key=tavily_key))
 
     ctx.sandbox_provider = sandbox_provider
     return sandbox_provider

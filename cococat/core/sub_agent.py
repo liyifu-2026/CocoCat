@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from cococat.core.event_bus import EventBus
     from cococat.core.agent_pool import AgentPool
-    from cococat.core.sandbox import SandboxProvider
+    from cococat.core.sandbox import ExecutorProvider
 
 logger = logging.getLogger("cococat.sub_agent")
 
@@ -18,7 +18,7 @@ class SubAgentExecutor:
 
     Two modes:
     1. AgentPool mode: finds free sub agents from pool, runs synchronously
-    2. SandboxProvider mode: create-per-task via SandboxProvider
+    2. ExecutorProvider mode: create-per-task via ExecutorProvider
 
     Fire-and-forget pattern for tools; synchronous for DAG worker.
     Returns the task result string (not task_id) for caller convenience.
@@ -28,7 +28,7 @@ class SubAgentExecutor:
         self,
         bus: EventBus,
         pool: AgentPool | None = None,
-        sandbox_provider: SandboxProvider | None = None,
+        sandbox_provider: ExecutorProvider | None = None,
     ):
         self._bus = bus
         self._pool = pool

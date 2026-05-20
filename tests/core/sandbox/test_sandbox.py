@@ -1,8 +1,8 @@
-"""Tests for PathSandbox, tool sandbox wrapping, and SandboxProvider."""
+"""Tests for PathSandbox, tool sandbox wrapping, and ExecutorProvider."""
 import os
 import pytest
 from cococat.core.sandbox_path import PathSandbox, wrap_tool_with_sandbox
-from cococat.core.sandbox import SandboxProvider, LocalExecutor
+from cococat.core.sandbox import ExecutorProvider, InProcessExecutor
 
 
 # ── PathSandbox tests (from tests/cococat/test_sandbox.py) ──
@@ -175,12 +175,12 @@ def test_wrap_edit_file_write_denied(sandbox):
     assert "denied" in result.lower()
 
 
-# ── SandboxProvider tests (from cococat/tests/core/test_sandbox.py) ──
+# ── ExecutorProvider tests (from cococat/tests/core/test_sandbox.py) ──
 
-class TestSandboxProvider:
+class TestExecutorProvider:
     @pytest.mark.asyncio
     async def test_create_and_destroy(self):
-        provider = SandboxProvider()
+        provider = ExecutorProvider()
         sid = await provider.create("default", {"kbs": ["test"]})
         assert sid.startswith("local-")
         await provider.destroy(sid)
@@ -188,14 +188,14 @@ class TestSandboxProvider:
 
     @pytest.mark.asyncio
     async def test_run_once_returns_string(self):
-        provider = SandboxProvider()
+        provider = ExecutorProvider()
         result = await provider.run_once("say hello", agent_id="main")
         assert isinstance(result, str)
 
     @pytest.mark.asyncio
     async def test_run_once_with_events(self):
         events = []
-        provider = SandboxProvider()
+        provider = ExecutorProvider()
         result = await provider.run_once(
             "say hello",
             agent_id="main",
@@ -205,13 +205,13 @@ class TestSandboxProvider:
 
     @pytest.mark.asyncio
     async def test_run_unknown_sandbox(self):
-        provider = SandboxProvider()
+        provider = ExecutorProvider()
         with pytest.raises(ValueError, match="Unknown sandbox"):
             await provider.run("nonexistent", {"prompt": "hi"})
 
     @pytest.mark.asyncio
     async def test_concurrent_sandboxes(self):
-        provider = SandboxProvider(executor=LocalExecutor(max_workers=2))
+        provider = ExecutorProvider(executor=InProcessExecutor(max_workers=2))
         s1 = await provider.create()
         s2 = await provider.create()
         assert s1 != s2

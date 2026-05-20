@@ -127,15 +127,15 @@ class TestCubeSandboxExecutor:
 
     @pytest.mark.asyncio
     async def test_sandbox_provider_with_cube_executor(self):
-        """SandboxProvider can use CubeSandboxExecutor as backend."""
+        """ExecutorProvider can use CubeSandboxExecutor as backend."""
         async def fake_create(**kwargs):
             return FakeAsyncSandbox("sbx-test")
 
         with patch("cococat.core.sandbox.cubesandbox.AsyncSandbox") as MockAsyncSandbox:
             MockAsyncSandbox.create = fake_create
 
-            from cococat.core.sandbox import CubeSandboxExecutor, SandboxProvider
+            from cococat.core.sandbox import CubeSandboxExecutor, ExecutorProvider
             executor = CubeSandboxExecutor()
-            provider = SandboxProvider(executor=executor)
+            provider = ExecutorProvider(executor=executor)
             sandbox_id = await provider.create(permissions={"kbs": ["faq"]})
             assert sandbox_id == "sbx-test"

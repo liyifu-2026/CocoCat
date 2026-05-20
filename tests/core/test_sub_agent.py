@@ -5,7 +5,7 @@ from cococat.core.event_bus import EventBus
 from cococat.core.agent import Agent, AgentRole
 from cococat.core.agent_pool import AgentPool
 from cococat.core.sub_agent import SubAgentExecutor
-from cococat.core.sandbox import SandboxProvider, LocalExecutor
+from cococat.core.sandbox import ExecutorProvider, InProcessExecutor
 from cococat.providers.base import LLMResponse
 
 
@@ -90,8 +90,8 @@ async def test_multiple_dispatches(executor, pool):
 class TestSubAgentViaSandbox:
     @pytest.mark.asyncio
     async def test_dispatch_via_sandbox_provider(self, bus):
-        """SubAgentExecutor with sandbox_provider dispatches through SandboxProvider.run_once."""
-        provider = SandboxProvider(executor=LocalExecutor())
+        """SubAgentExecutor with sandbox_provider dispatches through ExecutorProvider.run_once."""
+        provider = ExecutorProvider(executor=InProcessExecutor())
         executor = SubAgentExecutor(bus, sandbox_provider=provider)
         results = []
         event = asyncio.Event()
