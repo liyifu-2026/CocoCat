@@ -198,7 +198,7 @@ export default function ChatPage({ agentId, kbName }: { agentId?: string; kbName
       <div className="w-56 border-r border-border bg-card/40 flex-col hidden md:flex">
         <div className="flex items-center justify-between px-4 h-12 border-b border-border">
           <h2 className="text-xs font-medium text-muted-foreground tracking-wider uppercase">Sessions</h2>
-          <button onClick={newSession} className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">+ New</button>
+          <button onClick={newSession} className="text-xs bg-accent hover:bg-accent/80 text-foreground px-3 py-1 rounded-lg font-medium transition-colors">+ 新对话</button>
         </div>
         <button onClick={() => setScheduleOpen(true)} className="flex items-center gap-2.5 px-4 py-2.5 border-b border-border text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-200 group">
           <Clock className="size-4 text-tertiary" />
