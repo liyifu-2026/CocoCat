@@ -1,0 +1,12 @@
+{
+  "id": "_compile_longterm",
+  "type": "system",
+  "task": "__compile_longterm__",
+  "schedule": "0 4 1 * *",
+  "at_time": "04:00",
+  "agent_id": "_system",
+  "created_by": "_system",
+  "status": "active",
+  "last_run": 0,
+  "created_at": "2026-05-20T15:13:12.476636"
+}

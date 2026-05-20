@@ -1,0 +1,189 @@
+<h2>CocoCat 当前交互结构全景</h2>
+<p class="subtitle">从左到右：SceneRail 侧栏 → 主内容区（各页面）→ SettingsModal</p>
+
+<div class="section">
+  <h3>全局骨架</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Layout.tsx — 所有页面共享的外壳</div>
+  <div class="mockup-body">
+    <div style="display:flex;height:400px;background:var(--background, #f5f0eb);border:1px solid var(--border, #ddd);border-radius:8px;overflow:hidden">
+      <!-- SceneRail -->
+      <div style="width:56px;background:#2a2a28;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:8px;flex-shrink:0">
+        <div style="width:32px;height:32px;background:#e07b5a;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:bold">C</div>
+        <div style="width:32px;height:32px;background:#4a4947;border-radius:8px"></div>
+        <div style="width:32px;height:32px;background:#4a4947;border-radius:8px"></div>
+        <div style="flex:1"></div>
+        <div style="width:32px;height:32px;background:#4a4947;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:10px">⚙</div>
+      </div>
+      <!-- Main Content -->
+      <div style="flex:1;display:flex;flex-direction:column">
+        <div style="height:40px;border-bottom:1px solid #e0ddd8;display:flex;align-items:center;padding:0 16px;font-size:13px;color:#666">页面标题 / 导航</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px">页面内容区域</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>各页面现状</h3>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-image">
+      <div style="background:#faf8f5;padding:16px;border-radius:4px">
+        <div class="mock-nav" style="margin-bottom:8px">Chat</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:10px 12px;max-width:80%;font-size:12px">💬 聊天消息区域</div>
+          <div style="background:#f0ebe3;border:1px solid #e8d5c8;border-radius:6px;padding:10px 12px;max-width:80%;align-self:flex-end;font-size:12px">AI 回复 (流式)</div>
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:10px 12px;max-width:60%;font-size:12px">Mermaid 图表</div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <div class="mock-input" style="flex:1">输入消息...</div>
+          <div class="mock-button">发送</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Chat（/chat）</h3>
+      <p>主聊天界面 · 646行 · 支持流式输出、Mermaid、工具调用展示 · 是核心交互入口</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-image">
+      <div style="background:#faf8f5;padding:16px;border-radius:4px">
+        <div class="mock-nav" style="margin-bottom:8px">Agents</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:8px 12px;display:flex;align-items:center;gap:8px">
+            <div style="width:28px;height:28px;background:#e07b5a;border-radius:50%"></div>
+            <span style="font-size:12px">主 AI Agent</span>
+            <span style="margin-left:auto;font-size:10px;color:#999">online</span>
+          </div>
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:8px 12px;display:flex;align-items:center;gap:8px">
+            <div style="width:28px;height:28px;background:#7a9e7e;border-radius:50%"></div>
+            <span style="font-size:12px">Dev Agent</span>
+            <span style="margin-left:auto;font-size:10px;color:#999">online</span>
+          </div>
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:8px 12px;display:flex;align-items:center;gap:8px">
+            <div style="width:28px;height:28px;background:#888;border-radius:50%"></div>
+            <span style="font-size:12px">Tester Agent</span>
+            <span style="margin-left:auto;font-size:10px;color:#999">idle</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Agents（/agents）</h3>
+      <p>Agent 列表管理 · 卡片式布局 · 在线状态 · 增删改查</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-image">
+      <div style="background:#faf8f5;padding:16px;border-radius:4px">
+        <div class="mock-nav" style="margin-bottom:8px">Scenes → Detail</div>
+        <div style="display:flex;gap:12px">
+          <div style="flex:2;display:flex;flex-direction:column;gap:6px">
+            <div style="background:#fff;border:1px solid #e8e5e0;border-radius:4px;padding:8px;font-size:11px">Context 上下文</div>
+            <div style="background:#fff;border:1px solid #e8e5e0;border-radius:4px;padding:8px;font-size:11px">Roster 成员列表</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <div style="background:#fff;border:1px solid #e8e5e0;border-radius:4px;padding:8px;font-size:11px">Skills</div>
+            <div style="background:#fff;border:1px solid #e8e5e0;border-radius:4px;padding:8px;font-size:11px">Knowledge</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Scenes（/scenes）</h3>
+      <p>场景管理 · 列表→创建→详情→运行 四层路由 · 是核心组织单元</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-image">
+      <div style="background:#faf8f5;padding:16px;border-radius:4px">
+        <div class="mock-nav" style="margin-bottom:8px">Knowledge</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:8px 12px;font-size:12px;display:flex;align-items:center;gap:6px">
+            <span>📚</span> 知识库 A <span style="margin-left:auto;font-size:10px;color:#999">23 docs</span>
+          </div>
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:8px 12px;font-size:12px;display:flex;align-items:center;gap:6px">
+            <span>📚</span> 知识库 B <span style="margin-left:auto;font-size:10px;color:#999">12 docs</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Knowledge（/knowledge）</h3>
+      <p>知识库列表 + wiki 浏览器 · RAG 知识管理 · 全文检索</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>关键交互路径：首次用户会经历的旅程</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">当前首次体验流程（推演）</div>
+  <div class="mockup-body">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;gap:8px;flex-wrap:wrap">
+      <div style="text-align:center;flex:1;min-width:100px">
+        <div style="width:48px;height:48px;background:#e0ddd8;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:18px">1</div>
+        <div style="font-size:11px;font-weight:600">打开 /app</div>
+        <div style="font-size:10px;color:#999">重定向到 /chat</div>
+        <div style="font-size:10px;color:#e07b5a;margin-top:2px">⚠ 空状态</div>
+      </div>
+      <div style="color:#ccc;font-size:18px">→</div>
+      <div style="text-align:center;flex:1;min-width:100px">
+        <div style="width:48px;height:48px;background:#e0ddd8;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:18px">2</div>
+        <div style="font-size:11px;font-weight:600">看到空聊天</div>
+        <div style="font-size:10px;color:#999">不知道该干什么</div>
+        <div style="font-size:10px;color:#e07b5a;margin-top:2px">⚠ 无引导</div>
+      </div>
+      <div style="color:#ccc;font-size:18px">→</div>
+      <div style="text-align:center;flex:1;min-width:100px">
+        <div style="width:48px;height:48px;background:#e0ddd8;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:18px">3</div>
+        <div style="font-size:11px;font-weight:600">探索侧栏</div>
+        <div style="font-size:10px;color:#999">SceneRail 导航</div>
+        <div style="font-size:10px;color:#e07b5a;margin-top:2px">⚠ 信息稀疏</div>
+      </div>
+      <div style="color:#ccc;font-size:18px">→</div>
+      <div style="text-align:center;flex:1;min-width:100px">
+        <div style="width:48px;height:48px;background:#e0ddd8;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:18px">4</div>
+        <div style="font-size:11px;font-weight:600">进入 Settings</div>
+        <div style="font-size:10px;color:#999">配置 Agent / Scene</div>
+        <div style="font-size:10px;color:#e07b5a;margin-top:2px">⚠ 认知负荷高</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>现有优势</h4>
+    <ul>
+      <li>视觉风格统一、暖色调氛围好</li>
+      <li>SceneRail 类似 Discord，结构清晰</li>
+      <li>Chat 流式输出、Mermaid 渲染等交互细节到位</li>
+      <li>CSS 动画克制优雅（fadeSlideUp、messageIn）</li>
+      <li>shadcn/ui 组件体系成熟</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>明显痛点</h4>
+    <ul>
+      <li>无 Onboarding / 新手引导流程</li>
+      <li>Dashboard 是空白占位页</li>
+      <li>空状态设计缺失（chat 空、agents 空、scenes 空）</li>
+      <li>Settings 模态框过大，信息架构扁平</li>
+      <li>Scene → Agent → Knowledge 三者的跳转关系不直观</li>
+      <li>DAG 任务流的进度可视化薄弱</li>
+      <li>缺少全局搜索 / 命令面板（cmdk 已安装但未充分使用）</li>
+    </ul>
+  </div>
+</div>

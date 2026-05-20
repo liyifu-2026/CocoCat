@@ -1,0 +1,12 @@
+{
+  "id": "kb-agent-dedup",
+  "agent_id": "kb-agent",
+  "name": "dedup",
+  "schedule": "@weekly",
+  "task": "Call run_dedup to detect and merge duplicate content across all knowledge base wiki pages",
+  "at_time": "",
+  "status": "failed",
+  "last_run": "2026-05-20T15:13:13.004878",
+  "created_at": "2026-05-20T15:13:12.474126",
+  "error": "DeepSeek 401: {\"error\":{\"message\":\"Authentication Fails, Your api key: ****-456 is invalid\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+}

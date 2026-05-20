@@ -1,0 +1,11 @@
+{
+  "id": "kb-agent-lint",
+  "agent_id": "kb-agent",
+  "name": "lint",
+  "schedule": "@daily",
+  "task": "Call run_lint to check all knowledge bases for orphan pages, broken wikilinks, and missing frontmatter",
+  "at_time": "03:00",
+  "status": "active",
+  "last_run": 0,
+  "created_at": "2026-05-20T15:13:12.473958"
+}

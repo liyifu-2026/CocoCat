@@ -1,0 +1,11 @@
+{
+  "id": "_dream_poll",
+  "type": "system",
+  "task": "__dream_poll__",
+  "schedule": "every 5 minutes",
+  "agent_id": "_system",
+  "created_by": "_system",
+  "status": "ok",
+  "last_run": "2026-05-20T15:13:12.503506",
+  "created_at": "2026-05-20T15:13:12.476638"
+}

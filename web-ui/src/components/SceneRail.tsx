@@ -5,8 +5,9 @@ import { useQuery } from "@tanstack/react-query"
 import { SceneAvatar } from "./SceneAvatar"
 import { useTheme } from "@/context/ThemeContext"
 import { useSidebar } from "@/context/SidebarContext"
+import { useAuth } from "@/context/AuthContext"
 import { useT } from "@/context/LanguageContext"
-import { Sun, Moon, Plus, PanelRight, Settings, Layers, Bot, Book, MessageSquare } from "lucide-react"
+import { Sun, Moon, Plus, PanelRight, Settings, Layers, Bot, Book, MessageSquare, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface SceneRailProps {
@@ -18,6 +19,15 @@ export function SceneRail({ onOpenSettings }: SceneRailProps) {
   const location = useLocation()
   const { theme, toggleTheme } = useTheme()
   const { collapsed, toggle } = useSidebar()
+  const { token, logout } = useAuth()
+
+  // Decode username from JWT
+  let username = ""
+  if (token) {
+    try {
+      username = JSON.parse(atob(token.split(".")[1] as string)).sub || ""
+    } catch {}
+  }
   
   const [hovered, setHovered] = useState(false)
 
@@ -123,7 +133,19 @@ export function SceneRail({ onOpenSettings }: SceneRailProps) {
       <div className="w-6 border-t border-sidebar-border my-0.5" />
 
       <div className="flex flex-col items-center gap-1.5">
-        <NavLink
+        {username && (
+          <span className={cn(
+            "text-[10px] text-sidebar-foreground/60 truncate max-w-full px-1 transition-opacity duration-200",
+            hovered ? "opacity-100 delay-75" : "opacity-0 delay-0",
+          )}>{username}</span>
+        )}
+        <button
+          onClick={logout}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-sidebar-foreground/60 hover:text-red-500 hover:bg-sidebar-accent transition-all duration-200"
+          title={t("nav.logout")}
+        >
+          <LogOut className="size-4" />
+        </button><NavLink
           to="/scenes"
           className={({ isActive }) => cn(
             "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",

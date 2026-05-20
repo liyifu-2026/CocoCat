@@ -1,0 +1,12 @@
+{
+  "id": "_compile_day",
+  "type": "system",
+  "task": "__compile_day__",
+  "schedule": "0 2 * * *",
+  "at_time": "02:00",
+  "agent_id": "_system",
+  "created_by": "_system",
+  "status": "active",
+  "last_run": 0,
+  "created_at": "2026-05-20T15:13:12.476628"
+}

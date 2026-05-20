@@ -1,0 +1,12 @@
+{
+  "id": "kb-agent-overview",
+  "agent_id": "kb-agent",
+  "name": "overview",
+  "schedule": "@weekly",
+  "task": "Call gen_overview to generate a fresh global summary of all knowledge base content into overview.md",
+  "at_time": "",
+  "status": "failed",
+  "last_run": "2026-05-20T15:13:12.798035",
+  "created_at": "2026-05-20T15:13:12.474242",
+  "error": "DeepSeek 401: {\"error\":{\"message\":\"Authentication Fails, Your api key: ****-456 is invalid\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"
+}
