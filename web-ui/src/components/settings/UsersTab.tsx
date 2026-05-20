@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { Loader2, Plus, Trash2, KeyRound } from "lucide-react"
 import { toast } from "sonner"
 
 interface User {
@@ -15,6 +15,9 @@ export function UsersTab() {
   const [newPass, setNewPass] = useState("")
   const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [pwTarget, setPwTarget] = useState<string | null>(null)
+  const [pwVal, setPwVal] = useState("")
+  const [pwSaving, setPwSaving] = useState(false)
 
   const load = () => {
     fetch("/api/users")
@@ -52,6 +55,22 @@ export function UsersTab() {
     finally { setDeleting(null) }
   }
 
+  const resetPw = async () => {
+    if (!pwTarget || pwVal.length < 4) return
+    setPwSaving(true)
+    try {
+      const resp = await fetch(`/api/users/${encodeURIComponent(pwTarget)}/password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pwVal }),
+      })
+      if (!resp.ok) { toast.error("改密失败"); return }
+      toast.success(`用户 ${pwTarget} 密码已重置`)
+      setPwTarget(null)
+      setPwVal("")
+    } finally { setPwSaving(false) }
+  }
+
   return (
     <div className="space-y-4 py-3">
       <div className="space-y-3">
@@ -61,17 +80,37 @@ export function UsersTab() {
         ) : (
           <div className="space-y-1">
             {users.map(u => (
-              <div key={u.id} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
-                <div>
-                  <span className="text-sm font-medium">{u.id}</span>
-                  {u.display_name && u.display_name !== u.id && (
-                    <span className="text-xs text-muted-foreground ml-2">({u.display_name})</span>
-                  )}
+              <div key={u.id}>
+                <div className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2">
+                  <div>
+                    <span className="text-sm font-medium">{u.id}</span>
+                    {u.display_name && u.display_name !== u.id && (
+                      <span className="text-xs text-muted-foreground ml-2">({u.display_name})</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => { setPwTarget(pwTarget === u.id ? null : u.id); setPwVal("") }}
+                      className="text-muted-foreground hover:text-foreground transition-colors p-1" title="修改密码">
+                      <KeyRound className="size-3.5" />
+                    </button>
+                    <button onClick={() => remove(u.id)} disabled={deleting === u.id}
+                      className="text-muted-foreground hover:text-destructive transition-colors p-1">
+                      {deleting === u.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                    </button>
+                  </div>
                 </div>
-                <button onClick={() => remove(u.id)} disabled={deleting === u.id}
-                  className="text-muted-foreground hover:text-destructive transition-colors p-1">
-                  {deleting === u.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-                </button>
+                {pwTarget === u.id && (
+                  <div className="flex gap-2 mt-1 pl-1">
+                    <input type="password" value={pwVal} placeholder="新密码（≥4位）" autoFocus autoComplete="new-password"
+                      onChange={e => setPwVal(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") resetPw() }}
+                      className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+                    <button onClick={resetPw} disabled={pwSaving || pwVal.length < 4}
+                      className="shrink-0 rounded-lg bg-blue-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-blue-700 disabled:opacity-40">
+                      {pwSaving ? <Loader2 className="size-3.5 animate-spin" /> : "确认"}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -54,11 +54,17 @@ class ChannelManager:
         channel_type: str,
         config: dict,
         ctx: 'AppContext',
+        user_id: str = "",
     ) -> dict:
-        """Create, wire, and start a channel. Returns status dict."""
+        """Create, wire, and start a channel. Returns status dict.
+        
+        user_id: optional CocoCat username for personal channels (e.g. 'alice').
+                 When set, key format is {user_id}:{target_type}:{target_id}:{channel_type}.
+        """
         from cococat.core.channels.factory import create_channel
 
-        key = f"{target_type}:{target_id}:{channel_type}"
+        prefix = f"{user_id}:" if user_id else ""
+        key = f"{prefix}{target_type}:{target_id}:{channel_type}"
 
         old = self._instances.pop(key, None)
         if old:
@@ -91,8 +97,9 @@ class ChannelManager:
 
     # ── disconnect ───────────────────────────────────────────
 
-    def disconnect(self, target_type: str, target_id: str, channel_type: str) -> None:
-        key = f"{target_type}:{target_id}:{channel_type}"
+    def disconnect(self, target_type: str, target_id: str, channel_type: str, user_id: str = "") -> None:
+        prefix = f"{user_id}:" if user_id else ""
+        key = f"{prefix}{target_type}:{target_id}:{channel_type}"
         self._status.pop(key, None)
         ch = self._instances.pop(key, None)
         if ch:
