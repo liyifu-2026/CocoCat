@@ -1,0 +1,23 @@
+tasks:
+  - name: kb-lint
+    schedule: "@daily"
+    at_time: "03:00"
+    mode: kb-admin
+    task: "对所有知识库运行 lint 检查，报告孤立页面和损坏链接"
+
+  - name: kb-dedup
+    schedule: "@weekly"
+    mode: kb-admin
+    task: "检测并合并所有知识库中的重复内容"
+
+  - name: kb-overview
+    schedule: "@weekly"
+    mode: kb-admin
+    task: "生成所有知识库内容的全局概览"
+
+  - name: memory-dream
+    schedule: "@daily"
+    at_time: "02:00"
+    mode: default
+    scene_scope: all
+    task: "对所有 Scene 的会话进行 dream 提取和记忆编译"
