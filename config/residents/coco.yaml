@@ -1,7 +1,0 @@
-cron: []
-id: main
-model: deepseek-v4-pro
-name: Coco
-page: /chat
-role: resident
-skills: []

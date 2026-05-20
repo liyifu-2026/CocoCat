@@ -24,44 +24,6 @@ async def test_health(client):
 
 
 @pytest.mark.asyncio
-async def test_list_agents_nonempty(client):
-    """At minimum, the seeded 'main' agent exists."""
-    resp = await client.get("/api/agents")
-    assert resp.status_code == 200
-    agents = resp.json()["agents"]
-    assert len(agents) >= 1
-
-
-@pytest.mark.asyncio
-async def test_create_and_list_agents(client):
-    await client.post("/api/agents", json={"id": "agent_b", "name": "Agent B", "role": "sub"})
-    await client.post("/api/agents", json={"id": "agent_c", "name": "Agent C", "role": "sub"})
-
-    resp = await client.get("/api/agents")
-    agents = resp.json()["agents"]
-    ids = {a["id"] for a in agents}
-    assert "agent_b" in ids
-    assert "agent_c" in ids
-
-
-@pytest.mark.asyncio
-async def test_get_agent(client):
-    await client.post("/api/agents", json={"id": "agent_a", "name": "Agent A"})
-    resp = await client.get("/api/agents/agent_a")
-    assert resp.status_code == 200
-    assert resp.json()["name"] == "Agent A"
-
-
-@pytest.mark.asyncio
-async def test_patch_agent(client):
-    await client.post("/api/agents", json={"id": "agent_a", "name": "Agent A"})
-    resp = await client.patch("/api/agents/agent_a", json={"name": "Renamed"})
-    assert resp.status_code == 200
-    resp = await client.get("/api/agents/agent_a")
-    assert resp.json()["name"] == "Renamed"
-
-
-@pytest.mark.asyncio
 async def test_scene_crud(client):
     resp = await client.post("/api/scenes", json={"id": "cs", "name": "Customer Service"})
     assert resp.status_code == 200

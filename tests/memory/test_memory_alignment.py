@@ -1,7 +1,8 @@
 """Test that pin/recall and load_memory_from_agent_dir use consistent paths."""
 import os
 import pytest
-from cococat.core.tools import create_core_tools, ToolRegistry
+from cococat.core.tools.types import ToolRegistry
+from cococat.core.tools.memory_tools import make_memory_tools
 from cococat.core.agent_builder import load_memory_from_agent_dir
 
 
@@ -11,7 +12,7 @@ class TestMemoryPathAlignment:
         """Pin writes to {agent_dir}/pinned.md — same file load_memory_from_agent_dir reads."""
         agent_dir = str(tmp_path / "agents" / "main")
 
-        tools = create_core_tools()
+        tools = make_memory_tools()
         reg = ToolRegistry(tools)
         ctx = {"agent_dir": agent_dir}
 
@@ -32,7 +33,7 @@ class TestMemoryPathAlignment:
         with open(pinned_path, "w") as f:
             f.write("user likes python\nuser from Beijing\n")
 
-        tools = create_core_tools()
+        tools = make_memory_tools()
         reg = ToolRegistry(tools)
         ctx = {"agent_dir": agent_dir}
 
@@ -44,7 +45,7 @@ class TestMemoryPathAlignment:
         """Without explicit memory_path, pin writes to {agent_dir}/pinned.md."""
         agent_dir = str(tmp_path / "agents" / "main")
 
-        tools = create_core_tools()
+        tools = make_memory_tools()
         reg = ToolRegistry(tools)
         ctx = {"agent_dir": agent_dir}
 

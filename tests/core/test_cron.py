@@ -71,7 +71,7 @@ class TestCronWorker:
     @pytest.mark.asyncio
     async def test_creates_cron_dir_on_start(self, tmp_path):
         cron_dir = str(tmp_path / "cron_test")
-        worker = CronWorker(pool=None, cron_dir=cron_dir)
+        worker = CronWorker(sub_executor=None, cron_dir=cron_dir)
         await worker.start()
         assert os.path.isdir(cron_dir)
         await worker.stop()
@@ -84,14 +84,11 @@ class TestCronWorker:
         dispatched = []
         event = asyncio.Event()
 
-        class FakePool:
-            def get_agent(self, name):
-                class FakeAgent:
-                    async def run(self, task):
-                        dispatched.append(task)
-                        event.set()
-                        return "ok"
-                return FakeAgent()
+        class FakeSubExecutor:
+            async def dispatch(self, task, from_agent=None):
+                dispatched.append(task)
+                event.set()
+                return "ok"
 
         entry = {
             "id": "test001",
@@ -105,7 +102,7 @@ class TestCronWorker:
         with open(filepath, "w") as f:
             json.dump(entry, f)
 
-        worker = CronWorker(pool=FakePool(), poll_interval=0.1, cron_dir=cron_dir)
+        worker = CronWorker(sub_executor=FakeSubExecutor(), poll_interval=0.1, cron_dir=cron_dir)
         await worker.start()
         await asyncio.wait_for(event.wait(), timeout=5.0)
         await worker.stop()
@@ -125,13 +122,10 @@ class TestCronWorker:
 
         dispatched = []
 
-        class FakePool:
-            def get_agent(self, _):
-                class FakeAgent:
-                    async def run(self, task):
-                        dispatched.append(task)
-                        return "ok"
-                return FakeAgent()
+        class FakeSubExecutor:
+            async def dispatch(self, task, from_agent=None):
+                dispatched.append(task)
+                return "ok"
 
         entry = {
             "id": "test002",
@@ -144,7 +138,7 @@ class TestCronWorker:
         with open(os.path.join(cron_dir, "test002.json"), "w") as f:
             json.dump(entry, f)
 
-        worker = CronWorker(pool=FakePool(), poll_interval=0.1, cron_dir=cron_dir)
+        worker = CronWorker(sub_executor=FakeSubExecutor(), poll_interval=0.1, cron_dir=cron_dir)
         await worker.start()
         await asyncio.wait_for(asyncio.sleep(0.3), timeout=1.0)
         await worker.stop()
@@ -158,13 +152,10 @@ class TestCronWorker:
 
         dispatched = []
 
-        class FakePool:
-            def get_agent(self, _):
-                class FakeAgent:
-                    async def run(self, task):
-                        dispatched.append(task)
-                        return "ok"
-                return FakeAgent()
+        class FakeSubExecutor:
+            async def dispatch(self, task, from_agent=None):
+                dispatched.append(task)
+                return "ok"
 
         entry = {
             "id": "inactive001",
@@ -177,7 +168,7 @@ class TestCronWorker:
         with open(os.path.join(cron_dir, "inactive001.json"), "w") as f:
             json.dump(entry, f)
 
-        worker = CronWorker(pool=FakePool(), poll_interval=0.1, cron_dir=cron_dir)
+        worker = CronWorker(sub_executor=FakeSubExecutor(), poll_interval=0.1, cron_dir=cron_dir)
         await worker.start()
         await asyncio.wait_for(asyncio.sleep(0.3), timeout=1.0)
         await worker.stop()

@@ -35,10 +35,9 @@ def test_agent_inits_with_memory():
 
 def test_build_prompt_with_memory():
     prompt = build_system_prompt(
-        agent_profile="Test Agent",
+        mode_id="default",
         memory_content="- User likes brevity",
         pinned_facts="- Important: deadline Friday",
     )
-    assert "Test Agent" in prompt
     assert "brevity" in prompt
     assert "deadline Friday" in prompt

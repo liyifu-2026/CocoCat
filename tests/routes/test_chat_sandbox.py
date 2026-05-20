@@ -11,7 +11,7 @@ class MockProvider:
         self.captured_prompts = []
         self.captured_tools = []
 
-    async def run_once(self, prompt, agent_id, permissions=None, tools=None, on_event=None, session_id=None):
+    async def run_once(self, prompt, agent_id, permissions=None, tools=None, on_event=None, session_id=None, mode="default"):
         self.captured_prompts.append(prompt)
         if tools:
             self.captured_tools.append([t["name"] for t in tools])

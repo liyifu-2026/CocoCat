@@ -1,6 +1,11 @@
 """Test CubeSandbox integration — sandbox_run wired into bash tool."""
 import pytest
-from cococat.core.tools import create_core_tools
+from cococat.core.tools.execution import make_execution_tools
+from cococat.core.tools.file_ops import make_readonly_file_tools
+
+
+def _create_tools(sandbox_run=None):
+    return make_execution_tools(sandbox_run) + make_readonly_file_tools()
 
 
 class TestCubeSandboxIntegration:
@@ -14,7 +19,7 @@ class TestCubeSandboxIntegration:
             calls.append(code)
             return "sandbox output: ok"
 
-        tools = create_core_tools(sandbox_run=fake_sandbox_run)
+        tools = _create_tools(sandbox_run=fake_sandbox_run)
         bash_tool = next(t for t in tools if t["name"] == "bash")
 
         result = await bash_tool["execute"]({"command": "echo hello"}, {})
@@ -25,7 +30,7 @@ class TestCubeSandboxIntegration:
 
     @pytest.mark.asyncio
     async def test_bash_without_sandbox_run(self):
-        tools = create_core_tools(sandbox_run=None)
+        tools = _create_tools(sandbox_run=None)
         bash_tool = next(t for t in tools if t["name"] == "bash")
 
         result = await bash_tool["execute"]({"command": "echo hello"}, {})
@@ -40,7 +45,7 @@ class TestCubeSandboxIntegration:
             calls.append(code)
             return "ok"
 
-        tools = create_core_tools(sandbox_run=fake_sandbox_run)
+        tools = _create_tools(sandbox_run=fake_sandbox_run)
         read_tool = next(t for t in tools if t["name"] == "read_file")
 
         result = read_tool["execute"]({"path": "/nonexistent"}, {})
@@ -49,7 +54,7 @@ class TestCubeSandboxIntegration:
 
 
 class TestInProcessExecutorWithSandboxRun:
-    """Verify InProcessExecutor passes sandbox_run to create_core_tools."""
+    """Verify InProcessExecutor accepts sandbox_run."""
 
     @pytest.mark.asyncio
     async def test_local_executor_accepts_sandbox_run(self):

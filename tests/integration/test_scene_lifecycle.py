@@ -40,7 +40,6 @@ def test_create_scene_returns_running_status(client):
     data = resp.json()
     assert data["id"] == "test-create-1"
     assert data["status"] == "running"
-    assert data["agent_id"] == "test-create-1"
 
 
 def test_pause_running_scene_sets_paused(client):

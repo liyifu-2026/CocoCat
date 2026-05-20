@@ -4,9 +4,14 @@ import tempfile
 import os
 import pytest
 from cococat.core.agent import Agent, AgentRole
-from cococat.core.tools import create_core_tools, ToolRegistry
-from cococat.core.tools.types import Tool
+from cococat.core.tools.types import Tool, ToolRegistry
+from cococat.core.tools.execution import make_execution_tools
+from cococat.core.tools.file_ops import make_readonly_file_tools
 from cococat.providers.base import LLMResponse, ToolCallRequest
+
+
+def _create_test_tools():
+    return make_execution_tools() + make_readonly_file_tools()
 
 
 class ReActMockLLM:
@@ -36,7 +41,7 @@ def react_agent():
         name="Test Agent",
         role=AgentRole.WORKER,
         llm=ReActMockLLM(),
-        tools=create_core_tools(),
+        tools=_create_test_tools(),
     )
     return agent
 
@@ -82,7 +87,7 @@ async def test_react_loop_max_iterations():
                 )],
             )
 
-    agent = Agent("loop", "Loop", AgentRole.WORKER, InfiniteToolLLM(), create_core_tools())
+    agent = Agent("loop", "Loop", AgentRole.WORKER, InfiniteToolLLM(), _create_test_tools())
     result = await agent.run("loop", max_iterations=3)
     assert "exceeded max iterations" in result
 
@@ -109,7 +114,7 @@ async def test_react_on_tool_callback():
                 )
             return LLMResponse(content="completed")
 
-    agent = Agent("track", "Tracker", AgentRole.WORKER, ToolTrackingLLM(), create_core_tools())
+    agent = Agent("track", "Tracker", AgentRole.WORKER, ToolTrackingLLM(), _create_test_tools())
 
     async def on_tool(name, status, data=None):
         tool_events.append((name, status))
@@ -129,7 +134,7 @@ async def test_react_on_text_callback():
         async def chat(self, messages, tools=None, **kwargs):
             return LLMResponse(content="final answer")
 
-    agent = Agent("stream", "Streamer", AgentRole.WORKER, StreamingLLM(), create_core_tools())
+    agent = Agent("stream", "Streamer", AgentRole.WORKER, StreamingLLM(), _create_test_tools())
 
     async def on_text(delta):
         deltas.append(delta)
@@ -160,7 +165,7 @@ async def test_react_unknown_tool():
                 )
             return LLMResponse(content="I tried but the tool didn't exist.")
 
-    agent = Agent("unknown", "Unknown", AgentRole.WORKER, UnknownToolLLM(), create_core_tools())
+    agent = Agent("unknown", "Unknown", AgentRole.WORKER, UnknownToolLLM(), _create_test_tools())
     result = await agent.run("do unknown")
     assert "didn't exist" in result
 
@@ -188,7 +193,7 @@ async def test_react_empty_prompt():
     with open("/tmp/test_empty.txt", "w") as f:
         f.write("empty prompt works")
 
-    agent = Agent("empty", "Empty", AgentRole.WORKER, EmptyPromptLLM(), create_core_tools())
+    agent = Agent("empty", "Empty", AgentRole.WORKER, EmptyPromptLLM(), _create_test_tools())
     result = await agent.run("")
     assert "got the file" in result
 
@@ -216,7 +221,7 @@ async def test_react_tool_exception_continues_loop():
                 )
             return LLMResponse(content="recovered after tool error")
 
-    tools = create_core_tools() + [
+    tools = _create_test_tools() + [
         Tool(name="failing_tool", description="Always raises",
              parameters={}, execute=_failing_tool,
              requires_sandbox=True, sandbox_operation="read"),
@@ -245,6 +250,6 @@ async def test_react_max_iterations_exact():
                 )],
             )
 
-    agent = Agent("stubborn", "Stubborn", AgentRole.WORKER, StubbornLLM(), create_core_tools())
+    agent = Agent("stubborn", "Stubborn", AgentRole.WORKER, StubbornLLM(), _create_test_tools())
     result = await agent.run("loop", max_iterations=2)
     assert "exceeded max iterations" in result

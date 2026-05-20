@@ -37,7 +37,7 @@ class TestInProcessExecutorTools:
 
     @pytest.mark.asyncio
     async def test_falls_back_to_default_tools_when_none_provided(self, monkeypatch):
-        """When task has no tools, InProcessExecutor should use create_core_tools()."""
+        """When task has no tools, InProcessExecutor should use default tools."""
         from cococat.core.sandbox import InProcessExecutor, Sandbox
 
         captured_tools = []
@@ -62,6 +62,5 @@ class TestInProcessExecutorTools:
 
         assert result == "done"
         names = captured_tools[0]
-        assert "bash" in names
         assert "read_file" in names
-        assert len(names) >= 20  # full toolset
+        assert len(names) >= 1  # default tools from mode

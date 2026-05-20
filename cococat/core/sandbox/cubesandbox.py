@@ -82,7 +82,6 @@ class CubeSandboxExecutor:
         if not sbx:
             return f"Error: sandbox {sandbox.id} not found in active instances"
 
-        from cococat.core.tools import create_core_tools
         from cococat.core.sandbox import _make_and_run_agent
 
         sandbox_run = _make_sandbox_run(sbx.sandbox_id, self._sandbox_run)
@@ -90,8 +89,19 @@ class CubeSandboxExecutor:
         if tools is not None:
             tools = _wrap_exec_tools(tools, sandbox_run)
         else:
-            tools = create_core_tools()
-            tools = _wrap_exec_tools(tools, sandbox_run)
+            from cococat.core.tools.execution import make_execution_tools
+            from cococat.core.tools.file_ops import make_readonly_file_tools
+            from cococat.core.tools.web import make_web_tools
+            from cococat.core.tools.memory_tools import make_memory_tools
+            from cococat.core.tools.kb_tools import make_kb_tools
+            from cococat.core.tools import resolve_tavily_key
+            default_tools = []
+            default_tools += make_execution_tools()
+            default_tools += make_readonly_file_tools()
+            default_tools += make_web_tools(resolve_tavily_key())
+            default_tools += make_memory_tools()
+            default_tools += make_kb_tools()
+            tools = _wrap_exec_tools(default_tools, sandbox_run)
 
         return await _make_and_run_agent(
             agent_id=agent_id,
