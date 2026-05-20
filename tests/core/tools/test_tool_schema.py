@@ -8,12 +8,12 @@ DeepSeek API will accept. The key failure modes:
 """
 import json
 import pytest
-from cococat.core.tools import create_core_tools, create_main_ai_tools
+from cococat.core.tools import resolve_tools_for_mode
 from cococat.providers.openai_compat import _tool_to_openai
 
 
 def _all_tools():
-    return create_core_tools() + create_main_ai_tools()
+    return resolve_tools_for_mode("kb-admin")
 
 
 def test_array_type_has_items():
@@ -44,12 +44,11 @@ def test_all_type_values_are_valid_json_schema():
 
 def test_empty_params_tools_still_valid():
     """Tools with empty parameters should produce valid schema."""
-    from cococat.core.tools import create_core_tools as cct
-    core = cct()
-    for name in ("check_tasks", "current_status"):
+    from cococat.core.tools import resolve_tools_for_mode as rtm
+    core = rtm("kb-admin")
+    for name in ("current_status",):
         tool = next(t for t in core if t["name"] == name)
         converted = _tool_to_openai(tool)
-        # Must have a valid parameters object
         params = converted["parameters"]
         assert params["type"] == "object"
         assert isinstance(params.get("properties"), dict)
@@ -83,32 +82,32 @@ def test_function_names_are_valid():
 
 
 def test_no_duplicate_tool_names_across_all_sets():
-    """No duplicate tool names between create_core_tools and create_main_ai_tools."""
-    core = create_core_tools()
-    main = create_main_ai_tools()
-    core_names = {t["name"] for t in core}
-    main_names = {t["name"] for t in main}
-    # Overlap is expected (some tools are in both), but within each set no dupes
-    assert len(core) == len(core_names), "create_core_tools has duplicate names"
-    assert len(main) == len(main_names), "create_main_ai_tools has duplicate names"
+    """No duplicate tool names within resolve_tools_for_mode sets."""
+    from cococat.core.tools import resolve_tools_for_mode as rtm
+    default = rtm("default")
+    kb_admin = rtm("kb-admin")
+    default_names = {t["name"] for t in default}
+    kb_names = {t["name"] for t in kb_admin}
+    assert len(default) == len(default_names), "default mode has duplicate names"
+    assert len(kb_admin) == len(kb_names), "kb-admin mode has duplicate names"
 
 
 def test_main_ai_has_no_write_or_execution_tools():
-    """Main AI should have read tools + DAG + web, but NOT write_file/edit_file/bash/browser."""
-    main = create_main_ai_tools()
+    """Main AI should have read tools + web, but NOT write_file/edit_file/bash/browser."""
+    from cococat.core.tools import resolve_tools_for_mode as rtm
+    main = rtm("default")
     names = {t["name"] for t in main}
-    # Coco CAN directly: read_file, list_dir, glob, grep, web_search, web_fetch
     forbidden = {"write_file", "edit_file", "bash", "browser"}
     overlap = names & forbidden
     assert not overlap, f"Main AI has forbidden write/execution tools: {overlap}"
-    # Verify Coco DOES have read tools
     assert "read_file" in names, "Main AI should have read_file"
     assert "web_search" in names, "Main AI should have web_search"
 
 
 def test_core_tools_include_web_search_and_fetch():
     """Core (sub-agent) tools must include web_search and web_fetch."""
-    core = create_core_tools()
+    from cococat.core.tools import resolve_tools_for_mode as rtm
+    core = rtm("kb-admin")
     names = {t["name"] for t in core}
     assert "web_search" in names, "Sub-agent tools missing web_search"
     assert "web_fetch" in names, "Sub-agent tools missing web_fetch"

@@ -3,12 +3,12 @@ import pytest
 import tempfile
 import os
 
-from cococat.core.tools import create_core_tools, ToolRegistry
+from cococat.core.tools import resolve_tools_for_mode, ToolRegistry
 
 
 @pytest.fixture
 def registry():
-    return ToolRegistry(create_core_tools())
+    return ToolRegistry(resolve_tools_for_mode("default"))
 
 
 @pytest.fixture

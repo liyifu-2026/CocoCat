@@ -55,18 +55,13 @@ async def _run_sandbox_chat(
 
 def _build_chat_tools(ctx: AppContext, preset: str) -> list:
     """Construct tool list for a given preset ('main_ai' or 'resident_kb')."""
-    from cococat.core.tools import ToolCatalog, resolve_tavily_key
+    from cococat.core.tools import resolve_tools_for_mode, resolve_tavily_key
 
     sub_executor = ctx.sub_executor
     tavily_key = resolve_tavily_key(ctx.config_store)
-    catalog = ToolCatalog(
-        sub_agent_executor=sub_executor.dispatch if sub_executor else None,
-        dag_store=ctx.dag_store,
-        tavily_api_key=tavily_key,
-    )
     if preset == "main_ai":
-        return catalog.main_ai()
-    return catalog.resident(kb_agent=True)
+        return resolve_tools_for_mode("default", sub_agent_executor=sub_executor.dispatch if sub_executor else None, tavily_api_key=tavily_key)
+    return resolve_tools_for_mode("kb-admin", sub_agent_executor=sub_executor.dispatch if sub_executor else None, tavily_api_key=tavily_key)
 
 
 # ── Routes ─────────────────────────────────────────────────
@@ -154,7 +149,7 @@ async def delete_chat_session(session_id: str, ctx: AppContext = Depends(get_ctx
     deleted = {"dag_runs": 0, "session_files": 0, "sub_agent_dirs": 0}
 
     # 1. Delete DAG runs for this session
-    store = ctx.dag_store
+    store = getattr(ctx, "dag_store", None)
     if store:
         for run in store.list_all():
             if run.get("session_id") == session_id:

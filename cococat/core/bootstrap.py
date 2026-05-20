@@ -29,15 +29,6 @@ def _setup_providers(ctx, auth_path: str):
     return factory
 
 
-def _setup_dag_store(ctx):
-    from cococat.dag.store import SqliteDagStore, FileDagStore
-
-    db = ctx.db
-    dag_store = SqliteDagStore(db) if db is not None else FileDagStore(str(ctx.config_store.runs_dir))
-    ctx.dag_store = dag_store
-    return dag_store
-
-
 def _setup_sandbox(ctx, factory, args):
     from cococat.core.sandbox import ExecutorProvider
 
@@ -108,19 +99,14 @@ def _create_stub_llm(model: str):
     return StubLLM()
 
 
-def _load_residents(ctx, factory, sub_executor, dag_store) -> None:
+def _load_residents(ctx, factory, sub_executor) -> None:
     import glob as glob_mod
-    from cococat.core.tools import ToolCatalog, resolve_tavily_key
+    from cococat.core.tools import resolve_tools_for_mode, resolve_tavily_key
 
     pool = ctx.pool
     db = ctx.db
     config_dir = str(ctx.config_store.residents_dir)
     tavily_key = resolve_tavily_key(ctx.config_store)
-    catalog = ToolCatalog(
-        sub_agent_executor=sub_executor.dispatch,
-        dag_store=dag_store,
-        tavily_api_key=tavily_key,
-    )
 
     if not os.path.isdir(config_dir):
         os.makedirs(config_dir, exist_ok=True)
@@ -157,7 +143,12 @@ def _load_residents(ctx, factory, sub_executor, dag_store) -> None:
                     yaml.dump({"skills": skills}, f, default_flow_style=False)
                 logger.info("Created %s with skills: %s", profile_path, skills)
 
-        tools = catalog.resident(kb_agent=is_kb)
+        mode_id = "kb-admin" if is_kb else "default"
+        tools = resolve_tools_for_mode(
+            mode_id,
+            sub_agent_executor=sub_executor.dispatch,
+            tavily_api_key=tavily_key,
+        )
 
         agent = Agent(
             id=agent_id, name=name, role=AgentRole.RESIDENT,
@@ -179,45 +170,6 @@ def _load_residents(ctx, factory, sub_executor, dag_store) -> None:
             db._conn.commit()
 
         logger.info("Resident loaded: %s (%s) → %s", name, agent_id, model)
-
-
-def _load_workers(ctx, factory, sub_executor, dag_store) -> None:
-    from cococat.core.tools import ToolCatalog, resolve_tavily_key
-
-    pool = ctx.pool
-    db = ctx.db
-    tavily_key = resolve_tavily_key(ctx.config_store)
-    catalog = ToolCatalog(
-        sub_agent_executor=sub_executor.dispatch,
-        dag_store=dag_store,
-        tavily_api_key=tavily_key,
-    )
-
-    for r in db.agents.list_running():
-        role = _map_role(r["role"])
-        if not role:
-            continue
-        if role == AgentRole.RESIDENT:
-            continue
-
-        model = r["model"]
-        provider = factory.create_sync(model)
-        if not provider:
-            try:
-                provider = asyncio.run(factory.create(model))
-            except Exception:
-                pass
-        provider = provider or _create_stub_llm(model)
-
-        worker_tools = catalog.worker()
-
-        agent = Agent(
-            id=r["id"], name=r["name"], role=role,
-            llm=provider, tools=worker_tools,
-            agent_dir=str(ctx.config_store.agents_dir / r['id']),
-        )
-        pool.add_agent(agent)
-        logger.info("Worker loaded: %s (%s) → %s", r["name"], r["id"], model)
 
 
 def _seed_cron_jobs(agent_id: str, entries: list[dict], config_store) -> None:
@@ -306,12 +258,10 @@ def load_agents(app, args) -> None:
                     logger.debug("Cleaned up stale sub-agent dir: %s", name)
 
     factory = _setup_providers(ctx, args.auth)
-    dag_store = _setup_dag_store(ctx)
     sandbox_provider = _setup_sandbox(ctx, factory, args)
     sub_executor = _setup_sub_executor(ctx, sandbox_provider)
 
-    _load_residents(ctx, factory, sub_executor, dag_store)
-    _load_workers(ctx, factory, sub_executor, dag_store)
+    _load_residents(ctx, factory, sub_executor)
 
     # Register system cron tasks (compile chain + dream poll)
     from cococat.core.cron_tasks import register_compile_handlers, bootstrap_system_cron_tasks

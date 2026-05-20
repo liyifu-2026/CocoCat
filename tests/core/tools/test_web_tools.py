@@ -1,7 +1,7 @@
 """Test web tools: web_fetch, web_search."""
 import pytest
 from unittest.mock import patch, MagicMock
-from cococat.core.tools import create_core_tools, ToolRegistry
+from cococat.core.tools import resolve_tools_for_mode, ToolRegistry
 
 
 class TestWebFetch:
@@ -43,7 +43,7 @@ class TestWebSearch:
         }
 
         with patch("cococat.core.tools.web.TavilyClient", return_value=mock_client):
-            tools = create_core_tools(tavily_api_key="tvly-test-key")
+            tools = resolve_tools_for_mode("default", tavily_api_key="tvly-test-key")
             reg = ToolRegistry(tools)
 
             result = await reg.execute("web_search", {"query": "python"})
@@ -59,7 +59,7 @@ class TestWebSearch:
         mock_client.search.side_effect = Exception("API rate limited")
 
         with patch("cococat.core.tools.web.TavilyClient", return_value=mock_client):
-            tools = create_core_tools(tavily_api_key="tvly-bad-key")
+            tools = resolve_tools_for_mode("default", tavily_api_key="tvly-bad-key")
             reg = ToolRegistry(tools)
 
             result = await reg.execute("web_search", {"query": "test"})

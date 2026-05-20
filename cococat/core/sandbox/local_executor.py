@@ -74,8 +74,8 @@ class InProcessExecutor:
         )
 
     def _resolve_tools_for_mode(self, mode: str) -> list:
-        from cococat.core.tools import ToolCatalog
-        return ToolCatalog(sandbox_run=self._sandbox_run, tavily_api_key=self._tavily_api_key).worker()
+        from cococat.core.tools import resolve_tools_for_mode
+        return resolve_tools_for_mode(mode, tavily_api_key=self._tavily_api_key)
 
     async def destroy(self, sandbox: Sandbox) -> None:
         logger.info("InProcessExecutor: destroyed %s", sandbox.id)

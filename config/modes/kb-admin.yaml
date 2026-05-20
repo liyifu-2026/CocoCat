@@ -38,6 +38,7 @@ tools:
   - unpin
   - recall
   - cron
+  - wait
   - current_status
 
 skills:

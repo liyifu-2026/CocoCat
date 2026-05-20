@@ -2,7 +2,11 @@
 import os
 import tempfile
 import pytest
-from cococat.core.tools import ToolRegistry, create_core_tools
+from cococat.core.tools import ToolRegistry, resolve_tools_for_mode
+
+
+def _worker_tools():
+    return resolve_tools_for_mode("kb-admin")
 
 
 @pytest.fixture
@@ -13,11 +17,10 @@ def tmp_dir():
 
 @pytest.mark.asyncio
 async def test_core_tools_all_present():
-    tools = create_core_tools()
+    tools = _worker_tools()
     names = {t["name"] for t in tools}
-    core = {"read_file", "write_file", "edit_file", "list_dir", "bash",
-            "glob", "grep", "web_search", "web_fetch", "browser",
-             "sub_agent", "check_tasks", "stop_task",
+    core = {"read_file", "write_file", "edit_file", "list_dir",
+            "glob", "grep", "web_search", "web_fetch",
             "recall", "pin", "unpin",
             "cron", "current_status", "wait"}
     assert core.issubset(names)
@@ -25,7 +28,7 @@ async def test_core_tools_all_present():
 
 @pytest.mark.asyncio
 async def test_tool_registry_execute(tmp_dir):
-    tools = create_core_tools()
+    tools = _worker_tools()
     reg = ToolRegistry(tools)
 
     result = await reg.execute("read_file", {"path": __file__})
@@ -41,10 +44,9 @@ async def test_tool_registry_unknown_tool():
 
 @pytest.mark.asyncio
 async def test_tool_filter_by_permission():
-    tools = create_core_tools()
+    tools = _worker_tools()
     reg = ToolRegistry(tools)
 
-    # Filter to file tools only
     file_tools = reg.filter({"read_file", "write_file", "bash"})
     names = {t["name"] for t in file_tools}
     assert names == {"read_file", "write_file", "bash"}
@@ -56,7 +58,7 @@ async def test_read_file_returns_content(tmp_dir):
     with open(test_file, "w") as f:
         f.write("Hello World")
 
-    tools = create_core_tools()
+    tools = _worker_tools()
     reg = ToolRegistry(tools)
     result = await reg.execute("read_file", {"path": test_file})
     assert "Hello World" in result
@@ -65,7 +67,7 @@ async def test_read_file_returns_content(tmp_dir):
 @pytest.mark.asyncio
 async def test_write_file_creates_file(tmp_dir):
     test_file = os.path.join(tmp_dir, "new.md")
-    tools = create_core_tools()
+    tools = _worker_tools()
     reg = ToolRegistry(tools)
     result = await reg.execute("write_file", {"path": test_file, "content": "New content"})
     assert os.path.exists(test_file)
@@ -75,7 +77,7 @@ async def test_write_file_creates_file(tmp_dir):
 
 @pytest.mark.asyncio
 async def test_list_tools():
-    tools = create_core_tools()
+    tools = _worker_tools()
     reg = ToolRegistry(tools)
     all_tools = reg.list_tools()
     names = {t["name"] for t in all_tools}
@@ -91,7 +93,7 @@ async def test_edit_file_success(tmp_dir):
     with open(test_file, "w") as f:
         f.write("Hello World")
 
-    tools = create_core_tools()
+    tools = _worker_tools()
     reg = ToolRegistry(tools)
     result = await reg.execute("edit_file", {"path": test_file, "old": "World", "new": "CocoCat"})
     assert "Edit" in result
@@ -105,7 +107,7 @@ async def test_edit_file_not_found(tmp_dir):
     with open(test_file, "w") as f:
         f.write("Hello World")
 
-    tools = create_core_tools()
+    tools = _worker_tools()
     reg = ToolRegistry(tools)
     result = await reg.execute("edit_file", {"path": test_file, "old": "NotFound", "new": "X"})
     assert "not found" in result.lower()
@@ -113,7 +115,7 @@ async def test_edit_file_not_found(tmp_dir):
 
 @pytest.mark.asyncio
 async def test_list_dir_with_files(tmp_dir):
-    tools = create_core_tools()
+    tools = _worker_tools()
     reg = ToolRegistry(tools)
     result = await reg.execute("list_dir", {"path": tmp_dir})
     assert "test.md" not in result and isinstance(result, str)
@@ -121,7 +123,7 @@ async def test_list_dir_with_files(tmp_dir):
 
 @pytest.mark.asyncio
 async def test_list_dir_nonexistent():
-    tools = create_core_tools()
+    tools = _worker_tools()
     reg = ToolRegistry(tools)
     result = await reg.execute("list_dir", {"path": "/nonexistent_dir_xyz"})
     assert "Error" in result
@@ -129,7 +131,7 @@ async def test_list_dir_nonexistent():
 
 @pytest.mark.asyncio
 async def test_edit_file_nonexistent(tmp_dir):
-    tools = create_core_tools()
+    tools = _worker_tools()
     reg = ToolRegistry(tools)
     result = await reg.execute("edit_file", {"path": os.path.join(tmp_dir, "nope.md"), "old": "x", "new": "y"})
     assert "Error" in result
