@@ -122,6 +122,8 @@ async def create_cron(body: CronCreate, ctx: AppContext = Depends(get_ctx)):
         "status": "active",
         "last_run": 0,
         "created_at": datetime.now().isoformat(),
+        "created_by": ctx.user_id or "unknown",
+        "type": "user",
     }
     _write_cron_file(filename, entry, cron_dir)
     return entry

@@ -95,9 +95,6 @@ class MemoryStore:
     def _pin(self, fact: str) -> str:
         return self._manual._pin(fact)
 
-    def _record_experience(self, category: str, entry: str, exp_path: str = "") -> str:
-        return self._manual._record_experience(category, entry, exp_path)
-
     @staticmethod
     def _dream_prompt(session_history: str, existing_memory: str) -> str:
         return DreamMemory._dream_prompt(session_history, existing_memory)

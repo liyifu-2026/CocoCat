@@ -21,8 +21,6 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   list_pins:          "查看钉选",
   remember:           "记住",
   forget:             "忘记",
-  record_experience:  "记录经验",
-  recall_experience:  "回顾经验",
   cron:               "定时任务",
   current_status:     "状态检查",
   wait:               "等待",

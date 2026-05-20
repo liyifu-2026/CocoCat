@@ -384,7 +384,7 @@ async def test_provider_connection(req: TestKeyRequest):
 
 @router.get("/providers/{name}/config")
 async def get_provider_config(name: str, ctx: AppContext = Depends(get_ctx)):
-    """Get provider config: base_url, display_name, and saved API key."""
+    """Get provider config: base_url, display_name, and saved API key (with admin fallback)."""
     store = _get_user_config_store(ctx)
     custom = _load_custom_providers(store)
     c = next((p for p in custom if p["name"] == name), None)
@@ -398,6 +398,12 @@ async def get_provider_config(name: str, ctx: AppContext = Depends(get_ctx)):
         display_name = display_name or spec.display_name
 
     key = store.get_auth(name)
+
+    # Fallback: if user has no key, check admin's shared key
+    if not key and ctx.user_id and ctx.user_id != "admin":
+        from cococat.config_store import ConfigStore
+        admin_store = ConfigStore(user_id="admin")
+        key = admin_store.get_auth(name)
 
     return {
         "name": name,

@@ -11,7 +11,7 @@ def test_main_ai_has_orchestration_tools():
     required = {
         "define_dag", "dispatch_task", "check_tasks",
         "append_stage", "update_dag", "stop_task",
-        "recall", "pin", "unpin", "record_experience", "recall_experience",
+        "recall", "pin", "unpin",
         "cron", "wait", "current_status",
     }
     missing = required - names

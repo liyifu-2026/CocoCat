@@ -119,10 +119,4 @@ def make_memory_tools() -> list:
         Tool(name="list_pins", description="List all pinned facts",
              parameters={},
              execute=lambda p, ctx: _list_pins(_ensure_tool_context(ctx))),
-        Tool(name="record_experience", description="Record a categorized experience",
-             parameters={"category": "string", "entry": "string"},
-             execute=lambda p, ctx: _record_experience(p.get("category", ""), p.get("entry", ""), _ensure_tool_context(ctx))),
-        Tool(name="recall_experience", description="Recall experiences by category",
-             parameters={"category": "string"},
-             execute=lambda p, ctx: _recall_experience(p.get("category", ""), _ensure_tool_context(ctx))),
     ]

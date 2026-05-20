@@ -18,7 +18,7 @@ async def test_core_tools_all_present():
     core = {"read_file", "write_file", "edit_file", "list_dir", "bash",
             "glob", "grep", "web_search", "web_fetch", "browser",
              "sub_agent", "check_tasks", "stop_task",
-            "recall", "pin", "unpin", "record_experience", "recall_experience",
+            "recall", "pin", "unpin",
             "cron", "current_status", "wait"}
     assert core.issubset(names)
 

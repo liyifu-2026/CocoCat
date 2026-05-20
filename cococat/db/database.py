@@ -102,6 +102,13 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS channel_identities (
+    user_id TEXT NOT NULL,
+    channel_type TEXT NOT NULL,
+    channel_user_id TEXT NOT NULL,
+    PRIMARY KEY (channel_type, channel_user_id)
+);
+
 CREATE TABLE IF NOT EXISTS dag_runs (
     id TEXT PRIMARY KEY,
     data TEXT NOT NULL,
