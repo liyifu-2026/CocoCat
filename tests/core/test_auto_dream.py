@@ -93,27 +93,6 @@ class TestDreamPin:
         assert memory.exists()
 
 
-class TestDreamTruncation:
-    def test_truncates_above_keep(self, ctx):
-        _, session, _ = ctx
-        _write_lines(session, 60)
-        mock = MagicMock()
-        mock.chat = AsyncMock(return_value=LLMResponse(content="f1"))
-        _run(mock, session)
-        with open(session) as f:
-            remaining = sum(1 for _ in f)
-        assert remaining == 30
-
-    def test_no_truncation_below_keep(self, ctx):
-        _, session, _ = ctx
-        _write_lines(session, 10)
-        mock = MagicMock(chat=AsyncMock())
-        _run(mock, session)
-        with open(session) as f:
-            remaining = sum(1 for _ in f)
-        assert remaining == 10
-
-
 class TestDreamFailure:
     def test_no_llm_preserves_session(self, ctx):
         _, session, memory = ctx

@@ -10,7 +10,7 @@ from typing import Any, Callable, Optional
 from cococat.core.agent_builder import build_system_prompt, load_memory_from_agent_dir, KB_AGENT_STATIC_PREFIX
 from cococat.core.agent_builder import resolve_skills, skills_to_prompt, skills_to_tools
 from cococat.core.agent_builder import load_agent_system_prompt, get_agent_skills
-from cococat.core.session import Session, load_session, save_session_pair, maybe_trigger_dream
+from cococat.core.session import Session, load_session, save_session_pair
 from cococat.core.tool_executor import make_assistant_msg, execute_tool_calls
 from cococat.providers.base import ToolCallRequest
 from cococat.core.types import ToolContext
@@ -220,8 +220,7 @@ async def run_agent(
         pass
 
     try:
-        dream_path = session.path if session is not None else _resolve_session_path(config.agent_dir, session_id or "default")
-        maybe_trigger_dream(dream_path)
+        pass
     except Exception:
         pass
 

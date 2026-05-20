@@ -235,7 +235,7 @@ async def list_providers(ctx: AppContext = Depends(get_ctx)):
     """List all providers (builtin + custom) with status and model counts."""
     reg = create_builtin_registry()
     creds = ctx.creds
-    custom = _load_custom_providers(ctx.config_store)
+    custom = _load_custom_providers(_get_user_config_store(ctx))
     user_models = _load_user_models(ctx.config_store)
 
     builtin_names = {s.name for s in reg.list_all()}
@@ -354,11 +354,6 @@ async def save_provider_key(req: SetKeyRequest, ctx: AppContext = Depends(get_ct
 
     _save_auth_key(req.name, req.key, store)
 
-    # Set env var immediately
-    env_key = spec.env_key if spec else custom_prov.get("env_key", "") if custom_prov else ""
-    if env_key:
-        os.environ[env_key] = req.key
-
     # Test connection
     test_result = await _test_connection(base_url, req.key)
 
@@ -423,7 +418,7 @@ async def save_provider_config(name: str, req: SaveProviderConfigRequest, ctx: A
     if not base_url:
         raise HTTPException(status_code=400, detail="base_url is required")
 
-    custom = _load_custom_providers(ctx.config_store)
+    custom = _load_custom_providers(_get_user_config_store(ctx))
     existing = next((p for p in custom if p["name"] == name), None)
 
     if existing:
@@ -455,7 +450,7 @@ async def delete_provider(name: str, ctx: AppContext = Depends(get_ctx)):
     if _is_builtin(name):
         raise HTTPException(status_code=403, detail="Builtin providers cannot be deleted")
 
-    custom = _load_custom_providers(ctx.config_store)
+    custom = _load_custom_providers(_get_user_config_store(ctx))
     custom = [p for p in custom if p["name"] != name]
     _save_custom_providers(custom, ctx.config_store)
 

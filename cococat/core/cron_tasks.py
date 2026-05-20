@@ -188,8 +188,12 @@ def _poll_dream_for_user(user_dir: str) -> None:
 
         if new_tokens >= threshold:
             from cococat.memory.store import MemoryStore
-            from cococat.core.session import maybe_trigger_dream
-            maybe_trigger_dream(session_path)
+            memory_dir = os.path.join(user_dir, "memory")
+            store = MemoryStore(memory_dir=memory_dir)
+            try:
+                await store.dream(session_path)
+            except Exception:
+                logger.exception("dream failed for %s", session_path)
 
             with open(ckpt_path, "w") as f:
                 f.write(str(len(lines)))

@@ -63,11 +63,6 @@ class DreamMemory:
             if pinned:
                 logger.info("auto_dream: pinned %d facts → %s", pinned, memory_path)
 
-            # Truncate session
-            if len(lines) > KEEP_LINES:
-                with open(session_path, "w", encoding="utf-8") as f:
-                    f.writelines(lines[-KEEP_LINES:])
-
         except Exception:
             logger.warning("auto_dream failed", exc_info=True)
 

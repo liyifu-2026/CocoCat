@@ -143,25 +143,3 @@ def save_session_pair(path: str, user_msg: str, assistant_reply: str) -> None:
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps({"role": "user", "content": user_msg}, ensure_ascii=False) + "\n")
         f.write(json.dumps({"role": "assistant", "content": assistant_reply}, ensure_ascii=False) + "\n")
-
-
-def maybe_trigger_dream(session_path: str) -> None:
-    """Fire-and-forget auto-dream if session has enough history."""
-    if not os.path.exists(session_path):
-        return
-    with open(session_path, encoding="utf-8") as f:
-        line_count = sum(1 for _ in f)
-    if line_count < 50:
-        return
-
-    async def _dream():
-        from cococat.memory.store import MemoryStore
-        store = MemoryStore()
-        try:
-            await store.dream(session_path)
-        except Exception:
-            import logging
-            logger = logging.getLogger("cococat.dream")
-            logger.warning("auto_dream failed, retry next session", exc_info=True)
-
-    asyncio.create_task(_dream())

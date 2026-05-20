@@ -39,10 +39,20 @@ class ProviderFactory:
         return spec
 
     def _resolve_api_key(self, spec: ProviderSpec) -> str | None:
-        """Resolve API key: credential manager → env var."""
+        """Resolve API key: personal credential manager → admin fallback → env var."""
         key = self._credentials.get(spec.name)
         if key:
             return key
+
+        # Fallback: admin's shared key
+        from cococat.config_store import ConfigStore
+        from cococat.providers.credentials import CredentialManager
+        admin_store = ConfigStore(user_id="admin")
+        admin_creds = CredentialManager(config_store=admin_store)
+        key = admin_creds.get(spec.name)
+        if key:
+            return key
+
         if spec.env_key:
             return os.environ.get(spec.env_key) or None
         return None
