@@ -60,3 +60,5 @@
 {"role": "assistant", "content": "recovered after tool error"}
 {"role": "user", "content": "trigger error"}
 {"role": "assistant", "content": "recovered after tool error"}
+{"role": "user", "content": "trigger error"}
+{"role": "assistant", "content": "recovered after tool error"}

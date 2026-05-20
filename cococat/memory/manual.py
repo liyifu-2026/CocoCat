@@ -20,11 +20,32 @@ class ManualMemory:
         return self._pin(text)
 
     def recall(self, query: str) -> str:
-        """Search all memory layers for query."""
+        """Search all memory layers. Uses FTS5 when available, file grep as fallback."""
         q = query.lower()
         results = []
 
-        # 1. Search memory.md (whiteboard)
+        # Try FTS5 first (ranked, fast)
+        if self._db:
+            try:
+                from cococat.memory.fts5 import search_fts, index_memory
+                agent_dir = os.path.dirname(self._memory_dir)
+                row = self._db.execute(
+                    "SELECT COUNT(*) FROM memory_fts WHERE agent_dir = ?", (agent_dir,)
+                ).fetchone()
+                if row and row[0] == 0:
+                    index_memory(agent_dir, self._db)
+                fts_results = search_fts(query, agent_dir, self._db)
+                if fts_results:
+                    for r in fts_results:
+                        source = r['source']
+                        label = source.rsplit(':', 1)[-1] if ':' in source else source
+                        results.append((label, r['snippet'].replace("<b>","").replace("</b>","")))
+                    return "\n---\n".join(f"[{src}] {text}" for src, text in results)
+            except Exception:
+                pass
+
+        # Fallback: file grep (no DB available)
+        # 1. Search memory.md
         mem_path = os.path.join(self._memory_dir, "memory.md")
         if os.path.exists(mem_path):
             with open(mem_path, encoding="utf-8") as f:
@@ -41,7 +62,7 @@ class ManualMemory:
                     if q in line.lower():
                         results.append(("pinned", line.strip()))
 
-        # 3. Search compiled/ directory
+        # 3. FTS5 unavailable — search compiled via grep
         compiled_dir = os.path.join(self._memory_dir, "compiled")
         if os.path.isdir(compiled_dir):
             for fname in sorted(os.listdir(compiled_dir), reverse=True):
@@ -55,24 +76,6 @@ class ManualMemory:
                         results.append(("compiled:" + fname, content.strip()[:200]))
                 except OSError:
                     pass
-
-        # 4. Search FTS5 (ranked, with BM25)
-        if self._db:
-            try:
-                from cococat.memory.fts5 import search_fts, index_memory
-                agent_dir = os.path.dirname(self._memory_dir)
-                # Index if not yet indexed (lazy)
-                row = self._db.execute(
-                    "SELECT COUNT(*) FROM memory_fts WHERE agent_dir = ?", (agent_dir,)
-                ).fetchone()
-                if row and row[0] == 0:
-                    index_memory(agent_dir, self._db)
-                fts_results = search_fts(query, agent_dir, self._db)
-                for r in fts_results:
-                    results.append((f"fts5:{r['source']}", f"{r['snippet']} (rank:{r['rank']})".replace("<b>","").replace("</b>","")))
-            except Exception:
-                pass
-
 
         if not results:
             return "No matches found"
