@@ -8,8 +8,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from cococat.db import Database
-    from cococat.core.agent_pool import AgentPool
-    from cococat.dag.store import DagStore
 
 logger = logging.getLogger("cococat.worker")
 
@@ -21,14 +19,13 @@ class TaskWorker:
     DAG tasks: from dag.yaml files (status='pending')
     """
 
-    def __init__(self, db: Database, pool: AgentPool, poll_interval: float = 5.0):
+    def __init__(self, db: Database, poll_interval: float = 5.0):
         self._db = db
-        self._pool = pool
         self._poll_interval = poll_interval
         self._running = False
         self._task: asyncio.Task | None = None
         self._dag_executor = None
-        self._dag_store: DagStore | None = None
+        self._dag_store = None
         self._ws_manager = None
         self._dag_notify = False
 
@@ -129,7 +126,7 @@ class TaskWorker:
                                 "agent_id": "main",
                                 "session_id": session_id,
                             })
-                        sub_executor = SubAgentExecutor(bus=None, pool=self._pool)
+                        sub_executor = SubAgentExecutor(bus=None)
                         tavily_key = resolve_tavily_key(self._config_store)
                         catalog = ToolCatalog(sub_agent_executor=sub_executor.dispatch, dag_store=self._dag_store, tavily_api_key=tavily_key)
                         tools = catalog.main_ai()
@@ -157,10 +154,9 @@ class TaskWorker:
         except json.JSONDecodeError:
             params = {}
 
-        agent = self._pool.get_agent(target_agent)
-        if not agent:
-            self._db.tasks.fail(task_uuid, f"Agent '{target_agent}' not found")
-            return
+        logger.warning("_process_kb: no agent pool available, failing task %s", task_uuid)
+        self._db.tasks.fail(task_uuid, "Agent pool not available")
+        return
 
         kb_name = params.get("kb_name", "unknown")
         filename = params.get("filename", "unknown")

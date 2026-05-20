@@ -12,7 +12,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
-    from cococat.core.agent_pool import AgentPool
     from cococat.core.sub_agent import SubAgentExecutor
 
 logger = logging.getLogger("cococat.cron_worker")
@@ -105,30 +104,14 @@ def _to_timestamp(value) -> float:
     return 0
 
 
-async def _dispatch(task: str, target_agent_id: str, pool, sub_executor) -> None:
-    if target_agent_id and pool:
-        agent = pool.get_agent(target_agent_id)
-        if agent:
-            await agent.run(task)
-            return
-        if sub_executor:
-            result = await sub_executor.dispatch(task, from_agent="cron")
-            if not result:
-                raise RuntimeError(f"Sub-agent dispatch returned no result for task")
-            return
-        raise RuntimeError(f"Agent '{target_agent_id}' not found and no sub_executor available")
+async def _dispatch(task: str, target_agent_id: str, sub_executor) -> None:
+    if not sub_executor:
+        raise RuntimeError("No sub_executor available for dispatch")
 
-    if sub_executor:
-        result = await sub_executor.dispatch(task, from_agent="cron")
-        if not result:
-            raise RuntimeError("Sub-agent dispatch returned no result for task")
-        return
-
-    main = pool.get_agent("main") if pool else None
-    if main:
-        await main.run(task)
-        return
-    raise RuntimeError("No dispatch target available")
+    result = await sub_executor.dispatch(task, from_agent="cron")
+    if not result:
+        raise RuntimeError("Sub-agent dispatch returned no result for task")
+    return
 
 
 def _parse_cron_fields(fields: list[str]) -> float | None:
@@ -168,12 +151,10 @@ class CronWorker:
 
     def __init__(
         self,
-        pool: AgentPool,
         sub_executor: SubAgentExecutor | None = None,
         poll_interval: float = POLL_INTERVAL,
         cron_dir: str = CRON_DIR,
     ):
-        self._pool = pool
         self._sub_executor = sub_executor
         self._poll_interval = poll_interval
         self._cron_dir = cron_dir
@@ -246,13 +227,13 @@ class CronWorker:
         target_agent_id = entry.get("agent_id", "")
         is_system = entry.get("type") == "system" or task.startswith("__")
 
-        logger.info("CronWorker dispatching %s -> %s: %s", task_id, target_agent_id or "pool", task)
+        logger.info("CronWorker dispatching %s -> %s: %s", task_id, target_agent_id or "sub_executor", task)
 
         try:
             if is_system and task.startswith("__"):
                 entry["status"] = await _dispatch_system_task(task)
             else:
-                await _dispatch(task, target_agent_id, self._pool, self._sub_executor)
+                await _dispatch(task, target_agent_id, self._sub_executor)
                 entry["status"] = "completed"
         except Exception as e:
             logger.exception("CronWorker task %s failed", task_id)

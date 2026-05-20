@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from cococat.db import Database
 from cococat.core.event_bus import EventBus
-from cococat.core.agent_pool import AgentPool
 from cococat.routes.ws import WsManager
 from cococat.context import AppContext
 from cococat.auth import auth_middleware
@@ -18,10 +17,9 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
     _seed_defaults(db)
 
     bus = EventBus()
-    pool = AgentPool(bus)
 
     ctx = AppContext(
-        db=db, bus=bus, pool=pool, ws_manager=WsManager(),
+        db=db, bus=bus, ws_manager=WsManager(),
         config_store=ConfigStore(),
         channel_manager=ChannelManager(),
     )
@@ -31,7 +29,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
         from cococat.worker import TaskWorker
         from cococat.core.cron_worker import CronWorker
 
-        worker = TaskWorker(db, pool, poll_interval=10)
+        worker = TaskWorker(db, poll_interval=10)
         sub_exec = getattr(app.state.ctx, "sub_executor", None)
         if sub_exec:
             worker.set_dag_executor(sub_exec.dispatch)
@@ -42,7 +40,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
         await worker.start()
         app.state.ctx.worker = worker
 
-        cron_worker = CronWorker(pool, sub_executor=sub_exec, cron_dir=str(app.state.ctx.config_store.cron_dir))
+        cron_worker = CronWorker(sub_executor=sub_exec, cron_dir=str(app.state.ctx.config_store.cron_dir))
         await cron_worker.start()
         app.state.ctx.cron_worker = cron_worker
 

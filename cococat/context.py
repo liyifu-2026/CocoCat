@@ -8,11 +8,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from cococat.db import Database
     from cococat.core.event_bus import EventBus
-    from cococat.core.agent_pool import AgentPool
     from cococat.routes.ws import WsManager
     from cococat.core.sub_agent import SubAgentExecutor
     from cococat.core.sandbox import ExecutorProvider
-    from cococat.dag.store import DagStore
     from cococat.providers.credentials import CredentialManager
     from cococat.providers.factory import ProviderFactory
     from cococat.config_store import ConfigStore
@@ -24,13 +22,11 @@ class AppContext:
     user_id: str | None = None         # extracted from JWT by auth middleware
     db: Database = field(default=None)
     bus: EventBus = field(default=None)
-    pool: AgentPool = field(default=None)
     ws_manager: WsManager = field(default=None)
 
     sandbox_provider: ExecutorProvider = field(default=None)
     sub_executor: SubAgentExecutor | None = field(default=None)
     creds: CredentialManager | None = field(default=None)
     provider_factory: ProviderFactory | None = field(default=None)
-    dag_store: 'DagStore | None' = field(default=None)
     config_store: 'ConfigStore | None' = field(default=None)
     channel_manager: 'ChannelManager | None' = field(default=None)
