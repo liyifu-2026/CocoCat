@@ -118,7 +118,7 @@ def register_compile_handlers():
     async def _dream_poll():
         for user_dir in _list_user_agent_dirs():
             try:
-                _poll_dream_for_user(user_dir)
+                await _poll_dream_for_user(user_dir)
             except Exception:
                 logger.exception("dream_poll failed for %s", user_dir)
         return "ok"
@@ -154,7 +154,7 @@ def _list_user_agent_dirs() -> list[str]:
     return result
 
 
-def _poll_dream_for_user(user_dir: str) -> None:
+async def _poll_dream_for_user(user_dir: str) -> None:
     """Check user's session files for dream extraction."""
     sessions_dir = os.path.join(user_dir, "sessions")
     if not os.path.isdir(sessions_dir):

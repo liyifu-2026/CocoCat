@@ -82,21 +82,6 @@ def _forget(keyword: str, ctx: ToolContext) -> str:
     return _get_store(ctx).forget(keyword)
 
 
-def _record_experience(category: str, entry: str, ctx: ToolContext) -> str:
-    if not category:
-        return "Error: 'category' is required"
-    if not entry:
-        return "Error: 'entry' is required"
-    store = _get_store(ctx)
-    return store.remember(entry, category=category, exp_path=ctx.memory.exp_path)
-
-
-def _recall_experience(category: str, ctx: ToolContext) -> str:
-    if not category:
-        return "Error: 'category' is required"
-    store = _get_store(ctx)
-    return store.read_experiences(category, exp_path=ctx.memory.exp_path)
-
 
 def make_memory_tools() -> list:
     from cococat.core.tools.types import Tool, _ensure_tool_context

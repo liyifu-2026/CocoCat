@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from datetime import datetime
 from typing import Any, Callable
 
@@ -40,22 +41,30 @@ class CompileMemory:
             return
 
         cursor = self._read_cursor()
-        last_processed = cursor.get("day_last_processed", "")
+        last_processed = cursor.get("day_last_processed", 0)
 
+        summary_files = []
+        for f in os.listdir(summaries_dir):
+            if f.endswith(".json"):
+                mtime = os.path.getmtime(os.path.join(summaries_dir, f))
+                summary_files.append((f, mtime))
         new_summaries = sorted(
-            f for f in os.listdir(summaries_dir)
-            if f.endswith(".json") and f > last_processed
+            f for f, m in summary_files if m > last_processed
         )
         if not new_summaries:
             return
 
         texts = []
-        for fname in new_summaries[-30:]:  # max 30
+        for fname in new_summaries[-30:]:
             path = os.path.join(summaries_dir, fname)
             try:
                 with open(path, encoding="utf-8") as f:
                     data = json.load(f)
-                texts.append(data.get("summary", "")[:500])
+                if isinstance(data, list):
+                    for entry in data:
+                        texts.append(entry.get("summary", "")[:500])
+                else:
+                    texts.append(data.get("summary", "")[:500])
             except (json.JSONDecodeError, OSError):
                 pass
 
@@ -79,7 +88,7 @@ class CompileMemory:
         with open(day_path, "w", encoding="utf-8") as f:
             f.write(f"# {date_str}\n\n{content}")
 
-        cursor["day_last_processed"] = new_summaries[-1]
+        cursor["day_last_processed"] = time.time()
         self._write_cursor(cursor)
         logger.info("compile_day: wrote %s (%d summaries)", day_path, len(new_summaries))
 

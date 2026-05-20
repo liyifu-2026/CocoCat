@@ -47,6 +47,7 @@ def _password_hash() -> str:
 
 
 def verify_password(password: str) -> bool:
+    """Legacy SHA-256 fallback — deprecated, use verify_user_password instead."""
     return hashlib.sha256(password.encode()).hexdigest() == _password_hash()
 
 

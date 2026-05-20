@@ -191,7 +191,8 @@ async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "defa
     """Get chat history. If session_id provided, reads from session file."""
     if session_id:
         import os, json as _json
-        path = str(ctx.config_store.agents_dir / "main" / "sessions" / f"{session_id}.jsonl")
+        user = ctx.user_id or "main"
+        path = os.path.join("agents", user, "sessions", f"{session_id}.jsonl")
         if not os.path.exists(path):
             return {"messages": []}
         msgs = []

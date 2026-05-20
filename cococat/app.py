@@ -146,7 +146,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
 
         username = (body.get("username", "")).strip()
         password = (body.get("password", ""))
-        if not username or len(password) < 4:
+        if not username or len(password) < 4 or not password.strip():
             return JSONResponse(status_code=400, content={"detail": "Username required, password >= 4 chars"})
 
         import bcrypt

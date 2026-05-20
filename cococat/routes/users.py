@@ -30,8 +30,8 @@ async def list_users(ctx: AppContext = Depends(get_ctx)):
 @router.post("")
 async def create_user(body: CreateUserRequest, ctx: AppContext = Depends(get_ctx)):
     username = body.username.strip()
-    if not username or len(body.password) < 4:
-        raise HTTPException(status_code=400, detail="Username required, password >= 4 chars")
+    if not username or len(body.password) < 4 or not body.password.strip():
+        raise HTTPException(status_code=400, detail="Username required, password >= 4 chars and not whitespace-only")
 
     existing = ctx.db._conn.execute("SELECT id FROM users WHERE id = ?", (username,)).fetchone()
     if existing:
