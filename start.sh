@@ -12,7 +12,7 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM
 
-echo "=== CocoCat v2 ==="
+echo "=== CocoCat v3 ==="
 cd "$(dirname "$0")"
 
 source .venv/bin/activate 2>/dev/null || {

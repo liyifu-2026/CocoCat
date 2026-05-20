@@ -1,0 +1,141 @@
+<h2>#4 Dashboard · 布局调整</h2>
+<p class="subtitle">右侧团队笔记 → 换成近期活动 + 快捷入口</p>
+
+<div class="mockup">
+  <div class="mockup-header">调整后：左侧资料架 · 中央调度+工位 · 右侧活动+入口</div>
+  <div class="mockup-body">
+    <div style="background:#faf8f5;border-radius:12px;padding:16px;min-height:380px">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">🏢</span>
+          <div>
+            <div style="font-weight:700;font-size:13px">开发工作室</div>
+            <div style="font-size:9px;color:#888">4 Agent · 1 运行中 · 3 空闲</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button style="padding:4px 10px;background:#fff;border:1px solid #e0ddd8;border-radius:6px;font-size:9px">💬 对话</button>
+          <button style="padding:4px 10px;background:#e07b5a;border:none;border-radius:6px;color:#fff;font-size:9px">+ 添加</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 2fr 0.9fr;gap:10px">
+
+        <!-- 左侧：资料架（收窄） -->
+        <div style="background:rgba(255,255,255,0.75);border:1px solid #e8e5e0;border-radius:10px;padding:10px">
+          <div style="font-size:10px;font-weight:600;color:#666;margin-bottom:6px">📚 资料</div>
+          <div style="display:flex;flex-direction:column;gap:3px;font-size:8px">
+            <div style="padding:4px 6px;background:#faf8f5;border-radius:3px;display:flex;justify-content:space-between"><span>项目文档</span><span style="color:#aaa">12</span></div>
+            <div style="padding:4px 6px;background:#faf8f5;border-radius:3px;display:flex;justify-content:space-between"><span>API 手册</span><span style="color:#aaa">8</span></div>
+            <div style="padding:4px 6px;background:#faf8f5;border-radius:3px;display:flex;justify-content:space-between"><span>设计规范</span><span style="color:#aaa">3</span></div>
+          </div>
+          <div style="margin-top:8px;font-size:8px;color:#ccc;text-align:center">拖拽上传</div>
+        </div>
+
+        <!-- 中央：调度台+工位区 -->
+        <div style="display:flex;flex-direction:column;gap:8px">
+
+          <!-- Coco 调度台 -->
+          <div style="background:#fff;border:2px solid #e07b5a;border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px;cursor:pointer">
+            <div style="width:36px;height:36px;background:#fff;border:2px solid #f97316;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px">🐱</div>
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:11px">Coco · 调度台</div>
+              <div style="font-size:8px;color:#888">Main AI — 分析·拆解·分配</div>
+              <div style="display:flex;align-items:center;gap:4px;margin-top:3px">
+                <div style="flex:1;height:2px;background:#f0ebe3;border-radius:1px"><div style="width:40%;height:100%;background:#e07b5a;border-radius:1px"></div></div>
+                <span style="font-size:7px;color:#e07b5a">规划中</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 工位区 -->
+          <div style="display:flex;gap:8px">
+            <div style="flex:1;background:#fff;border:1px solid #d4a574;border-radius:8px;padding:8px">
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                <div style="width:22px;height:22px;background:#d4a574;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px">K</div>
+                <div><div style="font-weight:600;font-size:9px">kb-agent</div><div style="font-size:7px;color:#d4a574">● 工作中</div></div>
+              </div>
+              <div style="font-size:7px;color:#666">索引 API 手册...</div>
+            </div>
+            <div style="flex:1;background:#fff;border:2px solid #7a9e7e;border-radius:8px;padding:8px">
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                <div style="width:22px;height:22px;background:#7a9e7e;border-radius:5px;color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center">D</div>
+                <div><div style="font-weight:600;font-size:9px">Dev Agent</div><div style="font-size:7px;color:#7a9e7e">● 工作中</div></div>
+              </div>
+              <div style="font-size:7px;color:#666">审阅 src/app.ts</div>
+            </div>
+            <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:8px">
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                <div style="width:22px;height:22px;background:#8b7aaa;border-radius:5px;color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center">T</div>
+                <div><div style="font-weight:600;font-size:9px">Tester</div><div style="font-size:7px;color:#bbb">○ 待命</div></div>
+              </div>
+              <div style="font-size:7px;color:#ccc">等待任务</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧：近期活动 -->
+        <div style="background:rgba(255,255,255,0.75);border:1px solid #e8e5e0;border-radius:10px;padding:10px;display:flex;flex-direction:column">
+          <div style="font-size:10px;font-weight:600;color:#666;margin-bottom:6px">🕐 近期</div>
+          <div style="display:flex;flex-direction:column;gap:4px;font-size:8px;flex:1">
+            <div style="padding:4px 6px;background:#faf8f5;border-radius:3px;line-height:1.4">
+              <span style="color:#7a9e7e">Dev Agent</span> 完成审阅<br/>
+              <span style="color:#bbb">3分钟前</span>
+            </div>
+            <div style="padding:4px 6px;background:#faf8f5;border-radius:3px;line-height:1.4">
+              <span style="color:#e07b5a">Coco</span> 分配了新任务<br/>
+              <span style="color:#bbb">12分钟前</span>
+            </div>
+            <div style="padding:4px 6px;background:#faf8f5;border-radius:3px;line-height:1.4">
+              <span style="color:#d4a574">kb-agent</span> 完成索引<br/>
+              <span style="color:#bbb">1小时前</span>
+            </div>
+          </div>
+          <button style="padding:3px 0;background:none;border:none;color:#aaa;font-size:8px;cursor:pointer;text-align:left">查看全部 →</button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>布局逻辑：三栏 = 资源 · 团队 · 动态</h3>
+</div>
+
+<table style="width:100%;font-size:10px;border-collapse:collapse">
+  <thead>
+    <tr style="background:#faf6f0">
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">栏</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">比例</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">内容</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">为什么在这</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">左</td><td style="padding:4px 8px;border:1px solid #e8e5e0">~25%</td><td style="padding:4px 8px;border:1px solid #e8e5e0">资料架</td><td style="padding:4px 8px;border:1px solid #e8e5e0">静态资源，不需要频繁关注</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">中</td><td style="padding:4px 8px;border:1px solid #e8e5e0">~50%</td><td style="padding:4px 8px;border:1px solid #e8e5e0">调度台 + 工位</td><td style="padding:4px 8px;border:1px solid #e8e5e0">核心焦点：谁在干什么</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">右</td><td style="padding:4px 8px;border:1px solid #e8e5e0">~25%</td><td style="padding:4px 8px;border:1px solid #e8e5e0">近期活动</td><td style="padding:4px 8px;border:1px solid #e8e5e0">动态时间线，辅助信息</td></tr>
+  </tbody>
+</table>
+
+<div style="margin-top:10px;padding:8px 12px;background:#faf6f0;border-radius:6px;font-size:10px">
+  <b>团队笔记去哪了？</b> → 移到 Memory Browser（#15），Dashboard 只留近期活动摘要。需要看完整记忆时点击跳转。
+</div>
+
+<div class="section">
+  <h3>确认——</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="dash_v2_ok">
+    <div class="letter">✓</div>
+    <div class="content"><h3>布局合理，继续 #5 Chat</h3></div>
+  </div>
+  <div class="option" data-choice="dash_v2_tweak">
+    <div class="letter">△</div>
+    <div class="content"><h3>还要调</h3></div>
+  </div>
+</div>

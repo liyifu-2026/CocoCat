@@ -1,0 +1,123 @@
+<h2>第二层：空间感知 · 布局与导航</h2>
+<p class="subtitle">用户理解「我在哪、能去哪、怎么去」</p>
+
+<div class="section">
+  <h3>当前信息架构</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">SceneRail + 路由层级（当前）</div>
+  <div class="mockup-body">
+    <div style="display:flex;height:280px;gap:1px">
+      <div style="width:56px;background:#2a2a28;display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px;flex-shrink:0">
+        <div style="font-size:9px;color:#888;margin-bottom:4px">SceneRail</div>
+        <div style="width:34px;height:34px;background:#4a4947;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">🏠</div>
+        <div style="width:34px;height:34px;background:#4a4947;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">S1</div>
+        <div style="width:34px;height:34px;background:#4a4947;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">S2</div>
+        <div style="flex:1"></div>
+        <div style="width:34px;height:34px;background:#4a4947;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">⚙</div>
+        <div style="font-size:9px;color:#888;margin-top:4px">导航图标</div>
+      </div>
+      <div style="flex:1;background:#faf8f5;padding:12px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:13px;font-weight:600;color:#333">当前路由树</div>
+        <div style="font-family:monospace;font-size:11px;line-height:2;color:#555">
+          /app<br/>
+          &nbsp;&nbsp;├── <span style="color:#e07b5a">/chat</span> ← 默认落地 · 主交互<br/>
+          &nbsp;&nbsp;├── /chat/history<br/>
+          &nbsp;&nbsp;├── <span style="color:#999">/dashboard</span> ← 占位页，无内容<br/>
+          &nbsp;&nbsp;├── /agents<br/>
+          &nbsp;&nbsp;├── /scenes<br/>
+          &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── /scenes/new<br/>
+          &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── /scenes/:id<br/>
+          &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└── /scenes/:id/run<br/>
+          &nbsp;&nbsp;└── /knowledge<br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── /knowledge/:kb
+        </div>
+      </div>
+      <div style="flex:1;background:#fff8f5;padding:12px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;color:#e07b5a;font-weight:600">⚠ 三个结构性问题</div>
+        <div style="font-size:10px;color:#666;line-height:1.7">
+          1. <b>导航入口分散</b>：SceneRail 只承载场景切换，Agent/Knowledge/Chat 入口在哪里？靠顶部？靠页面内部跳转？
+        </div>
+        <div style="font-size:10px;color:#666;line-height:1.7">
+          2. <b>Dashboard 真空</b>：/dashboard 存在但空白——它本该是「全局总览+快速跳转」的中枢
+        </div>
+        <div style="font-size:10px;color:#666;line-height:1.7">
+          3. <b>Scene 概念模糊</b>：用户不理解 Scene 是什么、为什么需要它、和 Chat 有什么区别
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>SceneRail 的定位问题</h3>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">SceneRail 现状：像 Discord 服务器列表</div>
+    <div class="mockup-body">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 0">
+        <div style="font-size:10px;color:#888">每个 Scene 一个图标</div>
+        <div style="width:38px;height:38px;background:#e07b5a;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff">C</div>
+        <div style="width:38px;height:38px;background:#7a9e7e;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">D</div>
+        <div style="width:38px;height:38px;background:#8b7aaa;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">CS</div>
+        <div style="width:38px;height:38px;background:#d4a574;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">R</div>
+        <div style="width:38px;height:38px;background:#4a4947;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#999">+</div>
+      </div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">但 CocoCat 不是聊天工具，是协作平台</div>
+    <div class="mockup-body" style="display:flex;flex-direction:column;gap:10px;padding:12px">
+      <div style="font-size:11px;color:#666;line-height:1.7">
+        Discord 式侧栏适合<b>以服务器/频道为组织单元</b>的产品。但 CocoCat 中 Scene 只是组织维度之一——还有 Agent 管理、知识库、全局设置等。
+      </div>
+      <div style="font-size:11px;color:#666;line-height:1.7">
+        <b>SceneRail 承载了太多不同性质的东西</b>：场景切换 + Chat 入口 + Settings 入口 + 功能导航，语义混乱。
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>导航层的三个关键设计选择</h3>
+  <p class="subtitle">点击选择你倾向的方案</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="nav_appshell">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>保留 SceneRail，增加顶部导航</h3>
+      <p>SceneRail 只做场景切换（纯 Scene），顶部 tab bar 承载 Chat / Dashboard / Agents / Knowledge 等功能切换。类似 Notion + Discord 混合。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>改动量小</li><li>Scene 概念集中</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>两层导航增加认知</li><li>SceneRail 利用率低</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="nav_unified_sidebar">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>统一侧边栏，替代 SceneRail</h3>
+      <p>一个可折叠的侧边栏，顶部是 Scene 列表，下方是固定功能区（Agents / Knowledge / Settings）。类似 Linear / Vercel 风格。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>单一导航入口</li><li>层级清晰</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>改动量大</li><li>Scene 和功能平级可能不够突出</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="option" data-choice="nav_dashboard_centric">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Dashboard 为中心的辐射式</h3>
+      <p>Dashboard 重做为真正的首页（系统状态 + 最近活动 + 快速入口），所有功能从 Dashboard 辐射出去。SceneRail 保留但降级为「场景收藏」。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>给新用户明确起点</li><li>Dashboard 终于有内容</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Dashboard 设计难度高</li><li>可能多一层跳转</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

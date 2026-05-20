@@ -1,0 +1,318 @@
+<h2>CocoCat 交互重构 · 基础梳理</h2>
+<p class="subtitle">三件事：风格确认 / 页面分类 / 遗漏补充</p>
+
+<div class="section">
+  <h3>一、品牌风格确认</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">现有品牌资产</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:16px;align-items:flex-start">
+      <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:14px">
+        <div style="font-size:11px;font-weight:600;margin-bottom:6px">Logo 规范（visual-design-direction.md）</div>
+        <div style="width:80px;height:80px;background:#fff;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;border:2px solid #f97316">
+          <span style="font-size:28px">🐱</span>
+        </div>
+        <div style="font-size:10px;color:#888;text-align:center;line-height:1.6">
+          圆形构图 · 橘猫沿太极 S 弧跃起<br/>
+          猫色: <span style="color:#f97316;font-weight:600">#f97316</span><br/>
+          纯白背景 · 无渐变/阴影/描边
+        </div>
+      </div>
+      <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:14px">
+        <div style="font-size:11px;font-weight:600;margin-bottom:6px">当前 UI 配色（index.css）</div>
+        <div style="display:flex;flex-direction:column;gap:4px;font-size:10px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:14px;height:14px;background:#e07b5a;border-radius:3px"></div>
+            <span>Primary: 陶土橙 oklch(0.56 0.10 30)</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:14px;height:14px;background:#7a9e7e;border-radius:3px"></div>
+            <span>Secondary: 鼠尾草绿 oklch(0.55 0.065 135)</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:14px;height:14px;background:#d4a574;border-radius:3px"></div>
+            <span>Tertiary: 暖黄 oklch(0.65 0.09 75)</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:14px;height:14px;background:#faf8f5;border:1px solid #e0ddd8;border-radius:3px"></div>
+            <span>Background: 暖纸色 oklch(0.965 0.006 75)</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:#e07b5a">
+          ⚠ Logo 猫色 #f97316 ≠ UI Primary #e07b5a（陶土橙偏暗）
+        </div>
+      </div>
+      <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:14px">
+        <div style="font-size:11px;font-weight:600;margin-bottom:6px">当前 UI 氛围资产</div>
+        <div style="font-size:10px;color:#888;line-height:1.8">
+          ✓ 自定义光标（圆点+环，暖铜色）<br/>
+          ✓ grain 噪点纹理覆盖层<br/>
+          ✓ 双 warm-glow 径向光晕<br/>
+          ✓ fadeSlideUp / messageIn / pulseGlow<br/>
+          ✓ Zen Antique 展示字体<br/>
+          ✓ prefers-reduced-motion 适配
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>风格校准：需要确认的 4 个选择</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="color_align">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>主色对齐：UI Primary 是否需要和 Logo 猫色统一？</h3>
+      <p>Logo 猫 = #f97316 (纯橘)，UI Primary = #e07b5a (陶土橘)。统一为 #f97316 会更品牌一致，但陶土橘在 UI 中更柔和耐看。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="cat_presence">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>猫的 UI 存在感：品牌 IP 在界面中的出现频率？</h3>
+      <p>当前只在 SceneRail 顶部有一个小图标。选项：A) 保持低调 B) 多处点缀（loading 动画、空态插图、error 页） C) 深度角色化（对话中猫猫Agent 有表情反馈）</p>
+    </div>
+  </div>
+  <div class="option" data-choice="dark_mode">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>暗色模式策略：主推哪个？</h3>
+      <p>当前明暗都支持。但视觉设计方向 doc 明确写「禁止深色背景」（针对 logo）。UI 的暗色模式是否要保持？主推明色还是双模式平等？</p>
+    </div>
+  </div>
+  <div class="option" data-choice="type_scale">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>字体层级：需要建立更明确的 Type Scale 吗？</h3>
+      <p>当前只有 display（Zen Antique）和 body（Noto Sans SC）两级。代码区用 JetBrains Mono。信息密度提升后可能需要更丰富的字号层级。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>二、页面分类：实现状态 × 前端格式</h3>
+</div>
+
+<div style="overflow-x:auto">
+<table style="width:100%;font-size:11px;border-collapse:collapse">
+  <thead>
+    <tr style="background:#faf6f0">
+      <th style="padding:8px;text-align:left;border:1px solid #e8e5e0;width:18%">页面</th>
+      <th style="padding:8px;text-align:left;border:1px solid #e8e5e0;width:10%">行数</th>
+      <th style="padding:8px;text-align:left;border:1px solid #e8e5e0;width:12%">分类</th>
+      <th style="padding:8px;text-align:left;border:1px solid #e8e5e0;width:30%">当前状态</th>
+      <th style="padding:8px;text-align:left;border:1px solid #e8e5e0;width:30%">需要的前端格式文档</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="background:#f0faf0">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">Chat</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">646</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#7a9e7e">✅ 已实现</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">功能完整：流式/工具/DAG/会话/模型切换。但需拆分重构（单文件过大）。</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">组件拆分方案 + 消息组件体系 spec</td>
+    </tr>
+    <tr style="background:#f0faf0">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">Login</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">118</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#7a9e7e">✅ 已实现</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">功能完整：admin 初始化 + 登录 + JWT + 错误处理</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">视觉升级 spec（品牌感、过渡动画）</td>
+    </tr>
+    <tr style="background:#f0faf0">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">Agents</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">134</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#7a9e7e">✅ 已实现</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">卡片网格 + 行内编辑 + 5s 轮询</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">重设计为创作工作室风格 spec</td>
+    </tr>
+    <tr style="background:#f0faf0">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">Scenes</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">151</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#7a9e7e">✅ 已实现</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">场景卡片 + 生命周期操作。缺少 loading/error 状态。</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">补全状态 + 画布式组织 spec</td>
+    </tr>
+    <tr style="background:#f0faf0">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">SceneNew</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">308</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#7a9e7e">✅ 已实现</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">5步向导，完整但硬编码 KB/Skills/Channels 列表</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">AI 辅助创建 + 动态数据源 spec</td>
+    </tr>
+    <tr style="background:#f0faf0">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">Knowledge</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">242</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#7a9e7e">✅ 已实现</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">列表 + 拖拽上传 + 内嵌聊天</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">素材库隐喻 spec（配合创作工作室）</td>
+    </tr>
+    <tr style="background:#f0faf0">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">KnowledgeDetail</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">181</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#7a9e7e">✅ 已实现</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">Wiki 浏览器 + 反向链接图 + 内嵌聊天</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">保留，微调视觉即可</td>
+    </tr>
+    <tr style="background:#f0faf0">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">ChatHistory</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">71</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#7a9e7e">✅ 已实现</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">功能可用的历史列表</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">需分页 + 搜索增强 spec</td>
+    </tr>
+    <tr style="background:#fff8e0">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">Dashboard</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">7</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#d4a574">⬜ 空白占位</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">只有一个 &lt;div&gt;Dashboard&lt;/div&gt;</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px"><b>需完整 spec</b>：系统总览 + 快速入口 + 状态卡片 + 活动时间线</td>
+    </tr>
+    <tr style="background:#fff8e0">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">SceneRun</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">3</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#d4a574">⬜ 空白占位</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">空 &lt;div /&gt;。路由存在但无内容。</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px"><b>需完整 spec</b>：场景运行视图（与 Chat 的关系待定）</td>
+    </tr>
+    <tr style="background:#fff8e0">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">SceneDetail</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">82</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#d4a574">⬜ 半空白</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">数据可加载，但主内容区和按钮是 stub</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px"><b>需重设计 spec</b>：画布式 Scene 详情</td>
+    </tr>
+    <tr style="background:#ffe8e8">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">Welcome</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">0</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#e07b5a">❌ 未创建</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">不存在。当前直接跳 /chat。</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px"><b>需完整 spec</b>：品牌亮相 + 能力展示 + 快速开始</td>
+    </tr>
+    <tr style="background:#ffe8e8">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">DAGWorkbench</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">0</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#e07b5a">❌ 未创建</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">不存在。DAG 可视化目前嵌入 Chat 内。</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px"><b>需完整 spec</b>：L3 全屏 DAG 工作台</td>
+    </tr>
+    <tr style="background:#ffe8e8">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">TimelineReplay</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">0</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#e07b5a">❌ 未创建</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">不存在。DAG 完成后无回放功能。</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px"><b>需完整 spec</b>：L4 时间线回放</td>
+    </tr>
+    <tr style="background:#ffe8e8">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">Studio</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">0</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#e07b5a">❌ 未创建</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">不存在。创作工作室画布（Agent/Scene/KB 拖拽组织）。</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px"><b>需完整 spec</b>：画布式关系编排</td>
+    </tr>
+    <tr style="background:#ffe8e8">
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-weight:600">Onboarding</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0">0</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;color:#e07b5a">❌ 未创建</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px">不存在。无引导流程。</td>
+      <td style="padding:6px 8px;border:1px solid #e8e5e0;font-size:10px"><b>需完整 spec</b>：2-3步新手引导</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="section">
+  <h3>三、你可能遗漏的部分（我补充的）</h3>
+</div>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="gap_empty_states">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>空态设计体系</h3>
+      <p>所有页面的空状态（无 Agent、无 Scene、无 KB、无消息）需要有统一的设计语言。当前只有 EmptyState 组件但未在各页面使用。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gap_loading_states">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>加载态 / 骨架屏体系</h3>
+      <p>LoadingSkeleton + PageSkeleton 已存在但使用不充分。需要定义全局加载策略（页面级/组件级/流式加载）。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gap_error_states">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>错误态 + 降级策略</h3>
+      <p>ErrorState/ErrorBoundary 存在但需统一整合。WebSocket 断连、API 超时、权限不足、Agent 执行失败等场景的错误展示。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gap_mobile">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>移动端体验</h3>
+      <p>MobileBottomNav 存在但移动端整体未适配。Chat 在手机上是否可用？管理页面是否响应式？需要明确移动端策略。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gap_a11y">
+    <div class="letter">E</div>
+    <div class="content">
+      <h3>无障碍 (a11y)</h3>
+      <p>键盘导航、屏幕阅读器、焦点管理、颜色对比度。Radix UI 有基础支持但需审核覆盖率。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gap_shortcuts">
+    <div class="letter">F</div>
+    <div class="content">
+      <h3>键盘快捷键 + 命令面板</h3>
+      <p>cmdk 已安装但未使用。需要全局 ⌘K 命令面板（页面跳转、Agent 切换、快速操作）。深度用户靠键盘驱动。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gap_notifications">
+    <div class="letter">G</div>
+    <div class="content">
+      <h3>通知系统</h3>
+      <p>sonner toast 已集成。但缺少：任务完成通知、Agent 状态变更通知、系统级通知中心。WebSocket 事件驱动的通知链路。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gap_settings">
+    <div class="letter">H</div>
+    <div class="content">
+      <h3>Settings 信息架构重设计</h3>
+      <p>当前 12 个 Tab 平铺在一个模态框里，信息架构扁平。需要分类重组 + 导航优化。Settings 不应是「垃圾桶」。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gap_websocket_ux">
+    <div class="letter">I</div>
+    <div class="content">
+      <h3>连接状态 UX</h3>
+      <p>WebSocket 断连/重连的可视化提示。当前可能静默失败。需要连接状态指示器 + 重连动画 + 离线队列提示。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gap_tour">
+    <div class="letter">J</div>
+    <div class="content">
+      <h3>功能发现引导</h3>
+      <p>新功能上线后老用户如何发现？需要 feature spotlight / tooltip 引导 / "What's new" 更新日志入口。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gap_transitions">
+    <div class="letter">K</div>
+    <div class="content">
+      <h3>页面过渡动画</h3>
+      <p>路由切换无过渡动效。Dashboard → Chat → Agents 之间跳转生硬。需要统一的页面转场策略。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="gap_i18n">
+    <div class="letter">L</div>
+    <div class="content">
+      <h3>i18n 覆盖率</h3>
+      <p>现有 zh/en 385+ key 但新增页面需扩展。部分硬编码中文需国际化。需建立翻译 key 命名规范。</p>
+    </div>
+  </div>
+</div>

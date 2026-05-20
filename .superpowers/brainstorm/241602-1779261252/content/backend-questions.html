@@ -1,0 +1,88 @@
+<h2>底层重构 · 待讨论清单</h2>
+<p class="subtitle">6 个已定决策之后，还有这些需要理清</p>
+
+<div style="display:flex;flex-direction:column;gap:8px;font-size:11px">
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">💾</span>
+    <div>
+      <b>A. 会话持久化</b><br/>
+      <span style="color:#888">砍了 AgentPool 后，session 存在哪？当前是 <code>agents/main/sessions/</code> 和 <code>agents/kb-agent/sessions/</code>——绑定了 agent 目录。如果 Coco 不再有固定目录，sessions 归哪里管？按 scene 分？按用户分？数据库还是文件？</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">🧠</span>
+    <div>
+      <b>B. 记忆系统</b><br/>
+      <span style="color:#888">当前 memory 依赖 agent 目录：<code>agents/{id}/memory/</code> 下存 facts、dreams、summaries、pinned。Coco 不再有目录后，记忆存哪里？按 scene？全局？cron 编译任务（dream/compile）现在用 AgentPool resident agent 执行，换成什么触发方式？</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">⏰</span>
+    <div>
+      <b>C. Cron 定时任务</b><br/>
+      <span style="color:#888">当前 CronWorker 从 AgentPool 取 resident agent 执行定时任务。砍掉 AgentPool 后，cron 触发时如何创建 Agent？直接用 ExecutorProvider.run_once()？cron 任务定义现在绑在 agent YAML 的 <code>cron:</code> 字段里，挪到哪？</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">📋</span>
+    <div>
+      <b>D. agents 数据库表</b><br/>
+      <span style="color:#888">当前 agents 表有 <code>status</code> 字段（running/stopped/paused）和 <code>scene_id</code>。Agent 变成 Worker 模板后，status 还适用吗？模板没有「在线/离线」。scene_id 绑定还要不要？表结构需要怎么改？</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">🏢</span>
+    <div>
+      <b>E. Scene 系统</b><br/>
+      <span style="color:#888">砍了 roster、砍了自动绑定 Agent、kb-agent 退化后——Scene 还剩下什么？context + KB 列表 + skills 列表 + 渠道配置。Scene 的 agent_id 列是否废弃？SceneKeeper 还有存在的必要吗？</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">📡</span>
+    <div>
+      <b>F. 渠道系统</b><br/>
+      <span style="color:#888">SceneKeeper 把渠道消息路由给 Scene 对应的 agent。砍了 AgentPool + 砍了 Scene-Agent 绑定后，渠道消息交给谁？直接交给 Coco（带 Scene 上下文）？</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">🔀</span>
+    <div>
+      <b>G. DAG 分发</b><br/>
+      <span style="color:#888">砍 AgentPool 后，SubAgentExecutor 的 <code>_dispatch_via_pool()</code> fallback 路径消失，只剩 <code>_dispatch_via_sandbox()</code>。这是简化还是丢失了能力？</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">🖥</span>
+    <div>
+      <b>H. Workspace 文件系统</b><br/>
+      <span style="color:#888">每个 Agent 有 <code>agents/{id}/workspace/</code>。Coco 不再有目录后，临时 worker 的 workspace 在哪？共享同一个？各自独立？执行完清空还是保留？</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">👥</span>
+    <div>
+      <b>I. 多用户隔离</b><br/>
+      <span style="color:#888">当前多用户通过 JWT 区分，但 Agent 执行是全局的——没有按用户隔离 session/memory/workspace。Scene 是共享的。砍 AgentPool 后这个模型更简单还是更复杂？需要引入用户级隔离吗？</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="section">
+  <h3>从哪个开始？</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="start_A"><div class="letter">A</div><div class="content"><h3>会话持久化</h3></div></div>
+  <div class="option" data-choice="start_B"><div class="letter">B</div><div class="content"><h3>记忆系统</h3></div></div>
+  <div class="option" data-choice="start_all"><div class="letter">ALL</div><div class="content"><h3>按依赖顺序逐个过</h3><p>A→B→C→D→E→F→G→H→I</p></div></div>
+</div>

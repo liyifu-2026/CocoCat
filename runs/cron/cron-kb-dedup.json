@@ -1,0 +1,11 @@
+{
+  "id": "cron-kb-dedup",
+  "name": "kb-dedup",
+  "schedule": "@weekly",
+  "task": "\u68c0\u6d4b\u5e76\u5408\u5e76\u6240\u6709\u77e5\u8bc6\u5e93\u4e2d\u7684\u91cd\u590d\u5185\u5bb9",
+  "mode": "kb-admin",
+  "scene_scope": "",
+  "at_time": "",
+  "status": "completed",
+  "last_run": "2026-05-20T23:23:09.439603"
+}

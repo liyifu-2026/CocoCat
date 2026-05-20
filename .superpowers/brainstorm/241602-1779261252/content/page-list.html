@@ -1,0 +1,132 @@
+<h2>页面清单 · 逐页前端格式探讨</h2>
+<p class="subtitle">三类共 16 个页面，按实现状态排序</p>
+
+<div class="section">
+  <h3>第一类：✅ 已实现（8个）—— 重构优化</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f0faf0;border:1px solid #c8d5c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">💬</span>
+    <div style="flex:1"><b>#1 Chat</b>（646行）</div>
+    <span style="font-size:10px;color:#7a9e7e">核心页 · 需拆分重构</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f0faf0;border:1px solid #c8d5c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">🔑</span>
+    <div style="flex:1"><b>#2 Login</b>（118行）</div>
+    <span style="font-size:10px;color:#7a9e7e">完整 · 需视觉升级</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f0faf0;border:1px solid #c8d5c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">🤖</span>
+    <div style="flex:1"><b>#3 Agents</b>（134行）</div>
+    <span style="font-size:10px;color:#7a9e7e">列表管理 · 需画布式重设计</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f0faf0;border:1px solid #c8d5c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">🎬</span>
+    <div style="flex:1"><b>#4 Scenes</b>（151行）</div>
+    <span style="font-size:10px;color:#7a9e7e">场景列表 · 缺状态覆盖</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f0faf0;border:1px solid #c8d5c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">🆕</span>
+    <div style="flex:1"><b>#5 SceneNew</b>（308行）</div>
+    <span style="font-size:10px;color:#7a9e7e">5步向导 · 需AI辅助+动态数据</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f0faf0;border:1px solid #c8d5c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">📚</span>
+    <div style="flex:1"><b>#6 Knowledge</b>（242行）</div>
+    <span style="font-size:10px;color:#7a9e7e">KB管理 · 需素材库隐喻</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f0faf0;border:1px solid #c8d5c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">📖</span>
+    <div style="flex:1"><b>#7 KnowledgeDetail</b>（181行）</div>
+    <span style="font-size:10px;color:#7a9e7e">Wiki浏览器 · 微调即可</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f0faf0;border:1px solid #c8d5c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">🕐</span>
+    <div style="flex:1"><b>#8 ChatHistory</b>（71行）</div>
+    <span style="font-size:10px;color:#7a9e7e">历史列表 · 需分页增强</span>
+  </div>
+</div>
+
+<div class="section">
+  <h3>第二类：⬜ 已创建但空白/半空白（3个）—— 从零填充</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff8e0;border:1px solid #e8d5a0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">🏠</span>
+    <div style="flex:1"><b>#9 Dashboard</b>（7行 → 占位）</div>
+    <span style="font-size:10px;color:#d4a574">全局中枢 · 从零设计</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff8e0;border:1px solid #e8d5a0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">▶️</span>
+    <div style="flex:1"><b>#10 SceneRun</b>（3行 → 空div）</div>
+    <span style="font-size:10px;color:#d4a574">场景运行 · 从零设计</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff8e0;border:1px solid #e8d5a0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">🔍</span>
+    <div style="flex:1"><b>#11 SceneDetail</b>（82行 → 半空白）</div>
+    <span style="font-size:10px;color:#d4a574">场景详情 · 画布式重设计</span>
+  </div>
+</div>
+
+<div class="section">
+  <h3>第三类：❌ 未创建（5个）—— 全新页面</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#ffe8e8;border:1px solid #e8c0c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">🐱</span>
+    <div style="flex:1"><b>#12 Welcome</b>（全新）</div>
+    <span style="font-size:10px;color:#e07b5a">品牌亮相+快速开始</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#ffe8e8;border:1px solid #e8c0c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">🚶</span>
+    <div style="flex:1"><b>#13 Onboarding</b>（全新）</div>
+    <span style="font-size:10px;color:#e07b5a">2-3步新手引导</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#ffe8e8;border:1px solid #e8c0c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">🎨</span>
+    <div style="flex:1"><b>#14 Studio</b>（全新）</div>
+    <span style="font-size:10px;color:#e07b5a">创作工作室·画布编排</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#ffe8e8;border:1px solid #e8c0c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">🔀</span>
+    <div style="flex:1"><b>#15 DAGWorkbench</b>（全新）</div>
+    <span style="font-size:10px;color:#e07b5a">DAG全屏工作台 L3</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#ffe8e8;border:1px solid #e8c0c0;border-radius:6px">
+    <span style="font-size:14px;width:24px;text-align:center">⏪</span>
+    <div style="flex:1"><b>#16 TimelineReplay</b>（全新）</div>
+    <span style="font-size:10px;color:#e07b5a">时间线回放 L4</span>
+  </div>
+</div>
+
+<div class="section">
+  <h3>讨论顺序</h3>
+  <p class="subtitle">从浅到深：先冷启动入口 → 核心交互 → 管理配置 → 高级工作流</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="by_order">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>按编号顺序 #1 → #16</h3>
+      <p>Chat 开始，逐个攻破。优点是不遗漏，缺点是 Chat 太重可能卡很久</p>
+    </div>
+  </div>
+  <div class="option" data-choice="by_layer">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>按用户体验流：冷启动 → 核心 → 管理 → 高级</h3>
+      <p>先讨论 Welcome/Onboarding/Dashboard 这些入口页，再 Chat，再管理页，最后 DAG。和用户实际使用顺序一致。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="by_gap">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>先空白后已实现：先定新页面，再改旧页面</h3>
+      <p>先把 #9-#16（空白+未创建）的格式定好，建立一个清晰的交互语言，再用这个语言去重构 #1-#8。</p>
+    </div>
+  </div>
+</div>

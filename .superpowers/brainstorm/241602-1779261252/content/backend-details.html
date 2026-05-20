@@ -1,0 +1,73 @@
+<h2>底层重构 · 待讨论细节清单</h2>
+<p class="subtitle">架构决策完成后，逐项理清实现细节</p>
+
+<div style="font-size:11px">
+
+<div style="display:flex;flex-direction:column;gap:8px">
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>J. Mode 人格定义</b><br/>
+<span style="color:#888">系统内置 Mode 存在哪？YAML 文件还是数据库？每 Mode 包含 prompt + tools + skills。默认主人格是什么？KB 管理模式的具体定义？还需要哪些 Mode（code-review？writing？）</span>
+</div>
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>K. System Prompt 体系重构</b><br/>
+<span style="color:#888">当前 COCO_BEHAVIOR_RULES 硬编码在 Python 里。引入 Mode 后，每个 Mode 有自己的 prompt。prompt 存储方式：YAML 文件？数据库？config/prompts/ 目录怎么变？</span>
+</div>
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>L. Tool 工具集精简</b><br/>
+<span style="color:#888">砍掉 DAG 工具（define_dag/append_stage/dispatch_task/check_tasks/stop_task）后还剩什么？各 Mode 的工具集差异：主人格有哪些？KB Mode 多了哪些文件工具？ToolCatalog 类怎么重构？</span>
+</div>
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>M. Skills 技能系统</b><br/>
+<span style="color:#888">当前 skills/ 目录有 35+ 个 markdown 技能文件。在新模型下：Skills 归 Mode 管？还是归 Scene 管？还是两者都有？Mode 的 skills 和 Scene 的 skills 叠加吗？</span>
+</div>
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>N. KB 知识库 × ingest 管道</b><br/>
+<span style="color:#888">kb-agent 退化后，文件摄入（用户拖文件上传到 KB）谁来做？Coco 在 KB 管理 Mode 下调 sub_agent 执行 ingest？还是 cron 定时跑？IngestPipeline 还需要改造吗？</span>
+</div>
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>O. 渠道认证 × 用户</b><br/>
+<span style="color:#888">每个用户通过不同渠道用自己的认证接入。渠道 token 存用户级还是团队级？消息进来如何识别是哪个用户？SceneKeeper 怎么拿到用户信息？</span>
+</div>
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>P. 目录结构迁移</b><br/>
+<span style="color:#888">agents/ → 删？config/residents/ → 删？config/ 下新增 modes/？scenes/ 下新增 sessions/ 和 memory/？数据库 migrations 有哪些？</span>
+</div>
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>Q. Memory 编译 cron</b><br/>
+<span style="color:#888">dream 提取、summarize、compile 这些 cron 任务：每个 Scene 独立跑？定时跑还是事件触发？哪个 Mode 执行？用什么身份（哪个用户）跑？</span>
+</div>
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>R. Session 生命周期</b><br/>
+<span style="color:#888">session 文件存 scene×user。TTL 策略？自动清理？session 数量上限？切换 Scene 是关旧 session 还是挂起？</span>
+</div>
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>S. 数据库 Schema 最终版</b><br/>
+<span style="color:#888">汇总所有变更：删 agents 表、删 dag_runs 表。scenes 表删 agent_id。新增什么表？mode 表？user 表已有但需扩展？cron 表？</span>
+</div>
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>T. Mode 切换机制</b><br/>
+<span style="color:#888">Coco 如何判断切换 Mode？系统判断 = prompt 内指令 + 关键词？手动切换 = Chat 里用户选？Mode 切换需要通知前端吗？Coco 调 sub_agent 时如何指定 Mode？</span>
+</div>
+
+<div style="padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+<b>U. 当前 routes 的改造范围</b><br/>
+<span style="color:#888">routes/chat.py、routes/ws.py、routes/agents.py、routes/scenes.py、routes/dag.py、routes/knowledge.py 各需要改什么？哪些路由直接砍掉？</span>
+</div>
+
+</div>
+</div>
+
+<div class="section">
+  <h3>从 J 开始顺序过？还是有优先级？</h3>
+</div>

@@ -1,0 +1,183 @@
+<h2>Dashboard · 怎么让它更丰富？</h2>
+<p class="subtitle">三个丰富化方向，选一个方向或组合</p>
+
+<div class="section">
+  <h3>方向 A：增加信息密度 —— 工位更详细、数据更多</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">每个工位展示更多：当前输出片段、耗时、子任务数</div>
+  <div class="mockup-body">
+    <div style="display:flex;flex-direction:column;gap:8px;max-width:360px">
+      <div style="background:#fff;border:2px solid #7a9e7e;border-radius:10px;padding:10px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <div style="width:26px;height:26px;background:#7a9e7e;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:600">D</div>
+          <div>
+            <div style="font-weight:600;font-size:11px">Dev Agent</div>
+            <div style="font-size:8px;color:#7a9e7e">● 工作中 · 已运行 3m 12s</div>
+          </div>
+        </div>
+        <div style="font-size:8px;color:#666;line-height:1.5;margin-bottom:4px">审阅 src/app.ts · 分析项目架构</div>
+        <div style="height:3px;background:#e8f0e8;border-radius:1.5px;margin-bottom:3px"><div style="width:62%;height:100%;background:#7a9e7e;border-radius:1.5px"></div></div>
+        <div style="display:flex;gap:8px;font-size:7px;color:#aaa">
+          <span>📄 3 文件已读取</span>
+          <span>🔧 1 工具调用</span>
+          <span>💬 生成中</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>方向 B：增加 DAG 可视化层 —— 工位之间加连线，展示任务流转</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Coco → Dev → Tester 的任务流转以箭头连线展示</div>
+  <div class="mockup-body">
+    <div style="background:#faf8f5;border-radius:8px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px">
+      <div style="background:#fff;border:2px solid #e07b5a;border-radius:8px;padding:6px 14px;font-size:10px">🐱 Coco · 调度台</div>
+      <div style="font-size:12px;color:#e07b5a">↓ 分析完成 · 分配任务给 Dev</div>
+      <div style="background:#fff;border:2px solid #7a9e7e;border-radius:8px;padding:6px 14px;font-size:10px">D Dev Agent · 审阅中</div>
+      <div style="font-size:12px;color:#7a9e7e">↓ 审阅完成 · 交给 Tester</div>
+      <div style="background:#fff;border:1px dashed #ccc;border-radius:8px;padding:6px 14px;font-size:10px;color:#888">T Tester · 等待中</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>方向 C：增加「工作室统计」顶栏 —— 一屏看到全局数据</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">顶部统计卡片行：任务数、Agent 状态、KB 文档、今日对话量</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:8px 12px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#e07b5a">1</div>
+        <div style="font-size:8px;color:#888">运行中任务</div>
+      </div>
+      <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:8px 12px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#7a9e7e">2</div>
+        <div style="font-size:8px;color:#888">工作中 Agent</div>
+      </div>
+      <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:8px 12px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#d4a574">23</div>
+        <div style="font-size:8px;color:#888">知识文档</div>
+      </div>
+      <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:8px 12px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#8b7aaa">8</div>
+        <div style="font-size:8px;color:#888">今日对话</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>方向 D：三者都要 —— 统计顶栏 + 工位详情 + DAG 连线</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">合成版：完整 Dashboard</div>
+  <div class="mockup-body">
+    <div style="background:#faf8f5;border-radius:12px;padding:16px;min-height:360px">
+
+      <!-- 顶部统计行 -->
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:16px;font-weight:700;color:#e07b5a">1</div>
+          <div style="font-size:8px;color:#888">运行中</div>
+        </div>
+        <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:16px;font-weight:700;color:#7a9e7e">2</div>
+          <div style="font-size:8px;color:#888">忙</div>
+        </div>
+        <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:16px;font-weight:700;color:#bbb">2</div>
+          <div style="font-size:8px;color:#888">闲</div>
+        </div>
+        <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:16px;font-weight:700;color:#d4a574">23</div>
+          <div style="font-size:8px;color:#888">文档</div>
+        </div>
+      </div>
+
+      <!-- 三栏主内容 -->
+      <div style="display:grid;grid-template-columns:0.8fr 2fr 0.9fr;gap:10px">
+        <div style="background:rgba(255,255,255,0.75);border:1px solid #e8e5e0;border-radius:10px;padding:10px">
+          <div style="font-size:10px;font-weight:600;color:#666;margin-bottom:6px">📚 资料</div>
+          <div style="font-size:8px;display:flex;flex-direction:column;gap:3px">
+            <div style="padding:3px 6px;background:#faf8f5;border-radius:3px">项目文档 · 12</div>
+            <div style="padding:3px 6px;background:#faf8f5;border-radius:3px">API 手册 · 8</div>
+            <div style="padding:3px 6px;background:#faf8f5;border-radius:3px">设计规范 · 3</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <!-- Coco + 任务流箭头 -->
+          <div style="background:#fff;border:2px solid #e07b5a;border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px">
+            <span style="font-size:16px">🐱</span>
+            <div style="flex:1"><div style="font-weight:600;font-size:11px">Coco · 调度台</div><div style="font-size:8px;color:#888">分析·拆解·分配</div></div>
+            <div style="font-size:8px;color:#e07b5a">● 规划中</div>
+          </div>
+          <div style="text-align:center;font-size:10px;color:#ccc">↓ 任务流 ↓</div>
+          <!-- 工位行 (带连线暗示) -->
+          <div style="display:flex;gap:8px">
+            <div style="flex:1;background:#fff;border:2px solid #7a9e7e;border-radius:8px;padding:8px">
+              <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+                <div style="width:20px;height:20px;background:#7a9e7e;border-radius:4px;color:#fff;font-size:8px;display:flex;align-items:center;justify-content:center">D</div>
+                <div><div style="font-weight:600;font-size:9px">Dev Agent</div><div style="font-size:7px;color:#7a9e7e">● 工作</div></div>
+              </div>
+              <div style="font-size:7px;color:#666;line-height:1.4">审阅 src/app.ts</div>
+              <div style="height:2px;background:#e8f0e8;border-radius:1px;margin-top:3px"><div style="width:62%;height:100%;background:#7a9e7e;border-radius:1px"></div></div>
+              <div style="font-size:6px;color:#aaa;margin-top:2px">3m 12s · 3文件已读</div>
+            </div>
+            <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:8px">
+              <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+                <div style="width:20px;height:20px;background:#8b7aaa;border-radius:4px;color:#fff;font-size:8px;display:flex;align-items:center;justify-content:center">T</div>
+                <div><div style="font-weight:600;font-size:9px">Tester</div><div style="font-size:7px;color:#bbb">○ 待命</div></div>
+              </div>
+              <div style="font-size:7px;color:#ccc">等待 Dev 完成</div>
+            </div>
+            <div style="flex:1;background:#fff;border:1px solid #d4a574;border-radius:8px;padding:8px">
+              <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+                <div style="width:20px;height:20px;background:#d4a574;border-radius:4px;color:#fff;font-size:8px;display:flex;align-items:center;justify-content:center">K</div>
+                <div><div style="font-weight:600;font-size:9px">kb-agent</div><div style="font-size:7px;color:#d4a574">● 工作</div></div>
+              </div>
+              <div style="font-size:7px;color:#666">索引中...</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.75);border:1px solid #e8e5e0;border-radius:10px;padding:10px">
+          <div style="font-size:10px;font-weight:600;color:#666;margin-bottom:6px">🕐 近期</div>
+          <div style="font-size:8px;display:flex;flex-direction:column;gap:3px">
+            <div style="padding:3px 6px;background:#faf8f5;border-radius:3px"><span style="color:#7a9e7e">Dev</span> 完成审阅 · 3分钟前</div>
+            <div style="padding:3px 6px;background:#faf8f5;border-radius:3px"><span style="color:#e07b5a">Coco</span> 分配任务 · 12分钟前</div>
+            <div style="padding:3px 6px;background:#faf8f5;border-radius:3px"><span style="color:#d4a574">kb</span> 完成索引 · 1小时前</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>选哪个方向？</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="dash_D">
+    <div class="letter">D</div>
+    <div class="content"><h3>三者都要（合成版）</h3><p>统计顶栏 + 详细工位 + DAG连线 + 近期活动</p></div>
+  </div>
+  <div class="option" data-choice="dash_D_less">
+    <div class="letter">D-</div>
+    <div class="content"><h3>三者都要但克制</h3><p>统计顶栏保留但缩小。DAG连线只在有活跃任务时显示。工位信息不过度展开。</p></div>
+  </div>
+  <div class="option" data-choice="dash_pick">
+    <div class="letter">?</div>
+    <div class="content"><h3>你指定</h3><p>告诉我哪些要哪些不要</p></div>
+  </div>
+</div>

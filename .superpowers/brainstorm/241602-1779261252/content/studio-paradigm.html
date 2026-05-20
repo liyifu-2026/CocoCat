@@ -1,0 +1,195 @@
+<h2>「AI 团队工作室」· 澄清后的交互范式</h2>
+<p class="subtitle">去游戏化 · Coco=MainAI · Studio 空间语言</p>
+
+<div class="section">
+  <h3>关键澄清</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:6px;font-size:10px">
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">🐱</span>
+    <div>
+      <b>Coco = Main AI</b>（不是吉祥物/副手）<br/>
+      <span style="color:#888">Coco 就是那只橘猫，它是团队的调度核心。它在工作室中有自己的「调度台」，不是到处跑的小动物。</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">🤖</span>
+    <div>
+      <b>其他 Agent 有明确角色</b><br/>
+      <span style="color:#888">比如 kb-agent = 知识库管理员，处理文件、维护知识库。每个 Agent 在工作室中有自己的工位和职责。</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:1px solid #e8e5e0;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">🎨</span>
+    <div>
+      <b>不叫「基建」叫「工作室」</b><br/>
+      <span style="color:#888">空间布局的灵感来自方舟，但语言用「Studio」。避免游戏术语（干员/基建/制造站），用自然的工作室词汇（工位/调度台/资料架）。</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>工作室布局 · 清晰的工作空间</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Team Studio —— 俯视布局，Agent 工位 + 调度台 + 资料架</div>
+  <div class="mockup-body">
+    <div style="background:#faf8f5;border-radius:12px;padding:20px;position:relative">
+
+      <!-- Warm studio lighting -->
+      <div style="position:absolute;top:0;right:0;width:40%;height:60%;background:radial-gradient(circle at top right, oklch(0.82 0.06 45 / 0.06) 0%, transparent 70%);pointer-events:none"></div>
+
+      <div style="position:relative;z-index:1">
+
+        <!-- Studio header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:18px">🏢</span>
+            <div>
+              <div style="font-weight:700;font-size:13px">开发工作室</div>
+              <div style="font-size:9px;color:#888">4 Agent · 1 任务运行中</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button style="padding:4px 12px;background:#fff;border:1px solid #e0ddd8;border-radius:6px;font-size:9px">💬 对话</button>
+            <button style="padding:4px 12px;background:#e07b5a;border:none;border-radius:6px;color:#fff;font-size:9px">+ 添加工位</button>
+          </div>
+        </div>
+
+        <!-- Studio grid -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+
+          <!-- Coco 调度台 -->
+          <div style="grid-column:1/span 3;background:#fff;border:2px solid #e07b5a;border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;background:#fff;border:2px solid #f97316;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px">🐱</div>
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:12px">Coco · 调度台</div>
+              <div style="font-size:9px;color:#888">Main AI — 分析需求、拆解任务、分配工作</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+                <div style="flex:1;height:2px;background:#f0ebe3;border-radius:1px"><div style="width:40%;height:100%;background:#e07b5a;border-radius:1px"></div></div>
+                <span style="font-size:8px;color:#e07b5a">正在规划中</span>
+              </div>
+            </div>
+            <div style="width:6px;height:6px;background:#4caf50;border-radius:50%;flex-shrink:0"></div>
+          </div>
+
+          <!-- Dev 工位 (工作) -->
+          <div style="background:#fff;border:2px solid #7a9e7e;border-radius:10px;padding:10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <div style="width:28px;height:28px;background:#7a9e7e;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600">D</div>
+              <div>
+                <div style="font-weight:600;font-size:10px">Dev Agent</div>
+                <div style="font-size:8px;color:#7a9e7e">● 工作中</div>
+              </div>
+            </div>
+            <div style="font-size:8px;color:#666;line-height:1.4">审阅 src/app.ts<br/>分析项目架构</div>
+            <div style="height:2px;background:#e8f0e8;border-radius:1px;margin-top:4px"><div style="width:60%;height:100%;background:#7a9e7e;border-radius:1px"></div></div>
+            <div style="font-size:7px;color:#bbb;margin-top:2px">← 来自 Coco 的分配</div>
+          </div>
+
+          <!-- Tester 工位 (闲置) -->
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:10px;padding:10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <div style="width:28px;height:28px;background:#8b7aaa;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600">T</div>
+              <div>
+                <div style="font-weight:600;font-size:10px">Tester Agent</div>
+                <div style="font-size:8px;color:#bbb">○ 待命中</div>
+              </div>
+            </div>
+            <div style="font-size:8px;color:#ccc">等待任务分配</div>
+          </div>
+
+          <!-- kb-agent 工位 (闲置) -->
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:10px;padding:10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <div style="width:28px;height:28px;background:#d4a574;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600">K</div>
+              <div>
+                <div style="font-weight:600;font-size:10px">kb-agent</div>
+                <div style="font-size:8px;color:#bbb">○ 待命中</div>
+              </div>
+            </div>
+            <div style="font-size:8px;color:#ccc">等待文件处理</div>
+          </div>
+
+        </div>
+
+        <!-- 资料架 (Knowledge shelves) -->
+        <div style="margin-top:10px;padding:8px 12px;background:rgba(255,255,255,0.6);border:1px solid #e8e5e0;border-radius:8px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:14px">📚</span>
+          <div>
+            <div style="font-size:10px;font-weight:600">资料架</div>
+            <div style="font-size:8px;color:#888">项目文档 · API 手册 · 设计规范 — 23 篇</div>
+          </div>
+          <button style="margin-left:auto;padding:3px 10px;background:#fff;border:1px solid #e0ddd8;border-radius:4px;font-size:8px">浏览</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Studio 的概念词汇表（去游戏化）</h3>
+</div>
+
+<table style="width:100%;font-size:10px;border-collapse:collapse">
+  <thead>
+    <tr style="background:#faf6f0">
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">概念</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">游戏化说法（❌ 不用）</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">Studio 说法（✅ 用）</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">整体空间</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#bbb">基建 / 基地</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#e07b5a">工作室</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">Agent</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#bbb">干员</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#e07b5a">Agent / 团队成员</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">Agent 位置</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#bbb">制造站 / 宿舍</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#e07b5a">工位</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">Coco 位置</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#bbb">控制中枢</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#e07b5a">调度台</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">Knowledge Base</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#bbb">仓库</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#e07b5a">资料架</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">Memory</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#bbb">加工站</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#e07b5a">团队笔记</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">DAG 任务</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#bbb">生产链</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#e07b5a">工作流 / 任务流</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">Scene</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#bbb">楼层</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#e07b5a">工作室（每个Scene是一个独立工作室）</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">Chat</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#bbb">会客室</td><td style="padding:4px 8px;border:1px solid #e8e5e0;color:#e07b5a">对话</td></tr>
+  </tbody>
+</table>
+
+<div class="section">
+  <h3>Scene 的重新定义</h3>
+</div>
+
+<div style="padding:12px;background:#faf6f0;border-radius:8px;font-size:10px;line-height:1.7">
+<b>之前：</b>Scene = 一个「上下文配置」（Context + Agent列表 + Skills + KB）——用户不太理解这个概念。<br/><br/>
+<b>现在：</b>Scene = <span style="color:#e07b5a">一个独立的工作室</span>。每个工作室有自己的 Agent 团队、自己的资料架、自己的任务流。<br/><br/>
+<b>SceneRail</b> = 工作室切换器。「开发工作室」「客服工作室」「写作工作室」——每个是一个独立空间，里面有不同的人和资料。<br/><br/>
+<b>这解释了 Scene 为什么存在：</b>不同的工作，在不同的工作室里做。就像公司里有不同的部门办公室。
+</div>
+
+<div class="section">
+  <h3>对整个页面体系的最终影响</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:4px;font-size:10px">
+  <div style="padding:6px 10px;background:#f0faf0;border-radius:4px"><b>Dashboard → 工作室总览</b>（俯视空间布局，Coco调度台+Agent工位+资料架）</div>
+  <div style="padding:6px 10px;background:#f0faf0;border-radius:4px"><b>Welcome → 空工作室首次亮灯</b>（Coco 在调度台等你）</div>
+  <div style="padding:6px 10px;background:#f0faf0;border-radius:4px"><b>Chat → 和工作室对话</b>（从工作室进入，对话后回到工作室）</div>
+  <div style="padding:6px 10px;background:#f0faf0;border-radius:4px"><b>Agents → 团队成员档案</b>（不是在列表里，而是在工位上看到他们）</div>
+  <div style="padding:6px 10px;background:#fff8e0;border-radius:4px"><b>Studio（独立页）→ 可能不需要</b>（工作室总览本身就是「Studio」了）</div>
+  <div style="padding:6px 10px;background:#fff8e0;border-radius:4px"><b>SceneDetail → 被工作室总览吸收</b>（切换 Scene 就是切换工作室视图）</div>
+</div>
+
+<div class="section">
+  <h3>确认：这个澄清后的方向对吗？</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="studio_yes">
+    <div class="letter">✓</div>
+    <div class="content"><h3>方向对了</h3><p>Coco=MainAI，去游戏化，Studio空间语言。继续往下走。</p></div>
+  </div>
+  <div class="option" data-choice="studio_no">
+    <div class="letter">△</div>
+    <div class="content"><h3>还有要调的</h3></div>
+  </div>
+</div>

@@ -1,0 +1,164 @@
+<h2>⚠ 根本性纠偏：Agent 的真实模型</h2>
+<p class="subtitle">之前的设计基于错误理解——现在回到现实</p>
+
+<div class="section">
+  <h3>CocoCat 的 Agent 真实模型</h3>
+</div>
+
+<div style="display:flex;gap:12px;font-size:10px;margin-bottom:16px">
+  <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:12px">
+    <div style="font-weight:600;color:#e07b5a;margin-bottom:6px">我之前以为的（错误）</div>
+    <div style="color:#888;line-height:1.7">
+      Dev Agent 坐在工位上 ✓<br/>
+      Tester Agent 坐在工位上 ✓<br/>
+      Writer Agent 坐在工位上 ✓<br/>
+      它们一直存在，等待任务 ✓<br/>
+      工作室有固定工位 ✓
+    </div>
+  </div>
+  <div style="flex:1;background:#fff;border:2px solid #e07b5a;border-radius:8px;padding:12px">
+    <div style="font-weight:600;color:#e07b5a;margin-bottom:6px">实际情况</div>
+    <div style="color:#333;line-height:1.7">
+      Coco = 持久（调度核心）<br/>
+      kb-agent = 持久（知识库管理）<br/>
+      其他 = <span style="color:#e07b5a">沙盒 worker（创建→执行→销毁）</span><br/>
+      它们是被 Coco 临时 fork 出来的<br/>
+      执行完一个 task 就消失<br/>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>这意味着什么</h3>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;font-size:10px">
+  <div style="padding:8px 12px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>「工位」概念不成立</b> — 没有持久的 Agent 等在那个位置上。只有 Coco 调度台和 kb-agent 是固定的。其他「工位」只是当前活跃的沙盒 worker 的临时快照。
+  </div>
+  <div style="padding:8px 12px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>「Agent 管理页」需要重新理解</b> — 当前 Agents 页列出的是 Agent 配置模板（角色定义、tool 权限、system prompt），而不是「在线的团队成员」。它们是 Coco 用来 fork 沙盒 worker 的模板。
+  </div>
+  <div style="padding:8px 12px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>Dashboard 应该展示什么？</b> — 不是「谁在工位上」，而是「当前在发生什么」：Coco 在做什么、哪些沙盒 worker 正在运行、DAG 任务进展、kb-agent 状态。
+  </div>
+</div>
+
+<div class="section">
+  <h3>关键问题：什么场景下需要多 Agent？</h3>
+</div>
+<div style="padding:12px;background:#faf6f0;border-radius:8px;font-size:10px;line-height:1.8">
+<b>你的问题：如果要达成「多 Agent 协作」，什么样的场景会需要？</b><br/><br/>
+我的理解：多 Agent 的价值在于 <b>并行执行不同性质的任务</b>。Coco 拆解一个复杂需求（比如「重构整个项目架构」），然后：
+<ul style="margin:4px 0;padding-left:16px">
+  <li>fork 一个 code-analysis worker 去读代码</li>
+  <li>fork 一个 refactor worker 去改文件</li>
+  <li>fork 一个 test worker 去跑测试</li>
+</ul>
+这些 worker 是<b>并行的、临时的</b>——不需要持久存在。真正的「多 Agent」体现在 DAG 的并行执行能力，而不是桌面上坐了一排人。<br/><br/>
+<b>所以正确的可视化应该是：</b>展示 DAG 的并行任务流——哪些 worker 在并行工作、哪些完成了、哪些在排队——而不是虚拟的「工位」。
+</div>
+
+<div class="section">
+  <h3>基于真实模型，Dashboard 应该展示什么？</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Dashboard = Coco 状态 + 当前任务图 + 近期活动</div>
+  <div class="mockup-body">
+    <div style="background:#faf8f5;border-radius:12px;padding:16px">
+
+      <!-- Coco + kb-agent 固定栏 -->
+      <div style="display:flex;gap:10px;margin-bottom:12px">
+        <div style="flex:2;background:#fff;border:2px solid #e07b5a;border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px">
+          <div style="width:36px;height:36px;background:#fff;border:2px solid #f97316;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px">🐱</div>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:11px">Coco</div>
+            <div style="font-size:8px;color:#e07b5a">● 运行中 — 正在执行「重构项目架构」</div>
+            <div style="height:2px;background:#f0ebe3;border-radius:1px;margin-top:3px"><div style="width:45%;height:100%;background:#e07b5a;border-radius:1px"></div></div>
+          </div>
+        </div>
+        <div style="flex:1;background:#fff;border:1px solid #d4a574;border-radius:10px;padding:10px;display:flex;align-items:center;gap:6px">
+          <div style="width:28px;height:28px;background:#d4a574;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px">K</div>
+          <div>
+            <div style="font-weight:600;font-size:10px">kb-agent</div>
+            <div style="font-size:8px;color:#bbb">○ 空闲</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 当前 DAG / 活跃任务 -->
+      <div style="background:#fff;border:1px solid #e8e5e0;border-radius:10px;padding:12px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:600;margin-bottom:8px">📋 当前任务：重构项目架构</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:9px">
+          <div style="flex:1;background:#f0faf0;border:1px solid #7a9e7e;border-radius:6px;padding:6px 8px;text-align:center">
+            <div style="color:#7a9e7e;font-weight:600">Stage 1</div>
+            <div style="color:#888">代码分析</div>
+            <div style="color:#7a9e7e">✓ 完成</div>
+          </div>
+          <span style="color:#ccc">→</span>
+          <div style="flex:1;background:#faf6f0;border:2px solid #e07b5a;border-radius:6px;padding:6px 8px;text-align:center">
+            <div style="color:#e07b5a;font-weight:600">Stage 2</div>
+            <div style="color:#888">重构执行</div>
+            <div style="color:#e07b5a">● 2 workers</div>
+          </div>
+          <span style="color:#ccc">→</span>
+          <div style="flex:1;background:#faf8f5;border:1px dashed #ddd;border-radius:6px;padding:6px 8px;text-align:center">
+            <div style="color:#bbb">Stage 3</div>
+            <div style="color:#ccc">测试验证</div>
+            <div style="color:#ccc">等待中</div>
+          </div>
+        </div>
+
+        <!-- 活跃 workers -->
+        <div style="margin-top:8px;font-size:9px;color:#666;display:flex;gap:12px">
+          <div style="display:flex;align-items:center;gap:4px">
+            <div style="width:6px;height:6px;background:#7a9e7e;border-radius:50%"></div>
+            <span>worker-refactor · 3m 12s</span>
+            <div style="width:40px;height:2px;background:#e8f0e8;border-radius:1px"><div style="width:65%;height:100%;background:#7a9e7e;border-radius:1px"></div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px">
+            <div style="width:6px;height:6px;background:#7a9e7e;border-radius:50%"></div>
+            <span>worker-test · 1m 05s</span>
+            <div style="width:40px;height:2px;background:#e8f0e8;border-radius:1px"><div style="width:30%;height:100%;background:#7a9e7e;border-radius:1px"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部：Agent 模板 + 近期活动 -->
+      <div style="display:flex;gap:10px">
+        <div style="flex:1;background:rgba(255,255,255,0.7);border:1px solid #e8e5e0;border-radius:8px;padding:10px">
+          <div style="font-size:10px;font-weight:600;color:#666;margin-bottom:6px">📋 Agent 模板</div>
+          <div style="font-size:8px;color:#888;line-height:1.6">
+            Coco 可用的 worker 模板：<br/>
+            · code-reviewer · tester · writer<br/>
+            <span style="color:#aaa">3 个模板 · 按需创建 worker</span>
+          </div>
+        </div>
+        <div style="flex:1;background:rgba(255,255,255,0.7);border:1px solid #e8e5e0;border-radius:8px;padding:10px">
+          <div style="font-size:10px;font-weight:600;color:#666;margin-bottom:6px">🕐 近期</div>
+          <div style="font-size:8px;color:#888;line-height:1.6">
+            worker-refactor 完成 · 3分钟前<br/>
+            Coco 开始新任务 · 12分钟前<br/>
+            kb-agent 索引完成 · 1小时前
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>这个版本基于真实模型——你觉得方向对吗？</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="real_ok">
+    <div class="letter">✓</div>
+    <div class="content"><h3>基于真实模型的方向对</h3><p>不再虚构工位，聚焦 Coco + DAG任务流 + 活跃worker + Agent模板</p></div>
+  </div>
+  <div class="option" data-choice="real_no">
+    <div class="letter">△</div>
+    <div class="content"><h3>还有偏差，继续纠正</h3></div>
+  </div>
+</div>

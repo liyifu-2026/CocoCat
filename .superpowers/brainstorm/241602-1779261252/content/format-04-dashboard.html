@@ -1,0 +1,217 @@
+<h2>#4 Dashboard · 前端格式文档</h2>
+<p class="subtitle">工作室总览——整个产品的核心枢纽，Studio 范式的具象化</p>
+
+<div class="section">
+  <h3>1. 概述</h3>
+</div>
+
+<div style="background:#faf8f5;border-radius:8px;padding:12px;font-size:10px;line-height:1.7">
+<b>页面目的：</b>一屏看清团队状态。Coco 调度台 + Agent 工位 + 资料架 + 当前任务流。<br/>
+<b>用户场景：</b>日常进入的第一页。看一眼谁在忙、谁空闲、有什么新任务、资料架有什么更新。<br/>
+<b>所属层级：</b>L2 空间感知<br/>
+<b>关键原则：</b>工位排列是个人视图（每个人可以自己拖拽调整），Agent 数据是共享的。默认布局由系统自动生成。
+</div>
+
+<div class="section">
+  <h3>2. 路由与导航</h3>
+</div>
+<div style="background:#faf8f5;border-radius:6px;padding:12px;font-size:10px;line-height:1.8">
+<b>路由：</b>/dashboard（默认首页，替代 /chat）<br/>
+<b>进入：</b>登录后 / Onboarding 完成后<br/>
+<b>可跳转：</b>点击 Agent 工位 → 查看详情（弹出面板，不跳页）/ 点击 Coco 调度台 → 进入 Chat / 点击资料架 → /knowledge<br/>
+<b>SceneRail：</b>切换 Scene 时 Dashboard 刷新为该 Scene 的 Agent 列表
+</div>
+
+<div class="section">
+  <h3>3. 页面布局</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Dashboard = 当前 Scene 的工作室俯视图</div>
+  <div class="mockup-body">
+    <div style="background:#faf8f5;border-radius:12px;padding:16px;position:relative;min-height:400px">
+
+      <div style="position:absolute;top:0;right:0;width:45%;height:55%;background:radial-gradient(circle at top right, oklch(0.82 0.06 45 / 0.06) 0%, transparent 70%);pointer-events:none"></div>
+      <div style="position:absolute;bottom:0;left:0;width:40%;height:50%;background:radial-gradient(circle at bottom left, oklch(0.78 0.04 70 / 0.05) 0%, transparent 70%);pointer-events:none"></div>
+
+      <div style="position:relative;z-index:1">
+
+        <!-- 顶部信息栏 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:16px">🏢</span>
+            <div>
+              <div style="font-weight:700;font-size:13px">开发工作室</div>
+              <div style="font-size:9px;color:#888">4 Agent · 1 运行中 · 3 空闲</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button style="padding:4px 10px;background:#fff;border:1px solid #e0ddd8;border-radius:6px;font-size:9px">💬 对话</button>
+            <button style="padding:4px 10px;background:#e07b5a;border:none;border-radius:6px;color:#fff;font-size:9px">+ 添加 Agent</button>
+          </div>
+        </div>
+
+        <!-- 主内容区：俯视图 -->
+        <div style="display:grid;grid-template-columns:1.2fr 2fr 1fr;grid-template-rows:auto auto;gap:10px">
+
+          <!-- 左侧：资料区 -->
+          <div style="grid-row:1/span 2;background:rgba(255,255,255,0.75);border:1px solid #e8e5e0;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:10px;font-weight:600;color:#666;display:flex;align-items:center;gap:4px">
+              <span>📚</span> 资料架
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="padding:5px 8px;background:#faf8f5;border-radius:4px;font-size:8px;display:flex;justify-content:space-between">
+                <span>项目文档</span><span style="color:#aaa">12篇</span>
+              </div>
+              <div style="padding:5px 8px;background:#faf8f5;border-radius:4px;font-size:8px;display:flex;justify-content:space-between">
+                <span>API 手册</span><span style="color:#aaa">8篇</span>
+              </div>
+              <div style="padding:5px 8px;background:#faf8f5;border-radius:4px;font-size:8px;display:flex;justify-content:space-between">
+                <span>设计规范</span><span style="color:#aaa">3篇</span>
+              </div>
+            </div>
+            <div style="margin-top:auto;font-size:8px;color:#ccc;text-align:center">拖拽文件到此处上传</div>
+          </div>
+
+          <!-- 中央上：Coco 调度台 -->
+          <div style="background:#fff;border:2px solid #e07b5a;border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px;cursor:pointer">
+            <div style="width:36px;height:36px;background:#fff;border:2px solid #f97316;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🐱</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:11px">Coco · 调度台</div>
+              <div style="font-size:8px;color:#888">Main AI — 分析需求 · 拆解任务 · 分配工作</div>
+              <div style="display:flex;align-items:center;gap:4px;margin-top:3px">
+                <div style="flex:1;height:2px;background:#f0ebe3;border-radius:1px"><div style="width:40%;height:100%;background:#e07b5a;border-radius:1px"></div></div>
+                <span style="font-size:7px;color:#e07b5a;white-space:nowrap">规划中</span>
+              </div>
+            </div>
+            <div style="width:6px;height:6px;background:#4caf50;border-radius:50%"></div>
+          </div>
+
+          <!-- 右侧：团队笔记 -->
+          <div style="grid-row:1/span 2;background:rgba(255,255,255,0.75);border:1px solid #e8e5e0;border-radius:10px;padding:10px">
+            <div style="font-size:10px;font-weight:600;color:#666;margin-bottom:6px">📝 团队笔记</div>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:8px">
+              <div style="padding:4px 6px;background:#faf8f5;border-radius:4px;color:#888">用户偏好使用 React + TS 技术栈</div>
+              <div style="padding:4px 6px;background:#faf8f5;border-radius:4px;color:#888">项目部署在 AWS EC2</div>
+            </div>
+            <div style="margin-top:8px;font-size:8px;color:#ccc;text-align:center">+ 添加笔记</div>
+          </div>
+
+          <!-- 中央下：Agent 工位区 -->
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+
+            <!-- kb-agent (固定角色,工作中) -->
+            <div style="flex:1;min-width:130px;background:#fff;border:1px solid #d4a574;border-radius:8px;padding:8px">
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                <div style="width:22px;height:22px;background:#d4a574;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:600">K</div>
+                <div>
+                  <div style="font-weight:600;font-size:9px">kb-agent</div>
+                  <div style="font-size:7px;color:#d4a574">● 处理文件中</div>
+                </div>
+              </div>
+              <div style="font-size:7px;color:#666">正在索引 API 手册...</div>
+              <div style="height:2px;background:#f0f0f0;border-radius:1px;margin-top:3px"><div style="width:70%;height:100%;background:#d4a574;border-radius:1px"></div></div>
+            </div>
+
+            <!-- Dev Agent (工作中) -->
+            <div style="flex:1;min-width:130px;background:#fff;border:2px solid #7a9e7e;border-radius:8px;padding:8px">
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                <div style="width:22px;height:22px;background:#7a9e7e;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:600">D</div>
+                <div>
+                  <div style="font-weight:600;font-size:9px">Dev Agent</div>
+                  <div style="font-size:7px;color:#7a9e7e">● 工作中</div>
+                </div>
+              </div>
+              <div style="font-size:7px;color:#666">审阅 src/app.ts</div>
+              <div style="height:2px;background:#e8f0e8;border-radius:1px;margin-top:3px"><div style="width:60%;height:100%;background:#7a9e7e;border-radius:1px"></div></div>
+            </div>
+
+            <!-- Tester Agent (空闲) -->
+            <div style="flex:1;min-width:130px;background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:8px">
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                <div style="width:22px;height:22px;background:#8b7aaa;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:600">T</div>
+                <div>
+                  <div style="font-weight:600;font-size:9px">Tester Agent</div>
+                  <div style="font-size:7px;color:#bbb">○ 待命中</div>
+                </div>
+              </div>
+              <div style="font-size:7px;color:#ccc">等待任务</div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- 底部状态条 -->
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px;padding:8px 12px;background:rgba(255,255,255,0.6);border:1px solid #e8e5e0;border-radius:8px;font-size:8px;color:#888">
+          <span>🟢 系统正常</span>
+          <span>|</span>
+          <span>当前 Scene：开发工作室</span>
+          <span>|</span>
+          <span>最后活动：2 分钟前</span>
+          <span style="margin-left:auto">💡 拖拽工位可调整布局（仅自己可见）</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>4. 关键设计决策：固定角色 vs 用户创建</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:6px;font-size:10px">
+  <div style="padding:8px 12px;background:#fff;border:1px solid #c8d5c0;border-radius:6px">
+    <b>✅ 固定角色（始终存在，不可删除）：</b><br/>
+    · <b>Coco</b>（Main AI）— 调度台，所有 Scene 中都有。橘猫 Logo。<br/>
+    · <b>kb-agent</b>（知识库管理员）— 有 Scene 就有 kb-agent，负责文件处理和知识库运维。
+  </div>
+  <div style="padding:8px 12px;background:#fff;border:1px solid #c8d5c0;border-radius:6px">
+    <b>✅ 用户创建的 Agent：</b><br/>
+    · 在工位区自由排列（个人视图，拖拽调整）<br/>
+    · 新 Agent 自动出现在工位区空位<br/>
+    · 可删除、可编辑
+  </div>
+  <div style="padding:8px 12px;background:#fff;border:1px solid #c8d5c0;border-radius:6px">
+    <b>✅ 空态处理：</b><br/>
+    · 新建 Scene：Coco 调度台 + kb-agent 工位 + 空资料架 + 空工位区（虚线占位）<br/>
+    · 用户还没创建 Agent → 工位区显示「+ 添加第一个 Agent」引导卡片
+  </div>
+</div>
+
+<div class="section">
+  <h3>5. 交互细节</h3>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;font-size:10px">
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>拖拽：</b>Agent 工位可在工位区内拖拽重排。使用 @dnd-kit。位置存 localStorage（个人偏好）。
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>点击 Agent 工位：</b>右侧滑出详情面板（Agent 信息 + 当前任务 + 最近活动）。不跳页。
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>点击 Coco 调度台：</b>进入 Chat（/chat?scene=当前Scene）。
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>任务流可视化：</b>Coco 调度台 → 工作流连线 → Agent 工位（仅当有活跃 DAG 时显示虚线箭头动画）。
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>实时更新：</b>Agent 状态轮询（5s）+ WebSocket 事件推送。工位边框颜色和状态指示实时变化。
+  </div>
+</div>
+
+<div class="section">
+  <h3>确认 Dashboard——</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="dash_ok">
+    <div class="letter">✓</div>
+    <div class="content"><h3>OK，继续 #5 Chat</h3></div>
+  </div>
+  <div class="option" data-choice="dash_tweak">
+    <div class="letter">△</div>
+    <div class="content"><h3>需要调整</h3></div>
+  </div>
+</div>

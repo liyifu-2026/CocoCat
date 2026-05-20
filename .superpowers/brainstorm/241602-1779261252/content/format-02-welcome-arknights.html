@@ -1,0 +1,194 @@
+<h2>明日方舟「终端基建」× CocoCat 交互探讨</h2>
+<p class="subtitle">把 AI 团队管理做成一个有生命感的「基地」</p>
+
+<div class="section">
+  <h3>什么是「终端基建」的核心体验？</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">罗德岛基建系统的设计语言</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:12px;font-size:10px">
+      <div style="flex:1;background:#1a1a2e;border-radius:8px;padding:14px;color:#ccc">
+        <div style="color:#8ab4f8;font-weight:600;margin-bottom:8px">🏭 制造站</div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <div style="width:28px;height:28px;background:#333;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px">👤</div>
+          <div style="width:28px;height:28px;background:#333;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px">👤</div>
+          <span style="color:#888">生产中...</span>
+          <div style="width:40px;height:4px;background:#333;border-radius:2px"><div style="width:60%;height:100%;background:#4caf50;border-radius:2px"></div></div>
+        </div>
+        <div style="color:#888">产出：赤金 × 4</div>
+      </div>
+      <div style="flex:1;background:#1a1a2e;border-radius:8px;padding:14px;color:#ccc">
+        <div style="color:#f4b860;font-weight:600;margin-bottom:8px">📦 贸易站</div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <div style="width:28px;height:28px;background:#333;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px">👤</div>
+          <span style="color:#888">订单中...</span>
+        </div>
+        <div style="color:#888">龙门币 +200</div>
+      </div>
+      <div style="flex:1;background:#1a1a2e;border-radius:8px;padding:14px;color:#ccc">
+        <div style="color:#e8a0bf;font-weight:600;margin-bottom:8px">🛏 宿舍</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div style="width:28px;height:28px;background:#333;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px">😴</div>
+          <div style="width:28px;height:28px;background:#333;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px">😴</div>
+          <span style="color:#888">恢复中</span>
+        </div>
+        <div style="color:#888">心情 +0.2/h</div>
+      </div>
+    </div>
+    <div style="margin-top:8px;font-size:9px;color:#888;line-height:1.6">
+      <b>核心设计语言：</b>俯视平面图 / 房间=功能 / 干员=小人住在房间里 / 实时生产进度 / 资源流转可视 / 有「家」的归属感
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>CocoCat 映射：「AI 团队基地」</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">把 Agent / Scene / KB / DAG 映射为基地中的房间和干员</div>
+  <div class="mockup-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto;gap:10px;padding:12px;background:#faf6f0;border-radius:8px">
+
+      <!-- 调度中心 -->
+      <div style="grid-column:1/span 2;background:#fff;border:1px solid #e8e5e0;border-radius:10px;padding:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:18px">📡</span>
+          <div>
+            <div style="font-weight:600;font-size:12px">调度中心 · Main AI</div>
+            <div style="font-size:9px;color:#888">正在分析「重构项目架构」</div>
+          </div>
+          <div style="margin-left:auto;width:10px;height:10px;background:#4caf50;border-radius:50%;animation:pulse 2s infinite"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <div style="flex:1;height:3px;background:#f0f0f0;border-radius:2px"><div style="width:35%;height:100%;background:#e07b5a;border-radius:2px"></div></div>
+        </div>
+        <div style="display:flex;gap:12px;font-size:9px;color:#888">
+          <span>Stage 1/4</span>
+          <span>→ Dev Agent（审阅中）</span>
+          <span>→ Tester Agent（等待）</span>
+        </div>
+      </div>
+
+      <!-- 闲置 Agent -->
+      <div style="background:#fff;border:1px solid #e8e5e0;border-radius:10px;padding:12px">
+        <div style="font-size:10px;font-weight:600;margin-bottom:6px">💤 闲置中</div>
+        <div style="display:flex;flex-direction:column;gap:4px;font-size:9px">
+          <div style="display:flex;align-items:center;gap:4px;padding:4px 6px;background:#faf8f5;border-radius:4px">
+            <div style="width:8px;height:8px;background:#bbb;border-radius:50%"></div> Writer
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;padding:4px 6px;background:#faf8f5;border-radius:4px">
+            <div style="width:8px;height:8px;background:#bbb;border-radius:50%"></div> Analyst
+          </div>
+        </div>
+      </div>
+
+      <!-- Dev Agent 工位 -->
+      <div style="background:#fff;border:2px solid #7a9e7e;border-radius:10px;padding:12px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <div style="width:28px;height:28px;background:#7a9e7e;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px">D</div>
+          <div>
+            <div style="font-weight:600;font-size:11px">Dev Agent</div>
+            <div style="font-size:8px;color:#888">代码开发 · 技术分析</div>
+          </div>
+          <div style="margin-left:auto;font-size:9px;color:#7a9e7e">● 工作中</div>
+        </div>
+        <div style="font-size:9px;color:#666;line-height:1.5;margin-bottom:4px">正在审阅 src/app.ts...</div>
+        <div style="height:2px;background:#f0f0f0;border-radius:1px"><div style="width:45%;height:100%;background:#7a9e7e;border-radius:1px"></div></div>
+      </div>
+
+      <!-- Tester Agent 工位 -->
+      <div style="background:#fff;border:1px solid #e8e5e0;border-radius:10px;padding:12px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <div style="width:28px;height:28px;background:#8b7aaa;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px">T</div>
+          <div>
+            <div style="font-weight:600;font-size:11px">Tester Agent</div>
+            <div style="font-size:8px;color:#888">测试 · 质量保障</div>
+          </div>
+          <div style="margin-left:auto;font-size:9px;color:#bbb">○ 待命中</div>
+        </div>
+        <div style="font-size:9px;color:#bbb;line-height:1.5">等待 Dev Agent 完成后接手...</div>
+      </div>
+
+      <!-- 知识库 -->
+      <div style="background:#fff;border:1px solid #e8e5e0;border-radius:10px;padding:12px">
+        <div style="font-weight:600;font-size:11px;margin-bottom:6px">📚 知识库</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <div style="padding:3px 8px;background:#f0ebe3;border-radius:8px;font-size:8px">项目文档</div>
+          <div style="padding:3px 8px;background:#f0ebe3;border-radius:8px;font-size:8px">API 手册</div>
+          <div style="padding:3px 8px;background:#f0ebe3;border-radius:8px;font-size:8px">设计规范</div>
+        </div>
+        <div style="font-size:8px;color:#ccc;margin-top:4px">23 篇 · 上次更新 2h 前</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>「基地」隐喻下的页面体系重塑</h3>
+</div>
+
+<table style="width:100%;font-size:10px;border-collapse:collapse">
+  <thead>
+    <tr style="background:#faf6f0">
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">方舟基建概念</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">CocoCat 映射</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">页面呈现</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">基建总览（俯视平面图）</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><b>Dashboard = 基地总览</b></td><td style="padding:4px 8px;border:1px solid #e8e5e0">所有 Agent 工位 + 调度中心 + 知识库的俯视布局。一眼看到谁在忙、谁空闲、任务流向。</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">制造站 / 贸易站</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><b>Agent 工位 = 任务执行单元</b></td><td style="padding:4px 8px;border:1px solid #e8e5e0">每个 Agent 有自己的「工位」卡片——显示当前任务、进度条、输出。</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">控制中枢</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><b>Main AI = 调度中枢</b></td><td style="padding:4px 8px;border:1px solid #e8e5e0">DAG 编排、任务分配、团队协作的指挥中心。</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">宿舍</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><b>空闲 Agent 列表</b></td><td style="padding:4px 8px;border:1px solid #e8e5e0">当前无任务的 Agent 以「休息中」展示，可被唤醒指派任务。</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">仓库</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><b>Knowledge Base = 知识仓库</b></td><td style="padding:4px 8px;border:1px solid #e8e5e0">存储团队积累的知识资产。</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">加工站</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><b>Memory 系统 = 经验加工</b></td><td style="padding:4px 8px;border:1px solid #e8e5e0">将对话提炼为记忆/事实，类似「材料加工」。</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">发电站</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><b>System Status = 能源状态</b></td><td style="padding:4px 8px;border:1px solid #e8e5e0">API 余额、模型可用性、系统资源。</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">会客室</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><b>Chat = 会客/协作窗口</b></td><td style="padding:4px 8px;border:1px solid #e8e5e0">用户和 AI 团队的对话界面。</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">基建副手</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><b>CocoCat (猫) = 基建副手</b></td><td style="padding:4px 8px;border:1px solid #e8e5e0">猫猫是整个基地的「管家」，在基地中走动、报告状态、提醒事项。</td></tr>
+  </tbody>
+</table>
+
+<div class="section">
+  <h3>这个隐喻带来的交互升级</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:6px;font-size:10px">
+  <div style="padding:8px 12px;background:#fff;border:1px solid #c8d5c0;border-radius:6px">
+    <b>🔗 任务流转可视化</b> — DAG 任务从 Main AI → Dev → Tester 的流动，在基地俯视图上以连线动画呈现。可以看到「工作」在工位之间传递。
+  </div>
+  <div style="padding:8px 12px;background:#fff;border:1px solid #c8d5c0;border-radius:6px">
+    <b>😴 闲置≠无用</b> — 空闲的 Agent 在「宿舍区」休息，不是冷冰冰的「offline」标签。当任务到来时，它们被「唤醒」走到工位上。
+  </div>
+  <div style="padding:8px 12px;background:#fff;border:1px solid #c8d5c0;border-radius:6px">
+    <b>🐱 猫的深度角色化</b> — 猫不是装饰，是「基建副手」。在基地里走动、停在忙碌的 Agent 旁边查看、叼着完成的任务报告跑向你。
+  </div>
+  <div style="padding:8px 12px;background:#fff;border:1px solid #c8d5c0;border-radius:6px">
+    <b>🏗 成长感</b> — 基地从小变大：初始只有 1 个 Agent 工位 + 猫，逐渐解锁更多工位、知识库书架、调度中心。用户能感受到「团队在成长」。
+  </div>
+  <div style="padding:8px 12px;background:#fff;border:1px solid #c8d5c0;border-radius:6px">
+    <b>🎯 Dashboard 终于有灵魂</b> — 不再是数据卡片堆砌，而是一个有空间感、有生命力的「基地俯视图」。
+  </div>
+</div>
+
+<div class="section">
+  <h3>这改变了全局交互范式——你觉得这个方向值得深入吗？</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="base_yes">
+    <div class="letter">🔥</div>
+    <div class="content"><h3>方向太对了，深入发展</h3><p>把「基地」作为整个产品交互隐喻的核心，重写 Welcome / Dashboard / 管理页的设计语言</p></div>
+  </div>
+  <div class="option" data-choice="base_partial">
+    <div class="letter">💡</div>
+    <div class="content"><h3>概念很好但部分采纳</h3><p>Dashboard 用基地隐喻，但 Chat / 管理页保持独立语言</p></div>
+  </div>
+  <div class="option" data-choice="base_hesitate">
+    <div class="letter">🤔</div>
+    <div class="content"><h3>有意思但需要再想</h3><p>基地概念有吸引力，但担心过于「游戏化」偏离专业感</p></div>
+  </div>
+</div>

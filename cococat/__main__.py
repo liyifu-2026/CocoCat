@@ -1,4 +1,4 @@
-"""CocoCat v2 server entry point.
+"""CocoCat v3 server entry point.
 
 Usage:
     python -m cococat                              # local mode (port 8000)
@@ -17,7 +17,7 @@ logger = logging.getLogger("cococat")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CocoCat v2 server")
+    parser = argparse.ArgumentParser(description="CocoCat v3 server")
     parser.add_argument("--port", type=int, default=8000, help="HTTP port (default: 8000)")
     parser.add_argument("--db", type=str, default="cococat.db", help="SQLite database path")
     parser.add_argument("--auth", type=str, default="config/auth.json", help="Auth config path")
@@ -40,7 +40,7 @@ def main():
     from cococat.core.bootstrap import load_agents
     load_agents(app, args)
 
-    logger.info("Starting CocoCat v2 on http://%s:%d (cube_sandbox=%s)", args.host, args.port, args.cube_sandbox)
+    logger.info("Starting CocoCat v3 on http://%s:%d (cube_sandbox=%s)", args.host, args.port, args.cube_sandbox)
     uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
 
 

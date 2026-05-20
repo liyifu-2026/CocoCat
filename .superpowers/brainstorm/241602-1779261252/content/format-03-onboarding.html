@@ -1,0 +1,179 @@
+<h2>#3 Onboarding · 前端格式文档</h2>
+<p class="subtitle">2-3 步引导：从空工作室到第一个 Agent 就位</p>
+
+<div class="section">
+  <h3>1. 概述</h3>
+</div>
+
+<div style="background:#faf8f5;border-radius:8px;padding:12px;font-size:10px;line-height:1.7">
+<b>页面目的：</b>帮助新用户快速理解工作室概念并创建第一个 Agent。不是填表，是「布置工作室」。<br/>
+<b>用户场景：</b>Welcome 点击「添加第一个 Agent」进入。老用户可通过 Dashboard 入口重新访问。<br/>
+<b>核心原则：</b>每一步都可跳过。总时长控制在 2 分钟内。AI 辅助而非手动填表。<br/>
+<b>所属层级：</b>L1 初体验
+</div>
+
+<div class="section">
+  <h3>2. 路由与导航</h3>
+</div>
+<div style="background:#faf8f5;border-radius:6px;padding:12px;font-size:10px;line-height:1.8">
+<b>路由：</b>/onboarding<br/>
+<b>进入：</b>Welcome → 点击 CTA / Dashboard 空态 → 点击引导入口<br/>
+<b>完成后跳转：</b>工作室总览 (Dashboard)，新 Agent 已在工位上<br/>
+<b>localStorage：</b>完成后设 <code>onboarding_complete = true</code>，Welcome 不再显示
+</div>
+
+<div class="section">
+  <h3>3. 三步流程</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Step 1/3：给工作室起个名（可选跳过）</div>
+  <div class="mockup-body">
+    <div style="display:flex;flex-direction:column;align-items:center;padding:24px;background:#faf8f5;border-radius:8px">
+      <div style="font-size:10px;color:#aaa;margin-bottom:8px">STEP 1/3</div>
+      <div style="font-family:'Zen Antique',serif;font-size:18px;color:#333;margin-bottom:4px">给你的工作室起个名</div>
+      <div style="font-size:11px;color:#888;margin-bottom:16px">比如「开发工作室」「我的团队」——以后可以改</div>
+      <div style="width:260px;height:40px;background:#fff;border:1px solid #e0d5c8;border-radius:10px;display:flex;align-items:center;padding:0 14px;font-size:13px;color:#bbb">
+        我的工作室
+      </div>
+      <div style="display:flex;gap:12px;margin-top:16px">
+        <button style="padding:6px 20px;background:#e07b5a;border:none;border-radius:8px;color:#fff;font-size:11px">继续</button>
+        <button style="padding:6px 20px;background:none;border:none;color:#ccc;font-size:11px">跳过</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Step 2/3：添加你的第一个 Agent（AI 辅助）</div>
+  <div class="mockup-body">
+    <div style="display:flex;flex-direction:column;align-items:center;padding:24px;background:#faf8f5;border-radius:8px">
+      <div style="font-size:10px;color:#aaa;margin-bottom:8px">STEP 2/3</div>
+      <div style="font-family:'Zen Antique',serif;font-size:18px;color:#333;margin-bottom:16px">添加一个团队成员</div>
+
+      <!-- AI 辅助创建区 -->
+      <div style="width:340px;background:#fff;border:1px solid #e8e5e0;border-radius:10px;padding:14px">
+        <div style="font-size:11px;color:#888;margin-bottom:8px">描述你需要的 Agent，Coco 会帮你创建</div>
+        <div style="background:#faf6f0;border:1px solid #ebd5c0;border-radius:8px;padding:10px 12px;font-size:10px;color:#666;margin-bottom:10px;line-height:1.6">
+          <span style="color:#e07b5a">💡 试试这么说：</span><br/>
+          「需要一个擅长代码审查的 Agent，能读文件和跑测试」<br/>
+          「需要一个帮我写文档和整理资料的助手」
+        </div>
+        <textarea style="width:100%;height:50px;border:1px solid #e0ddd8;border-radius:8px;padding:8px 10px;font-size:11px;resize:none;outline:none;background:#fff;color:#555" placeholder="或者自己描述...">一个擅长代码审查的 Agent，能读文件、跑 bash、做 web 搜索</textarea>
+
+        <!-- AI 自动填充预览 -->
+        <div style="margin-top:10px;padding:8px 10px;background:#f0faf0;border:1px solid #c8d5c0;border-radius:6px;font-size:9px">
+          <div style="color:#7a9e7e;font-weight:600;margin-bottom:4px">Coco 已自动填充：</div>
+          <div>名称：Code Reviewer</div>
+          <div>角色：代码审查专家</div>
+          <div>工具：file_rw ✓ bash ✓ web_search ✓</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:14px">
+        <button style="padding:6px 20px;background:#e07b5a;border:none;border-radius:8px;color:#fff;font-size:11px">创建</button>
+        <button style="padding:6px 20px;background:none;border:none;color:#ccc;font-size:11px">跳过</button>
+      </div>
+
+      <div style="font-size:9px;color:#bbb;margin-top:8px">高级用户可展开完整表单手动配置</div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Step 3/3：工作室就绪</div>
+  <div class="mockup-body">
+    <div style="display:flex;flex-direction:column;align-items:center;padding:24px;background:#faf8f5;border-radius:8px">
+      <div style="font-size:10px;color:#aaa;margin-bottom:8px">STEP 3/3</div>
+      <div style="font-family:'Zen Antique',serif;font-size:18px;color:#333;margin-bottom:16px">工作室准备好了</div>
+
+      <!-- 迷你工作室预览 -->
+      <div style="width:280px;height:150px;background:#fff;border:1px solid #e8e5e0;border-radius:10px;position:relative;overflow:hidden;margin-bottom:14px">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg, transparent, transparent 30px, oklch(0.92 0.005 75 / 0.3) 30px, oklch(0.92 0.005 75 / 0.3) 31px)"></div>
+        <!-- Coco -->
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1.5px solid #e07b5a;border-radius:6px;padding:5px 10px;display:flex;align-items:center;gap:5px">
+          <span style="font-size:12px">🐱</span><span style="font-size:8px">Coco</span>
+        </div>
+        <!-- 新 Agent 工位 (实线, 已亮) -->
+        <div style="position:absolute;top:30%;left:25%;background:rgba(255,255,255,0.9);border:1.5px solid #7a9e7e;border-radius:6px;padding:5px 10px;display:flex;align-items:center;gap:5px;box-shadow:0 0 12px oklch(0.55 0.065 135 / 0.12)">
+          <div style="width:16px;height:16px;background:#7a9e7e;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px">C</div>
+          <span style="font-size:8px">Code Reviewer</span>
+        </div>
+        <!-- 剩余空工位 -->
+        <div style="position:absolute;top:25%;right:20%;width:50px;height:30px;border:1px dashed #e0ddd8;border-radius:4px"></div>
+      </div>
+
+      <div style="font-size:12px;color:#666;text-align:center;max-width:300px;line-height:1.6;margin-bottom:16px">
+        Coco 和 Code Reviewer 已经就位。<br/>
+        随时可以回来添加更多 Agent、扩充资料架。
+      </div>
+
+      <button style="padding:8px 28px;background:#e07b5a;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:500">进入工作室</button>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>4. 组件树</h3>
+</div>
+<div style="background:#faf8f5;border-radius:6px;padding:12px;font-family:monospace;font-size:10px;line-height:1.8">
+OnboardingPage<br/>
+├── StepIndicator          ← 顶部步骤指示器（1 2 3 圆点）<br/>
+├── Step1_NameStudio       ← 工作室名称（可跳过）<br/>
+│   ├── StepTitle<br/>
+│   ├── NameInput<br/>
+│   └── ActionButtons（继续/跳过）<br/>
+├── Step2_CreateAgent      ← AI 辅助创建 Agent<br/>
+│   ├── StepTitle<br/>
+│   ├── SuggestionPrompt   ← 示例提示<br/>
+│   ├── DescriptionInput   ← 自然语言描述输入<br/>
+│   ├── <span style="color:#e07b5a">AutoFillPreview</span>  ← Coco 自动填充预览<br/>
+│   ├── <span style="color:#e07b5a">ExpandForm（可选）</span>  ← 高级用户展开完整表单<br/>
+│   └── ActionButtons<br/>
+└── Step3_StudioReady      ← 完成页<br/>
+    ├── StepTitle<br/>
+    ├── <span style="color:#e07b5a">MiniStudioPreview</span> ← 迷你工作室俯视图<br/>
+    └── EnterButton
+</div>
+
+<div class="section">
+  <h3>5. 数据流</h3>
+</div>
+<div style="background:#faf8f5;border-radius:6px;padding:12px;font-size:10px;line-height:1.8">
+<b>Step 1：</b>暂存工作室名称到本地 state，不调 API（后续创建 Scene 时用）<br/>
+<b>Step 2：</b>POST /api/agents（AI 填充的 Agent 配置）。同时需要解析自然语言的 API（如果后端暂无，可前端做简单的关键词→配置映射）<br/>
+<b>Step 3：</b>设置 localStorage <code>onboarding_complete = true</code>，跳转 /dashboard
+</div>
+
+<div class="section">
+  <h3>6. 交互细节</h3>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;font-size:10px">
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>步骤切换：</b>淡入淡出过渡（非滑动，保持聚焦）。StepIndicator 圆点填充动画。
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>AI 填充动效：</b>用户输入描述后 1s 延迟 → AutoFillPreview 从 Coco 调度台的位置「生长」出来（暗示 Coco 在帮你配置）。
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>全程可跳过：</b>每个 Step 都有跳过按钮。Step 3 跳过 = 直接进 Dashboard（空工作室，无 Agent）。
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>Step 3 迷你工作室：</b>新 Agent 的工位有一个微小的「亮灯」动画——虚线变实线 + 绿色光晕扩散。
+  </div>
+</div>
+
+<div class="section">
+  <h3>确认 Onboarding——</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="onboard_ok">
+    <div class="letter">✓</div>
+    <div class="content"><h3>OK，继续 #4 Dashboard</h3></div>
+  </div>
+  <div class="option" data-choice="onboard_tweak">
+    <div class="letter">△</div>
+    <div class="content"><h3>需要调整</h3></div>
+  </div>
+</div>

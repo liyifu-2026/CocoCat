@@ -1,0 +1,151 @@
+<h2>交互体验视角 · 页面增删分析</h2>
+<p class="subtitle">不只看后端能力，更要看用户心智模型——什么该加、什么该删、什么该合</p>
+
+<div class="section">
+  <h3>一、建议删除/合并的页面</h3>
+</div>
+
+<div class="cards">
+  <div class="card" style="border: 2px solid #e8c0c0">
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:18px">🗑</span>
+        <h3 style="margin:0">#10 SceneRun —— 建议删除</h3>
+      </div>
+      <p style="font-size:11px;line-height:1.5">当前是空 div。在交互模型中，用户从 SceneRail 点击 Scene → 应该直接进入 Chat（带 Scene 上下文）。SceneRun 作为独立页面没有存在的理由——它和「Chat + Scene 上下文」完全重叠。</p>
+      <div style="margin-top:6px;padding:6px 10px;background:#fff5f5;border-radius:4px;font-size:10px;color:#e07b5a">
+        <b>决策：</b>删除 /scenes/:id/run 路由，SceneRail 点击 Scene → 跳转 /chat?scene=xxx
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="border: 2px solid #e8d5a0">
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:18px">🔀</span>
+        <h3 style="margin:0">#8 ChatHistory —— 建议降级为 Chat 内面板</h3>
+      </div>
+      <p style="font-size:11px;line-height:1.5">当前是独立页面 /chat/history。用户浏览历史时需要离开对话上下文。从交互体验来说，历史列表应该是 Chat 页内的一个可展开侧边栏——不打断当前对话流，随手翻阅。</p>
+      <div style="margin-top:6px;padding:6px 10px;background:#fffaf0;border-radius:4px;font-size:10px;color:#d4a574">
+        <b>决策：</b>删除 /chat/history 独立路由。在 Chat 页左侧增加「历史会话」可折叠面板。
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="border: 2px solid #e8d5a0">
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:18px">🔀</span>
+        <h3 style="margin:0">#11 SceneDetail —— 建议合并入 Studio</h3>
+      </div>
+      <p style="font-size:11px;line-height:1.5">当前 Scene 详情页（Context + Roster + Skills + Knowledge）是独立页。在「创作工作室」隐喻下，查看单个 Scene 的详情 = 在 Studio 画布中聚焦某个 Scene 节点。不需要独立路由。</p>
+      <div style="margin-top:6px;padding:6px 10px;background:#fffaf0;border-radius:4px;font-size:10px;color:#d4a574">
+        <b>决策：</b>删除 /scenes/:id 独立路由。Studio 画布中点击 Scene 节点 → 展开详情面板。
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>二、建议新增的页面（交互体验驱动）</h3>
+</div>
+
+<div class="cards">
+  <div class="card" style="border: 2px solid #c8d5c0">
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:18px">🔎</span>
+        <h3 style="margin:0">#21 GlobalSearch —— 全局搜索页</h3>
+      </div>
+      <p style="font-size:11px;line-height:1.5">cmdk 已安装但未使用。应该做一个 ⌘K 触发的全局搜索面板：跨 Agent / Scene / KB / 聊天记录 / 记忆 搜索。深度用户的核心操作入口，不依赖鼠标点来点去。</p>
+      <div style="margin-top:6px;padding:6px 10px;background:#f0faf0;border-radius:4px;font-size:10px;color:#7a9e7e">
+        <b>形式：</b>全局浮层面板（非独立路由），⌘K 唤起。后端需聚合搜索 API。
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="border: 2px solid #c8d5c0">
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:18px">🔔</span>
+        <h3 style="margin:0">#22 NotificationCenter —— 通知中心</h3>
+      </div>
+      <p style="font-size:11px;line-height:1.5">WebSocket 实时事件（Agent 完成/失败、DAG 结束、新消息）需要一个集中展示的地方。sonner toast 只能处理「此刻」，不能回溯。通知中心 = toast 的收件箱。</p>
+      <div style="margin-top:6px;padding:6px 10px;background:#f0faf0;border-radius:4px;font-size:10px;color:#7a9e7e">
+        <b>形式：</b>顶部铃铛图标 → 下拉面板。SSE/WS 驱动。支持已读/未读 + 点击跳转到相关页面。
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="border: 2px solid #c8d5c0">
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:18px">📊</span>
+        <h3 style="margin:0">#23 SystemStatus —— 系统状态页</h3>
+      </div>
+      <p style="font-size:11px;line-height:1.5">自托管部署场景下，用户需要知道系统是否健康。Agent 连接状态、模型 Provider 可用性、Sandbox 状态、磁盘空间。不是核心交互但建立「可信赖」感。</p>
+      <div style="margin-top:6px;padding:6px 10px;background:#f0faf0;border-radius:4px;font-size:10px;color:#7a9e7e">
+        <b>形式：</b>独立页面 /status 或 Dashboard 内的状态卡片。优先级低于核心页面。
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>三、调整后的页面清单（20个）</h3>
+</div>
+
+<div style="overflow-x:auto">
+<table style="width:100%;font-size:10px;border-collapse:collapse">
+  <thead>
+    <tr style="background:#faf6f0">
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">#</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">页面</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">类型</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">路由</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="background:#f0faf0"><td style="padding:4px 8px;border:1px solid #e8e5e0">1</td><td style="padding:4px 8px;border:1px solid #e8e5e0">Login</td><td style="padding:4px 8px;border:1px solid #e8e5e0">✅ 已实现</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/login</td><td style="padding:4px 8px;border:1px solid #e8e5e0">视觉升级</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">2</td><td style="padding:4px 8px;border:1px solid #e8e5e0">Welcome</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/ (首次)</td><td style="padding:4px 8px;border:1px solid #e8e5e0">品牌亮相+快速开始</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">3</td><td style="padding:4px 8px;border:1px solid #e8e5e0">Onboarding</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/onboarding</td><td style="padding:4px 8px;border:1px solid #e8e5e0">2-3步引导</td></tr>
+    <tr style="background:#fff8e0"><td style="padding:4px 8px;border:1px solid #e8e5e0">4</td><td style="padding:4px 8px;border:1px solid #e8e5e0">Dashboard</td><td style="padding:4px 8px;border:1px solid #e8e5e0">⬜ 空白</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/dashboard</td><td style="padding:4px 8px;border:1px solid #e8e5e0">从零重做·全局中枢</td></tr>
+    <tr style="background:#f0faf0"><td style="padding:4px 8px;border:1px solid #e8e5e0">5</td><td style="padding:4px 8px;border:1px solid #e8e5e0">Chat</td><td style="padding:4px 8px;border:1px solid #e8e5e0">✅ 已实现</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/chat</td><td style="padding:4px 8px;border:1px solid #e8e5e0">拆分重构+内嵌历史面板</td></tr>
+    <tr style="background:#f0faf0"><td style="padding:4px 8px;border:1px solid #e8e5e0">6</td><td style="padding:4px 8px;border:1px solid #e8e5e0">Agents</td><td style="padding:4px 8px;border:1px solid #e8e5e0">✅ 已实现</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/agents</td><td style="padding:4px 8px;border:1px solid #e8e5e0">创作工作室风格</td></tr>
+    <tr style="background:#f0faf0"><td style="padding:4px 8px;border:1px solid #e8e5e0">7</td><td style="padding:4px 8px;border:1px solid #e8e5e0">Scenes</td><td style="padding:4px 8px;border:1px solid #e8e5e0">✅ 已实现</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/scenes</td><td style="padding:4px 8px;border:1px solid #e8e5e0">补状态+画布组织</td></tr>
+    <tr style="background:#f0faf0"><td style="padding:4px 8px;border:1px solid #e8e5e0">8</td><td style="padding:4px 8px;border:1px solid #e8e5e0">SceneNew</td><td style="padding:4px 8px;border:1px solid #e8e5e0">✅ 已实现</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/scenes/new</td><td style="padding:4px 8px;border:1px solid #e8e5e0">AI辅助+动态数据</td></tr>
+    <tr style="background:#f0faf0"><td style="padding:4px 8px;border:1px solid #e8e5e0">9</td><td style="padding:4px 8px;border:1px solid #e8e5e0">Knowledge</td><td style="padding:4px 8px;border:1px solid #e8e5e0">✅ 已实现</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/knowledge</td><td style="padding:4px 8px;border:1px solid #e8e5e0">素材库隐喻</td></tr>
+    <tr style="background:#f0faf0"><td style="padding:4px 8px;border:1px solid #e8e5e0">10</td><td style="padding:4px 8px;border:1px solid #e8e5e0">KnowledgeDetail</td><td style="padding:4px 8px;border:1px solid #e8e5e0">✅ 已实现</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/knowledge/:kb</td><td style="padding:4px 8px;border:1px solid #e8e5e0">微调</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">11</td><td style="padding:4px 8px;border:1px solid #e8e5e0">Studio</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/studio</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><b>合并 SceneDetail</b>·画布编排</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">12</td><td style="padding:4px 8px;border:1px solid #e8e5e0">DAGWorkbench</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/dag/:id</td><td style="padding:4px 8px;border:1px solid #e8e5e0">L3 全屏工作台</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">13</td><td style="padding:4px 8px;border:1px solid #e8e5e0">TimelineReplay</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/dag/:id/replay</td><td style="padding:4px 8px;border:1px solid #e8e5e0">L4 时间线回放</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">14</td><td style="padding:4px 8px;border:1px solid #e8e5e0">Profile</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/profile</td><td style="padding:4px 8px;border:1px solid #e8e5e0">个人主页+设置</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">15</td><td style="padding:4px 8px;border:1px solid #e8e5e0">MemoryBrowser</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/memory</td><td style="padding:4px 8px;border:1px solid #e8e5e0">记忆浏览+搜索</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">16</td><td style="padding:4px 8px;border:1px solid #e8e5e0">TaskMonitor</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/tasks</td><td style="padding:4px 8px;border:1px solid #e8e5e0">任务队列监控</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">17</td><td style="padding:4px 8px;border:1px solid #e8e5e0">FileBrowser</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><i>嵌入Chat</i></td><td style="padding:4px 8px;border:1px solid #e8e5e0">工作空间文件浏览（嵌入Chat面板）</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">18</td><td style="padding:4px 8px;border:1px solid #e8e5e0">GlobalSearch</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><i>⌘K浮层</i></td><td style="padding:4px 8px;border:1px solid #e8e5e0">全局搜索面板（非独立路由）</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">19</td><td style="padding:4px 8px;border:1px solid #e8e5e0">NotificationCenter</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0"><i>全局面板</i></td><td style="padding:4px 8px;border:1px solid #e8e5e0">通知面板（非独立路由）</td></tr>
+    <tr style="background:#ffe8e8"><td style="padding:4px 8px;border:1px solid #e8e5e0">20</td><td style="padding:4px 8px;border:1px solid #e8e5e0">SystemStatus</td><td style="padding:4px 8px;border:1px solid #e8e5e0">❌ 未创建</td><td style="padding:4px 8px;border:1px solid #e8e5e0">/status</td><td style="padding:4px 8px;border:1px solid #e8e5e0">系统健康页（低优先级）</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div style="margin-top:12px;padding:8px 12px;background:#fff5f5;border:1px solid #e8c0c0;border-radius:6px;font-size:10px">
+  <b>🗑 已删除：</b>SceneRun（合并入Chat）、ChatHistory（降级为Chat内面板）、SceneDetail（合并入Studio）
+</div>
+
+<div class="section">
+  <h3>增删决策——你认可吗？</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve_add_remove">
+    <div class="letter">A</div>
+    <div class="content"><h3>增删都认可</h3><p>SceneRun删、ChatHistory降级、SceneDetail合并，新增GlobalSearch+Notification+SystemStatus，20个定案</p></div>
+  </div>
+  <div class="option" data-choice="tweak_add_remove">
+    <div class="letter">B</div>
+    <div class="content"><h3>认可删除，新增要调整</h3><p>删的对，但新增的几个你觉得多了/少了/优先级不对</p></div>
+  </div>
+</div>

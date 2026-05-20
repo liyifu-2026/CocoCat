@@ -1,0 +1,172 @@
+<h2>第五层：高级工作流 · DAG 编排与多 Agent 协作</h2>
+<p class="subtitle">这是 CocoCat 最深层的交互——用户如何感知和理解多 Agent 的协作过程</p>
+
+<div class="section">
+  <h3>DAG 任务系统的交互现状</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">当前 DAG 可视化的三个层级</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:12px">
+      <div style="flex:1">
+        <div style="font-size:10px;color:#888;margin-bottom:4px">Chat 内嵌进度条</div>
+        <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:8px;font-size:10px">
+          <div style="color:#888;margin-bottom:4px">DAG: 项目分析</div>
+          <div style="height:3px;background:#f0f0f0;border-radius:2px;margin-bottom:3px"><div style="width:60%;height:100%;background:#7a9e7e;border-radius:2px"></div></div>
+          <div style="color:#999;font-size:9px">Stage 2/4 · 3 Agents working</div>
+        </div>
+        <div style="font-size:9px;color:#999;margin-top:4px">信息量极低，只知进度不知内容</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:10px;color:#888;margin-bottom:4px">右侧面板 Agent 状态</div>
+        <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:8px;font-size:10px">
+          <div style="font-size:10px;font-weight:600;margin-bottom:4px">Active Agents</div>
+          <div>● Main AI · analyzing</div>
+          <div>◐ Dev Agent · reading files</div>
+          <div>○ Reviewer · pending</div>
+        </div>
+        <div style="font-size:9px;color:#999;margin-top:4px">列表式，缺乏空间感</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:10px;color:#888;margin-bottom:4px">WebSocket 事件流</div>
+        <div style="background:#2d2d2d;border-radius:6px;padding:8px;font-family:monospace;font-size:9px;color:#a5d6ff;line-height:1.6">
+          {type:"dag.completed"}<br/>
+          {type:"stream_tool"}<br/>
+          {type:"text_delta"}<br/>
+          {type:"stream_reasoning"}
+        </div>
+        <div style="font-size:9px;color:#999;margin-top:4px">数据有，但没转成视觉语言</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>DAG 可视化应该是 CocoCat 最标志性的交互</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">理想中的 DAG 工作台——让协作「看得见」</div>
+  <div class="mockup-body">
+    <div style="background:#faf8f5;border-radius:8px;padding:16px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <span>📋 项目架构分析</span>
+        <span style="font-size:9px;padding:2px 8px;background:#7a9e7e;color:#fff;border-radius:10px">运行中</span>
+        <span style="margin-left:auto;font-size:10px;color:#888">耗时 2m 34s</span>
+      </div>
+      <div style="display:flex;gap:10px;height:260px">
+        <!-- DAG Graph -->
+        <div style="flex:2;background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:20px">
+            <div style="width:64px;height:64px;background:#e8f0e8;border:2px solid #7a9e7e;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px">
+              <span style="font-size:16px">🔍</span>
+              <span>分析</span>
+              <span style="color:#7a9e7e;font-size:8px">✓ done</span>
+            </div>
+          </div>
+          <div style="width:2px;height:16px;background:#ccc"></div>
+          <div style="display:flex;align-items:flex-start;gap:20px">
+            <div style="width:64px;height:64px;background:#faf6f0;border:2px solid #e07b5a;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;animation:pulse 2s infinite">
+              <span style="font-size:16px">📂</span>
+              <span>审阅</span>
+              <span style="color:#e07b5a;font-size:8px">● running</span>
+            </div>
+            <div style="width:64px;height:64px;background:#f0f0f0;border:2px solid #ddd;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px">
+              <span style="font-size:16px">🧪</span>
+              <span>测试</span>
+              <span style="color:#999;font-size:8px">○ queued</span>
+            </div>
+          </div>
+          <div style="width:2px;height:16px;background:#ccc"></div>
+          <div style="width:64px;height:64px;background:#f0f0f0;border:2px dashed #ccc;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px">
+            <span style="font-size:16px">📝</span>
+            <span>总结</span>
+            <span style="color:#bbb;font-size:8px">waiting</span>
+          </div>
+        </div>
+        <!-- Details Panel -->
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:10px;font-size:10px">
+            <div style="font-weight:600;color:#e07b5a;margin-bottom:4px">当前：Dev Agent 正在审阅</div>
+            <div style="color:#666;line-height:1.5">正在读取 src/app.ts 并进行架构分析...</div>
+            <div style="height:2px;background:#f0f0f0;border-radius:1px;margin-top:4px"><div style="width:45%;height:100%;background:#e07b5a;border-radius:1px"></div></div>
+          </div>
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:10px;font-size:10px">
+            <div style="font-weight:600;margin-bottom:4px">已完成</div>
+            <div style="color:#7a9e7e">✓ Main AI · 分析阶段</div>
+            <div style="color:#666;font-size:9px;margin-left:12px">识别了项目结构，定义了 DAG</div>
+          </div>
+          <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:10px;font-size:10px">
+            <div style="font-weight:600;margin-bottom:4px">待执行</div>
+            <div style="color:#888">○ Tester Agent · 测试阶段</div>
+            <div style="color:#888">○ Main AI · 总结报告</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>协作可视化的四个设计层级（由浅入深）</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="dag_chat_inline">
+    <div class="letter">L1</div>
+    <div class="content">
+      <h3>聊天内联</h3>
+      <p>Agent 发言中嵌入工具调用卡片、DAG 阶段卡片。所有信息在聊天流里自然呈现——用户不需要切到别的地方看。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="dag_side_panel">
+    <div class="letter">L2</div>
+    <div class="content">
+      <h3>侧边面板</h3>
+      <p>右侧常驻面板展示 DAG 拓扑图（节点+连线）、Agent 实时状态、任务队列。聊天和监控并行。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="dag_fullscreen">
+    <div class="letter">L3</div>
+    <div class="content">
+      <h3>全屏 DAG 工作台</h3>
+      <p>独立的 DAG 全景视图（可缩放节点图），类似 CI/CD Pipeline 可视化。用于复杂任务的整体把控。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="dag_timeline">
+    <div class="letter">L4</div>
+    <div class="content">
+      <h3>时间线回放</h3>
+      <p>任务完成后的时间线回放——展示 Agent 如何协作、谁在什么时候做了什么决策。用于复盘和学习。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>这四个层级应该是共存关系。问题是：你希望哪个作为默认视图？哪个作为可展开的深度视图？</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="dag_default_inline">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>默认 L1 + 可展开 L2/L3</h3>
+      <p>平常聊天流里看一切，需要详情时打开侧面板或进入全屏 DAG 视图</p>
+    </div>
+  </div>
+  <div class="option" data-choice="dag_default_panel">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>默认 L2 + 收起到 L1</h3>
+      <p>右侧面板默认展开显示 DAG 图，聊天区聚焦对话。简单任务时面板可折叠，退化为 L1 内联卡片</p>
+    </div>
+  </div>
+  <div class="option" data-choice="dag_contextual">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>根据任务复杂度自适应</h3>
+      <p>简单对话 → L1。触发 DAG 后 → 自动展开 L2 侧面板。用户可手动进入 L3 全屏工作台。L4 是历史回放入口。</p>
+    </div>
+  </div>
+</div>

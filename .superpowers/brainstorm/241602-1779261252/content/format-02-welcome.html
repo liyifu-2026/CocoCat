@@ -1,0 +1,171 @@
+<h2>#2 Welcome · 前端格式文档</h2>
+<p class="subtitle">首次登录后的品牌亮相页——建立认知、给出方向</p>
+
+<div class="section">
+  <h3>1. 概述</h3>
+</div>
+
+<div style="background:#faf8f5;border-radius:8px;padding:12px;font-size:10px;line-height:1.7">
+<b>页面目的：</b>首次用户登录后（或未完成引导的回访用户）展示的品牌页面。告诉用户 CocoCat 是什么、能做什么、怎么开始。<br/>
+<b>用户场景：</b>管理员初始化后第一次进入 / 新用户第一次登录 / 老用户清除了 localStorage<br/>
+<b>所属层级：</b>L1 初体验<br/>
+<b>关键约束：</b>页面必须有一个显式的「跳过」入口——老用户或不想看的人可以直接进 Dashboard
+</div>
+
+<div class="section">
+  <h3>2. 路由与导航</h3>
+</div>
+<div style="background:#faf8f5;border-radius:6px;padding:12px;font-size:10px;line-height:1.8">
+<b>路由：</b>/welcome<br/>
+<b>进入条件：</b>localStorage 无 <code>onboarding_complete</code> 标记 且已登录<br/>
+<b>可跳转：</b>「开始」→ /onboarding &nbsp;|&nbsp; 「跳过」→ /dashboard<br/>
+<b>后续：</b>完成 Onboarding 后标记已读，不再显示
+</div>
+
+<div class="section">
+  <h3>3. 页面布局</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">建议布局：三段式叙事——品牌 → 能力 → 行动</div>
+  <div class="mockup-body">
+    <div style="background:linear-gradient(180deg, #faf8f5 0%, #f5f0e8 100%);border-radius:8px;overflow:hidden">
+      <!-- Section 1: Brand -->
+      <div style="display:flex;flex-direction:column;align-items:center;padding:48px 20px 32px;text-align:center">
+        <div style="width:80px;height:80px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #f97316;margin-bottom:16px">
+          <span style="font-size:36px">🐱</span>
+        </div>
+        <div style="font-family:'Zen Antique',serif;font-size:28px;font-weight:700;color:#333;margin-bottom:6px">欢迎来到 CocoCat</div>
+        <div style="font-size:13px;color:#888;max-width:400px;line-height:1.7">这里不只一个 AI —— 这里有一整个 AI 团队。<br/>告诉他们你想做什么，猫猫会调度最合适的 Agent 来帮你。</div>
+      </div>
+
+      <!-- Section 2: Capabilities -->
+      <div style="display:flex;gap:12px;padding:0 40px 32px;justify-content:center">
+        <div style="flex:1;max-width:200px;background:#fff;border:1px solid #e8e5e0;border-radius:12px;padding:16px;text-align:center">
+          <div style="font-size:28px;margin-bottom:6px">🤖</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px">多 Agent 协作</div>
+          <div style="font-size:10px;color:#888;line-height:1.5">多个 AI 各司其职，<br/>像真正的团队一样工作</div>
+        </div>
+        <div style="flex:1;max-width:200px;background:#fff;border:1px solid #e8e5e0;border-radius:12px;padding:16px;text-align:center">
+          <div style="font-size:28px;margin-bottom:6px">🔀</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px">智能任务编排</div>
+          <div style="font-size:10px;color:#888;line-height:1.5">自动拆解复杂任务，<br/>分配给最合适的 Agent</div>
+        </div>
+        <div style="flex:1;max-width:200px;background:#fff;border:1px solid #e8e5e0;border-radius:12px;padding:16px;text-align:center">
+          <div style="font-size:28px;margin-bottom:6px">📚</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px">知识库 + 记忆</div>
+          <div style="font-size:10px;color:#888;line-height:1.5">团队知识持续积累，<br/>越用越懂你</div>
+        </div>
+      </div>
+
+      <!-- Section 3: Action -->
+      <div style="display:flex;flex-direction:column;align-items:center;padding:0 20px 40px;gap:12px">
+        <button style="width:220px;height:44px;background:#e07b5a;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:500">开始 · 创建你的第一个 Agent</button>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
+          <div style="padding:6px 16px;background:#fff;border:1px solid #e0ddd8;border-radius:16px;font-size:10px;cursor:pointer">📝 帮我写周报</div>
+          <div style="padding:6px 16px;background:#fff;border:1px solid #e0ddd8;border-radius:16px;font-size:10px;cursor:pointer">🔍 分析代码库</div>
+          <div style="padding:6px 16px;background:#fff;border:1px solid #e0ddd8;border-radius:16px;font-size:10px;cursor:pointer">🌐 调研竞品</div>
+        </div>
+        <button style="background:none;border:none;color:#bbb;font-size:10px;cursor:pointer;margin-top:8px">跳过，直接开始</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>4. 组件树</h3>
+</div>
+<div style="background:#faf8f5;border-radius:6px;padding:12px;font-family:monospace;font-size:10px;line-height:1.8">
+WelcomePage<br/>
+├── <span style="color:#e07b5a">BrandSection</span>           ← Logo + 标题 + 一句话定位<br/>
+│   ├── CatLogo（圆形太极构图）<br/>
+│   ├── WelcomeTitle（Display XL, Zen Antique）<br/>
+│   └── WelcomeSubtitle<br/>
+├── <span style="color:#e07b5a">CapabilityCards</span>      ← 3张能力卡片<br/>
+│   ├── CapabilityCard（icon + 标题 + 描述）<br/>
+│   └── ...<br/>
+├── <span style="color:#e07b5a">ActionSection</span>          ← CTA 按钮 + Suggestion Chips<br/>
+│   ├── PrimaryCTA（开始按钮）<br/>
+│   ├── SuggestionChips（快速入口）<br/>
+│   └── SkipLink（跳过）<br/>
+└── <span style="color:#e07b5a">BackgroundAtmosphere</span>  ← warm-glow + grain 叠加
+</div>
+
+<div class="section">
+  <h3>5. 状态设计</h3>
+</div>
+<div style="background:#faf8f5;border-radius:6px;padding:12px;font-size:10px;line-height:1.7">
+<b>Loading 态：</b>无异步加载（纯静态页面），不需要。<br/>
+<b>Empty 态：</b>不适用——此页面本身就是「空态」的替代。<br/>
+<b>Error 态：</b>不适用——纯展示页。<br/>
+<b>Edge cases：</b>用户点 Suggestion Chip「帮我写周报」→ 如果没有 Agent 还需要先走 Onboarding 创建。需要判断：有 Agent → 直接进 Chat 带预设 prompt；无 Agent → 提示先创建。
+</div>
+
+<div class="section">
+  <h3>6. 数据流</h3>
+</div>
+<div style="background:#faf8f5;border-radius:6px;padding:12px;font-size:10px;line-height:1.8">
+<b>无 API 调用：</b>此页面为纯展示。<br/>
+<b>localStorage：</b>点击「开始」→ 跳转 /onboarding。点击「跳过」→ 设置 <code>onboarding_complete = true</code>，跳转 /dashboard。<br/>
+<b>预检查：</b>Suggestion Chips 点击时，需检查 Agents 是否为空（GET /api/agents），决定下一步。
+</div>
+
+<div class="section">
+  <h3>7. 交互细节</h3>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;font-size:10px">
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>入场动画：</b>Logo + 标题 fadeSlideUp stagger-1。能力卡片 stagger-2,3,4。CTA stagger-5。时长约 1.5s 可感知全貌。
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>猫的微交互：</b>Logo 中的猫缓慢呼吸式微缩放（scale 1 → 1.03 → 1，3s loop）。鼠标 hover 猫时猫眼跟随光标。
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>能力卡片：</b>hover 微上浮 + 阴影加深。点击无反应（仅展示）。
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>Suggestion Chips：</b>hover 边框变为主色，点击触发对应流程。
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>键盘：</b>Enter → 等同于点击主 CTA。Escape → 等同于点击跳过。
+  </div>
+</div>
+
+<div class="section">
+  <h3>8. i18n keys（新增）</h3>
+</div>
+<div style="background:#2d2d2d;border-radius:6px;padding:10px;font-family:monospace;font-size:10px;color:#a5d6ff;line-height:1.8">
+welcome.title = "欢迎来到 CocoCat"<br/>
+welcome.subtitle = "这里不只一个 AI —— 这里有一整个 AI 团队。"<br/>
+welcome.subtitle2 = "告诉他们你想做什么，猫猫会调度最合适的 Agent 来帮你。"<br/>
+welcome.capability.multiAgent = "多 Agent 协作"<br/>
+welcome.capability.multiAgentDesc = "多个 AI 各司其职，像真正的团队一样工作"<br/>
+welcome.capability.dag = "智能任务编排"<br/>
+welcome.capability.dagDesc = "自动拆解复杂任务，分配给最合适的 Agent"<br/>
+welcome.capability.kb = "知识库 + 记忆"<br/>
+welcome.capability.kbDesc = "团队知识持续积累，越用越懂你"<br/>
+welcome.cta = "开始 · 创建你的第一个 Agent"<br/>
+welcome.chip.report = "帮我写周报"<br/>
+welcome.chip.code = "分析代码库"<br/>
+welcome.chip.research = "调研竞品"<br/>
+welcome.skip = "跳过，直接开始"
+</div>
+
+<div class="section">
+  <h3>这个 Welcome 页——</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="welcome_ok">
+    <div class="letter">✓</div>
+    <div class="content"><h3>OK，继续 #3 Onboarding</h3></div>
+  </div>
+  <div class="option" data-choice="welcome_tweak">
+    <div class="letter">△</div>
+    <div class="content"><h3>需要调整</h3></div>
+  </div>
+  <div class="option" data-choice="welcome_more">
+    <div class="letter">?</div>
+    <div class="content"><h3>有没有更有意思的设计？</h3></div>
+  </div>
+</div>

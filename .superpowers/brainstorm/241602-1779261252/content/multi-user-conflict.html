@@ -1,0 +1,135 @@
+<h2>⚠ 关键矛盾：Studio 空间隐喻 vs 多账户共享资源</h2>
+<p class="subtitle">当「工作室布局」撞上「多人共享同一个 Scene」</p>
+
+<div class="section">
+  <h3>矛盾拆解</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:8px;font-size:10px">
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:2px solid #e07b5a;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">🔴</span>
+    <div>
+      <b>矛盾 1：工位是谁的？</b><br/>
+      <span style="color:#888">Studio 隐喻说「Agent 坐在工位上」——好像是固定的。但多用户场景下，Agent 是共享资源，不是某个人的专属。如果我把 Dev Agent 拖到左边，别人看到的也变了吗？</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:2px solid #e07b5a;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">🔴</span>
+    <div>
+      <b>矛盾 2：Scene 是共享空间</b><br/>
+      <span style="color:#888">Scene 存储的是「这个场景下有哪些 Agent、哪些 KB」。它是团队级配置，不是个人视图。多人同时在同一个 Scene 里工作时，他们看到的是同一个「工作室」，还是各自的工作室？</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:2px solid #e07b5a;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">🔴</span>
+    <div>
+      <b>矛盾 3：kb-agent 是固定角色</b><br/>
+      <span style="color:#888">Coco 和 kb-agent 是系统级固定角色。不是用户「创建」的——它们天生就在。但 Studio 隐喻中新用户看到「空工作室」，然后「添加 Agent」——这和 Coco+kb-agent 已经存在的事实矛盾。</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;padding:10px;background:#fff;border:2px solid #e07b5a;border-radius:8px">
+    <span style="font-size:20px;flex-shrink:0">🔴</span>
+    <div>
+      <b>矛盾 4：布局是数据还是视图？</b><br/>
+      <span style="color:#888">如果我花时间把工作室排得很漂亮——Dev 在左上、Tester 在右上、资料架在右下——这个布局存在哪里？是存在 Scene 配置里（团队共享），还是存在我的用户偏好里（个人视图）？</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="section">
+  <h3>退一步：CocoCat 的核心关系到底是什么？</h3>
+</div>
+
+<div style="padding:12px;background:#faf6f0;border-radius:8px;font-size:10px;line-height:1.8">
+<b>事实：</b><br/>
+· 这是一个<b>小团队</b>使用的工具。多人共享 Agent、Scene、KB<br/>
+· Coco 和 kb-agent 是<b>系统固定角色</b>，天生存在<br/>
+· Scene = 一组 Agent + KB 的逻辑组合（不是物理空间）<br/>
+· 多个用户可以<b>同时在同一个 Scene 里工作</b><br/>
+· Agent 的「工位」是逻辑概念，不是物理概念<br/>
+<br/>
+<b>所以核心问题是：</b>「工位」到底是一个<b>逻辑绑定</b>（Scene 配置决定），还是一个<b>视觉排列</b>（用户自己拖动排列）？
+</div>
+
+<div class="section">
+  <h3>三种解决路径</h3>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>A. 工位 = Scene 配置（团队共享布局）</h3>
+      <p style="font-size:10px;line-height:1.5">Scene 的 Agent 列表决定了「工位」。布局由系统自动排列（网格）。所有人看到同一个工作室。修改 Scene 配置 → 所有人看到变化。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>和共享数据一致</li><li>无需解决冲突</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>丢了「我的工作室」的个人感</li><li>工位排列无意义</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>B. 工位 = 个人视图（各自排列）</h3>
+      <p style="font-size:10px;line-height:1.5">Agent 属于 Scene（共享），但每个人可以自己拖动排列工位位置。布局存在用户偏好里，不影响别人。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>保留了个人空间感</li><li>拖拽有意义</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>数据一致性复杂</li><li>「工作室」概念变味：团队工作室还是个人桌面？</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>C. 放弃空间隐喻，回到信息展示</h3>
+      <p style="font-size:10px;line-height:1.5">Dashboard 不是「工作室俯视图」，而是「团队状态面板」。Agent 以卡片/列表展示状态，不强调空间位置。Studio 隐喻只用于理解概念，不在 UI 中物化。</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>没有多用户冲突</li><li>实现简单</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>丢了刚找到的「灵魂」🥲</li><li>Dashboard 回到卡片堆砌</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>我倾向 B——但需要确认一个关键前提</h3>
+</div>
+
+<div style="padding:12px;background:#faf6f0;border:1px solid #ebd5c0;border-radius:8px;font-size:10px;line-height:1.7">
+<b>B 方案的核心逻辑：</b><br/>
+· Scene 定义「这个工作室有哪些 Agent 和 KB」（共享数据）<br/>
+· 每个人看到的工作室布局<b>是个人视图</b>——Agent 工位排列存在用户偏好里<br/>
+· 默认布局由系统自动生成（首次进入时），用户可以拖拽调整<br/>
+· 新加入的 Agent 自动出现在空位<br/>
+· 切换 Scene = 切换一组 Agent+KB，布局重置为默认或该用户对该 Scene 的已保存排列<br/>
+<br/>
+<b>这解释了：</b>
+· 为什么不同人看到的「工作室」可以不一样（个人排列偏好）<br/>
+· 但 Agent 本身是共享的（数据一致）<br/>
+· 工位 = 个人视角的「我把这个 Agent 放在这里」，不是物理位置<br/>
+<br/>
+<b>但代价是：</b>「工作室」从「团队共享空间」变成了「个人仪表盘」。这和你最初说的「小团队使用」会有微妙的语义差异。
+</div>
+
+<div class="section">
+  <h3>你怎么看？</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="resolve_B">
+    <div class="letter">B</div>
+    <div class="content"><h3>工位=个人视图</h3><p>Agent 共享，排列个人。保留空间感和拖拽价值。</p></div>
+  </div>
+  <div class="option" data-choice="resolve_A">
+    <div class="letter">A</div>
+    <div class="content"><h3>工位=Scene配置</h3><p>自动网格排列，所有人看同一布局。</p></div>
+  </div>
+  <div class="option" data-choice="resolve_new">
+    <div class="letter">D</div>
+    <div class="content"><h3>你有其他想法</h3><p>告诉我你的方案</p></div>
+  </div>
+</div>

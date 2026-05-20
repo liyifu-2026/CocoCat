@@ -1,0 +1,190 @@
+<h2>第四层：管理体验 · Agent / Scene / Knowledge</h2>
+<p class="subtitle">用户如何配置和管理 AI 团队的「基础设施」</p>
+
+<div class="section">
+  <h3>当前管理页面的交互模式</h3>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Agents 页面——列表式管理</div>
+    <div class="mockup-body">
+      <div style="display:flex;flex-direction:column;gap:8px;padding:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12px;font-weight:600">Agents (3)</span>
+          <div class="mock-button" style="font-size:10px">+ 新建</div>
+        </div>
+        <div style="background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;background:#e07b5a;border-radius:50%;flex-shrink:0"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:600">Main AI</div>
+            <div style="font-size:10px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Orchestrator · 主调度 Agent</div>
+          </div>
+          <div style="width:8px;height:8px;background:#4caf50;border-radius:50%;flex-shrink:0"></div>
+        </div>
+        <div style="background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;background:#7a9e7e;border-radius:50%;flex-shrink:0"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:600">Dev Agent</div>
+            <div style="font-size:10px;color:#888">代码开发 · 技术分析</div>
+          </div>
+          <div style="width:8px;height:8px;background:#4caf50;border-radius:50%;flex-shrink:0"></div>
+        </div>
+        <div style="background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;background:#8b7aaa;border-radius:50%;flex-shrink:0"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:600">Writer Agent</div>
+            <div style="font-size:10px;color:#888">文档撰写 · 内容创作</div>
+          </div>
+          <div style="width:8px;height:8px;background:#bbb;border-radius:50%;flex-shrink:0"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">Scenes 页面——卡片式浏览</div>
+    <div class="mockup-body">
+      <div style="display:flex;flex-direction:column;gap:8px;padding:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12px;font-weight:600">Scenes (2)</span>
+          <div class="mock-button" style="font-size:10px">+ 新建</div>
+        </div>
+        <div style="background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:12px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px">🛠 开发场景</div>
+          <div style="font-size:10px;color:#888;margin-bottom:6px">Context: 一个全栈 Web 项目...</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <span style="font-size:9px;padding:2px 6px;background:#f0ebe3;border-radius:10px;color:#e07b5a">3 Agents</span>
+            <span style="font-size:9px;padding:2px 6px;background:#f0ebe3;border-radius:10px;color:#7a9e7e">5 Skills</span>
+            <span style="font-size:9px;padding:2px 6px;background:#f0ebe3;border-radius:10px;color:#8b7aaa">2 KB</span>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:12px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px">💬 客服场景</div>
+          <div style="font-size:10px;color:#888;margin-bottom:6px">Context: 电商售后咨询...</div>
+          <div style="display:flex;gap:4px">
+            <span style="font-size:9px;padding:2px 6px;background:#f0ebe3;border-radius:10px;color:#e07b5a">2 Agents</span>
+            <span style="font-size:9px;padding:2px 6px;background:#f0ebe3;border-radius:10px;color:#7a9e7e">3 Skills</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>管理体验的四个核心痛点</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="mgmt_creation">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>创建流程过于表单化</h3>
+      <p>新建 Agent / Scene 目前要走表单填写（名称、角色、prompt、工具选择...）。在 AI 时代，应该可以通过对话自然语言创建。「我想创建一个擅长代码审查的 Agent」→ 自动生成配置。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="mgmt_relation">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>Agent-Scene-KB 的关系不可见</h3>
+      <p>哪些 Agent 属于哪些 Scene？Scene 用了哪些 Knowledge Base？当前需要跳转多个页面才能看清关系。缺乏关系图谱可视化。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="mgmt_overview">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>缺乏全局状态总览</h3>
+      <p>所有 Agent 的运行状态、最近活动、待处理任务量——没有一个地方能纵览全局。Dashboard 本应做这个，但目前是空的。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="mgmt_preview">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>配置即黑盒，无法预览效果</h3>
+      <p>改了 Agent 的 system prompt 或调整了 Scene 的 context，效果如何？当前需要去 Chat 里实测，缺少配置预览/沙盒测试。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>关键设计问题</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Agent 创建：表单 vs 对话 vs 混合</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:12px">
+      <div style="flex:1;text-align:center;padding:10px">
+        <div style="font-size:11px;font-weight:600;margin-bottom:6px">纯表单</div>
+        <div style="background:#f5f5f5;border-radius:6px;padding:12px;font-size:10px;text-align:left;line-height:1.8">
+          Name: [__________]<br/>
+          Role: [__________]<br/>
+          Model: [__select__]<br/>
+          Prompt: [___________]<br/>
+          Tools: [☐] [☐] [☐]<br/>
+          <br/>
+          <div class="mock-button" style="width:100%">创建</div>
+        </div>
+        <div style="font-size:9px;color:#999;margin-top:4px">精确但枯燥</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:10px">
+        <div style="font-size:11px;font-weight:600;margin-bottom:6px">对话式</div>
+        <div style="background:#faf6f0;border-radius:6px;padding:12px;font-size:10px;text-align:left">
+          <div style="color:#e07b5a">🤖 你想创建什么样的 Agent？</div>
+          <div style="margin:6px 0;text-align:right;color:#555">一个擅长代码审查的 Agent，用 Claude 模型，能读写文件和跑 bash</div>
+          <div style="color:#e07b5a">🤖 好的，我来为你创建「Code Reviewer」Agent。它的能力包括：代码审查、文件读写、bash 执行。需要调整吗？</div>
+          <div style="margin:6px 0;text-align:right;color:#555">再给它加上 web 搜索能力</div>
+          <div style="color:#e07b5a">🤖 已添加 web_search。创建完成！🎉</div>
+        </div>
+        <div style="font-size:9px;color:#999;margin-top:4px">自然但有歧义</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:10px;border:2px solid #e07b5a;border-radius:8px;background:#fff8f5">
+        <div style="font-size:11px;font-weight:600;margin-bottom:6px;color:#e07b5a">混合式（推荐）</div>
+        <div style="background:#f5f5f5;border-radius:6px;padding:12px;font-size:10px;text-align:left">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+            <span style="font-size:16px">✨</span>
+            <span style="color:#e07b5a">AI 辅助创建</span>
+          </div>
+          <div style="margin-bottom:6px">描述你想要的 Agent：</div>
+          <div style="background:#fff;border:1px solid #e0d5c8;border-radius:6px;padding:6px 10px;font-size:10px;color:#aaa;margin-bottom:6px">一个代码审查专家...</div>
+          <div style="color:#7a9e7e;font-size:9px;margin-bottom:8px">↓ AI 自动填充 ↓</div>
+          <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:8px;font-size:10px;line-height:1.8;color:#666">
+            Name: Code Reviewer ✓<br/>
+            Model: claude-sonnet ✓<br/>
+            Tools: [✓]file [✓]bash [✓]grep<br/>
+          </div>
+          <div style="font-size:9px;color:#666;margin-top:4px">可手动微调每个字段</div>
+        </div>
+        <div style="font-size:9px;color:#e07b5a;margin-top:4px">AI 辅助 + 人工可控</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>你心目中的 Agent / Scene 管理体验应该更像什么？</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="mgmt_dashboard">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>运维控制台</h3>
+      <p>像 K8s Dashboard —— 状态监控、资源视图、事件流。Agent 是「服务」，Scene 是「环境」。偏理性、偏工程。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="mgmt_studio">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>创作工作室</h3>
+      <p>像 Figma / Notion —— 画布式操作、拖拽组织、所见即所得。Agent 是「角色」，Scene 是「画板」。偏感性、偏创作。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="mgmt_conversation">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>对话式管理</h3>
+      <p>一切配置通过自然语言对话完成，像和 CocoCat 聊天一样管理团队。表单只作为 fallback。偏自然、偏 AI-native。</p>
+    </div>
+  </div>
+</div>

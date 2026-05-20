@@ -1,0 +1,141 @@
+<h2>补充分析：还有哪些页面可能遗漏？</h2>
+<p class="subtitle">基于 CocoCat 后端能力反推前端缺失</p>
+
+<div class="section">
+  <h3>从后端能力清单反推</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">后端有、前端无（或前端极弱）的能力</div>
+  <div class="mockup-body">
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:10px">
+
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:8px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+        <div style="width:28px;height:28px;background:#8b7aaa;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;flex-shrink:0">🧠</div>
+        <div>
+          <div style="font-weight:600">Memory 记忆系统</div>
+          <div style="color:#888">后端有完整的记忆体系：Manual 手动记忆 / Dream 自动提取 / Summarize 摘要 / Compile 编译 / FTS5 全文搜索。前端只有 PinnedTab 展示置顶事实，其余完全不可见。</div>
+          <div style="color:#e07b5a;margin-top:2px">→ 需要 Memory Browser：浏览/搜索所有 Agent 的记忆</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:8px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+        <div style="width:28px;height:28px;background:#d4a574;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;flex-shrink:0">📋</div>
+        <div>
+          <div style="font-weight:600">Task 任务队列</div>
+          <div style="color:#888">后端有任务系统：tasks 表、DispatchCenter、AgentPool._collect()。前端只在 Chat 右侧面板看到当前 DAG 的 Agent 状态，看不到全局任务队列。</div>
+          <div style="color:#e07b5a;margin-top:2px">→ 需要 Task Monitor：全局任务队列视图（所有 Agent 的待处理/执行中/已完成任务）</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:8px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+        <div style="width:28px;height:28px;background:#7a9e7e;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;flex-shrink:0">📂</div>
+        <div>
+          <div style="font-weight:600">Workspace 文件系统</div>
+          <div style="color:#888">每个 Agent 有自己的 workspace 目录，Agent 通过 file_ops 工具读写文件。当前文件操作只在 Chat 的工具调用卡片里一闪而过，用户无法主动浏览/管理这些文件。</div>
+          <div style="color:#e07b5a;margin-top:2px">→ 需要 File Browser：浏览 Agent 工作空间的文件（可在 Chat 面板内嵌，也可独立页）</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>建议新增的页面（候选）</h3>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>#18 Memory Browser</h3>
+      <p style="font-size:11px;line-height:1.5">浏览/搜索所有 Agent 的记忆（facts / dreams / summaries / compilations）。FTS5 全文搜索。按 Agent 过滤、按时间排序。可手动添加/编辑/删除记忆。</p>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <span style="font-size:9px;padding:2px 6px;border-radius:8px;background:#f0ebe3;color:#e07b5a">新增页面</span>
+        <span style="font-size:9px;padding:2px 6px;border-radius:8px;background:#f0ebe3;color:#7a9e7e">后端已有 API</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>#19 Task Monitor</h3>
+      <p style="font-size:11px;line-height:1.5">全局任务队列视图。所有 Agent 的 pending / running / done / failed 任务列表。支持按 Agent / 场景 / 状态过滤。可取消/重试任务。</p>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <span style="font-size:9px;padding:2px 6px;border-radius:8px;background:#f0ebe3;color:#e07b5a">新增页面</span>
+        <span style="font-size:9px;padding:2px 6px;border-radius:8px;background:#f0ebe3;color:#7a9e7e">后端已有 API</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h3>#20 File Browser</h3>
+      <p style="font-size:11px;line-height:1.5">浏览 Agent 工作空间的文件树。文件预览（代码高亮/Markdown/图片）。可创建/编辑/删除文件。嵌入式（Chat 面板）或独立页面。</p>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <span style="font-size:9px;padding:2px 6px;border-radius:8px;background:#f0ebe3;color:#e07b5a">新增/嵌入式</span>
+        <span style="font-size:9px;padding:2px 6px;border-radius:8px;background:#f0ebe3;color:#888">需确认 API</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>边界：以下能力可能不需要独立页面</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:6px;font-size:10px">
+  <div style="padding:6px 10px;background:#faf8f5;border:1px solid #e8e5e0;border-radius:6px">
+    <b>🔌 Plugin 管理</b> — 插件系统（plugins/ 目录）目前无 UI。但插件数量少，可暂时放在 Settings 里，不必独立页面。
+  </div>
+  <div style="padding:6px 10px;background:#faf8f5;border:1px solid #e8e5e0;border-radius:6px">
+    <b>⏰ Cron 任务管理</b> — ScheduleModal（488行）已在 Chat 中覆盖 cron 的 CRUD，功能完整。暂不需要独立页面。
+  </div>
+  <div style="padding:6px 10px;background:#faf8f5;border:1px solid #e8e5e0;border-radius:6px">
+    <b>📊 系统监控</b> — CPU/内存/连接数等运维指标。对自托管场景有用但非核心体验。优先度低，可后续迭代。
+  </div>
+  <div style="padding:6px 10px;background:#faf8f5;border:1px solid #e8e5e0;border-radius:6px">
+    <b>📝 审计日志</b> — 多用户操作记录。对团队协作有价值但优先度低于核心交互。先记录需求，后续迭代。
+  </div>
+  <div style="padding:6px 10px;background:#faf8f5;border:1px solid #e8e5e0;border-radius:6px">
+    <b>🔗 API 文档 / Developer 页</b> — 面向外部开发者。当前项目阶段用户是直接操作 UI 的团队管理者，API 文档页优先度低。
+  </div>
+</div>
+
+<div class="section">
+  <h3>更新后的完整清单（20个页面）</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:4px;font-size:11px">
+  <div style="display:flex;gap:8px;padding:4px 8px;background:#f0faf0;border-radius:4px">
+    <span style="color:#7a9e7e;font-weight:600;width:45px">✅ 1-8</span>
+    <span>Chat / Login / Agents / Scenes / SceneNew / Knowledge / KnowledgeDetail / ChatHistory</span>
+  </div>
+  <div style="display:flex;gap:8px;padding:4px 8px;background:#fff8e0;border-radius:4px">
+    <span style="color:#d4a574;font-weight:600;width:45px">⬜ 9-11</span>
+    <span>Dashboard / SceneRun / SceneDetail</span>
+  </div>
+  <div style="display:flex;gap:8px;padding:4px 8px;background:#ffe8e8;border-radius:4px">
+    <span style="color:#e07b5a;font-weight:600;width:45px">❌ 12-20</span>
+    <span>Welcome / Onboarding / Studio / DAGWorkbench / TimelineReplay / Profile / MemoryBrowser / TaskMonitor / FileBrowser</span>
+  </div>
+</div>
+
+<div class="section">
+  <h3>这些候选页面你觉得哪些需要加进来？还是都先保留在清单里后续讨论时决定？</h3>
+</div>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="keep_all">
+    <div class="letter">A</div>
+    <div class="content"><h3>全部保留</h3><p>Memory + Task + File 都加入清单，讨论到对应页面时决定具体方案</p></div>
+  </div>
+  <div class="option" data-choice="keep_memory_task">
+    <div class="letter">B</div>
+    <div class="content"><h3>Memory + Task，File 嵌入 Chat</h3><p>Memory 和 Task 值得独立页。File Browser 不作为独立页，嵌入 Chat 的上下文面板中</p></div>
+  </div>
+  <div class="option" data-choice="pick_later">
+    <div class="letter">C</div>
+    <div class="content"><h3>先不加入清单</h3><p>把这三个记为「后续评估」的候选项，先聚焦已有 17 个页面的迭代</p></div>
+  </div>
+</div>

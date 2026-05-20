@@ -1,0 +1,105 @@
+<h2>交互重构 · 设计方向总结</h2>
+<p class="subtitle">五层递进分析后的整体设计决策</p>
+
+<div class="section">
+  <h3>已确认的设计决策一览</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px">
+  <div style="background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:14px;display:flex;gap:14px;align-items:flex-start">
+    <div style="width:32px;height:32px;background:#e07b5a;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0">L1</div>
+    <div>
+      <div style="font-weight:600;font-size:13px">初体验 · 冷启动</div>
+      <div style="font-size:11px;color:#666;margin-top:2px">基调：安静中带着温度。品牌亮相（猫+Taiji S曲线）+ 能力展示 + Suggestion Chips。首次用户不迷失。</div>
+      <div style="font-size:10px;color:#e07b5a;margin-top:4px">新增：Welcome 页面 / Onboarding 流程</div>
+    </div>
+  </div>
+  <div style="background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:14px;display:flex;gap:14px;align-items:flex-start">
+    <div style="width:32px;height:32px;background:#d4a574;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0">L2</div>
+    <div>
+      <div style="font-weight:600;font-size:13px">空间感知 · 导航架构</div>
+      <div style="font-size:11px;color:#666;margin-top:2px">Dashboard 为辐射中心（系统状态 + 最近活动 + 快速入口）。SceneRail 降级为场景收藏。功能通过 Dashboard 分发。</div>
+      <div style="font-size:10px;color:#e07b5a;margin-top:4px">重做：Dashboard（从空白页→全局中枢）/ SceneRail 定位调整</div>
+    </div>
+  </div>
+  <div style="background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:14px;display:flex;gap:14px;align-items:flex-start">
+    <div style="width:32px;height:32px;background:#7a9e7e;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0">L3</div>
+    <div>
+      <div style="font-weight:600;font-size:13px">核心交互 · 对话体验</div>
+      <div style="font-size:11px;color:#666;margin-top:2px">优先级排序：① 工具调用可视化（有生命感的思维过程展示）② 上下文面板+DAG 进度 ③ 富内容渲染（Mermaid/代码/文件预览）④ 流式质感打磨 ⑤ 输入增强（/命令、@提及）⑥ Agent 身份区分</div>
+      <div style="font-size:10px;color:#e07b5a;margin-top:4px">重做：Chat 消息组件体系 / 上下文信息面板</div>
+    </div>
+  </div>
+  <div style="background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:14px;display:flex;gap:14px;align-items:flex-start">
+    <div style="width:32px;height:32px;background:#8b7aaa;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0">L4</div>
+    <div>
+      <div style="font-weight:600;font-size:13px">管理体验 · Agent/Scene/KB</div>
+      <div style="font-size:11px;color:#666;margin-top:2px">创作工作室隐喻。画布式组织（拖拽关系、可视化连接）。Agent=角色、Scene=画板。AI 辅助创建（自然语言→自动填充表单→人工微调）。</div>
+      <div style="font-size:10px;color:#e07b5a;margin-top:4px">重做：Agent 创建流程 / Scene 详情页 / 关系可视化</div>
+    </div>
+  </div>
+  <div style="background:#fff;border:1px solid #e8e5e0;border-radius:8px;padding:14px;display:flex;gap:14px;align-items:flex-start">
+    <div style="width:32px;height:32px;background:#e0a05a;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0">L5</div>
+    <div>
+      <div style="font-weight:600;font-size:13px">高级工作流 · DAG 编排</div>
+      <div style="font-size:11px;color:#666;margin-top:2px">四个层级共存：L1 聊天内联卡片 → L2 侧边面板拓扑图 → L3 全屏 DAG 工作台 → L4 时间线回放。根据任务复杂度自适应展开。</div>
+      <div style="font-size:10px;color:#e07b5a;margin-top:4px">新增：DAG 节点图组件 / 全屏工作台 / 时间线回放</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>整体交互模型：从「功能集合」到「叙事流」</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">用户旅程：冷启动 → 探索 → 深度使用</div>
+  <div class="mockup-body">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:16px;gap:8px">
+      <div style="text-align:center;flex:1">
+        <div style="width:56px;height:56px;background:#faf6f0;border:2px solid #e07b5a;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:22px">🐱</div>
+        <div style="font-size:11px;font-weight:600">相遇</div>
+        <div style="font-size:9px;color:#888;line-height:1.5;margin-top:2px">Welcome 页<br/>品牌亮相<br/>能力预览<br/>快速开始</div>
+      </div>
+      <div style="color:#ccc;font-size:20px;margin-top:16px">→</div>
+      <div style="text-align:center;flex:1">
+        <div style="width:56px;height:56px;background:#f0f7f0;border:2px solid #7a9e7e;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:22px">🏠</div>
+        <div style="font-size:11px;font-weight:600">安家</div>
+        <div style="font-size:9px;color:#888;line-height:1.5;margin-top:2px">Dashboard 中枢<br/>一键创建 Agent<br/>了解 Scene 概念<br/>首次对话</div>
+      </div>
+      <div style="color:#ccc;font-size:20px;margin-top:16px">→</div>
+      <div style="text-align:center;flex:1">
+        <div style="width:56px;height:56px;background:#f5f0fa;border:2px solid #8b7aaa;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:22px">🎨</div>
+        <div style="font-size:11px;font-weight:600">搭建</div>
+        <div style="font-size:9px;color:#888;line-height:1.5;margin-top:2px">创作工作室<br/>画布组织 Agent<br/>配置 Scene<br/>导入知识库</div>
+      </div>
+      <div style="color:#ccc;font-size:20px;margin-top:16px">→</div>
+      <div style="text-align:center;flex:1">
+        <div style="width:56px;height:56px;background:#fdf6f0;border:2px solid #d4a574;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:22px">⚡</div>
+        <div style="font-size:11px;font-weight:600">协作</div>
+        <div style="font-size:9px;color:#888;line-height:1.5;margin-top:2px">Chat 对话<br/>DAG 自动编排<br/>实时可视化<br/>复盘回放</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>这个整体方向你觉得对吗？有没有需要调整的？</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>方向正确，可以写设计文档了</h3>
+      <p>五层决策都符合预期，进入正式 spec 阶段</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tweak">
+    <div class="letter">△</div>
+    <div class="content">
+      <h3>大方向对，但某层需要调整</h3>
+      <p>告诉我哪一层需要怎么改</p>
+    </div>
+  </div>
+</div>

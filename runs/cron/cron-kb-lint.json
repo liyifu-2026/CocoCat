@@ -1,0 +1,11 @@
+{
+  "id": "cron-kb-lint",
+  "name": "kb-lint",
+  "schedule": "@daily",
+  "task": "\u5bf9\u6240\u6709\u77e5\u8bc6\u5e93\u8fd0\u884c lint \u68c0\u67e5\uff0c\u62a5\u544a\u5b64\u7acb\u9875\u9762\u548c\u635f\u574f\u94fe\u63a5",
+  "mode": "kb-admin",
+  "scene_scope": "",
+  "at_time": "03:00",
+  "status": "active",
+  "last_run": 0
+}

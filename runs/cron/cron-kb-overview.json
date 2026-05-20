@@ -1,0 +1,11 @@
+{
+  "id": "cron-kb-overview",
+  "name": "kb-overview",
+  "schedule": "@weekly",
+  "task": "\u751f\u6210\u6240\u6709\u77e5\u8bc6\u5e93\u5185\u5bb9\u7684\u5168\u5c40\u6982\u89c8",
+  "mode": "kb-admin",
+  "scene_scope": "",
+  "at_time": "",
+  "status": "completed",
+  "last_run": "2026-05-20T23:23:09.434034"
+}

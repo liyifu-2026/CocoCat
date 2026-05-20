@@ -1,0 +1,130 @@
+<h2>补充：#17 个人主页</h2>
+<p class="subtitle">多账户体系下缺失的个人维度页面</p>
+
+<div class="section">
+  <h3>为什么需要个人主页</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">当前：个人相关功能散落在多处</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:10px;font-size:10px">
+        <div style="font-weight:600;margin-bottom:4px">SettingsModal → AppearanceTab</div>
+        <div style="color:#888">主题切换 · 语言切换</div>
+        <div style="color:#e07b5a;margin-top:2px">⚠ 个人偏好塞在团队设置里</div>
+      </div>
+      <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:10px;font-size:10px">
+        <div style="font-weight:600;margin-bottom:4px">SettingsModal → UsersTab</div>
+        <div style="color:#888">用户 CRUD（管理员专用）</div>
+        <div style="color:#e07b5a;margin-top:2px">⚠ 管理员操作和个人设置混在同一模态框</div>
+      </div>
+      <div style="flex:1;background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:10px;font-size:10px">
+        <div style="font-weight:600;margin-bottom:4px">无</div>
+        <div style="color:#888">个人活动记录 · API Key · 通知偏好</div>
+        <div style="color:#e07b5a;margin-top:2px">❌ 完全不存在</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>建议：Settings 拆分为「团队设置」+「个人主页」</h3>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Settings（团队维度 · 管理员视角）</div>
+    <div class="mockup-body">
+      <div style="font-size:10px;line-height:2">
+        <b>保留：</b><br/>
+        · Agents Tab（全局 Agent 配置）<br/>
+        · Scenes Tab<br/>
+        · Channels Tab<br/>
+        · Providers Tab<br/>
+        · Skills Tab<br/>
+        · KBTab<br/>
+        · PinnedTab<br/>
+        · UsersTab（管理员专用）<br/>
+        · GeneralTab（工作区目录等团队级配置）
+      </div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">Profile 个人主页（个人维度）</div>
+    <div class="mockup-body">
+      <div style="font-size:10px;line-height:2">
+        <b>新增/移入：</b><br/>
+        · 头像 + 显示名称编辑<br/>
+        · 密码修改<br/>
+        · 主题偏好（从 AppearanceTab 移入）<br/>
+        · 语言偏好（从 AppearanceTab 移入）<br/>
+        · 个人 API Key 管理<br/>
+        · 通知偏好<br/>
+        · <span style="color:#e07b5a">个人活动概览</span>（最近对话/任务）<br/>
+        · <span style="color:#e07b5a">个人统计</span>（对话次数/Agent 调用量）
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Profile 页面在导航中的位置</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">入口：SceneRail 底部用户头像 → 弹出菜单 → 「个人主页」</div>
+  <div class="mockup-body">
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px;padding:12px">
+      <div style="text-align:center">
+        <div style="width:36px;height:36px;background:#e07b5a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;margin:0 auto 4px">L</div>
+        <div style="font-size:9px;color:#888">点击头像</div>
+      </div>
+      <span style="color:#ccc">→</span>
+      <div style="background:#fff;border:1px solid #e0ddd8;border-radius:8px;padding:8px;font-size:10px;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+        <div style="padding:4px 8px;cursor:pointer">👤 个人主页</div>
+        <div style="padding:4px 8px;cursor:pointer">⚙ 团队设置</div>
+        <div style="border-top:1px solid #eee;margin-top:4px;padding-top:4px"></div>
+        <div style="padding:4px 8px;cursor:pointer">🚪 退出登录</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>更新后的完整页面清单（17个）</h3>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:4px;font-size:11px">
+  <div style="display:flex;gap:8px;padding:4px 8px;background:#f0faf0;border-radius:4px">
+    <span style="color:#7a9e7e;font-weight:600;width:40px">✅ 1-8</span>
+    <span>Chat / Login / Agents / Scenes / SceneNew / Knowledge / KnowledgeDetail / ChatHistory</span>
+  </div>
+  <div style="display:flex;gap:8px;padding:4px 8px;background:#fff8e0;border-radius:4px">
+    <span style="color:#d4a574;font-weight:600;width:40px">⬜ 9-11</span>
+    <span>Dashboard / SceneRun / SceneDetail</span>
+  </div>
+  <div style="display:flex;gap:8px;padding:4px 8px;background:#ffe8e8;border-radius:4px">
+    <span style="color:#e07b5a;font-weight:600;width:40px">❌ 12-17</span>
+    <span>Welcome / Onboarding / Studio / DAGWorkbench / TimelineReplay <b>/ Profile</b></span>
+  </div>
+</div>
+
+<div class="section">
+  <h3>回到讨论顺序的问题——你倾向哪种？</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="by_order">
+    <div class="letter">A</div>
+    <div class="content"><h3>按编号顺序 #1 → #17</h3><p>逐个攻破，不遗漏</p></div>
+  </div>
+  <div class="option" data-choice="by_layer">
+    <div class="letter">B</div>
+    <div class="content"><h3>按用户流：冷启动 → 核心 → 管理 → 高级</h3><p>Welcome → Dashboard → Chat → 管理页 → Studio/DAG → Profile</p></div>
+  </div>
+  <div class="option" data-choice="by_gap">
+    <div class="letter">C</div>
+    <div class="content"><h3>先空白后已实现</h3><p>先定 #9-#17 新页面的交互语言，再重构 #1-#8</p></div>
+  </div>
+</div>

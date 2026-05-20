@@ -1,0 +1,197 @@
+<h2>第三层：对话体验 · Chat 交互</h2>
+<p class="subtitle">这是 CocoCat 最核心的交互界面——用户在这里与 AI 团队对话</p>
+
+<div class="section">
+  <h3>当前 Chat 的交互结构</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Chat 页面交互分解（/chat, 646 行）</div>
+  <div class="mockup-body">
+    <div style="display:flex;height:380px;gap:0;background:#faf8f5;border-radius:4px;overflow:hidden">
+      <div style="flex:3;display:flex;flex-direction:column">
+        <div style="height:36px;border-bottom:1px solid #e8e5e0;display:flex;align-items:center;padding:0 12px;font-size:11px;color:#888">Chat header · 场景名 / Agent 名</div>
+        <div style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px">
+          <div style="background:#fff;border:1px solid #e5e2dc;border-radius:8px;padding:10px 14px;max-width:78%;font-size:11px;line-height:1.6;align-self:flex-end">
+            <div style="color:#999;font-size:9px;margin-bottom:2px">You</div>
+            帮我分析一下这个项目的架构
+          </div>
+          <div style="background:#faf6f0;border:1px solid #ebd5c0;border-radius:8px;padding:10px 14px;max-width:82%;font-size:11px;line-height:1.6">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <div style="width:18px;height:18px;background:#e07b5a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff">AI</div>
+              <span style="font-size:10px;color:#e07b5a;font-weight:600">Main AI</span>
+              <span style="font-size:9px;color:#aaa;margin-left:auto">流式输出中...</span>
+            </div>
+            <div style="color:#555">让我先看一下项目结构...<br/><br/></div>
+            <div style="background:#2d2d2d;color:#a5d6ff;border-radius:4px;padding:6px 10px;font-family:monospace;font-size:10px;margin:6px 0">
+              🔧 read_file("src/app.ts")<br/>
+              🔧 glob("src/**/*.ts")
+            </div>
+            <div style="color:#555;margin-top:4px">项目使用 FastAPI + React...</div>
+          </div>
+          <div style="background:#faf6f0;border:1px solid #c8d5c0;border-radius:8px;padding:10px 14px;max-width:82%;font-size:11px">
+            <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">
+              <div style="width:18px;height:18px;background:#7a9e7e;border-radius:50%"></div>
+              <span style="font-size:10px;color:#7a9e7e;font-weight:600">Dev Agent</span>
+              <span style="font-size:9px;color:#aaa;margin-left:auto">DAG task</span>
+            </div>
+            <div style="color:#555">架构分析：三层结构，路由层→服务层→数据层...</div>
+          </div>
+        </div>
+        <div style="height:44px;border-top:1px solid #e8e5e0;display:flex;align-items:center;padding:0 10px;gap:8px">
+          <div style="flex:1;height:32px;background:#fff;border:1px solid #e0d5c8;border-radius:8px;display:flex;align-items:center;padding:0 12px;font-size:11px;color:#bbb">输入消息... (支持 / 命令)</div>
+          <div style="width:32px;height:32px;background:#e07b5a;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px">↑</div>
+        </div>
+      </div>
+      <div style="flex:1;background:#fff;border-left:1px solid #e8e5e0;padding:10px;display:flex;flex-direction:column;gap:8px;font-size:10px">
+        <div style="font-weight:600;color:#333;margin-bottom:4px">会话上下文</div>
+        <div style="color:#666">Active Agents</div>
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;background:#4caf50;border-radius:50%"></div> Main AI · running</div>
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;background:#ff9800;border-radius:50%"></div> Dev Agent · waiting</div>
+        <div style="color:#666;margin-top:8px">DAG Progress</div>
+        <div style="background:#f0f0f0;border-radius:3px;height:4px;overflow:hidden"><div style="width:65%;height:100%;background:#e07b5a;border-radius:3px"></div></div>
+        <div style="font-size:9px;color:#999">Stage 2/3 · Task 5/8</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Chat 交互的 6 个维度分析</h3>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-body">
+      <h3>1. 多 Agent 身份展示</h3>
+      <p style="font-size:12px">多条消息来自不同 Agent 时，如何区分？当前靠颜色头像+名字。但 DAG 场景下一个对话流可能有 3-5 个 Agent 交替发言。</p>
+      <div style="margin-top:6px;font-size:10px;color:#e07b5a">⚠ 需要更强的视觉分层</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <h3>2. 工具调用的可视化</h3>
+      <p style="font-size:12px">Agent 调用工具时（read_file, bash, web_search...），当前用暗色代码块展示。但这是核心差异化体验——用户应该能看到 Agent「正在做什么」。</p>
+      <div style="margin-top:6px;font-size:10px;color:#e07b5a">⚠ 工具调用应该更生动</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <h3>3. 流式输出的质感</h3>
+      <p style="font-size:12px">当前有 streaming 支持，但流式体验的细腻度（打字机速度、光标、思考状态指示）决定了对话的「生命力」。</p>
+      <div style="margin-top:6px;font-size:10px;color:#7a9e7e">✓ 基础流式已有，可打磨</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <h3>4. 会话上下文面板</h3>
+      <p style="font-size:12px">右侧面板展示活跃 Agent 和 DAG 进度——方向对，但信息密度和设计质感需要提升。</p>
+      <div style="margin-top:6px;font-size:10px;color:#e07b5a">⚠ 面板存在但可能未充分利用</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <h3>5. 输入即交互</h3>
+      <p style="font-size:12px">输入框不只是打字——slash command、@提及 Agent、附件上传、语音输入等都是「多 Agent 协作」场景需要的。</p>
+      <div style="margin-top:6px;font-size:10px;color:#e07b5a">⚠ 输入方式太单一</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <h3>6. Mermaid 与富内容</h3>
+      <p style="font-size:12px">已支持 Mermaid 图表渲染，这是一个亮点。但 Markdown 渲染、代码高亮、文件预览等富内容体验可以进一步整合。</p>
+      <div style="margin-top:6px;font-size:10px;color:#7a9e7e">✓ 已有基础，扩展空间大</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>对话流中的「思考可见性」——CocoCat 的核心差异点</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">当前 vs 理想：Agent 思考过程的可视化</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:12px">
+      <div style="flex:1">
+        <div style="font-size:10px;color:#999;margin-bottom:6px">当前：工具调用以代码块展示</div>
+        <div style="background:#2d2d2d;border-radius:6px;padding:8px 12px;font-family:monospace;font-size:10px;color:#a5d6ff;line-height:1.8">
+          > read_file("main.py")<br/>
+          > Result: def main():...<br/>
+          > glob("src/**/*.ts")<br/>
+          > Result: 23 files found
+        </div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:10px;color:#999;margin-bottom:6px">理想：有生命感的思维过程</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="background:#faf6f0;border:1px solid #ebd5c0;border-radius:6px;padding:8px 12px;font-size:10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span style="font-size:14px">💭</span>
+              <span style="color:#e07b5a;font-weight:600">Main AI 正在思考...</span>
+              <span style="margin-left:auto;width:16px;height:16px;border:2px solid #e07b5a;border-top:transparent;border-radius:50%;animation:spin 1s linear infinite"></span>
+            </div>
+            <div style="color:#888;line-height:1.5">先了解项目结构，然后分配给合适的 Agent</div>
+          </div>
+          <div style="background:#f0f7f0;border:1px solid #c8d5c0;border-radius:6px;padding:8px 12px;font-size:10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span style="font-size:14px">📂</span>
+              <span style="color:#7a9e7e;font-weight:600">正在读取项目文件...</span>
+              <span style="margin-left:auto;font-size:9px;color:#999">3/23</span>
+            </div>
+            <div style="height:2px;background:#e0e8e0;border-radius:1px"><div style="width:13%;height:100%;background:#7a9e7e;border-radius:1px"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>在聊天体验中，你觉得哪个维度最需要优先打磨？</h3>
+</div>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="chat_identity">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>多 Agent 身份区分</h3>
+      <p>颜色、头像、发言气泡的视觉系统，让用户一眼看出谁在说话</p>
+    </div>
+  </div>
+  <div class="option" data-choice="chat_tools">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>工具调用可视化</h3>
+      <p>Agent 工作过程的透明展示，让「等待」变成「观看」</p>
+    </div>
+  </div>
+  <div class="option" data-choice="chat_input">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>输入增强</h3>
+      <p>/ 命令、@ Agent、上下文附件、快捷操作</p>
+    </div>
+  </div>
+  <div class="option" data-choice="chat_streaming">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>流式质感</h3>
+      <p>打字机效果、思考动画、光标闪烁、速度节奏</p>
+    </div>
+  </div>
+  <div class="option" data-choice="chat_context">
+    <div class="letter">5</div>
+    <div class="content">
+      <h3>上下文面板</h3>
+      <p>右侧信息面板的设计深度——Agent 状态、DAG 进度、任务树</p>
+    </div>
+  </div>
+  <div class="option" data-choice="chat_rich">
+    <div class="letter">6</div>
+    <div class="content">
+      <h3>富内容渲染</h3>
+      <p>Markdown、代码高亮、Mermaid、文件预览、图片/视频</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,181 @@
+<h2>#1 Login · 前端格式文档</h2>
+<p class="subtitle">用户的第一触点——登录页</p>
+
+<div class="section">
+  <h3>1. 概述</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">当前 Login（118行 · 功能完整）</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:12px">
+      <div style="flex:2;background:#faf8f5;border-radius:8px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px">
+        <div style="font-size:28px">🐱</div>
+        <div style="font-size:16px;font-weight:600">CocoCat</div>
+        <div style="width:240px;height:36px;background:#fff;border:1px solid #e0ddd8;border-radius:8px;display:flex;align-items:center;padding:0 10px;font-size:11px;color:#bbb">用户名</div>
+        <div style="width:240px;height:36px;background:#fff;border:1px solid #e0ddd8;border-radius:8px;display:flex;align-items:center;padding:0 10px;font-size:11px;color:#bbb">密码</div>
+        <div style="width:240px;height:36px;background:#e07b5a;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px">登录</div>
+        <div style="font-size:9px;color:#999">首次使用自动进入初始化模式</div>
+      </div>
+      <div style="flex:1;font-size:10px;color:#888">
+        <div style="font-weight:600;margin-bottom:4px;color:#333">当前特性：</div>
+        <div>✓ 双模式：初始化/登录</div>
+        <div>✓ JWT 存储 + 导航跳转</div>
+        <div>✓ 加载态 + 错误提示</div>
+        <div>✓ 空字段禁用按钮</div>
+        <div style="margin-top:8px;font-weight:600;color:#333">缺失：</div>
+        <div style="color:#e07b5a">✗ 品牌感弱（仅文字+猫emoji）</div>
+        <div style="color:#e07b5a">✗ 无过渡动画</div>
+        <div style="color:#e07b5a">✗ 无背景氛围</div>
+        <div style="color:#e07b5a">✗ 无「记住我」/ 密码可见切换</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>2. 路由与导航</h3>
+</div>
+<div style="background:#faf8f5;border-radius:6px;padding:12px;font-size:10px;line-height:1.8">
+  <b>路由：</b>/login（当前是 /login，保持不变）<br/>
+  <b>进入条件：</b>未登录用户访问任何受保护路由 → 重定向到 /login<br/>
+  <b>成功后跳转：</b>
+  <span style="color:#888">· 首次管理员 → /onboarding（初始化引导）</span>
+  <span style="color:#888">· 首次普通用户 → /onboarding</span>
+  <span style="color:#888">· 已引导用户 → /dashboard</span><br/>
+  <b>从哪来：</b>Profile 页退出登录 → /login
+</div>
+
+<div class="section">
+  <h3>3. 页面布局</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">建议布局：品牌居中 + 氛围背景</div>
+  <div class="mockup-body">
+    <div style="display:flex;height:300px;background:linear-gradient(135deg, oklch(0.965 0.006 75) 0%, oklch(0.95 0.01 60) 100%);border-radius:8px;overflow:hidden;position:relative">
+      <div style="position:absolute;top:-20%;right:-15%;width:60%;height:80%;background:radial-gradient(circle, oklch(0.80 0.05 60 / 0.12) 0%, transparent 70%);pointer-events:none"></div>
+      <div style="position:absolute;bottom:-25%;left:-10%;width:50%;height:70%;background:radial-gradient(circle, oklch(0.75 0.04 80 / 0.08) 0%, transparent 70%);pointer-events:none"></div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center">
+        <div style="background:#fff;border-radius:16px;padding:32px 40px;box-shadow:0 2px 16px rgba(0,0,0,0.04);max-width:340px;width:100%;display:flex;flex-direction:column;align-items:center;gap:14px">
+          <div style="width:56px;height:56px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #f97316">
+            <span style="font-size:24px">🐱</span>
+          </div>
+          <div style="font-size:20px;font-weight:700;font-family:'Zen Antique',serif;color:#333">CocoCat</div>
+          <div style="font-size:11px;color:#888;text-align:center">AI 团队协作平台</div>
+          <div style="width:100%;height:1px;background:#f0ebe3;margin:4px 0"></div>
+          <input placeholder="用户名" style="width:100%;height:36px;border:1px solid #e0ddd8;border-radius:8px;padding:0 10px;font-size:12px;outline:none" />
+          <div style="width:100%;position:relative">
+            <input placeholder="密码" type="password" style="width:100%;height:36px;border:1px solid #e0ddd8;border-radius:8px;padding:0 36px 0 10px;font-size:12px;outline:none" />
+            <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;color:#aaa;cursor:pointer">👁</span>
+          </div>
+          <div style="width:100%;display:flex;align-items:center;gap:6px;font-size:10px;color:#888">
+            <input type="checkbox" style="width:14px;height:14px" /> 记住我
+          </div>
+          <button style="width:100%;height:38px;background:#e07b5a;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:500;cursor:pointer">登 录</button>
+          <div style="font-size:10px;color:#bbb">首次使用自动进入初始化模式</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>4. 组件树</h3>
+</div>
+<div style="background:#faf8f5;border-radius:6px;padding:12px;font-family:monospace;font-size:10px;line-height:1.8">
+LoginPage<br/>
+├── <span style="color:#e07b5a">WarmGlowBackground</span>    ← 新增：暖色光晕背景<br/>
+├── LoginCard<br/>
+│   ├── <span style="color:#e07b5a">BrandLogo</span>          ← 新增：猫猫Logo（圆形，太极弧隐喻）<br/>
+│   ├── BrandTitle          ← 品牌名 + 副标题<br/>
+│   ├── UsernameInput       ← 用户名<br/>
+│   ├── PasswordInput       ← 密码 + <span style="color:#e07b5a">可见切换</span><br/>
+│   ├── <span style="color:#e07b5a">RememberMe</span>        ← 新增：记住我<br/>
+│   ├── LoginButton         ← 提交按钮<br/>
+│   └── <span style="color:#e07b5a">ModeHint</span>           ← 新增：首次自动初始化提示<br/>
+└── <span style="color:#e07b5a">ErrorMessage</span>           ← 新增：统一错误展示
+</div>
+
+<div class="section">
+  <h3>5. 状态设计</h3>
+</div>
+
+<div class="split">
+  <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:10px;font-size:10px">
+    <div style="font-weight:600;margin-bottom:4px">Loading 态</div>
+    <div>登录按钮 → spinner + "正在登录..."</div>
+    <div>初始检查 → 页面居中 spinner + "正在检查系统状态..."</div>
+  </div>
+  <div style="background:#fff;border:1px solid #e8e5e0;border-radius:6px;padding:10px;font-size:10px">
+    <div style="font-weight:600;margin-bottom:4px">Error 态</div>
+    <div>卡片上方滑入错误提示（shake 动画）</div>
+    <div>区分：凭证错误 / 网络错误 / 系统未初始化</div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>6. 数据流</h3>
+</div>
+<div style="background:#faf8f5;border-radius:6px;padding:12px;font-size:10px;line-height:1.8">
+<b>API：</b><br/>
+· GET /api/auth/status → 判断是否需要初始化<br/>
+· POST /api/auth/init → 首次管理员注册（admin setup）<br/>
+· POST /api/auth/login → 登录获取 JWT<br/>
+<b>状态管理：</b>useAuth context → 存储 token + 用户信息<br/>
+<b>无 WebSocket：</b>登录页不需要 WS 连接
+</div>
+
+<div class="section">
+  <h3>7. 交互细节</h3>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;font-size:10px">
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>入场动画：</b>LoginCard 从下往上 fadeSlideUp（stagger-2, 0.12s 延迟）+ 背景光晕渐显
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>密码可见切换：</b>点击眼睛图标切换 input type="password" ↔ "text"
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>错误动画：</b>卡片微 shake（translateX ±4px）+ 红色边框闪烁
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>键盘：</b>Enter 提交，Tab 切换字段，Escape 清除错误提示
+  </div>
+  <div style="padding:6px 10px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+    <b>记住我：</b>localStorage 持久化 token（勾选时），否则 sessionStorage
+  </div>
+</div>
+
+<div class="section">
+  <h3>8. i18n keys（新增）</h3>
+</div>
+<div style="background:#2d2d2d;border-radius:6px;padding:10px;font-family:monospace;font-size:10px;color:#a5d6ff;line-height:1.8">
+login.title = "CocoCat"<br/>
+login.subtitle = "AI 团队协作平台"<br/>
+login.username = "用户名"<br/>
+login.password = "密码"<br/>
+login.rememberMe = "记住我"<br/>
+login.submit = "登录"<br/>
+login.submitting = "正在登录..."<br/>
+login.firstTimeHint = "首次使用自动进入初始化模式"<br/>
+login.checkingStatus = "正在检查系统状态..."<br/>
+login.error.credentials = "用户名或密码错误"<br/>
+login.error.network = "网络连接失败，请检查网络"<br/>
+login.error.notInitialized = "系统未初始化，请先完成设置"
+</div>
+
+<div class="section">
+  <h3>确认此页格式——</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="login_ok">
+    <div class="letter">✓</div>
+    <div class="content"><h3>Login 格式 OK，继续下一个</h3><p>进入 #2 Welcome 页</p></div>
+  </div>
+  <div class="option" data-choice="login_tweak">
+    <div class="letter">△</div>
+    <div class="content"><h3>Login 需要调整</h3><p>告诉我哪部分要改</p></div>
+  </div>
+</div>

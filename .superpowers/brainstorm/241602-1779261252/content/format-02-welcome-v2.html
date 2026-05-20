@@ -1,0 +1,151 @@
+<h2>#2 Welcome · 三个更有意思的方向</h2>
+<p class="subtitle">Welcome 不该是一张说明书——用户不是来读文档的</p>
+
+<div class="section">
+  <h3>方向 A：直接开聊</h3>
+  <p class="subtitle">不要介绍页，Welcome 本身就是第一次对话。猫猫直接问你「今天想做什么？」</p>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Welcome = Chat 的零状态。没有功能卡片，只有一句问候和一个输入框。</div>
+  <div class="mockup-body">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:320px;background:#faf8f5;border-radius:8px">
+      <div style="font-size:48px;margin-bottom:16px">🐱</div>
+      <div style="font-family:'Zen Antique',serif;font-size:20px;color:#333;margin-bottom:8px">你好，我是 CocoCat</div>
+      <div style="font-size:12px;color:#888;text-align:center;max-width:300px;line-height:1.7;margin-bottom:20px">
+        我有一整个 AI 团队可以帮你。<br/>告诉我想做什么，我来安排。
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:16px">
+        <div style="padding:5px 14px;background:#fff;border:1px solid #e8e5e0;border-radius:16px;font-size:10px">📝 写周报</div>
+        <div style="padding:5px 14px;background:#fff;border:1px solid #e8e5e0;border-radius:16px;font-size:10px">🔍 分析代码</div>
+        <div style="padding:5px 14px;background:#fff;border:1px solid #e8e5e0;border-radius:16px;font-size:10px">🌐 调研</div>
+        <div style="padding:5px 14px;background:#fff;border:1px solid #e8e5e0;border-radius:16px;font-size:10px">💡 随便聊聊</div>
+      </div>
+      <div style="width:320px;height:42px;background:#fff;border:1px solid #e0d5c8;border-radius:12px;display:flex;align-items:center;padding:0 14px;font-size:12px;color:#bbb">或者直接告诉我想做什么...</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:8px;font-size:10px;color:#888;padding:8px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+  <b>优点：</b>消除「阅读→理解→操作」的认知跳转。Welcome 就是产品的第一口体验。<br/>
+  <b>风险：</b>如果用户不知道该说什么，输入框的沉默会带来焦虑。需要足够多且好的 suggestion chips。
+</div>
+
+<div class="section">
+  <h3>方向 B：猫猫醒来</h3>
+  <p class="subtitle">Welcome 是一段品牌微动画。猫从蜷缩到舒展，工作室亮起来。动画结束自然过渡到输入态。</p>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">3秒品牌动画 → 渐变为方向A的对话态</div>
+  <div class="mockup-body">
+    <div style="display:flex;align-items:center;justify-content:center;height:200px;background:#faf8f5;border-radius:8px;position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 50%, oklch(0.80 0.06 40 / 0.12) 0%, transparent 60%);opacity:0.6"></div>
+      <div style="text-align:center;z-index:1">
+        <div style="font-size:64px;animation:pulse 3s ease-in-out infinite">🐱</div>
+        <div style="font-size:10px;color:#aaa;margin-top:4px">伸个懒腰...</div>
+      </div>
+    </div>
+    <div style="text-align:center;padding:8px;font-size:9px;color:#999">
+      ↓ 动画结束，猫眨眨眼，「今天想做什么？」出现在输入框里 ↓
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:8px;font-size:10px;color:#888;padding:8px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+  <b>优点：</b>品牌记忆深刻。猫的「醒来」= CocoCat 就绪的隐喻。安静中带着温度。<br/>
+  <b>风险：</b>3秒动画对回访用户是干扰。需判断：首次 → 完整动画；回访 → 跳过动画直接对话态。
+</div>
+
+<div class="section">
+  <h3>方向 C：你的工作室</h3>
+  <p class="subtitle">Welcome 展示一个空的工作室空间——Agent 工位、知识书架、任务板。暗示「这里将要充满你的团队」。</p>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">俯视工作室的插画感布局，空位等待填充</div>
+  <div class="mockup-body">
+    <div style="display:flex;height:240px;background:#faf8f5;border-radius:8px;padding:20px;gap:16px;align-items:flex-end">
+      <!-- Task Board -->
+      <div style="flex:1;background:#fff;border:2px dashed #e0ddd8;border-radius:8px;height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
+        <span style="font-size:24px;opacity:0.3">📋</span>
+        <span style="font-size:9px;color:#ccc">任务板</span>
+        <span style="font-size:8px;color:#ddd">等待第一个任务</span>
+      </div>
+      <!-- Agent Desks -->
+      <div style="flex:2;display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1;background:#fff;border:2px dashed #e0ddd8;border-radius:8px;height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+          <span style="font-size:18px;opacity:0.3">🪑</span>
+          <span style="font-size:8px;color:#ddd">Agent</span>
+        </div>
+        <div style="flex:1;background:#fff;border:2px dashed #e0ddd8;border-radius:8px;height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+          <span style="font-size:18px;opacity:0.3">🪑</span>
+          <span style="font-size:8px;color:#ddd">Agent</span>
+        </div>
+        <div style="flex:1;background:#fff;border:2px dashed #e0ddd8;border-radius:8px;height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+          <span style="font-size:18px;opacity:0.3">🪑</span>
+          <span style="font-size:8px;color:#ddd">Agent</span>
+        </div>
+      </div>
+      <!-- KB Shelf -->
+      <div style="flex:1;background:#fff;border:2px dashed #e0ddd8;border-radius:8px;height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
+        <span style="font-size:24px;opacity:0.3">📚</span>
+        <span style="font-size:9px;color:#ccc">知识库</span>
+        <span style="font-size:8px;color:#ddd">空空的书架</span>
+      </div>
+    </div>
+    <div style="text-align:center;padding:12px">
+      <div style="font-size:14px;font-weight:600;color:#333;margin-bottom:4px">你的 AI 工作室已就绪</div>
+      <div style="font-size:10px;color:#888;margin-bottom:10px">创建第一个 Agent，或者直接说你想做什么</div>
+      <button style="height:36px;padding:0 20px;background:#e07b5a;border:none;border-radius:10px;color:#fff;font-size:12px">创建 Agent</button>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:8px;font-size:10px;color:#888;padding:8px;background:#fff;border:1px solid #e8e5e0;border-radius:6px">
+  <b>优点：</b>空间隐喻贯穿始终（和创作工作室一致）。空位的「期待感」推动用户行动。和 Dashboard 的语言统一。<br/>
+  <b>风险：</b>静态插画感可能需要实际插图才能生效。纯 CSS 较难达到预期效果。
+</div>
+
+<div class="section">
+  <h3>三个方向的本质差异</h3>
+</div>
+
+<table style="width:100%;font-size:10px;border-collapse:collapse">
+  <thead>
+    <tr style="background:#faf6f0">
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0"></th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">A 直接开聊</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">B 猫猫醒来</th>
+      <th style="padding:6px 8px;text-align:left;border:1px solid #e8e5e0">C 你的工作室</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">核心动作</td><td style="padding:4px 8px;border:1px solid #e8e5e0">打字</td><td style="padding:4px 8px;border:1px solid #e8e5e0">观看</td><td style="padding:4px 8px;border:1px solid #e8e5e0">浏览</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">Welcome→Chat距离</td><td style="padding:4px 8px;border:1px solid #e8e5e0">零（本身就是Chat）</td><td style="padding:4px 8px;border:1px solid #e8e5e0">近（动画结束即Chat）</td><td style="padding:4px 8px;border:1px solid #e8e5e0">远（需点击进入）</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #e8e5e0">开发量</td><td style="padding:4px 8px;border:1px solid #e8e5e0">低</td><td style="padding:4px 8px;border:1px solid #e8e5e0">中（动画）</td><td style="padding:4px 8px;border:1px solid #e8e5e0">高（插画+布局）</td></tr>
+  </tbody>
+</table>
+
+<div class="section">
+  <h3>选一个，或者给混合方案</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="wel_A">
+    <div class="letter">A</div>
+    <div class="content"><h3>直接开聊</h3><p>Welcome=Chat零状态，消除跳转</p></div>
+  </div>
+  <div class="option" data-choice="wel_B">
+    <div class="letter">B</div>
+    <div class="content"><h3>猫猫醒来</h3><p>3秒品牌动画→对话态</p></div>
+  </div>
+  <div class="option" data-choice="wel_C">
+    <div class="letter">C</div>
+    <div class="content"><h3>你的工作室</h3><p>空间隐喻，和Dashboard语言一致</p></div>
+  </div>
+  <div class="option" data-choice="wel_BC">
+    <div class="letter">D</div>
+    <div class="content"><h3>B+C混合</h3><p>首次访问：猫猫醒来动画→工作室空态。回访：直接工作室空态。点击任何位置或输入→进入Chat。</p></div>
+  </div>
+</div>
