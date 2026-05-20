@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional
@@ -204,6 +205,13 @@ async def run_agent(
             if content:
                 final_text.append(content)
             break
+
+        # Compress session if token threshold exceeded
+        from cococat.memory.summarize import compress_session
+        sid = session_id or "default"
+        summary_dir = os.path.join(config.agent_dir, "memory", "summaries") if config.agent_dir else "memory/summaries"
+        messages = await compress_session(messages, sid, summary_dir=summary_dir,
+                                          last_activity=time.time() if is_first else None)
     else:
         final_text.append("[ReAct loop exceeded max iterations]")
 
