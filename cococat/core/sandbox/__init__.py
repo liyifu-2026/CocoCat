@@ -21,6 +21,15 @@ logger = logging.getLogger("cococat.sandbox")
 
 import os as _os
 
+
+def _resolve_agents_dir(scene_id: str | None = None, user_id: str | None = None) -> str:
+    if scene_id and user_id:
+        return f"scenes/{scene_id}/sessions/{user_id}"
+    elif scene_id:
+        return f"scenes/{scene_id}/sessions"
+    return "sessions/default"
+
+
 async def _make_and_run_agent(
     agent_id: str,
     prompt: str,
@@ -28,9 +37,12 @@ async def _make_and_run_agent(
     resolve_llm: Callable[[str], Any],
     session_id: str | None = None,
     on_event: Callable | None = None,
-    agents_dir: str = "agents",
+    agents_dir: str | None = None,
+    mode: str = "default",
+    scene_id: str | None = None,
+    user_id: str | None = None,
 ) -> str:
-    """Create an Agent with SUB role and run it, returning the result.
+    """Create an Agent with WORKER role and run it, returning the result.
 
     Shared by InProcessExecutor and CubeSandboxExecutor to avoid
     duplicating Agent construction and agent.run() boilerplate.
@@ -40,6 +52,9 @@ async def _make_and_run_agent(
     llm = resolve_llm(agent_id)
     if not llm:
         return f"[System] No LLM provider for agent '{agent_id}'"
+
+    if agents_dir is None:
+        agents_dir = _resolve_agents_dir(scene_id=scene_id, user_id=user_id)
 
     agent_dir = _os.path.join(agents_dir, agent_id)
     agent = Agent(
@@ -70,7 +85,11 @@ class Executor:
     async def create(self, template: str, permissions: dict) -> Sandbox:
         raise NotImplementedError
 
-    async def run(self, sandbox: Sandbox, task: dict, on_event: Callable | None) -> str:
+    async def run(self, sandbox: Sandbox, task: str,
+                  agent_id: str = "coco", mode: str = "default",
+                  scene_id: str | None = None, user_id: str | None = None,
+                  on_event: Callable | None = None, tools: list | None = None,
+                  session_id: str | None = None) -> str:
         raise NotImplementedError
 
     async def destroy(self, sandbox: Sandbox) -> None:
@@ -96,13 +115,23 @@ class ExecutorProvider:
     async def run(
         self,
         sandbox_id: str,
-        task: dict,
+        task: str,
+        agent_id: str = "coco",
+        mode: str = "default",
+        scene_id: str | None = None,
+        user_id: str | None = None,
         on_event: Callable[[str, dict], Any] | None = None,
+        tools: list[dict] | None = None,
+        session_id: str | None = None,
     ) -> str:
         sandbox = self._sandboxes.get(sandbox_id)
         if not sandbox:
             raise ValueError(f"Unknown sandbox: {sandbox_id}")
-        return await self._executor.run(sandbox, task, on_event)
+        return await self._executor.run(
+            sandbox, task, agent_id=agent_id, mode=mode,
+            scene_id=scene_id, user_id=user_id,
+            on_event=on_event, tools=tools, session_id=session_id,
+        )
 
     async def destroy(self, sandbox_id: str) -> None:
         sandbox = self._sandboxes.pop(sandbox_id, None)
@@ -112,7 +141,10 @@ class ExecutorProvider:
     async def run_once(
         self,
         prompt: str,
-        agent_id: str = "main",
+        agent_id: str = "coco",
+        mode: str = "default",
+        scene_id: str | None = None,
+        user_id: str | None = None,
         permissions: dict | None = None,
         tools: list[dict] | None = None,
         on_event: Callable[[str, dict], Any] | None = None,
@@ -120,14 +152,11 @@ class ExecutorProvider:
     ) -> str:
         """Create a sandbox, run a task, destroy it. One-shot convenience."""
         sandbox_id = await self.create(permissions=permissions)
-        task: dict = {
-            "prompt": prompt,
-            "agent_id": agent_id,
-            "tools": tools or [],
-        }
-        if session_id:
-            task["session_id"] = session_id
         try:
-            return await self.run(sandbox_id, task, on_event)
+            return await self.run(
+                sandbox_id, task=prompt, agent_id=agent_id, mode=mode,
+                scene_id=scene_id, user_id=user_id,
+                on_event=on_event, tools=tools, session_id=session_id,
+            )
         finally:
             await self.destroy(sandbox_id)

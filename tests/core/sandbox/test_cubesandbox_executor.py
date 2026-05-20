@@ -43,9 +43,6 @@ class TestCubeSandboxExecutorRun:
             executor._sandbox_instances = {"sbx-run": sbx}
 
             sandbox_obj = Sandbox(id="sbx-run", template="default", permissions={})
-            result = await executor.run(sandbox_obj, {
-                "prompt": "run this task",
-                "agent_id": "main",
-            })
+            result = await executor.run(sandbox_obj, "run this task", agent_id="main")
 
             assert "task completed" in result

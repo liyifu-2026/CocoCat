@@ -61,12 +61,23 @@ class CubeSandboxExecutor:
             logger.error("CubeSandbox create failed: %s", e)
             raise RuntimeError(f"CubeSandbox create failed: {e}") from e
 
-    async def run(self, sandbox: Sandbox, task: dict, on_event: Callable | None = None) -> str:
+    async def run(self, sandbox: Sandbox, task: str,
+                  agent_id: str = "coco", mode: str = "default",
+                  scene_id: str | None = None, user_id: str | None = None,
+                  on_event: Callable | None = None, tools: list | None = None,
+                  session_id: str | None = None) -> str:
         """Create an Agent and run the full ReAct loop. EXEC_TOOLS run in sandbox."""
         async with self._semaphore:
-            return await self._do_run(sandbox, task, on_event)
+            return await self._do_run(sandbox, task,
+                                      agent_id=agent_id, mode=mode,
+                                      scene_id=scene_id, user_id=user_id,
+                                      on_event=on_event, tools=tools,
+                                      session_id=session_id)
 
-    async def _do_run(self, sandbox: Sandbox, task: dict, on_event: Callable | None) -> str:
+    async def _do_run(self, sandbox: Sandbox, task: str, agent_id: str,
+                      mode: str, scene_id: str | None, user_id: str | None,
+                      on_event: Callable | None, tools: list | None,
+                      session_id: str | None) -> str:
         sbx = self._sandbox_instances.get(sandbox.id)
         if not sbx:
             return f"Error: sandbox {sandbox.id} not found in active instances"
@@ -74,27 +85,25 @@ class CubeSandboxExecutor:
         from cococat.core.tools import create_core_tools
         from cococat.core.sandbox import _make_and_run_agent
 
-        prompt = task.get("prompt", "")
-        agent_id = task.get("agent_id", sandbox.id)
-        session_id = task.get("session_id")
-        provided_tools = task.get("tools")
-
         sandbox_run = _make_sandbox_run(sbx.sandbox_id, self._sandbox_run)
 
-        if provided_tools:
-            tools = _wrap_exec_tools(provided_tools, sandbox_run)
+        if tools is not None:
+            tools = _wrap_exec_tools(tools, sandbox_run)
         else:
             tools = create_core_tools()
             tools = _wrap_exec_tools(tools, sandbox_run)
 
         return await _make_and_run_agent(
             agent_id=agent_id,
-            prompt=prompt,
+            prompt=task,
             tools=tools,
             resolve_llm=self._resolve_llm,
             session_id=session_id,
             on_event=on_event,
-            agents_dir=os.environ.get("COCOCAT_AGENTS_DIR", "agents"),
+            agents_dir=os.environ.get("COCOCAT_AGENTS_DIR"),
+            mode=mode,
+            scene_id=scene_id,
+            user_id=user_id,
         )
 
     async def _sandbox_run(self, sandbox_id: str, code: str) -> str:

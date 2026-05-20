@@ -29,11 +29,8 @@ class TestInProcessExecutorTools:
         executor._resolve_llm = lambda agent_id: fake_llm
 
         sandbox = Sandbox(id="test-1", template="default", permissions={})
-        result = await executor.run(sandbox, {
-            "prompt": "hello",
-            "agent_id": "main",
-            "tools": CUSTOM_TOOLS,
-        }, on_event=None)
+        result = await executor.run(sandbox, "hello",
+                                    agent_id="main", tools=CUSTOM_TOOLS)
 
         assert result == "done"
         assert captured_tools == [["my_tool"]]
@@ -61,10 +58,7 @@ class TestInProcessExecutorTools:
         executor._resolve_llm = lambda agent_id: fake_llm
 
         sandbox = Sandbox(id="test-2", template="default", permissions={})
-        result = await executor.run(sandbox, {
-            "prompt": "hello",
-            "agent_id": "main",
-        }, on_event=None)
+        result = await executor.run(sandbox, "hello", agent_id="main")
 
         assert result == "done"
         names = captured_tools[0]

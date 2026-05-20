@@ -65,9 +65,7 @@ class TestInProcessExecutorWithSandboxRun:
         assert executor._sandbox_run is sb_run
 
         sandbox = Sandbox(id="test-1", template="default", permissions={})
-        task = {"prompt": "say hi", "agent_id": "test-agent"}
-
-        result = await executor.run(sandbox, task, None)
+        result = await executor.run(sandbox, "say hi", agent_id="test-agent")
         assert isinstance(result, str)
 
     @pytest.mark.asyncio

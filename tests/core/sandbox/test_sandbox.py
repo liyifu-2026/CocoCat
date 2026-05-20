@@ -207,7 +207,7 @@ class TestExecutorProvider:
     async def test_run_unknown_sandbox(self):
         provider = ExecutorProvider()
         with pytest.raises(ValueError, match="Unknown sandbox"):
-            await provider.run("nonexistent", {"prompt": "hi"})
+            await provider.run("nonexistent", "hi")
 
     @pytest.mark.asyncio
     async def test_concurrent_sandboxes(self):
