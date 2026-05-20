@@ -15,12 +15,6 @@ interface CronEntry {
   next_run?: string | null
 }
 
-interface Agent {
-  id: string
-  name: string
-  role: string
-}
-
 interface ScheduleModalProps {
   open: boolean
   onClose: () => void
@@ -113,7 +107,6 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
 
 export function ScheduleModal({ open, onClose }: ScheduleModalProps) {
   const [entries, setEntries] = useState<CronEntry[]>([])
-  const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -134,14 +127,9 @@ export function ScheduleModal({ open, onClose }: ScheduleModalProps) {
     setLoading(true)
     setError("")
     try {
-      const [cronRes, agentsRes] = await Promise.all([
-        fetch("/api/cron"),
-        fetch("/api/agents"),
-      ])
+      const cronRes = await fetch("/api/cron")
       const cronData = await cronRes.json()
-      const agentsData = await agentsRes.json()
       setEntries(cronData.entries || [])
-      setAgents(agentsData.agents || [])
     } catch {
       setError("Failed to load data")
     } finally {
@@ -389,20 +377,6 @@ export function ScheduleModal({ open, onClose }: ScheduleModalProps) {
                         {scheduleLabel(form.schedule)} <strong>{form.at_time}</strong> 准时执行
                       </div>
                     )}
-                    <div className="relative">
-                      <label className="text-[10px] text-muted-foreground mb-1 block uppercase tracking-wider">分配给</label>
-                      <select
-                        className="w-full rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary transition-colors appearance-none"
-                        value={form.agent_id}
-                        onChange={e => setForm({ ...form, agent_id: e.target.value })}
-                      >
-                        <option value="">选择 agent...</option>
-                        {agents.map(a => (
-                          <option key={a.id} value={a.id}>{a.name} ({a.id})</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="size-3.5 absolute right-2.5 top-[26px] pointer-events-none text-muted-foreground" />
-                    </div>
                     <div>
                       <label className="text-[10px] text-muted-foreground mb-1 block uppercase tracking-wider">任务描述</label>
                       <textarea

@@ -1,7 +1,6 @@
 const zh: Record<string, string> = {
   // Sidebar
   "nav.dashboard": "仪表盘",
-  "nav.agents": "智能体",
   "nav.scenes": "场景",
   "nav.chat": "聊天",
   "nav.knowledge": "知识库",
@@ -18,7 +17,6 @@ const zh: Record<string, string> = {
 
   // Breadcrumbs / Page headers
   "page.dashboard": "仪表盘",
-  "page.agents": "智能体",
   "page.scenes": "场景",
   "page.chat": "聊天",
   "page.knowledge": "知识库",
@@ -80,7 +78,6 @@ const zh: Record<string, string> = {
   "cmd.create_agent": "创建新智能体",
   "cmd.create_scene": "创建新场景",
   "cmd.pages": "页面",
-  "cmd.agents": "智能体",
   "cmd.no_results": "未找到结果",
 
   // Login
@@ -95,53 +92,7 @@ const zh: Record<string, string> = {
   "dashboard.active_scenes": "活跃场景",
   "dashboard.pending_hires": "待审批招聘",
   "dashboard.recent_messages": "最近消息",
-  "dashboard.agents_card": "智能体",
   "dashboard.recent_chat": "最近消息",
-
-  // Agents list
-  "agents.title": "智能体",
-  "agents.no_agents": "暂无智能体",
-  "agents.set_nickname": "设置昵称...",
-  "agents.nickname_locked": "昵称已设置",
-
-  // Agent Detail
-  "agent.not_found": "智能体未找到",
-  "agent.back_to_list": "← 所有智能体",
-  "agent.edit_display": "编辑显示",
-  "agent.edit_profile": "编辑资料",
-  "agent.customize_display": "自定义显示",
-  "agent.nickname": "昵称",
-  "agent.preview": "预览：",
-  "agent.profile": "个人档案",
-  "agent.skills": "技能",
-  "agent.memory": "记忆",
-  "agent.history": "历史",
-  "agent.entries": "接入",
-  "agent.id": "ID：",
-  "agent.name": "名称：",
-  "agent.scene": "场景：",
-  "agent.role": "角色：",
-  "agent.objective": "目标：",
-  "agent.traits": "特质：",
-  "agent.rules": "规则：",
-  "agent.background": "背景：",
-  "agent.public_skills": "公共技能",
-  "agent.private_skills": "私有技能",
-  "agent.add_skill": "添加技能...",
-  "agent.none": "无",
-  "agent.no_memories": "（暂无记忆）",
-  "agent.history_time": "时间",
-  "agent.history_prompt": "提示",
-  "agent.history_response": "回复",
-  "agent.history_iters": "轮次",
-  "agent.no_history": "暂无历史",
-  "agent.personal_entries": "个人接入",
-  "agent.entries_desc": "配置其他角色如何直接联系此智能体。留空表示仅限内部通信。",
-  "agent.delete": "删除智能体",
-  "agent.delete_confirm": "删除 {name}？",
-  "agent.delete_desc": "此操作将永久删除该智能体及其所有数据。",
-  "agent.disable": "停用",
-  "agent.enable": "启用",
 
   // Chat
   "chat.title": "聊天",
@@ -345,15 +296,6 @@ const zh: Record<string, string> = {
   "component.show": "显示",
   "component.hide": "隐藏",
   "component.drag": "拖拽排序",
-
-  // New Agent Dialog
-  "agent_dialog.title": "创建新智能体",
-  "agent_dialog.desc": "创建一个新的智能体并加入团队。",
-  "agent_dialog.name": "名称",
-  "agent_dialog.name_placeholder": "例如 assistant",
-  "agent_dialog.scene": "场景",
-  "agent_dialog.role_placeholder": "例如 客服",
-  "agent_dialog.role_label": "角色",
 
   // New Group Dialog
   "group_dialog.title": "新建群组",

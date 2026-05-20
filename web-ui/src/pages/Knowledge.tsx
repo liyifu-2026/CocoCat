@@ -2,7 +2,7 @@ import { useState, useRef } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router-dom"
 import { BookOpen, Loader2, Upload, X, FileText, Plus } from "lucide-react"
-import KbChat from "@/pages/Chat"
+import Chat from "@/pages/Chat"
 
 export default function KnowledgePage() {
   const navigate = useNavigate()
@@ -219,7 +219,7 @@ export default function KnowledgePage() {
         </div>
         {/* Right: Chat panel */}
         <div className="flex-1">
-          <KbChat agentId="kb-agent" kbName={kbs[0]?.id || ""} />
+          <Chat />
         </div>
       </div>
 

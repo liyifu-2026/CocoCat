@@ -7,7 +7,7 @@ import { useTheme } from "@/context/ThemeContext"
 import { useSidebar } from "@/context/SidebarContext"
 import { useAuth } from "@/context/AuthContext"
 import { useT } from "@/context/LanguageContext"
-import { Sun, Moon, Plus, PanelRight, Settings, Layers, Bot, Book, MessageSquare, LogOut } from "lucide-react"
+import { Sun, Moon, Plus, PanelRight, Settings, Layers, Book, MessageSquare, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface SceneRailProps {
@@ -156,18 +156,6 @@ export function SceneRail({ onOpenSettings }: SceneRailProps) {
           title={t("nav.scenes")}
         >
           <Layers className="size-4" />
-        </NavLink>
-        <NavLink
-          to="/agents"
-          className={({ isActive }) => cn(
-            "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
-            isActive
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-          )}
-          title={t("nav.agents")}
-        >
-          <Bot className="size-4" />
         </NavLink>
         <NavLink
           to="/knowledge"

@@ -15,7 +15,7 @@ type Action =
   | { type: "NEW_SESSION"; id: string; title: string; createdAt: number }
   | { type: "DELETE_SESSION"; id: string }
   | { type: "ADD_USER_MESSAGE"; content: string }
-  | { type: "ADD_ASSISTANT_MESSAGE"; content: string; tools?: ToolCallRecord[]; dagRunIds?: string[]; reasoningText?: string }
+  | { type: "ADD_ASSISTANT_MESSAGE"; content: string; tools?: ToolCallRecord[]; reasoningText?: string }
   | { type: "UPDATE_TITLE"; title: string }
   | { type: "CLEAR_MESSAGES" }
 
@@ -72,7 +72,6 @@ function reducer(state: State, action: Action): State {
         role: "assistant",
         content: action.content,
         tools: action.tools,
-        dagRunIds: action.dagRunIds,
         reasoningText: action.reasoningText,
       }
       return {
@@ -127,7 +126,7 @@ export function useSessionStore(ns: string = "") {
   const clearMessages = useCallback(() => dispatch({ type: "CLEAR_MESSAGES" }), [])
   const addUserMessage = useCallback((content: string) => dispatch({ type: "ADD_USER_MESSAGE", content }), [])
   const addAssistantMessage = useCallback(
-    (content: string, extras?: { tools?: ToolCallRecord[]; dagRunIds?: string[]; reasoningText?: string }) =>
+    (content: string, extras?: { tools?: ToolCallRecord[]; reasoningText?: string }) =>
       dispatch({ type: "ADD_ASSISTANT_MESSAGE", content, ...extras }),
     [],
   )

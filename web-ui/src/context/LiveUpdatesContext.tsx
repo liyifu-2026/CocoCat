@@ -91,9 +91,6 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
             qc.invalidateQueries({ queryKey: ["chat-messages"] })
             qc.invalidateQueries({ queryKey: ["knowledge"] })
             break
-          case "dag.completed":
-            qc.invalidateQueries({ queryKey: ["dag"] })
-            break
         }
       } catch {
         // ignore parse errors

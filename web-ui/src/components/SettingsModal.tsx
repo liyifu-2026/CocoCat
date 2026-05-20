@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react"
 import { X } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import type { TabItem, TabData, SettingsModalProps } from "@/types/settings"
-import { AgentsTab } from "@/components/settings/AgentsTab"
 import { ProvidersTab } from "@/components/settings/ProvidersTab"
 import { ScenesTab } from "@/components/settings/ScenesTab"
 import { SkillsTab } from "@/components/settings/SkillsTab"
@@ -12,10 +11,9 @@ import { UsersTab } from "@/components/settings/UsersTab"
 import { PinnedTab } from "@/components/settings/PinnedTab"
 import { AppearanceTab } from "@/components/settings/AppearanceTab"
 import { GeneralTab } from "@/components/settings/GeneralTab"
-import { Cpu, Plug, Layers, Wrench, Book, Radio, Users, Pin, Palette, Settings } from "lucide-react"
+import { Plug, Layers, Wrench, Book, Radio, Users, Pin, Palette, Settings } from "lucide-react"
 
 const TABS: TabItem[] = [
-  { label: "智能体", icon: Cpu },
   { label: "供应商", icon: Plug },
   { label: "场景", icon: Layers },
   { label: "技能", icon: Wrench },
@@ -46,16 +44,15 @@ function NavBtn({ item, index, active, onSelect }: { item: TabItem; index: numbe
 
 function SettingsContent({ tab, data, onUpdate }: { tab: number; data: TabData; onUpdate: () => void }) {
   switch (tab) {
-    case 0: return <AgentsTab data={data} />
-    case 1: return <ProvidersTab data={data} onUpdate={onUpdate} />
-    case 2: return <ScenesTab data={data} />
-    case 3: return <SkillsTab data={data} />
-    case 4: return <KBTab data={data} onUpdate={onUpdate} />
-    case 5: return <ChannelsTab />
-    case 6: return <UsersTab />
-    case 7: return <PinnedTab />
-    case 8: return <AppearanceTab />
-    case 9: return <GeneralTab data={data} onUpdate={onUpdate} />
+    case 0: return <ProvidersTab data={data} onUpdate={onUpdate} />
+    case 1: return <ScenesTab data={data} />
+    case 2: return <SkillsTab data={data} />
+    case 3: return <KBTab data={data} onUpdate={onUpdate} />
+    case 4: return <ChannelsTab />
+    case 5: return <UsersTab />
+    case 6: return <PinnedTab />
+    case 7: return <AppearanceTab />
+    case 8: return <GeneralTab data={data} onUpdate={onUpdate} />
     default: return null
   }
 }
@@ -71,12 +68,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     const abort = new AbortController()
     abortRef.current = abort
     const endpoints: Record<number, string> = {
-      0: "/api/agents",
-      1: "/api/providers",
-      2: "/api/scenes",
-      3: "/api/skills",
-      4: "/api/knowledge",
-      7: "/api/settings",
+      0: "/api/providers",
+      1: "/api/scenes",
+      2: "/api/skills",
+      3: "/api/knowledge",
+      6: "/api/settings",
     }
     const url = endpoints[tab]
     if (url) fetch(url, { signal: abort.signal }).then(r => r.json()).then(d => { if (!abort.signal.aborted) setData(d) }).catch(() => {})
@@ -92,14 +88,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         onClick={e => e.stopPropagation()}
         style={{ animation: "fadeSlideUp 0.2s ease-out both" }}
       >
-        {/* Left nav */}
         <nav className="w-52 border-r border-border bg-muted/30 p-3 space-y-1">
           {TABS.map((item, i) => (
             <NavBtn key={item.label} item={item} index={i} active={tab === i} onSelect={setTab} />
           ))}
         </nav>
 
-        {/* Right content */}
         <div className="flex-1 flex flex-col">
           <div className="flex items-center justify-between border-b border-border px-5 h-13 shrink-0">
             <h2 className="text-sm font-display text-foreground">{TABS[tab]?.label ?? ""}</h2>
@@ -110,8 +104,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           <div className="flex-1 overflow-auto p-5">
             <SettingsContent tab={tab} data={data} onUpdate={() => {
               const endpoints: Record<number, string> = {
-                0: "/api/agents", 2: "/api/scenes", 3: "/api/skills",
-                4: "/api/knowledge", 7: "/api/settings",
+                1: "/api/scenes", 2: "/api/skills",
+                3: "/api/knowledge", 6: "/api/settings",
               }
               const url = endpoints[tab]
               if (url) fetch(url).then(r => r.json()).then(setData)

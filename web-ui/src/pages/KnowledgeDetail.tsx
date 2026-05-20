@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { transformWikilinks } from "@/lib/wikilink-transform"
 import { cn } from "@/lib/utils"
-import KbChat from "@/pages/Chat"
+import Chat from "@/pages/Chat"
 
 export default function KnowledgeDetailPage() {
   const { kb } = useParams<{ kb: string }>()
@@ -143,7 +143,7 @@ export default function KnowledgeDetailPage() {
         )}
       </main>
       <div className="w-80 shrink-0">
-        <KbChat agentId="kb-agent" kbName={kb!} />
+        <Chat />
       </div>
     </div>
   )

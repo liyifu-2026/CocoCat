@@ -1,7 +1,6 @@
 const en: Record<string, string> = {
   // Sidebar
   "nav.dashboard": "Dashboard",
-  "nav.agents": "Agents",
   "nav.scenes": "Scenes",
   "nav.chat": "Chat",
   "nav.knowledge": "Knowledge",
@@ -18,7 +17,6 @@ const en: Record<string, string> = {
 
   // Breadcrumbs / Page headers
   "page.dashboard": "Dashboard",
-  "page.agents": "Agents",
   "page.scenes": "Scenes",
   "page.chat": "Chat",
   "page.knowledge": "Knowledge",
@@ -80,7 +78,6 @@ const en: Record<string, string> = {
   "cmd.create_agent": "Create new Agent",
   "cmd.create_scene": "Create new Scene",
   "cmd.pages": "Pages",
-  "cmd.agents": "Agents",
   "cmd.no_results": "No results found",
 
   // Login
@@ -95,53 +92,7 @@ const en: Record<string, string> = {
   "dashboard.active_scenes": "Active Scenes",
   "dashboard.pending_hires": "Pending Hires",
   "dashboard.recent_messages": "Recent Messages",
-  "dashboard.agents_card": "Agents",
   "dashboard.recent_chat": "Recent Chat",
-
-  // Agents list
-  "agents.title": "Agents",
-  "agents.no_agents": "No agents found.",
-  "agents.set_nickname": "Set nickname...",
-  "agents.nickname_locked": "Nickname set",
-
-  // Agent Detail
-  "agent.not_found": "Agent not found",
-  "agent.back_to_list": "← Back to Agents",
-  "agent.edit_display": "Edit Display",
-  "agent.edit_profile": "Edit Profile",
-  "agent.customize_display": "Customize Display",
-  "agent.nickname": "Nickname",
-  "agent.preview": "Preview:",
-  "agent.profile": "Profile",
-  "agent.skills": "Skills",
-  "agent.memory": "Memory",
-  "agent.history": "History",
-  "agent.entries": "Entries",
-  "agent.id": "ID:",
-  "agent.name": "Name:",
-  "agent.scene": "Scene:",
-  "agent.role": "Role:",
-  "agent.objective": "Objective:",
-  "agent.traits": "Traits:",
-  "agent.rules": "Rules:",
-  "agent.background": "Background:",
-  "agent.public_skills": "Public Skills",
-  "agent.private_skills": "Private Skills",
-  "agent.add_skill": "Add skill...",
-  "agent.none": "None",
-  "agent.no_memories": "(No memories yet)",
-  "agent.history_time": "Time",
-  "agent.history_prompt": "Prompt",
-  "agent.history_response": "Response",
-  "agent.history_iters": "Iters",
-  "agent.no_history": "No history yet",
-  "agent.personal_entries": "Personal Entries",
-  "agent.entries_desc": "Configure how others can reach this agent directly. Leave empty for internal-only communication.",
-  "agent.delete": "Delete Agent",
-  "agent.delete_confirm": "Delete {name}?",
-  "agent.delete_desc": "This will permanently remove the agent and all its data.",
-  "agent.disable": "Disable",
-  "agent.enable": "Enable",
 
   // Chat
   "chat.title": "Chat",
@@ -345,15 +296,6 @@ const en: Record<string, string> = {
   "component.show": "Show",
   "component.hide": "Hide",
   "component.drag": "Drag to reorder",
-
-  // New Agent Dialog
-  "agent_dialog.title": "Create New Agent",
-  "agent_dialog.desc": "Create a new agent and add it to the team.",
-  "agent_dialog.name": "Name",
-  "agent_dialog.name_placeholder": "e.g. assistant",
-  "agent_dialog.scene": "Scene",
-  "agent_dialog.role_placeholder": "e.g. customer support",
-  "agent_dialog.role_label": "Role",
 
   // New Group Dialog
   "group_dialog.title": "New Chat Group",

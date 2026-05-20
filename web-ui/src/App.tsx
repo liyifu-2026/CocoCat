@@ -4,7 +4,6 @@ import ErrorBoundary from "@/components/ErrorBoundary"
 import Chat from "@/pages/Chat"
 import SceneDetail from "@/pages/SceneDetail"
 import Dashboard from "@/pages/Dashboard"
-import Agents from "@/pages/Agents"
 import Scenes from "@/pages/Scenes"
 import Knowledge from "@/pages/Knowledge"
 import KnowledgeDetail from "@/pages/KnowledgeDetail"
@@ -20,7 +19,6 @@ export default function App() {
           <Route path="/" element={<Navigate to="/chat" replace />} />
           <Route path="/chat" element={<ErrorBoundary><Chat /></ErrorBoundary>} />
           <Route path="/dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
-          <Route path="/agents" element={<ErrorBoundary><Agents /></ErrorBoundary>} />
           <Route path="/scenes" element={<ErrorBoundary><Scenes /></ErrorBoundary>} />
           <Route path="/scenes/:id" element={<ErrorBoundary><SceneDetail /></ErrorBoundary>} />
           <Route path="/scenes/new" element={<ErrorBoundary><SceneNew /></ErrorBoundary>} />

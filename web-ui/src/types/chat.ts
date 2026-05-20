@@ -13,7 +13,6 @@ export interface Message {
   role: "user" | "assistant"
   content: string
   tools?: ToolCallRecord[]
-  dagRunIds?: string[]
   reasoningText?: string
 }
 
