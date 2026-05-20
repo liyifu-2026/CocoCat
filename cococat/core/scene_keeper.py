@@ -3,7 +3,7 @@
 Each Scene has one SceneKeeper (not AI). It:
   - Receives messages from the scene's channel
   - Parses user identity via channel.parse_identity()
-  - Triggers SandboxProvider.run_once() with scene permissions
+  - Triggers ExecutorProvider.run_once() with scene permissions
   - Sends the agent's reply back through the channel
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ logger = logging.getLogger("cococat.scene_keeper")
 
 
 class SceneKeeper:
-    """Lightweight router between a channel and the SandboxProvider.
+    """Lightweight router between a channel and the ExecutorProvider.
 
     Not an AI. Does not reason. Just:
       receive → parse identity → create sandbox → execute agent → send reply
