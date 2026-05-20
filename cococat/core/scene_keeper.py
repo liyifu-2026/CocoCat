@@ -56,7 +56,8 @@ class SceneKeeper:
             try:
                 result = await self._sandbox.run_once(
                     prompt=prompt,
-                    agent_id=f"scene-{self.scene_id}",
+                    agent_id="coco",
+                    scene_id=self.scene_id,
                     permissions=self._permissions,
                 )
                 await self._channel.send(user_id, result)

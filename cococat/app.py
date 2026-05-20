@@ -34,7 +34,10 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
         await worker.start()
         app.state.ctx.worker = worker
 
-        cron_worker = CronWorker(sub_executor=sub_exec, cron_dir=str(app.state.ctx.config_store.cron_dir))
+        cron_worker = CronWorker(
+            sub_executor=app.state.ctx.sub_executor,
+            cron_dir=str(app.state.ctx.config_store.cron_dir),
+        )
         await cron_worker.start()
         app.state.ctx.cron_worker = cron_worker
 
