@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
+import os
 import random
 import threading
 from typing import TYPE_CHECKING
@@ -103,14 +104,18 @@ class ChannelManager:
     # ── auto-reconnect (startup) ─────────────────────────────
 
     def auto_reconnect(self, ctx: 'AppContext', loop) -> None:
-        """Reconnect enabled channels with valid credentials on startup."""
+        """Reconnect enabled channels with valid credentials on startup.
+        
+        Reconnects both global main channels and per-user personal channels.
+        """
         from cococat.core.channels.factory import create_channel
 
+        # ── Global main channels ──
         store = ctx.config_store
         if store:
             cfg = store.get_channel_configs()
         else:
-            import yaml, os
+            import yaml
             path = os.path.join("config", "main.yaml")
             if os.path.exists(path):
                 with open(path, encoding="utf-8") as f:
@@ -122,7 +127,6 @@ class ChannelManager:
         for ct, info in channels.items():
             if not info.get("enabled"):
                 continue
-
             config = info.get("config", {})
             if not _channel_has_credentials(ct, config, str(ctx.config_store.agents_dir)):
                 logger.info("Channel %s is enabled but has no credentials, skipping auto-reconnect", ct)
@@ -131,31 +135,65 @@ class ChannelManager:
             key = f"main:main:{ct}"
             if key in self._instances:
                 continue
-
             try:
                 ch = create_channel(ct)
                 self._instances[key] = ch
-
                 self._wire_main(ch, ct, ctx, reuse_instance=True)
                 ch.start("main", config)
-
                 success, _ = ch.wait_startup(timeout=3)
                 status = "connected" if success else "connecting"
-
                 self._status[key] = {
                     "status": status,
                     "channel_type": ct,
                     "connected_since": datetime.datetime.now().isoformat() if success else None,
                     "message_count": 0,
                 }
-
                 if not success:
                     self._watch_async(ct, key, ch)
-
-                logger.info("Auto-reconnected channel: %s (status=%s)", ct, status)
-
+                logger.info("Auto-reconnected global channel: %s (status=%s)", ct, status)
             except Exception as e:
                 logger.exception("Failed to auto-reconnect channel %s: %s", ct, e)
+
+        # ── Per-user personal channels ──
+        users_config_dir = "config/users"
+        if not os.path.isdir(users_config_dir):
+            return
+        for username in os.listdir(users_config_dir):
+            user_channels_path = os.path.join(users_config_dir, username, "channels.json")
+            if not os.path.exists(user_channels_path):
+                continue
+            try:
+                import json as _json
+                with open(user_channels_path, encoding="utf-8") as f:
+                    user_channels = _json.load(f)
+            except Exception:
+                continue
+
+            for ct, info in (user_channels.get("channels", {}) or {}).items():
+                if not info.get("enabled"):
+                    continue
+                config = info.get("config", {})
+                key = f"{username}:main:null:{ct}"
+                if key in self._instances:
+                    continue
+                try:
+                    ch = create_channel(ct)
+                    self._instances[key] = ch
+                    self._wire_main(ch, ct, ctx, reuse_instance=True)
+                    ch.start(username, config)
+                    success, _ = ch.wait_startup(timeout=3)
+                    status = "connected" if success else "connecting"
+                    self._status[key] = {
+                        "status": status,
+                        "channel_type": ct,
+                        "connected_since": datetime.datetime.now().isoformat() if success else None,
+                        "message_count": 0,
+                    }
+                    if not success:
+                        self._watch_async(ct, key, ch)
+                    logger.info("Auto-reconnected %s's channel: %s (status=%s)", username, ct, status)
+                except Exception as e:
+                    logger.exception("Failed to auto-reconnect %s's channel %s: %s", username, ct, e)
 
     # ── internal wiring ──────────────────────────────────────
 

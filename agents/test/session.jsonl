@@ -62,3 +62,7 @@
 {"role": "assistant", "content": "Let me check the file.\n\nThe file contains Hello World."}
 {"role": "user", "content": "What's in /tmp/test_read.txt?"}
 {"role": "assistant", "content": "Let me check the file.\n\nThe file contains Hello World."}
+{"role": "user", "content": "What's in /tmp/test_read.txt?"}
+{"role": "assistant", "content": "Let me check the file.\n\nThe file contains Hello World."}
+{"role": "user", "content": "What's in /tmp/test_read.txt?"}
+{"role": "assistant", "content": "Let me check the file.\n\nThe file contains Hello World."}

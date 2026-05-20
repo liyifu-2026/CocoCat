@@ -280,6 +280,9 @@ def load_agents(app, args) -> None:
     """Orchestrate startup: create services, load agents into pool."""
     ctx = app.state.ctx
 
+    # ── Migration: legacy config → per-user structure ──
+    _migrate_legacy_config(ctx)
+
     # Clean up stale sub-agent session directories from previous runs
     agents_dir = str(ctx.config_store.agents_dir)
     if os.path.isdir(agents_dir):
@@ -302,3 +305,34 @@ def load_agents(app, args) -> None:
     from cococat.core.cron_tasks import register_compile_handlers, bootstrap_system_cron_tasks
     register_compile_handlers()
     bootstrap_system_cron_tasks(str(ctx.config_store.cron_dir))
+
+
+def _migrate_legacy_config(ctx) -> None:
+    """One-time migration: copy legacy global config → config/users/admin/."""
+    import shutil as _shutil
+    admin_config = "config/users/admin"
+    admin_agents = "agents/admin"
+
+    # Migrate config/auth.json
+    if os.path.exists("config/auth.json") and not os.path.exists(f"{admin_config}/auth.json"):
+        os.makedirs(admin_config, exist_ok=True)
+        _shutil.copy2("config/auth.json", f"{admin_config}/auth.json")
+        logger.info("Migrated config/auth.json → config/users/admin/auth.json")
+
+    # Migrate agents/ → agents/admin/
+    if os.path.isdir("agents") and not os.path.isdir(admin_agents):
+        # Only migrate if admin agent dir doesn't exist yet
+        has_agents = any(
+            not name.startswith("sub-") and not name.startswith("_") and os.path.isdir(os.path.join("agents", name))
+            for name in os.listdir("agents")
+        )
+        if has_agents:
+            os.makedirs(admin_agents, exist_ok=True)
+            for name in os.listdir("agents"):
+                src = os.path.join("agents", name)
+                dst = os.path.join(admin_agents, name)
+                if name.startswith("sub-") or name.startswith("_"):
+                    continue
+                if os.path.isdir(src) and not os.path.exists(dst):
+                    _shutil.copytree(src, dst)
+                    logger.info("Migrated agents/%s → agents/admin/%s", name, name)

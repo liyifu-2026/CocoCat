@@ -131,17 +131,26 @@ def register_compile_handlers():
 
 
 def _list_user_agent_dirs() -> list[str]:
-    """List all user agent directories under agents/, excluding sub-agents and system dirs."""
+    """List all user and scene agent directories under agents/."""
     agents_dir = "agents"
     if not os.path.isdir(agents_dir):
         return []
     result = []
     for name in os.listdir(agents_dir):
-        if name.startswith("sub-") or name.startswith("_"):
+        if name.startswith("sub-") or name.startswith("_") or name == "empty":
             continue
         path = os.path.join(agents_dir, name)
-        if os.path.isdir(path):
+        if os.path.isdir(path) and os.path.isdir(os.path.join(path, "memory")):
             result.append(path)
+
+    # Also include scene directories
+    scenes_dir = os.path.join(agents_dir, "scenes")
+    if os.path.isdir(scenes_dir):
+        for name in os.listdir(scenes_dir):
+            path = os.path.join(scenes_dir, name)
+            if os.path.isdir(path) and os.path.isdir(os.path.join(path, "memory")):
+                result.append(path)
+
     return result
 
 
