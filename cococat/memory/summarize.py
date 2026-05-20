@@ -91,9 +91,16 @@ async def compress_session(
     }
     _save_summary(session_id, existing + [entry], summary_dir)
 
-    # Build new messages
+    # Build new messages — ensure total is under threshold
     summary_msg = {"role": "system", "content": _build_summary_prompt(existing + [entry])}
-    return [messages[0], summary_msg] + recent_msgs if messages else [summary_msg] + recent_msgs
+    new_messages = [messages[0], summary_msg] + recent_msgs if messages else [summary_msg] + recent_msgs
+
+    # Trim recent if total still exceeds threshold
+    while _count_tokens(new_messages) > TOKEN_THRESHOLD and len(recent_msgs) > 5:
+        recent_msgs = recent_msgs[1:]
+        new_messages = [messages[0], summary_msg] + recent_msgs if messages else [summary_msg] + recent_msgs
+
+    return new_messages
 
 
 def _count_tokens(messages: list[dict]) -> int:

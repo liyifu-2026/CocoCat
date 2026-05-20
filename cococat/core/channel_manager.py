@@ -255,6 +255,28 @@ class ChannelManager:
                     user_ctx = Context(ContextType.TEXT, msg.content,
                                        user_id=msg.user_id, receiver=msg.user_id)
                     ch.send(reply, user_ctx)
+
+                    # Persist message to DB for history
+                    try:
+                        resolved = _resolve_channel_user(ctx, ct, msg.user_id)
+                        user = resolved or "channel"
+                        db = getattr(ctx, 'db', None)
+                        if db:
+                            db.messages.save(
+                                msg_uuid=str(__import__('uuid').uuid4()),
+                                agent_id="main", user_id=user,
+                                role="user", content=msg.content[:2000],
+                                scene_id="default",
+                            )
+                            db.messages.save(
+                                msg_uuid=str(__import__('uuid').uuid4()),
+                                agent_id="main", user_id=user,
+                                role="assistant", content=reply_text[:5000],
+                                scene_id="default",
+                            )
+                    except Exception:
+                        pass
+
                     await bus.publish("main_message", {
                         "channel": ct,
                         "user_id": msg.user_id,
