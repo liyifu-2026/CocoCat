@@ -17,6 +17,7 @@ class ChannelConnect(BaseModel):
     target_id: str
     channel_type: str
     config: dict = {}
+    user_id: str = ""
 
 
 class MainChannelConfig(BaseModel):
@@ -193,7 +194,7 @@ async def save_main_channel_config(body: MainChannelConfig, ctx: AppContext = De
 async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ctx)):
     mgr = ctx.channel_manager
     try:
-        return mgr.connect(body.target_type, body.target_id, body.channel_type, body.config, ctx)
+        return mgr.connect(body.target_type, body.target_id, body.channel_type, body.config, ctx, user_id=body.user_id or ctx.user_id or "")
     except Exception as e:
         logger.exception("Failed to connect channel %s", body.channel_type)
         return {"status": "error", "error": str(e)}
@@ -203,7 +204,7 @@ async def connect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ct
 async def disconnect_channel(body: ChannelConnect, ctx: AppContext = Depends(get_ctx)):
     mgr = ctx.channel_manager
     store = ctx.config_store
-    mgr.disconnect(body.target_type, body.target_id, body.channel_type)
+    mgr.disconnect(body.target_type, body.target_id, body.channel_type, user_id=body.user_id or ctx.user_id or "")
 
     if body.target_type == "main":
         cfg = store.get_channel_configs()
