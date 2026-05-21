@@ -116,6 +116,20 @@ export default function ChatPage() {
     }
   }, [store.currentId, ctrl])
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value
+    const cmdMatch = value.match(/^\/mode\s+(\S+)/i)
+    if (cmdMatch?.[1]) {
+      const target = cmdMatch[1].toLowerCase()
+      if (modes.some(m => m.id === target)) {
+        setMode(target)
+        setInput("")
+        return
+      }
+    }
+    setInput(value)
+  }
+
   const send = useCallback(async () => {
     if (!input.trim() || ctrl.streaming) return
     const userMsg = input.trim()
@@ -333,7 +347,7 @@ export default function ChatPage() {
               <textarea
                 ref={inputRef}
                 value={input}
-                onChange={e => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="输入消息..."
                 className="w-full resize-none rounded-xl border border-border bg-background/80 px-4 py-3 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
