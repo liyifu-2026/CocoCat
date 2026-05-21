@@ -21,16 +21,16 @@ const COVER_COLORS = [
 
 const DEMO_BOOKS: Record<string, Book[]> = {
   "Project Docs": [
-    { id: "1", title: "Backend API", category: "Project Docs", cover: COVER_COLORS[0] },
-    { id: "2", title: "Frontend UI", category: "Project Docs", cover: COVER_COLORS[1] },
-    { id: "3", title: "Deployment", category: "Project Docs", cover: COVER_COLORS[2] },
-    { id: "4", title: "DB Schema", category: "Project Docs", cover: COVER_COLORS[3] },
+    { id: "1", title: "Backend API", category: "Project Docs", cover: COVER_COLORS[0]! },
+    { id: "2", title: "Frontend UI", category: "Project Docs", cover: COVER_COLORS[1]! },
+    { id: "3", title: "Deployment", category: "Project Docs", cover: COVER_COLORS[2]! },
+    { id: "4", title: "DB Schema", category: "Project Docs", cover: COVER_COLORS[3]! },
   ],
   "Wiki": [
-    { id: "5", title: "架构总览", category: "Wiki", cover: COVER_COLORS[4] },
-    { id: "6", title: "API 设计", category: "Wiki", cover: COVER_COLORS[5] },
-    { id: "7", title: "测试指南", category: "Wiki", cover: COVER_COLORS[6] },
-    { id: "8", title: "贡献指南", category: "Wiki", cover: COVER_COLORS[7] },
+    { id: "5", title: "架构总览", category: "Wiki", cover: COVER_COLORS[4]! },
+    { id: "6", title: "API 设计", category: "Wiki", cover: COVER_COLORS[5]! },
+    { id: "7", title: "测试指南", category: "Wiki", cover: COVER_COLORS[6]! },
+    { id: "8", title: "贡献指南", category: "Wiki", cover: COVER_COLORS[7]! },
   ],
 }
 

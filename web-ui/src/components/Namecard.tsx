@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useMode } from "@/context/ModeContext"
 import { cn } from "@/lib/utils"
 
-const MODE_STYLES: Record<string, { icon: string; title: string; subtitle: string; status: string; gradient: string }> = {
+const MODE_STYLES = {
   default: {
     icon: "💬",
     title: "Coco",
@@ -17,13 +17,15 @@ const MODE_STYLES: Record<string, { icon: string; title: string; subtitle: strin
     status: '"3 KB active. Tools ready."',
     gradient: "bg-gradient-to-b from-amber-500/10 to-transparent",
   },
-}
+} as const
+
+type ModeKey = keyof typeof MODE_STYLES
 
 export default function Namecard() {
   const { currentMode, modes, setMode } = useMode()
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
-  const style = MODE_STYLES[currentMode] || MODE_STYLES.default
+  const style = MODE_STYLES[(currentMode in MODE_STYLES ? currentMode : "default") as ModeKey]
 
   return (
     <div className={cn("px-6 py-6 text-center border-b border-border flex-shrink-0 relative", style.gradient)}>

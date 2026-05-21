@@ -22,7 +22,7 @@ export default function ChatInput({ onSend, streaming }: ChatInputProps) {
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
     const cmd = value.match(/^\/mode\s+(\S+)/i)
-    if (cmd?.[1] && modes.some(m => m.id === cmd[1].toLowerCase())) {
+    if (cmd?.[1] && modes.some(m => m.id === cmd[1]!.toLowerCase())) {
       setMode(cmd[1].toLowerCase())
       setInput("")
       return
