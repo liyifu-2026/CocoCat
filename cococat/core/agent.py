@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Any, Callable, Optional
 
 from cococat.core.agent_builder import build_system_prompt, load_memory_from_agent_dir
-from cococat.core.agent_builder import resolve_skills, skills_to_prompt, skills_to_tools
+from cococat.core.agent_builder import resolve_skills
 from cococat.core.agent_builder import load_agent_system_prompt, get_agent_skills
 from cococat.core.session import Session, load_session, save_session_pair
 from cococat.core.tool_executor import make_assistant_msg, execute_tool_calls
@@ -60,19 +60,18 @@ def load_agent_config(
     else:
         skill_names = []
 
-    agent_skills = resolve_skills(skill_names)
+    skill_names_merged: list[str] = []
 
     if scene_config and hasattr(scene_config, 'skills') and scene_config.skills:
         all_names = list(dict.fromkeys(skill_names + scene_config.skills))
-        merged_skills = resolve_skills(all_names)
+        skill_names_merged = all_names
     else:
-        merged_skills = agent_skills
-
-    skill_tools = skills_to_tools(merged_skills)
-    skill_prompt = skills_to_prompt(merged_skills)
+        skill_names_merged = skill_names
 
     tools = list(base_tools or [])
-    tools += skill_tools
+
+    skill_refs = ", ".join(skill_names_merged) if skill_names_merged else ""
+    scene_skills_text = f"可用技能手册: {skill_refs}" if skill_refs else ""
 
     system_prompt = build_system_prompt(
         mode_id=mode_id,
@@ -81,7 +80,7 @@ def load_agent_config(
         compiled_content=compiled,
         scene_context=scene_config.context if scene_config else "",
         scene_kbs=scene_config.kbs if scene_config else [],
-        scene_skills=skill_prompt,
+        scene_skills=scene_skills_text,
         tools=tools,
     )
 
