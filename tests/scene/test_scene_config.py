@@ -18,9 +18,6 @@ name: Customer Service
 context: |
   You are a helpful customer service agent.
   Help users with refunds and order inquiries.
-roster:
-  - agent_a
-  - agent_c
 kbs:
   - product-manual
   - faq
@@ -44,7 +41,6 @@ def test_load_scene_config(scenes_dir):
     assert config.id == "customer-service"
     assert config.name == "Customer Service"
     assert "helpful customer service" in config.context
-    assert config.roster == ["agent_a", "agent_c"]
     assert config.kbs == ["product-manual", "faq"]
     assert config.skills == ["crm-lookup", "refund-procedure"]
     assert len(config.channels) == 2
@@ -67,7 +63,6 @@ def test_scene_config_default_values():
     d = {"id": "minimal", "name": "Minimal"}
     config = SceneConfig(**d)
     assert config.context == ""
-    assert config.roster == []
     assert config.kbs == []
     assert config.skills == []
     assert config.channels == []

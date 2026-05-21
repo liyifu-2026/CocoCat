@@ -24,7 +24,7 @@ class SceneStore:
 
     def get(self, scene_id: str) -> dict | None:
         rows = self._db.query(
-            "SELECT id, name, description, roster FROM scenes WHERE id = ?",
+            "SELECT id, name, description FROM scenes WHERE id = ?",
             (scene_id,),
         )
         return rows[0] if rows else None

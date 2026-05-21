@@ -18,7 +18,6 @@ class SceneConfig:
     id: str
     name: str = ""
     context: str = ""
-    roster: list[str] = field(default_factory=list)
     kbs: list[str] = field(default_factory=list)
     skills: list[str] = field(default_factory=list)
     channels: list[dict] = field(default_factory=list)
@@ -48,7 +47,6 @@ def load_scene_config(
         id=data.get("id", scene_id),
         name=data.get("name", scene_id),
         context=data.get("context", ""),
-        roster=data.get("roster", []),
         kbs=data.get("kbs", []),
         skills=data.get("skills", []),
         channels=data.get("channels", []),
