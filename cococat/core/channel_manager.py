@@ -110,7 +110,7 @@ class ChannelManager:
 
     # ── auto-reconnect (startup) ─────────────────────────────
 
-    def auto_reconnect(self, ctx: 'AppContext', loop) -> None:
+    async def auto_reconnect(self, ctx: 'AppContext') -> None:
         """Reconnect enabled channels with valid credentials on startup.
         
         Reconnects both global main channels and per-user personal channels.
