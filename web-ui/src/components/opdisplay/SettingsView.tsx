@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Settings, Plug, Layers, Wrench, Book, Radio, Users, Pin, Palette } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ProvidersTab } from "@/components/settings/ProvidersTab"
@@ -13,23 +13,36 @@ import { GeneralTab } from "@/components/settings/GeneralTab"
 import type { TabData } from "@/types/settings"
 
 const TABS = [
-  { key: "providers", label: "Providers", icon: Plug },
-  { key: "scenes", label: "Scenes", icon: Layers },
-  { key: "skills", label: "Skills", icon: Wrench },
-  { key: "kb", label: "KB", icon: Book },
+  { key: "providers", label: "Providers", icon: Plug, endpoint: "/api/providers" },
+  { key: "scenes", label: "Scenes", icon: Layers, endpoint: "/api/scenes" },
+  { key: "skills", label: "Skills", icon: Wrench, endpoint: "/api/skills" },
+  { key: "kb", label: "KB", icon: Book, endpoint: "/api/knowledge" },
   { key: "channels", label: "Channels", icon: Radio },
-  { key: "users", label: "Users", icon: Users },
+  { key: "users", label: "Users", icon: Users, endpoint: "/api/settings" },
   { key: "pinned", label: "Pinned", icon: Pin },
   { key: "appearance", label: "Appearance", icon: Palette },
-  { key: "general", label: "General", icon: Settings },
+  { key: "general", label: "General", icon: Settings, endpoint: "/api/settings" },
 ]
 
 export default function SettingsView() {
   const [tab, setTab] = useState("providers")
-  const [updateKey, setUpdateKey] = useState(0)
-  const [tabData] = useState<TabData>({} as TabData)
+  const [tabData, setTabData] = useState<TabData>({} as TabData)
 
-  const refresh = () => setUpdateKey(k => k + 1)
+  const loadTabData = (tabKey: string) => {
+    const t = TABS.find(t => t.key === tabKey)
+    if (t?.endpoint) {
+      fetch(t.endpoint)
+        .then(r => r.json())
+        .then(d => setTabData(d))
+        .catch(() => {})
+    } else {
+      setTabData({} as TabData)
+    }
+  }
+
+  useEffect(() => { loadTabData(tab) }, [tab])
+
+  const refresh = () => loadTabData(tab)
 
   return (
     <div className="flex h-full">
@@ -51,15 +64,15 @@ export default function SettingsView() {
         ))}
       </div>
       <div className="flex-1 overflow-y-auto">
-        {tab === "providers" && <ProvidersTab key={updateKey} data={tabData} onUpdate={refresh} />}
+        {tab === "providers" && <ProvidersTab data={tabData} onUpdate={refresh} />}
         {tab === "scenes" && <ScenesTab data={tabData} />}
         {tab === "skills" && <SkillsTab data={tabData} />}
-        {tab === "kb" && <KBTab key={updateKey} data={tabData} onUpdate={refresh} />}
+        {tab === "kb" && <KBTab data={tabData} onUpdate={refresh} />}
         {tab === "channels" && <ChannelsTab />}
         {tab === "users" && <UsersTab />}
         {tab === "pinned" && <PinnedTab />}
         {tab === "appearance" && <AppearanceTab />}
-        {tab === "general" && <GeneralTab />}
+        {tab === "general" && <GeneralTab data={tabData} onUpdate={refresh} />}
       </div>
     </div>
   )
