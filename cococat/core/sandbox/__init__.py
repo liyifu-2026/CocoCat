@@ -44,7 +44,7 @@ async def _make_and_run_agent(
     Shared by InProcessExecutor and CubeSandboxExecutor to avoid
     duplicating Agent construction and agent.run() boilerplate.
     """
-    from cococat.core.agent import Agent, AgentRole
+    from cococat.core.agent import Agent, AgentRole, load_agent_config
 
     llm = resolve_llm(agent_id)
     if not llm:
@@ -54,17 +54,8 @@ async def _make_and_run_agent(
         agents_dir = _resolve_agents_dir(scene_id=scene_id, user_id=user_id)
 
     agent_dir = _os.path.join(agents_dir, agent_id)
-    agent = Agent(
-        id=agent_id,
-        name=agent_id,
-        role=AgentRole.WORKER,
-        llm=llm,
-        tools=tools,
-        agent_dir=agent_dir if _os.path.isdir(agent_dir) else None,
-        mode=mode,
-        scene_id=scene_id or "default",
-        user_id=user_id or "local",
-    )
+    agent_config = load_agent_config(agent_dir, base_tools=tools)
+    agent = Agent(config=agent_config, llm=llm)
 
     try:
         ctx = {"session_id": session_id, "scene_id": scene_id, "user_id": user_id}
