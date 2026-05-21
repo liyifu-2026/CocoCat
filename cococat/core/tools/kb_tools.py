@@ -150,7 +150,7 @@ def _call_worker(params: dict, ctx: Any) -> str:
     task = params.get("task", "")
     if not task:
         return "Error: task is required"
-    sub_executor = ctx.dag.executor if hasattr(ctx, "dag") else None
+    sub_executor = ctx.sub_agent_executor if hasattr(ctx, "sub_agent_executor") else None
     if not sub_executor:
         return "Error: No worker executor available"
     agent_id = ctx.agent_id if hasattr(ctx, "agent_id") else "unknown"

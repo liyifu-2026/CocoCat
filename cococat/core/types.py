@@ -6,16 +6,6 @@ from typing import Any, Callable
 
 
 @dataclass
-class DagEnv:
-    """DAG orchestration provider injected into tool context."""
-    store: Any = None            # DagStore
-    executor: Callable | None = None  # sub_agent_executor
-    dag_dir: str = "runs"
-    tasks_path: str = "runs"
-    cancel_dir: str = "runs/cancellations"
-
-
-@dataclass
 class SandboxEnv:
     """Sandbox execution provider."""
     run: Callable | None = None  # sandbox_run(code) → str
@@ -46,7 +36,7 @@ class ToolContext:
     session_id: str | None = None
 
     db: Any = None               # Database
-    dag: DagEnv = field(default_factory=DagEnv)
+    sub_agent_executor: Callable | None = None
     sandbox: SandboxEnv = field(default_factory=SandboxEnv)
     memory: MemoryEnv = field(default_factory=MemoryEnv)
     web: WebEnv = field(default_factory=WebEnv)
@@ -60,20 +50,6 @@ class ToolContext:
             return cls()
         if isinstance(d, cls):
             return d
-        # Build sub-providers from flat keys
-        dag_kw = {}
-        if "dag_store" in d:
-            dag_kw["store"] = d["dag_store"]
-        if "sub_agent_executor" in d:
-            dag_kw["executor"] = d["sub_agent_executor"]
-        if "dag_dir" in d:
-            dag_kw["dag_dir"] = d["dag_dir"]
-        if "tasks_path" in d:
-            dag_kw["tasks_path"] = d["tasks_path"]
-        if "cancel_dir" in d:
-            dag_kw["cancel_dir"] = d["cancel_dir"]
-        dag = DagEnv(**dag_kw) if dag_kw else DagEnv()
-
         sandbox = SandboxEnv(
             run=d.get("sandbox_run"),
         )
@@ -92,11 +68,10 @@ class ToolContext:
         )
 
         direct_keys = {"agent_id", "agent_dir", "bound_scene", "role", "session_id",
-                       "db", "cron_path", "_llm"}
+                       "db", "sub_agent_executor", "cron_path", "_llm"}
         direct = {k: v for k, v in d.items() if k in direct_keys}
 
         return cls(
-            dag=dag,
             sandbox=sandbox,
             memory=memory,
             web=web,
