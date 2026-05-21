@@ -2,7 +2,7 @@
 
 import os
 
-from cococat.core.tools.types import Tool, ToolRegistry, _resolve, _merge_ctx, _ensure_tool_context  # noqa: F401 — re-export
+from cococat.core.tools.types import Tool, ToolRegistry, _make, _merge_ctx, _ensure_tool_context  # noqa: F401 — re-export
 from cococat.core.tools.file_ops import make_file_tools, make_readonly_file_tools
 from cococat.core.tools.execution import make_execution_tools
 from cococat.core.tools.web import make_web_tools

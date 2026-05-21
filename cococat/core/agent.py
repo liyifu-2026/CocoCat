@@ -84,6 +84,10 @@ def load_agent_config(
         tools=tools,
     )
 
+    user_prompt = _load_user_prompt(user_id)
+    if user_prompt:
+        system_prompt = user_prompt + "\n\n" + system_prompt
+
     return AgentConfig(
         id=os.path.basename(agent_dir.rstrip("/")) if agent_dir else "agent",
         name=name,
@@ -92,6 +96,13 @@ def load_agent_config(
         tools=tools,
         agent_dir=agent_dir,
     )
+
+
+def _load_user_prompt(user_id: str) -> str | None:
+    """Load per-user custom prompt from config/users/{user_id}/prompts/coco.txt."""
+    from cococat.config_store import ConfigStore
+    store = ConfigStore(user_id=user_id)
+    return store.get_coco_prompt()
 
 
 def _resolve_session_path(agent_dir: str, session_id: str, scene_id: str = "default", user_id: str = "local") -> str:
