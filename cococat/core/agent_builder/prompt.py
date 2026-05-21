@@ -30,11 +30,14 @@ def build_system_prompt(mode_id: str = "default",
                         memory_content: str | None = None,
                         pinned_facts: str | None = None,
                         compiled_content: str | None = None,
+                        profile_text: str | None = None,
                         tools: list | None = None) -> str:
     from cococat.core.modes import load_mode
     mode = load_mode(mode_id)
     parts = [mode.system_prompt]
 
+    if profile_text:
+        parts.append(f"\n## 角色\n{profile_text}")
     if scene_context:
         parts.append(f"\n## 当前场景上下文\n{scene_context}")
     if scene_kbs:
