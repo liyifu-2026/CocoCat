@@ -81,8 +81,7 @@ def register_compile_handlers():
         for user_dir in _list_user_agent_dirs():
             try:
                 from cococat.memory.store import MemoryStore
-                memory_dir = os.path.join(user_dir, "memory")
-                store = MemoryStore(memory_dir=memory_dir)
+                store = MemoryStore(memory_dir=user_dir)
                 await store.compile_day()
             except Exception:
                 logger.exception("compile_day failed for %s", user_dir)
@@ -94,8 +93,7 @@ def register_compile_handlers():
         for user_dir in _list_user_agent_dirs():
             try:
                 from cococat.memory.store import MemoryStore
-                memory_dir = os.path.join(user_dir, "memory")
-                store = MemoryStore(memory_dir=memory_dir)
+                store = MemoryStore(memory_dir=user_dir)
                 await store.compile_week()
             except Exception:
                 logger.exception("compile_week failed for %s", user_dir)
@@ -107,8 +105,7 @@ def register_compile_handlers():
         for user_dir in _list_user_agent_dirs():
             try:
                 from cococat.memory.store import MemoryStore
-                memory_dir = os.path.join(user_dir, "memory")
-                store = MemoryStore(memory_dir=memory_dir)
+                store = MemoryStore(memory_dir=user_dir)
                 await store.compile_longterm()
             except Exception:
                 logger.exception("compile_longterm failed for %s", user_dir)
@@ -116,11 +113,14 @@ def register_compile_handlers():
         return status
 
     async def _dream_poll():
-        for user_dir in _list_user_agent_dirs():
+        for mem_dir in _list_user_agent_dirs():
             try:
-                await _poll_dream_for_user(user_dir)
+                parts = mem_dir.split("/")  # scenes/{scene_id}/memory/{user_id}
+                scene_id = parts[1] if len(parts) >= 2 else "default"
+                user_id = parts[-1] if len(parts) >= 4 else "local"
+                await _poll_dream_for_user(scene_id, user_id, mem_dir)
             except Exception:
-                logger.exception("dream_poll failed for %s", user_dir)
+                logger.exception("dream_poll failed for %s", mem_dir)
         return "ok"
 
     register_system_task("__compile_day__", _compile_day)
@@ -131,32 +131,27 @@ def register_compile_handlers():
 
 
 def _list_user_agent_dirs() -> list[str]:
-    """List all user and scene agent directories under agents/."""
-    agents_dir = "agents"
-    if not os.path.isdir(agents_dir):
+    """List all scene×user memory directories under scenes/."""
+    scenes_dir = "scenes"
+    if not os.path.isdir(scenes_dir):
         return []
     result = []
-    for name in os.listdir(agents_dir):
-        if name.startswith("sub-") or name.startswith("_") or name == "empty":
+    for scene_name in os.listdir(scenes_dir):
+        memory_scene_dir = os.path.join(scenes_dir, scene_name, "memory")
+        if not os.path.isdir(memory_scene_dir):
             continue
-        path = os.path.join(agents_dir, name)
-        if os.path.isdir(path) and os.path.isdir(os.path.join(path, "memory")):
-            result.append(path)
-
-    # Also include scene directories
-    scenes_dir = os.path.join(agents_dir, "scenes")
-    if os.path.isdir(scenes_dir):
-        for name in os.listdir(scenes_dir):
-            path = os.path.join(scenes_dir, name)
-            if os.path.isdir(path) and os.path.isdir(os.path.join(path, "memory")):
-                result.append(path)
+        for user_name in os.listdir(memory_scene_dir):
+            user_dir = os.path.join(memory_scene_dir, user_name)
+            if os.path.isdir(user_dir):
+                result.append(user_dir)
 
     return result
 
 
-async def _poll_dream_for_user(user_dir: str) -> None:
+async def _poll_dream_for_user(scene_id: str, user_id: str, memory_dir: str) -> None:
     """Check user's session files for dream extraction."""
-    sessions_dir = os.path.join(user_dir, "sessions")
+    from cococat.core.paths import session_dir
+    sessions_dir = session_dir(scene_id, user_id)
     if not os.path.isdir(sessions_dir):
         return
 
@@ -188,7 +183,6 @@ async def _poll_dream_for_user(user_dir: str) -> None:
 
         if new_tokens >= threshold:
             from cococat.memory.store import MemoryStore
-            memory_dir = os.path.join(user_dir, "memory")
             store = MemoryStore(memory_dir=memory_dir)
             try:
                 await store.dream(session_path)

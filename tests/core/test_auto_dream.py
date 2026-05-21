@@ -141,7 +141,8 @@ class TestAgentDreamTrigger:
     async def test_agent_saves_session_pair(self, tmp_path):
         from cococat.core.agent import Agent, AgentRole
         agents_dir = tmp_path / "agents" / "test-agent"
-        session_path = agents_dir / "session.jsonl"
+        session_path = tmp_path / "scenes" / "default" / "sessions" / "local" / "session.jsonl"
+        session_path.parent.mkdir(parents=True, exist_ok=True)
 
         class StubLLM:
             async def chat(self, messages, tools=None, **kwargs):
@@ -156,6 +157,9 @@ class TestAgentDreamTrigger:
         )
         result = await agent.run("hi")
         assert result == "hello"
-        assert session_path.exists()
-        lines = session_path.read_text().strip().split("\n")
+        import os as _os
+        real_path = "scenes/default/sessions/local/session.jsonl"
+        assert _os.path.exists(real_path)
+        with open(real_path, encoding="utf-8") as f:
+            lines = f.read().strip().split("\n")
         assert len(lines) == 2

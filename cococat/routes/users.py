@@ -45,10 +45,12 @@ async def create_user(body: CreateUserRequest, ctx: AppContext = Depends(get_ctx
     ctx.db._conn.commit()
 
     import os
+    from cococat.core.paths import memory_dir, session_dir
     os.makedirs(f"config/users/{username}", exist_ok=True)
-    os.makedirs(f"agents/{username}/memory/compiled", exist_ok=True)
-    os.makedirs(f"agents/{username}/memory/summaries", exist_ok=True)
-    os.makedirs(f"agents/{username}/sessions", exist_ok=True)
+    os.makedirs(memory_dir("default", username), exist_ok=True)
+    os.makedirs(os.path.join(memory_dir("default", username), "compiled"), exist_ok=True)
+    os.makedirs(os.path.join(memory_dir("default", username), "summaries"), exist_ok=True)
+    os.makedirs(session_dir("default", username), exist_ok=True)
 
     return {"id": username, "status": "created"}
 

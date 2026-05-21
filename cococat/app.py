@@ -42,8 +42,7 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
         app.state.ctx.cron_worker = cron_worker
 
         import asyncio as _asyncio
-        loop = _asyncio.get_running_loop()
-        app.state.ctx.channel_manager.auto_reconnect(app.state.ctx, loop)
+        await app.state.ctx.channel_manager.auto_reconnect(app.state.ctx)
 
         yield
 
@@ -149,10 +148,12 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
         db._conn.commit()
 
         import os
+        from cococat.core.paths import memory_dir, session_dir
         os.makedirs(f"config/users/{username}", exist_ok=True)
-        os.makedirs(f"agents/{username}/memory/compiled", exist_ok=True)
-        os.makedirs(f"agents/{username}/memory/summaries", exist_ok=True)
-        os.makedirs(f"agents/{username}/sessions", exist_ok=True)
+        os.makedirs(memory_dir("default", username), exist_ok=True)
+        os.makedirs(os.path.join(memory_dir("default", username), "compiled"), exist_ok=True)
+        os.makedirs(os.path.join(memory_dir("default", username), "summaries"), exist_ok=True)
+        os.makedirs(session_dir("default", username), exist_ok=True)
 
         token = create_access_token({"sub": username})
         return {"access_token": token, "token_type": "bearer", "username": username}

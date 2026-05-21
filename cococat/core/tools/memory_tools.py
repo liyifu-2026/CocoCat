@@ -2,6 +2,7 @@
 import os
 
 from cococat.core.types import ToolContext
+from cococat.core.paths import memory_dir
 from cococat.memory.store import MemoryStore
 
 
@@ -14,15 +15,23 @@ def _get_store(ctx: ToolContext) -> MemoryStore:
         if os.path.splitext(mem_path)[1]:
             mem_path = os.path.dirname(mem_path)
     if not mem_path and ctx.memory.agent_dir:
-        mem_path = os.path.join(ctx.memory.agent_dir, "memory")
-    memory_dir = mem_path or "memory"
-    store = MemoryStore(db=ctx.db, memory_dir=memory_dir)
+        if os.path.isfile(os.path.join(ctx.memory.agent_dir, "memory.md")):
+            mem_path = ctx.memory.agent_dir
+        else:
+            mem_path = os.path.join(ctx.memory.agent_dir, "memory")
+    if not mem_path and ctx.agent_dir:
+        mem_path = os.path.join(ctx.agent_dir, "memory")
+    if not mem_path:
+        mem_path = memory_dir(ctx.scene_id, ctx.user_id)
+    store = MemoryStore(db=ctx.db, memory_dir=mem_path)
     ctx._memory_store = store
     return store
 
 
 def _resolve_pinned_path(ctx: ToolContext) -> str:
-    """Resolve the pinned.md path from agent directory."""
+    """Resolve the pinned.md path."""
+    if ctx.memory.agent_dir and os.path.isfile(os.path.join(ctx.memory.agent_dir, "pinned.md")):
+        return os.path.join(ctx.memory.agent_dir, "pinned.md")
     agent_dir = ctx.agent_dir or ctx.memory.agent_dir or "agents/unknown"
     return os.path.join(agent_dir, "pinned.md")
 

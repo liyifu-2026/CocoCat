@@ -23,11 +23,8 @@ import os as _os
 
 
 def _resolve_agents_dir(scene_id: str | None = None, user_id: str | None = None) -> str:
-    if scene_id and user_id:
-        return f"scenes/{scene_id}/sessions/{user_id}"
-    elif scene_id:
-        return f"scenes/{scene_id}/sessions"
-    return "sessions/default"
+    from cococat.core.paths import session_dir
+    return session_dir(scene_id or "default", user_id or "local")
 
 
 async def _make_and_run_agent(
@@ -65,12 +62,15 @@ async def _make_and_run_agent(
         tools=tools,
         agent_dir=agent_dir if _os.path.isdir(agent_dir) else None,
         mode=mode,
+        scene_id=scene_id or "default",
+        user_id=user_id or "local",
     )
 
     try:
+        ctx = {"session_id": session_id, "scene_id": scene_id, "user_id": user_id}
         result = await agent.run(
             prompt,
-            context={"session_id": session_id} if session_id else None,
+            context=ctx,
             on_text=(lambda t: on_event("text_delta", {"content": t})) if on_event else None,
             on_tool=(lambda n, s, d=None: on_event("stream_tool", {"name": n, "status": s, **(d or {})})) if on_event else None,
             on_reasoning=(lambda c: on_event("stream_reasoning", {"content": c})) if on_event else None,

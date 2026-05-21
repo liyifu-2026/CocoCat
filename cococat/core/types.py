@@ -31,6 +31,8 @@ class ToolContext:
 
     agent_id: str = ""
     agent_dir: str = ""
+    scene_id: str = "default"
+    user_id: str = "local"
     bound_scene: str | None = None
     role: str = ""
     session_id: str | None = None
@@ -67,7 +69,7 @@ class ToolContext:
             tavily_api_key=d.get("tavily_api_key"),
         )
 
-        direct_keys = {"agent_id", "agent_dir", "bound_scene", "role", "session_id",
+        direct_keys = {"agent_id", "agent_dir", "scene_id", "user_id", "bound_scene", "role", "session_id",
                        "db", "sub_agent_executor", "cron_path", "_llm"}
         direct = {k: v for k, v in d.items() if k in direct_keys}
 

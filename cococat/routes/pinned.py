@@ -18,8 +18,9 @@ class UnpinRequest(BaseModel):
 
 
 def _pinned_path(ctx: AppContext) -> str:
-    user_id = ctx.user_id or "admin"
-    return f"agents/{user_id}/pinned.md"
+    from cococat.core.paths import memory_dir
+    user_id = ctx.user_id or "local"
+    return os.path.join(memory_dir("default", user_id), "pinned.md")
 
 
 def _read_pinned(ctx: AppContext) -> str:

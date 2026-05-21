@@ -34,6 +34,8 @@ def load_agent_config(
     base_tools: list | None = None,
     scene_config = None,
     mode_id: str = "default",
+    scene_id: str = "default",
+    user_id: str = "local",
 ) -> AgentConfig:
     """加载 profile / memory / skills → 合并 → 不可变 AgentConfig。"""
     name = "agent"
@@ -93,13 +95,14 @@ def load_agent_config(
     )
 
 
-def _resolve_session_path(agent_dir: str, session_id: str) -> str:
+def _resolve_session_path(agent_dir: str, session_id: str, scene_id: str = "default", user_id: str = "local") -> str:
+    from cococat.core.paths import session_dir
+    sdir = session_dir(scene_id, user_id)
     if session_id:
-        sessions_dir = os.path.join(agent_dir, "sessions")
-        os.makedirs(sessions_dir, exist_ok=True)
-        return os.path.join(sessions_dir, f"{session_id}.jsonl")
-    os.makedirs(agent_dir, exist_ok=True)
-    return os.path.join(agent_dir, "session.jsonl")
+        os.makedirs(sdir, exist_ok=True)
+        return os.path.join(sdir, f"{session_id}.jsonl")
+    os.makedirs(sdir, exist_ok=True)
+    return os.path.join(sdir, "session.jsonl")
 
 
 async def _invoke_llm(
@@ -155,6 +158,7 @@ async def run_agent(
     *,
     session: Session | None = None,
     session_id: str | None = None,
+    context_raw: dict | None = None,
     on_text: Optional[Callable[[str], Any]] = None,
     on_tool: Optional[Callable[[str, str, dict], Any]] = None,
     on_reasoning: Optional[Callable[[str], Any]] = None,
@@ -163,9 +167,15 @@ async def run_agent(
     """Execute ReAct loop: history → iterate LLM → execute tools → persist → dream."""
     context = ToolContext()
     context.agent_id = config.id
-    context.agent_dir = config.agent_dir or f"agents/{config.id}"  # fallback — callers should pass explicit agent_dir
+    context.agent_dir = config.agent_dir or f"agents/{config.id}"
     context.role = config.role
     context.bound_scene = None
+
+    if isinstance(context_raw, dict):
+        context.scene_id = context_raw.get("scene_id", "default")
+        context.user_id = context_raw.get("user_id", "local")
+        from cococat.core.paths import memory_dir as _memory_dir
+        context.memory.agent_dir = _memory_dir(context.scene_id, context.user_id)
 
     tools = config.tools
 
@@ -207,7 +217,8 @@ async def run_agent(
         # Compress session if token threshold exceeded
         from cococat.memory.summarize import compress_session
         sid = session_id or "default"
-        summary_dir = os.path.join(config.agent_dir, "memory", "summaries") if config.agent_dir else "memory/summaries"
+        from cococat.core.paths import memory_dir
+        summary_dir = os.path.join(memory_dir(context.scene_id, context.user_id), "summaries")
         messages = await compress_session(messages, sid, summary_dir=summary_dir,
                                           last_activity=time.time())
     else:
@@ -220,7 +231,7 @@ async def run_agent(
             await session.append_pair(message, result)
         else:
             sid = session_id or ""
-            session_path = _resolve_session_path(config.agent_dir, sid)
+            session_path = _resolve_session_path(config.agent_dir, sid, context.scene_id, context.user_id)
             save_session_pair(session_path, message, result)
     except Exception:
         pass
@@ -251,12 +262,16 @@ class Agent:
         tools: list[dict] | None = None,
         agent_dir: str | None = None,
         mode: str = "default",
+        scene_id: str = "default",
+        user_id: str = "local",
     ):
         agent_dir_path = agent_dir or f"agents/{id}"  # fallback — callers should pass explicit agent_dir
         config = load_agent_config(
             agent_dir_path,
             base_tools=tools,
             mode_id=mode,
+            scene_id=scene_id,
+            user_id=user_id,
         )
 
         self.config = AgentConfig(
@@ -273,6 +288,8 @@ class Agent:
         self.page = ""
         self._llm = llm
         self._agent_dir = agent_dir_path
+        self._scene_id = scene_id
+        self._user_id = user_id
 
     async def run(
         self,
@@ -296,6 +313,7 @@ class Agent:
             message,
             session=session,
             session_id=session_id,
+            context_raw=context if isinstance(context, dict) else None,
             on_text=on_text,
             on_tool=on_tool,
             on_reasoning=on_reasoning,

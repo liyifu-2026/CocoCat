@@ -14,7 +14,7 @@ class TestInProcessExecutorTools:
         captured_tools = []
 
         class FakeAgent:
-            def __init__(self, id, name, role, llm, tools, agent_dir=None, mode="default"):
+            def __init__(self, id, name, role, llm, tools, agent_dir=None, mode="default", scene_id="default", user_id="local"):
                 captured_tools.append([t["name"] for t in tools])
 
             async def run(self, *args, **kwargs):
@@ -43,7 +43,7 @@ class TestInProcessExecutorTools:
         captured_tools = []
 
         class FakeAgent:
-            def __init__(self, id, name, role, llm, tools, agent_dir=None, mode="default"):
+            def __init__(self, id, name, role, llm, tools, agent_dir=None, mode="default", scene_id="default", user_id="local"):
                 captured_tools.append([t["name"] for t in tools])
 
             async def run(self, *args, **kw):

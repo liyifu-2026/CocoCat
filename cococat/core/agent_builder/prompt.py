@@ -77,7 +77,7 @@ def load_memory_from_agent_dir(agent_dir: str) -> tuple[str, str, str]:
             pass
 
     compiled_dir = os.path.join(agent_dir, "memory", "compiled")
-    if os.path.isdir(compiled_dir):
+    if compiled_dir and os.path.isdir(compiled_dir):
         files = sorted(
             f for f in os.listdir(compiled_dir)
             if f.endswith(".md") and not f.startswith(".")

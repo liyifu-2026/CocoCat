@@ -1,5 +1,5 @@
 """Channel package — platform channel adapters."""
-from .base import ChannelBase, Channel, ChatMessage  # noqa: F401
+from .base import ChannelBase, ChatMessage  # noqa: F401
 from .context import (  # noqa: F401
     Context, Reply, ReplyType, ContextType,
     MessageType, MediaAttachment, MediaCapabilities, CardData,
