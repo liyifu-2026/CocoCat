@@ -104,17 +104,19 @@ export default function ChatPage() {
       store.addAssistantMessage("Error: " + String(e))
     }
     ctrl.complete()
-  }, [store, ctrl, mode])
+  }, [store, ctrl.streaming, mode])
+
+  const { streaming: isStreaming, clear: clearStream } = ctrl
 
   useEffect(() => {
     if (skipClearUntilId.current === store.currentId) {
       skipClearUntilId.current = null
       return
     }
-    if (!ctrl.streaming) {
-      ctrl.clear()
+    if (!isStreaming) {
+      clearStream()
     }
-  }, [store.currentId, ctrl])
+  }, [store.currentId, isStreaming, clearStream])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
@@ -135,7 +137,7 @@ export default function ChatPage() {
     const userMsg = input.trim()
     setInput("")
     sendMessage(userMsg)
-  }, [input, ctrl, sendMessage])
+  }, [input, ctrl.streaming, sendMessage])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
