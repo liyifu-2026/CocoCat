@@ -26,6 +26,8 @@ async def _run_sandbox_chat(
     session_id: str | None,
     tools: list,
     mode: str = "default",
+    scene_id: str = "default",
+    user_id: str = "local",
 ) -> str:
     sandbox_provider = ctx.sandbox_provider
     if not sandbox_provider:
@@ -45,6 +47,8 @@ async def _run_sandbox_chat(
         on_event=on_event,
         session_id=session_id,
         mode=mode,
+        scene_id=scene_id,
+        user_id=user_id,
     )
 
 
@@ -72,7 +76,7 @@ async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
     )
 
     try:
-        reply = await _run_sandbox_chat(ctx, "main", body.content, body.session_id, tools, mode=body.mode)
+        reply = await _run_sandbox_chat(ctx, "main", body.content, body.session_id, tools, mode=body.mode, scene_id=body.scene_id, user_id=user_id)
     except Exception as e:
         reply = f"Error: {e}"
 
@@ -89,15 +93,17 @@ async def delete_chat_session(session_id: str, ctx: AppContext = Depends(get_ctx
     import os, shutil
     deleted = {"session_files": 0, "sub_agent_dirs": 0}
 
-    for agent_id in ["main"]:
-        session_path = str(ctx.config_store.agents_dir / agent_id / "sessions" / f"{session_id}.jsonl")
-        if os.path.exists(session_path):
-            os.remove(session_path)
-            deleted["session_files"] += 1
-        default_path = str(ctx.config_store.agents_dir / agent_id / "session.jsonl")
-        if os.path.exists(default_path):
-            os.remove(default_path)
-            deleted["session_files"] += 1
+    scenes_dir = "scenes"
+    if os.path.isdir(scenes_dir):
+        for scene_name in os.listdir(scenes_dir):
+            sessions_dir = os.path.join(scenes_dir, scene_name, "sessions")
+            if not os.path.isdir(sessions_dir):
+                continue
+            for user_dir in os.listdir(sessions_dir):
+                session_path = os.path.join(sessions_dir, user_dir, f"{session_id}.jsonl")
+                if os.path.exists(session_path):
+                    os.remove(session_path)
+                    deleted["session_files"] += 1
 
     agents_dir = str(ctx.config_store.agents_dir)
     if os.path.isdir(agents_dir):
@@ -116,8 +122,8 @@ async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "defa
     """Get chat history. If session_id provided, reads from session file."""
     if session_id:
         import os, json as _json
-        user = ctx.user_id or "main"
-        path = os.path.join("agents", user, "sessions", f"{session_id}.jsonl")
+        user = ctx.user_id or "local"
+        path = os.path.join("scenes", scene_id, "sessions", user, f"{session_id}.jsonl")
         if not os.path.exists(path):
             return {"messages": []}
         msgs = []
