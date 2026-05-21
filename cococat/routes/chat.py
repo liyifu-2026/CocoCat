@@ -117,6 +117,16 @@ async def delete_chat_session(session_id: str, ctx: AppContext = Depends(get_ctx
     return {"status": "deleted", **deleted}
 
 
+@router.get("/modes")
+async def list_modes_route():
+    from cococat.core.modes import list_modes
+    modes = list_modes()
+    return [
+        {"id": m.id, "name": m.name, "description": m.description}
+        for m in modes
+    ]
+
+
 @router.get("/chat/history")
 async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "default", limit: int = 50, session_id: str = ""):
     """Get chat history. If session_id provided, reads from session file."""
