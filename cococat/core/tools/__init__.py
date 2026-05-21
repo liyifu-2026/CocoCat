@@ -2,7 +2,7 @@
 
 import os
 
-from cococat.core.tools.types import Tool, ToolRegistry, _make, _merge_ctx, _ensure_tool_context  # noqa: F401 — re-export
+from cococat.core.tools.types import Tool, ToolRegistry, _resolve, _merge_ctx, _ensure_tool_context  # noqa: F401 — re-export
 from cococat.core.tools.file_ops import make_file_tools, make_readonly_file_tools
 from cococat.core.tools.execution import make_execution_tools
 from cococat.core.tools.web import make_web_tools
@@ -31,11 +31,13 @@ _ALL_TOOL_FACTORIES = {
     "glob": lambda: make_readonly_file_tools()[2],
     "grep": lambda: make_readonly_file_tools()[3],
     "bash": lambda: make_execution_tools(None)[0],
-    "browser": lambda: make_execution_tools(None)[1],
     "web_search": lambda key=None: make_web_tools(key)[0],
     "web_fetch": lambda key=None: make_web_tools(key)[1],
+    "remember": lambda: make_memory_tools()[1],
+    "forget": lambda: make_memory_tools()[2],
     "pin": lambda: make_memory_tools()[3],
     "unpin": lambda: make_memory_tools()[4],
+    "list_pins": lambda: make_memory_tools()[5],
     "recall": lambda: make_memory_tools()[0],
     "search_kb": lambda: make_kb_tools()[0],
     "read_wiki": lambda: make_kb_tools()[1],
@@ -63,7 +65,7 @@ def resolve_tools_for_mode(mode_id: str, sub_agent_executor=None, tavily_api_key
                     name="sub_agent",
                     description="Spawn a sub-agent to execute a task",
                     parameters={"task": "string", "agent_id": "string"},
-                    execute=lambda params, ctx, executor=sub_agent_executor: executor(params.get("task", ""), params.get("agent_id", "sub")),
+                    execute=lambda params, ctx, executor=sub_agent_executor, m=mode_id: executor(params.get("task", ""), params.get("agent_id", "sub"), mode=m),
                 ))
         elif tool_name == "switch_mode":
             tools.append(make_switch_mode_tool(mode_switch_flag))

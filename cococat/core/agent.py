@@ -33,7 +33,7 @@ def load_agent_config(
     *,
     base_tools: list | None = None,
     scene_config = None,
-    is_kb_agent: bool = False,
+    mode_id: str = "default",
 ) -> AgentConfig:
     """加载 profile / memory / skills → 合并 → 不可变 AgentConfig。"""
     name = "agent"
@@ -73,7 +73,7 @@ def load_agent_config(
     tools += skill_tools
 
     system_prompt = build_system_prompt(
-        mode_id="kb-admin" if is_kb_agent else "default",
+        mode_id=mode_id,
         memory_content=memory_content,
         pinned_facts=pinned,
         compiled_content=compiled,
@@ -250,12 +250,13 @@ class Agent:
         system_prompt: str | None = None,
         tools: list[dict] | None = None,
         agent_dir: str | None = None,
+        mode: str = "default",
     ):
         agent_dir_path = agent_dir or f"agents/{id}"  # fallback — callers should pass explicit agent_dir
         config = load_agent_config(
             agent_dir_path,
             base_tools=tools,
-            is_kb_agent=(id == "kb-agent"),
+            mode_id=mode,
         )
 
         self.config = AgentConfig(

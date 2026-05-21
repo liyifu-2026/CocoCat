@@ -64,6 +64,7 @@ async def _make_and_run_agent(
         llm=llm,
         tools=tools,
         agent_dir=agent_dir if _os.path.isdir(agent_dir) else None,
+        mode=mode,
     )
 
     try:

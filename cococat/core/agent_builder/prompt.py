@@ -21,18 +21,6 @@ def build_tool_section(tools: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def build_sub_agent_section() -> str:
-    """Describe what sub-agents can do (generated from core tools)."""
-    from cococat.core.tools import create_core_tools
-    all_tools = create_core_tools()
-    exec_tools = [t for t in all_tools if t["name"] not in (
-        "pin", "unpin", "recall",
-        "cron", "wait", "current_status",
-    )]
-    names = [t["name"] for t in exec_tools]
-    return f"Sub-agents have FULL execution tools: {', '.join(names)}."
-
-
 # ── Prompt assembly ────────────────────────────────────────
 
 def build_system_prompt(mode_id: str = "default",
