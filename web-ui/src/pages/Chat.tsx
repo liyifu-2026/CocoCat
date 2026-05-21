@@ -27,6 +27,19 @@ export default function ChatPage() {
   const [input, setInput] = useState("")
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [mode, setMode] = useState("default")
+  const [modes, setModes] = useState<{ id: string; name: string }[]>([
+    { id: "default", name: "Coco" },
+    { id: "kb-admin", name: "KB 管理" },
+  ])
+
+  useEffect(() => {
+    fetch("/api/modes")
+      .then(r => r.json())
+      .then(data => {
+        if (data?.length) setModes(data)
+      })
+      .catch(() => {})
+  }, [])
   const messagesEnd = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -79,6 +92,9 @@ export default function ChatPage() {
       if (!resp.ok) throw new Error(`Server returned ${resp.status}`)
       const data = await resp.json()
       const reply = data.reply || "(no response)"
+      if (data.mode_switch && modes.some(m => m.id === data.mode_switch)) {
+        setMode(data.mode_switch)
+      }
       const snap = ctrl.snapshot()
       store.addAssistantMessage(reply, snap)
       if (!hadMessages) {
@@ -336,8 +352,9 @@ export default function ChatPage() {
                 onChange={e => setMode(e.target.value)}
                 className="shrink-0 rounded-xl border border-border bg-background/60 px-3 py-3 text-xs font-medium text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
               >
-                <option value="default">Coco</option>
-                <option value="kb-admin">KB 管理</option>
+                {modes.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
               </select>
               <button
                 onClick={send}
