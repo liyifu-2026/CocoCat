@@ -12,6 +12,9 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
@@ -51,6 +54,9 @@
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
   --secondary: #f59e0b;
+  --secondary-foreground: #ffffff;
+  --tertiary: #6366f1;
+  --tertiary-foreground: #ffffff;
   --muted: #1a1d24;
   --muted-foreground: #667788;
   --accent: #6366f1;
@@ -62,6 +68,7 @@
   --sidebar: #090a0d;
   --sidebar-foreground: #8899aa;
   --sidebar-accent: #111318;
+  --sidebar-accent-foreground: #e2e8f0;
   --sidebar-border: rgba(255, 255, 255, 0.06);
   --sidebar-ring: #3b82f6;
   --section: rgba(255, 255, 255, 0.04);
@@ -86,6 +93,9 @@
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
   --secondary: #f59e0b;
+  --secondary-foreground: #ffffff;
+  --tertiary: #6366f1;
+  --tertiary-foreground: #ffffff;
   --muted: #1a1d24;
   --muted-foreground: #667788;
   --accent: #6366f1;
@@ -97,6 +107,7 @@
   --sidebar: #090a0d;
   --sidebar-foreground: #8899aa;
   --sidebar-accent: #111318;
+  --sidebar-accent-foreground: #e2e8f0;
   --sidebar-border: rgba(255, 255, 255, 0.06);
   --sidebar-ring: #3b82f6;
   --section: rgba(255, 255, 255, 0.04);
