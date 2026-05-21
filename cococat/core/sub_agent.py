@@ -32,14 +32,18 @@ class SubAgentExecutor:
         self._sandbox = sandbox_provider
         self._busy: set[str] = set()
 
-    async def dispatch(self, task: str, from_agent: str = "main", session_id: str | None = None) -> str | None:
+    async def dispatch(self, task: str, from_agent: str = "main",
+                       session_id: str | None = None,
+                       mode: str = "default") -> str | None:
         if self._sandbox:
-            return await self._dispatch_via_sandbox(task, from_agent, session_id)
+            return await self._dispatch_via_sandbox(task, from_agent, session_id, mode)
 
         logger.warning("No executor configured for dispatch from %s", from_agent)
         return None
 
-    async def _dispatch_via_sandbox(self, task: str, from_agent: str, session_id: str | None = None) -> str | None:
+    async def _dispatch_via_sandbox(self, task: str, from_agent: str,
+                                    session_id: str | None = None,
+                                    mode: str = "default") -> str | None:
         task_id = uuid.uuid4().hex[:12]
 
         try:
@@ -47,6 +51,7 @@ class SubAgentExecutor:
                 prompt=task,
                 agent_id=f"sub-{task_id}",
                 session_id=session_id,
+                mode=mode,
             )
             await self._bus.publish("sub_agent_complete", {
                 "task_id": task_id,
