@@ -1,26 +1,29 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Outlet } from "react-router-dom"
-import { SceneRail } from "./SceneRail"
-import { SettingsModal } from "./SettingsModal"
-import { loadCatalogJson } from "@/lib/model-catalog"
+import LeftNav from "./LeftNav"
+import OpDisplay from "./OpDisplay"
+import ChatPanel from "./chat/ChatPanel"
 
-export function Layout() {
-  const [settingsOpen, setSettingsOpen] = useState(false)
-
-  useEffect(() => {
-    loadCatalogJson()
-  }, [])
+export default function Layout() {
+  const [activeNav, setActiveNav] = useState("chat")
 
   return (
     <div className="flex h-screen relative">
-      <div className="bg-warm-glow" />
-      <div className="bg-warm-glow-left" />
-      <div className="bg-noise" />
-      <SceneRail onOpenSettings={() => setSettingsOpen(true)} />
-      <main className="flex-1 overflow-hidden relative z-10">
-        <Outlet />
-      </main>
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <div className="bg-glow-blue" />
+      <div className="bg-glow-amber" />
+
+      <LeftNav active={activeNav} onNavigate={setActiveNav} />
+
+      {activeNav === "chat" ? (
+        <>
+          <OpDisplay activeNav={activeNav} />
+          <ChatPanel />
+        </>
+      ) : (
+        <OpDisplay activeNav={activeNav} />
+      )}
+
+      <Outlet />
     </div>
   )
 }

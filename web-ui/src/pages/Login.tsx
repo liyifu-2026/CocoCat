@@ -62,25 +62,25 @@ export default function LoginPage() {
 
   if (needsSetup) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <form onSubmit={handleSetup} className="w-full max-w-sm mx-4 space-y-4">
           <div className="text-center space-y-2">
-            <h1 className="text-xl font-bold">CocoCat</h1>
+            <h1 className="text-xl font-bold text-foreground">CocoCat</h1>
             <p className="text-sm text-muted-foreground">首次使用，创建管理员账户</p>
           </div>
           <input
             type="text" value={username} autoFocus placeholder="用户名"
             onChange={e => setUsername(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <input
             type="password" value={password} placeholder="密码（至少4位）"
             onChange={e => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <button type="submit" disabled={loading || !username.trim() || password.length < 4}
-            className="w-full rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-40">
+            className="w-full rounded-xl bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-40">
             {loading ? <Loader2 className="size-4 animate-spin mx-auto" /> : "创建管理员账户"}
           </button>
         </form>
@@ -88,28 +88,28 @@ export default function LoginPage() {
     )
   }
 
-  if (needsSetup === null) return <div className="flex items-center justify-center h-full"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+  if (needsSetup === null) return <div className="flex items-center justify-center min-h-screen bg-background"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
 
   return (
-    <div className="flex items-center justify-center h-full">
+    <div className="flex items-center justify-center min-h-screen bg-background">
       <form onSubmit={handleLogin} className="w-full max-w-sm mx-4 space-y-4">
         <div className="text-center space-y-2">
-          <h1 className="text-xl font-bold">CocoCat</h1>
+          <h1 className="text-xl font-bold text-foreground">CocoCat</h1>
           <p className="text-sm text-muted-foreground">登录管理面板</p>
         </div>
         <input
           type="text" value={username} autoFocus placeholder="用户名"
           onChange={e => setUsername(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          className="w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
         <input
           type="password" value={password} placeholder="密码"
           onChange={e => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          className="w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
         {error && <p className="text-sm text-destructive">{error}</p>}
         <button type="submit" disabled={loading || !username.trim() || !password.trim()}
-          className="w-full rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-40">
+          className="w-full rounded-xl bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-40">
           {loading ? <Loader2 className="size-4 animate-spin mx-auto" /> : "登录"}
         </button>
       </form>
