@@ -170,7 +170,17 @@ export default function KnowledgeView() {
         )}
 
         {kbs.length > 0 && (
-          <div className="border border-dashed border-border rounded-xl p-4 text-center cursor-pointer hover:border-primary/30 transition-colors">
+          <div
+            className="border border-dashed border-border rounded-xl p-4 text-center cursor-pointer hover:border-primary/30 transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault()
+              const file = e.dataTransfer.files?.[0]
+              const kb = kbs[0]?.id
+              if (file && kb) uploadMutation.mutate({ kbName: kb, file })
+            }}
+          >
             <FileText className="size-4 text-muted-foreground/40 mx-auto mb-1" />
             <p className="text-[9px] text-muted-foreground/50">Drop files here or click to upload</p>
           </div>
