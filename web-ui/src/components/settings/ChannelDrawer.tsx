@@ -43,7 +43,7 @@ function FieldInput({ field, value, onChange }: {
   return (
     <div className="mb-3">
       <label className="block text-[11px] font-medium text-foreground mb-1.5">
-        {field.label} {field.required && <span className="text-red-500">*</span>}
+        {field.label} {field.required && <span className="text-red-400">*</span>}
       </label>
       <div className="flex gap-1.5">
         <input
@@ -213,7 +213,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
           {/* Capability tags */}
           <div className="flex flex-wrap gap-1.5">
             {typeInfo.capabilities.send.map(k => (
-              <span key={k} className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700">
+              <span key={k} className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400">
                 {CAP_LABELS[k] || k}
               </span>
             ))}
@@ -251,9 +251,9 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                 <Loader2 className="size-8 animate-spin text-muted-foreground" />
               )}
               <span className={`px-3 py-1 rounded-full text-[11px] font-medium ${
-                qrState.status === "confirmed" ? "bg-green-100 text-green-700" :
-                qrState.status === "expired" || qrState.status === "timeout" ? "bg-red-100 text-red-700" :
-                "bg-blue-100 text-blue-700"
+                qrState.status === "confirmed" ? "bg-emerald-500/100/15 text-emerald-400" :
+                qrState.status === "expired" || qrState.status === "timeout" ? "bg-red-500/100/15 text-red-300" :
+                "bg-blue-500/15 text-blue-400"
               }`}>
                 {qrPolling && qrState.status !== "confirmed" && <Loader2 className="size-3 animate-spin inline mr-1.5" />}
                 {QR_STATUS_LABELS[qrState.status] || qrState.status}
@@ -269,30 +269,30 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
 
           {/* Status bar */}
           {status === "connecting" && !qrState && (
-            <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs">
+            <div className="flex items-center gap-2 rounded-lg bg-blue-500/10 border border-blue-500/30 px-3 py-2 text-xs">
               <Loader2 className="size-2 animate-spin text-blue-500" />
-              <span className="font-semibold text-blue-700">连接中...</span>
+              <span className="font-semibold text-blue-400">连接中...</span>
             </div>
           )}
           {status === "connected" && !qrState && (
-            <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs">
-              <Circle className="size-2 text-green-500 fill-green-500" />
-              <span className="font-semibold text-green-700">已连接</span>
+            <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 text-xs">
+              <Circle className="size-2 text-green-400 fill-green-500" />
+              <span className="font-semibold text-emerald-400">已连接</span>
               {mainInfo?.connected_since && (
-                <span className="text-green-600/70">· {mainInfo.message_count} 条消息</span>
+                <span className="text-green-400/70">· {mainInfo.message_count} 条消息</span>
               )}
             </div>
           )}
           {status === "configured" && !qrState && (
-            <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs">
+            <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-xs">
               <Circle className="size-2 text-amber-500 fill-amber-500" />
-              <span className="font-semibold text-amber-700">凭证已保存，等待连接</span>
+              <span className="font-semibold text-amber-400">凭证已保存，等待连接</span>
             </div>
           )}
 
           {/* Error message */}
           {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-700">
+            <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2 text-[11px] text-red-300">
               {error}
             </div>
           )}
@@ -314,7 +314,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
 
           {/* Notes */}
           {typeInfo.notes && !qrState && (
-            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-700">
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-[11px] text-amber-400">
               {typeInfo.notes}
             </div>
           )}
@@ -346,7 +346,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                   <button
                     onClick={handleDisconnect}
                     disabled={disconnecting}
-                    className="w-full rounded-lg border border-red-300 text-red-600 bg-white px-4 py-2.5 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full rounded-lg border border-red-500/30 text-red-400 bg-card px-4 py-2.5 text-xs font-semibold hover:bg-red-500/100/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {disconnecting && <Loader2 className="size-3 animate-spin" />}
                     重置并清除凭证
@@ -359,7 +359,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                   <button
                     onClick={handleDisconnect}
                     disabled={disconnecting}
-                    className="w-full rounded-lg border border-red-300 text-red-600 bg-white px-4 py-2.5 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full rounded-lg border border-red-500/30 text-red-400 bg-card px-4 py-2.5 text-xs font-semibold hover:bg-red-500/100/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {disconnecting && <Loader2 className="size-3 animate-spin" />}
                     断开连接

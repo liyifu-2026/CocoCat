@@ -2,7 +2,7 @@ import Bookshelf from "./Bookshelf"
 
 export default function KbAdminFunc() {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col animate-view-enter">
       <Bookshelf />
 
       <div className="px-4 pb-4 space-y-2.5">

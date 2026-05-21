@@ -8,11 +8,11 @@ import type { Model } from "modelpedia"
 // ── Color palette for provider logos ──
 
 const LOGO_COLORS = [
-  "bg-blue-100 text-blue-600", "bg-emerald-100 text-emerald-600", "bg-orange-100 text-orange-600",
-  "bg-purple-100 text-purple-600", "bg-cyan-100 text-cyan-600", "bg-rose-100 text-rose-600",
-  "bg-amber-100 text-amber-600", "bg-lime-100 text-lime-600", "bg-teal-100 text-teal-600",
-  "bg-indigo-100 text-indigo-600", "bg-pink-100 text-pink-600", "bg-sky-100 text-sky-600",
-  "bg-fuchsia-100 text-fuchsia-600", "bg-green-100 text-green-600",
+  "bg-blue-500/15 text-blue-400", "bg-emerald-500/15 text-emerald-400", "bg-orange-500/15 text-orange-400",
+  "bg-purple-500/15 text-purple-400", "bg-cyan-500/15 text-cyan-400", "bg-rose-500/15 text-rose-400",
+  "bg-amber-500/15 text-amber-400", "bg-lime-500/15 text-lime-400", "bg-teal-500/15 text-teal-400",
+  "bg-indigo-500/15 text-indigo-400", "bg-pink-500/15 text-pink-400", "bg-sky-500/15 text-sky-400",
+  "bg-fuchsia-500/15 text-fuchsia-400", "bg-green-500/15 text-green-400",
 ]
 
 function logoColor(name: string): string {
@@ -95,13 +95,13 @@ export function ProvidersTab({ data, onUpdate }: { data: TabData; onUpdate: () =
         ))}
         <div className="p-2 mt-auto">
           {addingCustom ? (
-            <div className="rounded-lg border border-blue-200 bg-blue-50/30 p-3 space-y-2">
-              <input value={customName} onChange={e => setCustomName(e.target.value)} placeholder="供应商 ID (例: my-llm)" className="w-full rounded border border-blue-200 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
-              <input value={customDisplayName} onChange={e => setCustomDisplayName(e.target.value)} placeholder="显示名称 (例: My LLM)" className="w-full rounded border border-blue-200 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
-              <input value={customUrl} onChange={e => setCustomUrl(e.target.value)} placeholder="Base URL (例: https://api.example.com/v1)" className="w-full rounded border border-blue-200 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 space-y-2">
+              <input value={customName} onChange={e => setCustomName(e.target.value)} placeholder="供应商 ID (例: my-llm)" className="w-full rounded border border-blue-500/30 bg-card px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              <input value={customDisplayName} onChange={e => setCustomDisplayName(e.target.value)} placeholder="显示名称 (例: My LLM)" className="w-full rounded border border-blue-500/30 bg-card px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              <input value={customUrl} onChange={e => setCustomUrl(e.target.value)} placeholder="Base URL (例: https://api.example.com/v1)" className="w-full rounded border border-blue-500/30 bg-card px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
               <div className="flex gap-2">
                 <button onClick={handleAddCustom} disabled={!customName.trim() || !customUrl.trim()} className="flex-1 rounded bg-blue-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-blue-700 disabled:opacity-40 transition-all">添加</button>
-                <button onClick={() => { setAddingCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomUrl("") }} className="rounded border border-slate-200 px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 transition-all">取消</button>
+                <button onClick={() => { setAddingCustom(false); setCustomName(""); setCustomDisplayName(""); setCustomUrl("") }} className="rounded border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-all">取消</button>
               </div>
             </div>
           ) : (
@@ -130,7 +130,7 @@ export function ProviderListItem({ provider, active, onClick }: { provider: Prov
     <button
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-lg transition-all duration-150 ${
-        active ? "bg-blue-50 border border-blue-200" : "hover:bg-muted/40 border border-transparent"
+        active ? "bg-blue-500/10 border border-blue-500/30" : "hover:bg-muted/40 border border-transparent"
       } ${!provider.connected ? "opacity-65" : ""}`}
     >
       <div className={`size-8 rounded-lg flex items-center justify-center shrink-0 ${logoColor(provider.name)}`}>
@@ -144,7 +144,7 @@ export function ProviderListItem({ provider, active, onClick }: { provider: Prov
           <div className="text-[10px] text-muted-foreground">{provider.enabled_count} 个模型</div>
         )}
       </div>
-      <span className={`size-2 rounded-full shrink-0 ${provider.connected ? "bg-green-500" : "bg-slate-300"}`} />
+      <span className={`size-2 rounded-full shrink-0 ${provider.connected ? "bg-green-500" : "bg-muted-foreground/30"}`} />
     </button>
   )
 }
@@ -392,7 +392,7 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
           <h3 className="text-sm font-medium text-foreground">{provider?.display_name || providerName}</h3>
           <p className="text-[10px] text-muted-foreground truncate">{baseUrl}</p>
         </div>
-        <span className={`ml-auto shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium ${isConnected ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+        <span className={`ml-auto shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium ${isConnected ? "bg-green-500/15 text-green-300" : "bg-muted text-muted-foreground"}`}>
           {isConnected ? "已连接" : "未配置"}
         </span>
       </div>
@@ -410,7 +410,7 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
               onKeyDown={e => { if (e.key === "Enter") handleSave() }}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 pr-14"
             />
-            <button onClick={() => setShowKey(!showKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <button onClick={() => setShowKey(!showKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground">
               {showKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
             </button>
           </div>
@@ -422,13 +422,13 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
         {connStatus === "ok" && (
           <div className="flex items-center gap-1.5 text-xs">
             <span className="size-1.5 rounded-full bg-green-500" />
-            <span className="text-green-600">连接正常</span>
+            <span className="text-green-400">连接正常</span>
           </div>
         )}
         {connStatus === "fail" && (
           <div className="flex items-center gap-1.5 text-xs">
-            <XCircle className="size-3 text-red-500" />
-            <span className="text-red-600">{connError || "连接失败"}</span>
+            <XCircle className="size-3 text-red-400" />
+            <span className="text-red-400">{connError || "连接失败"}</span>
           </div>
         )}
       </div>
@@ -451,7 +451,7 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
         <div className="space-y-2 border-t border-border/50 pt-3">
           <div className="flex items-center justify-between">
             <label className="text-[11px] font-medium text-muted-foreground">模型</label>
-            <button onClick={handleFetchModels} disabled={fetching} className="text-[10px] text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50">
+            <button onClick={handleFetchModels} disabled={fetching} className="text-[10px] text-blue-400 hover:text-blue-300 font-medium disabled:opacity-50">
               {fetching ? <Loader2 className="size-3 animate-spin inline" /> : "读取 API 可用模型"}
             </button>
           </div>
@@ -465,12 +465,12 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
               <div className="px-3 py-1.5 text-[10px] text-muted-foreground uppercase font-medium border-b border-border/30 shrink-0 space-y-1">
                 <div>可用模型</div>
                 <div className="relative">
-                  <Search className="size-3 absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <Search className="size-3 absolute left-1.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                   <input
                     value={modelSearch}
                     onChange={e => setModelSearch(e.target.value)}
                     placeholder="筛选..."
-                    className="w-full rounded border border-border/50 bg-white pl-5 pr-2 py-0.5 text-[10px] font-normal normal-case focus:outline-none focus:ring-1 focus:ring-blue-400/30"
+                    className="w-full rounded border border-border/50 bg-card pl-5 pr-2 py-0.5 text-[10px] font-normal normal-case focus:outline-none focus:ring-1 focus:ring-blue-400/30"
                   />
                 </div>
               </div>
@@ -493,14 +493,14 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
                           next.has(m) ? next.delete(m) : next.add(m)
                           setCheckedAvailable(next)
                         }}
-                        className="rounded border-slate-300 shrink-0"
+                        className="rounded border-border shrink-0"
                       />
-                      <span className="text-slate-700 truncate flex-1">{m}</span>
+                      <span className="text-foreground truncate flex-1">{m}</span>
                       {meta?.status === "deprecated" && (
-                        <span className="text-[9px] px-1 py-0 rounded bg-amber-100 text-amber-600 shrink-0">旧</span>
+                        <span className="text-[9px] px-1 py-0 rounded bg-amber-500/15 text-amber-400 shrink-0">旧</span>
                       )}
                       {meta?.status === "active" && (
-                        <span className="text-[9px] px-1 py-0 rounded bg-green-100 text-green-600 shrink-0">新</span>
+                        <span className="text-[9px] px-1 py-0 rounded bg-green-500/15 text-green-400 shrink-0">新</span>
                       )}
                       {meta && <ModelMetaTooltip model={meta} />}
                     </div>
@@ -514,27 +514,27 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
 
             {/* Arrows */}
             <div className="flex flex-col justify-center gap-1.5 shrink-0">
-              <button onClick={() => moveToEnabled(availModels.map(m => m))} disabled={availModels.length === 0} className="size-6 rounded border border-border bg-background hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-all disabled:opacity-30" title="全部移入">
+              <button onClick={() => moveToEnabled(availModels.map(m => m))} disabled={availModels.length === 0} className="size-6 rounded border border-border bg-background hover:bg-blue-500/15 hover:border-blue-500/40 flex items-center justify-center text-muted-foreground hover:text-blue-400 transition-all disabled:opacity-30" title="全部移入">
                 <ChevronsRight className="size-3" />
               </button>
-              <button onClick={() => moveToEnabled([...checkedAvailable])} disabled={checkedAvailable.size === 0} className="size-6 rounded border border-border bg-background hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-all disabled:opacity-30" title="移入选中的">
+              <button onClick={() => moveToEnabled([...checkedAvailable])} disabled={checkedAvailable.size === 0} className="size-6 rounded border border-border bg-background hover:bg-blue-500/15 hover:border-blue-500/40 flex items-center justify-center text-muted-foreground hover:text-blue-400 transition-all disabled:opacity-30" title="移入选中的">
                 <ChevronRight className="size-3" />
               </button>
-              <button onClick={() => moveToAvailable(models.enabled.filter(m => m !== models.default))} disabled={models.enabled.length <= 1} className="size-6 rounded border border-border bg-background hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-all disabled:opacity-30" title="移出非默认的">
+              <button onClick={() => moveToAvailable(models.enabled.filter(m => m !== models.default))} disabled={models.enabled.length <= 1} className="size-6 rounded border border-border bg-background hover:bg-blue-500/15 hover:border-blue-500/40 flex items-center justify-center text-muted-foreground hover:text-blue-400 transition-all disabled:opacity-30" title="移出非默认的">
                 <ChevronLeft className="size-3" />
               </button>
-              <button onClick={() => moveToAvailable([...models.enabled])} disabled={models.enabled.length === 0} className="size-6 rounded border border-border bg-background hover:bg-blue-50 hover:border-blue-300 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-all disabled:opacity-30" title="全部移出">
+              <button onClick={() => moveToAvailable([...models.enabled])} disabled={models.enabled.length === 0} className="size-6 rounded border border-border bg-background hover:bg-blue-500/15 hover:border-blue-500/40 flex items-center justify-center text-muted-foreground hover:text-blue-400 transition-all disabled:opacity-30" title="全部移出">
                 <ChevronsLeft className="size-3" />
               </button>
             </div>
 
             {/* Enabled */}
             <div
-              className="flex-1 min-w-[100px] flex flex-col rounded-lg border border-blue-200 bg-blue-50/30"
+              className="flex-1 min-w-[100px] flex flex-col rounded-lg border border-blue-500/30 bg-blue-500/10"
               onDragOver={e => e.preventDefault()}
               onDrop={onDropToEnabled}
             >
-              <div className="px-3 py-1.5 text-[10px] text-blue-500 uppercase font-medium border-b border-blue-100 shrink-0 flex items-center justify-between">
+              <div className="px-3 py-1.5 text-[10px] text-blue-400 uppercase font-medium border-b border-blue-500/30 shrink-0 flex items-center justify-between">
                 <span>已启用 · {models.enabled.length}</span>
               </div>
               <div className="flex-1 overflow-y-auto p-1">
@@ -544,30 +544,30 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
                     draggable
                     onDragStart={e => onDragStart(e, m)}
                     onDragEnd={onDragEnd}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded bg-white border border-blue-100 text-xs mb-0.5 transition-colors ${dragId === m ? "opacity-40" : ""}`}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded bg-card border border-blue-500/30 text-xs mb-0.5 transition-colors ${dragId === m ? "opacity-40" : ""}`}
                   >
                     <span className={`size-1.5 rounded-full shrink-0 ${m === models.default ? "bg-blue-500" : "bg-blue-300"}`} />
-                    <span className={`flex-1 truncate ${m === models.default ? "font-medium text-slate-800" : "text-slate-600"}`}>{m}</span>
+                    <span className={`flex-1 truncate ${m === models.default ? "font-medium text-foreground" : "text-muted-foreground"}`}>{m}</span>
                     {m === models.default ? (
-                      <span className="text-[9px] px-1 py-0 rounded bg-blue-100 text-blue-600 font-medium shrink-0">默认</span>
+                      <span className="text-[9px] px-1 py-0 rounded bg-blue-500/15 text-blue-400 font-medium shrink-0">默认</span>
                     ) : (
-                      <button onClick={() => setDefault(m)} className="text-[9px] text-slate-300 hover:text-blue-500 shrink-0">设为默认</button>
+                      <button onClick={() => setDefault(m)} className="text-[9px] text-muted-foreground/50 hover:text-blue-500 shrink-0">设为默认</button>
                     )}
-                    <button onClick={() => moveToAvailable([m])} className="text-slate-300 hover:text-red-400 shrink-0">×</button>
+                    <button onClick={() => moveToAvailable([m])} className="text-muted-foreground/50 hover:text-red-400 shrink-0">×</button>
                   </div>
                 ))}
                 {models.enabled.length === 0 && (
                   <div className="text-[10px] text-muted-foreground/40 text-center py-8">从左侧移入模型</div>
                 )}
               </div>
-              <div className="p-2 border-t border-blue-100 shrink-0">
+              <div className="p-2 border-t border-blue-500/30 shrink-0">
                 <div className="flex gap-1">
                   <input
                     value={manualModel}
                     onChange={e => setManualModel(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") addManual() }}
                     placeholder="手动输入模型名..."
-                    className="flex-1 rounded border border-blue-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    className="flex-1 rounded border border-blue-500/30 bg-card px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                   />
                   <button onClick={addManual} disabled={!manualModel.trim()} className="shrink-0 rounded bg-blue-500 text-white px-2 py-1 text-xs hover:bg-blue-600 disabled:opacity-30 transition-all">添加</button>
                 </div>
@@ -580,7 +580,7 @@ export function ProviderDetailPanel({ providerName, provider, onUpdate }: { prov
       {/* Danger zone */}
       {isConnected && (
         <div className="pt-3 border-t border-border/50">
-          <button onClick={handleDelete} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium transition-colors">
+          <button onClick={handleDelete} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 font-medium transition-colors">
             <Trash2 className="size-3" />
             {provider?.custom ? "删除供应商" : "移除 API Key"}
           </button>

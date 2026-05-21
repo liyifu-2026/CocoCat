@@ -156,6 +156,7 @@
   background: radial-gradient(circle, var(--glow-blue) 0%, transparent 70%);
   pointer-events: none; z-index: 0; border-radius: 50%;
   filter: blur(80px);
+  animation: glowPulse 8s ease-in-out infinite;
 }
 
 .bg-glow-amber {
@@ -164,6 +165,12 @@
   background: radial-gradient(circle, var(--glow-amber) 0%, transparent 70%);
   pointer-events: none; z-index: 0; border-radius: 50%;
   filter: blur(80px);
+  animation: glowPulse 10s ease-in-out infinite reverse;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
 }
 
 /* Animations */
@@ -187,11 +194,22 @@
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes viewSlideIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 @utility stagger-1 { animation: fadeSlideUp 0.4s ease-out both; animation-delay: 0.05s; }
 @utility stagger-2 { animation: fadeSlideUp 0.4s ease-out both; animation-delay: 0.12s; }
 @utility stagger-3 { animation: fadeSlideUp 0.4s ease-out both; animation-delay: 0.20s; }
 @utility animate-breathe { animation: breathe 1.4s ease-in-out infinite; }
 @utility animate-scaleIn { animation: scaleIn 0.3s ease-out both; }
+@utility animate-view-enter { animation: viewSlideIn 0.25s ease-out both; }
 
 .msg-enter { animation: messageIn 0.3s ease-out both; }
 
@@ -241,8 +259,22 @@
 .markdown-content em { font-style: italic; }
 
 @media (prefers-reduced-motion: reduce) {
-  .stagger-1, .stagger-2, .stagger-3, .msg-enter { animation: none; opacity: 1; }
+  .stagger-1, .stagger-2, .stagger-3, .msg-enter, .animate-view-enter { animation: none; opacity: 1; }
+  .bg-glow-blue, .bg-glow-amber { animation: none; }
 }
 
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+.scroll-bottom-btn {
+  position: sticky; bottom: 0;
+  display: flex; justify-content: center;
+  padding-bottom: 0.5rem;
+  animation: scaleIn 0.2s ease-out both;
+}
+
+.shimmer-skeleton {
+  background: linear-gradient(90deg, var(--muted) 25%, var(--card) 50%, var(--muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}

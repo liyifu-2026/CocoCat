@@ -5,7 +5,7 @@ export default function DefaultFunc() {
   const store = useSessionStore("")
 
   return (
-    <div className="flex flex-col gap-2.5 p-4">
+    <div className="flex flex-col gap-2.5 p-4 animate-view-enter">
       <div className="bg-card border border-border rounded-xl p-3">
         <div className="text-[10px] font-semibold text-muted-foreground mb-2.5">📋 Sessions</div>
         <button

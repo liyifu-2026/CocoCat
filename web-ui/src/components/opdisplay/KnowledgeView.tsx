@@ -1,7 +1,8 @@
 import { useState, useRef } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { BookOpen, Loader2, Upload, Plus, FileText, X } from "lucide-react"
+import { BookOpen, Loader2, Upload, Plus, FileText, X, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function KnowledgeView() {
   const queryClient = useQueryClient()
@@ -14,7 +15,7 @@ export default function KnowledgeView() {
   const [newKbPurpose, setNewKbPurpose] = useState("")
   const [createError, setCreateError] = useState("")
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["knowledge"],
     queryFn: () => fetch("/api/knowledge").then(r => r.json()),
   })
@@ -67,13 +68,36 @@ export default function KnowledgeView() {
   })
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-full"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
+    return (
+      <div className="flex flex-col h-full animate-view-enter">
+        <div className="flex items-center gap-2.5 px-5 py-3 border-b border-border">
+          <BookOpen className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold">Knowledge Base</h2>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[52px] w-full rounded-xl shimmer-skeleton" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full animate-view-enter gap-3">
+        <p className="text-[11px] text-muted-foreground">Failed to load knowledge bases</p>
+        <button onClick={() => refetch()} className="flex items-center gap-1.5 text-[10px] text-primary hover:underline">
+          <RefreshCw className="size-3" /> Retry
+        </button>
+      </div>
+    )
   }
 
   const kbs = (data as { kbs?: { id: string; purpose?: string }[] })?.kbs ?? []
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full animate-view-enter">
       <div className="flex items-center gap-2.5 px-5 py-3 border-b border-border">
         <BookOpen className="size-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold">Knowledge Base</h2>

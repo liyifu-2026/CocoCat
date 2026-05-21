@@ -1,9 +1,10 @@
-import { useRef, useEffect } from "react"
+import { useRef, useEffect, useState, useCallback } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
   Loader2, ChevronRight, ChevronDown, Wrench,
-  CheckCircle2, XCircle, Brain, MessageSquare
+  CheckCircle2, XCircle, Brain, MessageSquare,
+  ArrowDown, Copy, Check
 } from "lucide-react"
 import { TOOL_DISPLAY_NAMES } from "@/lib/tool-names"
 import type { ToolCallRecord, Message } from "@/types/chat"
@@ -29,17 +30,69 @@ function formatArgs(args: string | undefined): string {
   } catch { return args.slice(0, 200) }
 }
 
-export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
-  const endRef = useRef<HTMLDivElement>(null)
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).catch(() => {})
+}
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, ctrl.streamText, ctrl.reasoningText])
+function CodeBlock({ children }: { children: string }) {
+  const [copied, setCopied] = useState(false)
+  const text = String(children).replace(/\n$/, "")
+
+  const handleCopy = useCallback(() => {
+    copyToClipboard(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [text])
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5" id="chat-msgs">
+    <div className="relative group/code">
+      <button
+        onClick={handleCopy}
+        className="absolute top-2 right-2 opacity-0 group-hover/code:opacity-100 transition-opacity p-1 rounded bg-background/50 hover:bg-background text-muted-foreground hover:text-foreground"
+      >
+        {copied ? <Check className="size-3 text-green-400" /> : <Copy className="size-3" />}
+      </button>
+      <pre><code>{children}</code></pre>
+    </div>
+  )
+}
+
+export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const endRef = useRef<HTMLDivElement>(null)
+  const [atBottom, setAtBottom] = useState(true)
+
+  const isNearBottom = useCallback(() => {
+    const el = containerRef.current
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }, [])
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    endRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" })
+  }, [])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const onScroll = () => {
+      setAtBottom(isNearBottom())
+    }
+    el.addEventListener("scroll", onScroll, { passive: true })
+    return () => el.removeEventListener("scroll", onScroll)
+  }, [isNearBottom])
+
+  useEffect(() => {
+    if (atBottom || ctrl.streaming) {
+      scrollToBottom(true)
+    }
+  }, [messages, ctrl.streamText, ctrl.reasoningText, atBottom, ctrl.streaming, scrollToBottom])
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5 relative" id="chat-msgs" ref={containerRef}>
       {messages.length === 0 && !ctrl.streaming && (
-        <div className="flex flex-col items-center justify-center h-full text-center">
+        <div className="flex flex-col items-center justify-center h-full text-center stagger-1">
           <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
             <MessageSquare className="size-6 text-primary/60" />
           </div>
@@ -92,7 +145,22 @@ export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
                 : "bg-bubble text-foreground/85 rounded-2xl rounded-bl-md border border-border"
             }`}>
               <div className="markdown-content">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    pre: ({ children }) => <>{children}</>,
+                    code: ({ className, children, ...props }) => {
+                      const match = /language-(\w+)/.exec(className || "")
+                      const isInline = !match && !String(children).includes("\n")
+                      if (isInline) {
+                        return <code className={className} {...props}>{children}</code>
+                      }
+                      return <CodeBlock>{String(children)}</CodeBlock>
+                    },
+                  }}
+                >
+                  {m.content}
+                </ReactMarkdown>
               </div>
             </div>
           </div>
@@ -155,7 +223,22 @@ export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
             <div className="bg-bubble border border-border rounded-2xl rounded-bl-md px-4 py-3">
               {ctrl.streamText ? (
                 <div className="markdown-content text-[11px]">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{ctrl.streamText}</ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      pre: ({ children }) => <>{children}</>,
+                      code: ({ className, children, ...props }) => {
+                        const match = /language-(\w+)/.exec(className || "")
+                        const isInline = !match && !String(children).includes("\n")
+                        if (isInline) {
+                          return <code className={className} {...props}>{children}</code>
+                        }
+                        return <CodeBlock>{String(children)}</CodeBlock>
+                      },
+                    }}
+                  >
+                    {ctrl.streamText}
+                  </ReactMarkdown>
                 </div>
               ) : (
                 <span className="inline-flex gap-1">
@@ -166,6 +249,17 @@ export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {!atBottom && !ctrl.streaming && messages.length > 0 && (
+        <div className="scroll-bottom-btn">
+          <button
+            onClick={() => scrollToBottom(true)}
+            className="bg-card border border-border rounded-full p-1.5 shadow-lg hover:bg-muted transition-colors"
+          >
+            <ArrowDown className="size-3.5 text-muted-foreground" />
+          </button>
         </div>
       )}
 

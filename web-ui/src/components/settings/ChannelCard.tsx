@@ -17,18 +17,18 @@ const CAPABILITY_LABELS: Record<string, string> = {
 
 const STATUS_STYLES: Record<string, { border: string; bg: string; dot: string; text: string; label: string }> = {
   connected: {
-    border: "border-green-400", bg: "bg-green-50/60",
-    dot: "text-green-500 fill-green-500", text: "text-green-700",
+    border: "border-green-400", bg: "bg-emerald-500/10",
+    dot: "text-green-500 fill-green-500", text: "text-emerald-400",
     label: "已连接",
   },
   connecting: {
-    border: "border-blue-400", bg: "bg-blue-50/60",
-    dot: "text-blue-500 fill-blue-500", text: "text-blue-700",
+    border: "border-blue-400", bg: "bg-blue-500/10",
+    dot: "text-blue-500 fill-blue-500", text: "text-blue-400",
     label: "连接中",
   },
   configured: {
-    border: "border-amber-400", bg: "bg-amber-50/60",
-    dot: "text-amber-500 fill-amber-500", text: "text-amber-700",
+    border: "border-amber-400", bg: "bg-amber-500/10",
+    dot: "text-amber-500 fill-amber-500", text: "text-amber-400",
     label: "已配置",
   },
   unconfigured: {
