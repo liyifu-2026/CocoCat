@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Any, Callable, Optional
 
 from cococat.core.agent_builder import build_system_prompt, load_memory_from_agent_dir
-from cococat.core.agent_builder import resolve_skills
+from cococat.core.agent_builder import resolve_skills, skills_to_prompt, skills_to_tools
 from cococat.core.agent_builder import load_agent_system_prompt, get_agent_skills
 from cococat.core.session import Session, load_session, save_session_pair
 from cococat.core.tool_executor import make_assistant_msg, execute_tool_calls
@@ -19,10 +19,9 @@ from cococat.core.types import ToolContext
 
 @dataclass(frozen=True)
 class AgentConfig:
-    """Agent 的不可变配置——所有构建在创建时一次性完成。"""
     id: str
     name: str
-    role: str                     # "resident" | "worker"
+    role: str
     system_prompt: str
     tools: list = field(default_factory=list)
     agent_dir: str = ""
@@ -33,11 +32,8 @@ def load_agent_config(
     *,
     base_tools: list | None = None,
     scene_config = None,
-    mode_id: str = "default",
-    scene_id: str = "default",
-    user_id: str = "local",
+    is_kb_agent: bool = False,
 ) -> AgentConfig:
-    """加载 profile / memory / skills → 合并 → 不可变 AgentConfig。"""
     name = "agent"
     profile_text = ""
     memory_content, pinned, compiled = "", "", ""
@@ -46,7 +42,6 @@ def load_agent_config(
         profile_text = load_agent_system_prompt(agent_dir)
         memory_content, pinned, compiled = load_memory_from_agent_dir(agent_dir)
         skill_names = get_agent_skills(agent_dir)
-        # 从 profile.yaml 提取 agent name
         profile_path = os.path.join(agent_dir, "profile.yaml")
         if os.path.exists(profile_path):
             import yaml
@@ -60,27 +55,29 @@ def load_agent_config(
     else:
         skill_names = []
 
-    skill_names_merged: list[str] = []
+    agent_skills = resolve_skills(skill_names)
 
     if scene_config and hasattr(scene_config, 'skills') and scene_config.skills:
         all_names = list(dict.fromkeys(skill_names + scene_config.skills))
-        skill_names_merged = all_names
+        merged_skills = resolve_skills(all_names)
     else:
-        skill_names_merged = skill_names
+        merged_skills = agent_skills
+
+    skill_tools = skills_to_tools(merged_skills)
+    skill_prompt = skills_to_prompt(merged_skills)
 
     tools = list(base_tools or [])
-
-    skill_refs = ", ".join(skill_names_merged) if skill_names_merged else ""
-    scene_skills_text = f"可用技能手册: {skill_refs}" if skill_refs else ""
+    tools += skill_tools
 
     system_prompt = build_system_prompt(
-        mode_id=mode_id,
+        mode_id="kb-admin" if is_kb_agent else "default",
+        profile_text=profile_text,
         memory_content=memory_content,
         pinned_facts=pinned,
         compiled_content=compiled,
         scene_context=scene_config.context if scene_config else "",
         scene_kbs=scene_config.kbs if scene_config else [],
-        scene_skills=scene_skills_text,
+        scene_skills=skill_prompt,
         tools=tools,
     )
 
@@ -90,18 +87,18 @@ def load_agent_config(
         role="worker",
         system_prompt=system_prompt,
         tools=tools,
-        agent_dir=agent_dir,
+        agent_dir=agent_dir or f"agents/{name}",
     )
 
 
-def _resolve_session_path(agent_dir: str, session_id: str, scene_id: str = "default", user_id: str = "local") -> str:
-    from cococat.core.paths import session_dir
-    sdir = session_dir(scene_id, user_id)
+def _resolve_session_path(agent_dir: str, session_id: str) -> str:
+    agent_dir = agent_dir or "."
     if session_id:
-        os.makedirs(sdir, exist_ok=True)
-        return os.path.join(sdir, f"{session_id}.jsonl")
-    os.makedirs(sdir, exist_ok=True)
-    return os.path.join(sdir, "session.jsonl")
+        sessions_dir = os.path.join(agent_dir, "sessions")
+        os.makedirs(sessions_dir, exist_ok=True)
+        return os.path.join(sessions_dir, f"{session_id}.jsonl")
+    os.makedirs(agent_dir, exist_ok=True)
+    return os.path.join(agent_dir, "session.jsonl")
 
 
 async def _invoke_llm(
@@ -112,7 +109,6 @@ async def _invoke_llm(
     on_text: Optional[Callable[[str], Any]] = None,
     on_reasoning: Optional[Callable[[str], Any]] = None,
 ):
-    """Invoke LLM (streaming or non-streaming). Returns (content, tool_calls, reasoning)."""
     if hasattr(llm, "chat_stream"):
         collected_content: list[str] = []
         collected_tool_calls: list[dict] = []
@@ -157,33 +153,25 @@ async def run_agent(
     *,
     session: Session | None = None,
     session_id: str | None = None,
-    context_raw: dict | None = None,
     on_text: Optional[Callable[[str], Any]] = None,
     on_tool: Optional[Callable[[str, str, dict], Any]] = None,
     on_reasoning: Optional[Callable[[str], Any]] = None,
     max_iterations: int = 0,
 ) -> str:
-    """Execute ReAct loop: history → iterate LLM → execute tools → persist → dream."""
     context = ToolContext()
     context.agent_id = config.id
-    context.agent_dir = config.agent_dir or f"agents/{config.id}"
+    context.agent_dir = config.agent_dir
     context.role = config.role
     context.bound_scene = None
 
-    if isinstance(context_raw, dict):
-        context.scene_id = context_raw.get("scene_id", "default")
-        context.user_id = context_raw.get("user_id", "local")
-        from cococat.core.paths import memory_dir as _memory_dir
-        context.memory.agent_dir = _memory_dir(context.scene_id, context.user_id)
-
     tools = config.tools
+    sid = session_id or ""
 
     messages: list[dict] = [{"role": "system", "content": config.system_prompt}]
 
     if session is not None:
         history = await session.sanitized_read()
     else:
-        sid = session_id or ""
         session_path = _resolve_session_path(config.agent_dir, sid)
         history = load_session(session_path)
     messages.extend(history)
@@ -213,13 +201,9 @@ async def run_agent(
                 final_text.append(content)
             break
 
-        # Compress session if token threshold exceeded
         from cococat.memory.summarize import compress_session
-        sid = session_id or "default"
-        from cococat.core.paths import memory_dir
-        summary_dir = os.path.join(memory_dir(context.scene_id, context.user_id), "summaries")
-        messages = await compress_session(messages, sid, summary_dir=summary_dir,
-                                          last_activity=time.time())
+        summary_dir = os.path.join(config.agent_dir, "memory", "summaries") if config.agent_dir else "memory/summaries"
+        messages = await compress_session(messages, sid, summary_dir=summary_dir, last_activity=time.time())
     else:
         final_text.append("[ReAct loop exceeded max iterations]")
 
@@ -229,14 +213,8 @@ async def run_agent(
         if session is not None:
             await session.append_pair(message, result)
         else:
-            sid = session_id or ""
-            session_path = _resolve_session_path(config.agent_dir, sid, context.scene_id, context.user_id)
+            session_path = _resolve_session_path(config.agent_dir, sid)
             save_session_pair(session_path, message, result)
-    except Exception:
-        pass
-
-    try:
-        pass
     except Exception:
         pass
 
@@ -244,51 +222,19 @@ async def run_agent(
 
 
 class AgentRole(Enum):
-    RESIDENT = "resident"   # Permanent, page-bound, peer-level
-    WORKER = "worker"       # Ephemeral pool, created/destroyed per task
+    RESIDENT = "resident"
+    WORKER = "worker"
 
 
 class Agent:
-    """薄兼容壳——委托给 AgentConfig + run_agent。"""
+    """Agent executor — takes a pre-built AgentConfig and an LLM, delegates to run_agent."""
 
-    def __init__(
-        self,
-        id: str,
-        name: str,
-        role: AgentRole,
-        llm: Any,
-        system_prompt: str | None = None,
-        tools: list[dict] | None = None,
-        agent_dir: str | None = None,
-        mode: str = "default",
-        scene_id: str = "default",
-        user_id: str = "local",
-    ):
-        agent_dir_path = agent_dir or f"agents/{id}"  # fallback — callers should pass explicit agent_dir
-        config = load_agent_config(
-            agent_dir_path,
-            base_tools=tools,
-            mode_id=mode,
-            scene_id=scene_id,
-            user_id=user_id,
-        )
-
-        self.config = AgentConfig(
-            id=id,
-            name=name,
-            role=role.value,
-            system_prompt=system_prompt or config.system_prompt,
-            tools=config.tools,
-            agent_dir=agent_dir_path,
-        )
-        self.id = id
-        self.name = name
-        self.role = role
-        self.page = ""
+    def __init__(self, config: AgentConfig, llm: Any):
+        self.config = config
+        self.id = config.id
+        self.name = config.name
+        self.role = AgentRole(config.role)
         self._llm = llm
-        self._agent_dir = agent_dir_path
-        self._scene_id = scene_id
-        self._user_id = user_id
 
     async def run(
         self,
@@ -307,20 +253,11 @@ class Agent:
             session_id = context.session_id
 
         return await run_agent(
-            self.config,
-            self._llm,
-            message,
-            session=session,
-            session_id=session_id,
-            context_raw=context if isinstance(context, dict) else None,
-            on_text=on_text,
-            on_tool=on_tool,
-            on_reasoning=on_reasoning,
+            self.config, self._llm, message,
+            session=session, session_id=session_id,
+            on_text=on_text, on_tool=on_tool, on_reasoning=on_reasoning,
             max_iterations=max_iterations,
         )
 
     def get_tools(self):
         return self.config.tools
-
-    async def init(self):
-        pass
