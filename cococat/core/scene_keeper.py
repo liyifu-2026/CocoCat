@@ -41,31 +41,25 @@ class SceneKeeper:
         self._timeout = timeout_seconds
         self._fallback_reply = fallback_reply
 
-    async def handle_message(self, raw_msg: dict) -> None:
-        """Handle an incoming channel message.
+    async def handle_message(self, content: str, mode: str = "default") -> str:
+        """Process a message through the sandbox agent. Returns reply text.
 
-        1. Parse user identity
-        2. Trigger sandbox agent with scene permissions
-        3. Send reply
-        4. On failure: retry once, then fallback reply
+        Retries up to max_retries times on failure, then returns fallback_reply.
         """
-        user_id = await self._channel.parse_identity(raw_msg)
-        prompt = raw_msg.get("text", "")
-
         for attempt in range(self._max_retries + 1):
             try:
-                result = await self._sandbox.run_once(
-                    prompt=prompt,
+                return await self._sandbox.run_once(
+                    prompt=content,
                     agent_id="coco",
                     scene_id=self.scene_id,
                     permissions=self._permissions,
+                    mode=mode,
                 )
-                await self._channel.send(user_id, result)
-                return
             except Exception as e:
                 logger.warning(
                     "SceneKeeper[%s]: attempt %d/%d failed: %s",
-                    self.scene_id, attempt + 1, self._max_retries + 1, e
+                    self.scene_id, attempt + 1, self._max_retries + 1, e,
                 )
                 if attempt >= self._max_retries:
-                    await self._channel.send(user_id, self._fallback_reply)
+                    return self._fallback_reply
+        return self._fallback_reply
