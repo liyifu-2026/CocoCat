@@ -11,7 +11,7 @@ const ThemeContext = createContext<{
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof localStorage === "undefined") return "light"
+    if (typeof localStorage === "undefined") return "dark"
     const stored = localStorage.getItem(STORAGE_KEY) as Theme | null
     if (stored === "light" || stored === "dark") return stored
     return document.documentElement.classList.contains("dark") ? "dark" : "light"

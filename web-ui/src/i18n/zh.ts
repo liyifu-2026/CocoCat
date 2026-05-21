@@ -1,19 +1,74 @@
 const zh: Record<string, string> = {
-  // Sidebar
-  "nav.dashboard": "仪表盘",
-  "nav.scenes": "场景",
+  // LeftNav
   "nav.chat": "聊天",
+  "nav.scenes": "场景",
   "nav.knowledge": "知识库",
-  "nav.skills": "技能",
-  "nav.hiring": "招聘",
-  "nav.mailbox": "交付中心",
-  "nav.schedule": "任务",
-  "nav.usage": "用量",
-  "nav.collaboration": "协作图",
+  "nav.memory": "记忆",
   "nav.settings": "设置",
-  "nav.logout": "退出登录",
-  "nav.workspace": "工作区",
-  "nav.management": "管理",
+
+  // Namecard
+  "mode.default": "车间操作员",
+  "mode.kb-admin": "知识库管理",
+  "mode.kb_admin_subtitle": "知识库操作员",
+  "mode.default_status": "12 个工具就绪。",
+  "mode.kb_admin_status": "3 个知识库在线。工具就绪。",
+
+  // Chat
+  "chat.empty_title": "Coco",
+  "chat.empty_desc": "你的车间操作员。输入消息开始。",
+  "chat.input_placeholder": "输入消息",
+  "chat.input_hint": "Shift+Enter 换行",
+  "chat.thinking": "思考中",
+  "chat.tool_calls": "工具调用",
+  "chat.new_chat": "新建会话",
+  "chat.sessions": "会话",
+
+  // Knowledge
+  "knowledge.create_kb": "创建知识库",
+  "knowledge.kb_name_placeholder": "知识库名称",
+  "knowledge.purpose_placeholder": "用途说明（可选）",
+  "knowledge.upload_area": "拖拽文件或点击上传",
+  "knowledge.no_kb_desc": "暂无知识库",
+  "knowledge.select_page": "从侧边栏选择一个 Wiki 页面",
+  "knowledge.backlinks": "反向链接",
+  "knowledge.search_wiki": "搜索 Wiki...",
+  "knowledge.entities": "实体",
+  "knowledge.concepts": "概念",
+
+  // Sessions / Quick Actions
+  "session.title": "会话",
+  "session.new": "新建会话",
+  "session.untitled": "未命名",
+  "quick.actions": "快捷操作",
+  "quick.analyze_project": "分析当前项目",
+  "quick.create_task": "创建新任务",
+  "quick.daily_summary": "今日摘要",
+  "quick.clear_memory": "清理记忆",
+
+  // Scenes
+  "scene.running": "运行中",
+  "scene.paused": "已暂停",
+  "scene.archived": "已归档",
+  "scene.no_scenes_short": "暂无场景",
+  "scene.total": "共 {count} 个",
+
+  // Login
+  "login.welcome": "CocoCat",
+  "login.desc": "登录管理面板",
+  "login.setup_desc": "首次使用 — 创建管理员账户",
+  "login.username_placeholder": "用户名",
+  "login.password_placeholder": "密码",
+  "login.password_min": "密码（至少4位）",
+  "login.create_admin": "创建管理员账户",
+  "login.submit": "登录",
+
+  // Command Palette
+  "cmd.search_placeholder": "搜索命令...",
+  "cmd.no_results": "未找到结果",
+  "cmd.navigation": "导航",
+  "cmd.switch_mode": "切换模式",
+  "cmd.chat_section": "聊天",
+  "cmd.new_chat_desc": "新建会话",
 
   // Breadcrumbs / Page headers
   "page.dashboard": "仪表盘",
@@ -78,12 +133,10 @@ const zh: Record<string, string> = {
   "cmd.create_agent": "创建新智能体",
   "cmd.create_scene": "创建新场景",
   "cmd.pages": "页面",
-  "cmd.no_results": "未找到结果",
 
   // Login
-  "login.title": "CocoCat 管理面板",
-  "login.password": "请输入密码",
-  "login.submit": "登录",
+  "login.title": "CocoCat 控制面板",
+  "login.password": "输入密码",
   "login.invalid": "密码错误",
 
   // Dashboard
@@ -131,13 +184,6 @@ const zh: Record<string, string> = {
   "knowledge.title": "知识库",
   "knowledge.no_kbs": "暂无知识库",
   "knowledge.browse": "点击浏览 Wiki 页面",
-  "knowledge.entities": "实体",
-  "knowledge.concepts": "概念",
-  "knowledge.sources": "来源",
-  "knowledge.search": "搜索 Wiki...",
-  "knowledge.search_results": "搜索结果（{count}）",
-  "knowledge.no_results": "无结果",
-  "knowledge.select_page": "从侧边栏选择一个 Wiki 页面",
   "knowledge.page": "页面",
   "knowledge.origin": "来源：",
   "knowledge.related": "相关",

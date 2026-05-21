@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Play, Pause, Archive, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useT } from "@/context/LanguageContext"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface Scene {
@@ -21,14 +22,9 @@ const STATUS_STYLES: Record<string, string> = {
   archived: "bg-blue-500/10 text-blue-400",
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  running: "Running",
-  paused: "Paused",
-  archived: "Archived",
-}
-
 export default function ScenesView() {
   const queryClient = useQueryClient()
+  const t = useT()
   const { data: scenes, isLoading } = useQuery<Scene[]>({
     queryKey: ["scenes"],
     queryFn: async () => {
@@ -65,7 +61,7 @@ export default function ScenesView() {
         )}
 
         {!isLoading && scenes && scenes.length === 0 && (
-          <p className="text-[11px] text-muted-foreground text-center py-8">No scenes yet</p>
+          <p className="text-[11px] text-muted-foreground text-center py-8">{t("scene.no_scenes_short")}</p>
         )}
 
         {!isLoading && scenes && (
@@ -77,7 +73,7 @@ export default function ScenesView() {
                     <div className="flex items-center gap-2">
                       <h3 className="text-xs font-medium">{scene.name}</h3>
                       <span className={cn("text-[9px] px-2 py-0.5 rounded-full font-medium", STATUS_STYLES[scene.status] || "bg-muted text-muted-foreground")}>
-                        {STATUS_LABELS[scene.status] || scene.status}
+                        {t(`scene.${scene.status}`) || scene.status}
                       </span>
                     </div>
                     {scene.purpose && <p className="text-[10px] text-muted-foreground line-clamp-2">{scene.purpose}</p>}

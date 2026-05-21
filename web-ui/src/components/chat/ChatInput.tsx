@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react"
 import { Send, Plus, Loader2 } from "lucide-react"
 import { useMode } from "@/context/ModeContext"
+import { useT } from "@/context/LanguageContext"
 
 interface ChatInputProps {
   onSend: (text: string) => void
@@ -11,6 +12,7 @@ export default function ChatInput({ onSend, streaming }: ChatInputProps) {
   const [input, setInput] = useState("")
   const { currentMode, modes, setMode } = useMode()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const t = useT()
 
   const handleSend = useCallback(() => {
     const text = input.trim()
@@ -48,7 +50,7 @@ export default function ChatInput({ onSend, streaming }: ChatInputProps) {
           value={input}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Aa"
+          placeholder={t("chat.input_placeholder")}
           rows={1}
           disabled={streaming}
           className="flex-1 bg-transparent border-none outline-none resize-none text-xs text-foreground placeholder:text-muted-foreground/40 font-sans"
@@ -70,7 +72,7 @@ export default function ChatInput({ onSend, streaming }: ChatInputProps) {
         <span className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
           {currentMode}
         </span>
-        <span className="text-[8px] text-muted-foreground/50">Shift+Enter to break</span>
+        <span className="text-[8px] text-muted-foreground/50">{t("chat.input_hint")}</span>
       </div>
     </div>
   )

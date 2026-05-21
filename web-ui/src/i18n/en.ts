@@ -1,19 +1,74 @@
 const en: Record<string, string> = {
-  // Sidebar
-  "nav.dashboard": "Dashboard",
-  "nav.scenes": "Scenes",
+  // LeftNav
   "nav.chat": "Chat",
+  "nav.scenes": "Scenes",
   "nav.knowledge": "Knowledge",
-  "nav.skills": "Skills",
-  "nav.hiring": "Hiring",
-  "nav.mailbox": "Deliveries",
-  "nav.schedule": "Schedule",
-  "nav.usage": "Usage",
-  "nav.collaboration": "Collaboration",
+  "nav.memory": "Memory",
   "nav.settings": "Settings",
-  "nav.logout": "Logout",
-  "nav.workspace": "Workspace",
-  "nav.management": "Management",
+
+  // Namecard
+  "mode.default": "Workshop Operator",
+  "mode.kb-admin": "KB Admin",
+  "mode.kb_admin_subtitle": "Knowledge Base Operator",
+  "mode.default_status": "12 tools ready.",
+  "mode.kb_admin_status": "3 KB active. Tools ready.",
+
+  // Chat
+  "chat.empty_title": "Coco",
+  "chat.empty_desc": "Your workshop operator. Type a message to begin.",
+  "chat.input_placeholder": "Aa",
+  "chat.input_hint": "Shift+Enter to break",
+  "chat.thinking": "Thinking",
+  "chat.tool_calls": "Tool Calls",
+  "chat.new_chat": "New Chat",
+  "chat.sessions": "Sessions",
+
+  // Knowledge
+  "knowledge.create_kb": "Create Knowledge Base",
+  "knowledge.kb_name_placeholder": "KB name",
+  "knowledge.purpose_placeholder": "Purpose (optional)",
+  "knowledge.upload_area": "Drop files here or click to upload",
+  "knowledge.no_kb_desc": "No knowledge bases yet",
+  "knowledge.select_page": "Select a wiki page from the sidebar",
+  "knowledge.backlinks": "Backlinks",
+  "knowledge.search_wiki": "Search wiki...",
+  "knowledge.entities": "Entities",
+  "knowledge.concepts": "Concepts",
+
+  // Sessions / Quick Actions
+  "session.title": "Sessions",
+  "session.new": "New Session",
+  "session.untitled": "Untitled",
+  "quick.actions": "Quick Actions",
+  "quick.analyze_project": "Analyze Project",
+  "quick.create_task": "Create Task",
+  "quick.daily_summary": "Daily Summary",
+  "quick.clear_memory": "Clear Memory",
+
+  // Scenes
+  "scene.running": "Running",
+  "scene.paused": "Paused",
+  "scene.archived": "Archived",
+  "scene.no_scenes_short": "No scenes yet",
+  "scene.total": "{count} total",
+
+  // Login
+  "login.welcome": "CocoCat",
+  "login.desc": "Login to management panel",
+  "login.setup_desc": "First time setup — create admin account",
+  "login.username_placeholder": "Username",
+  "login.password_placeholder": "Password",
+  "login.password_min": "Password (at least 4 chars)",
+  "login.create_admin": "Create Admin Account",
+  "login.submit": "Login",
+
+  // Command Palette
+  "cmd.search_placeholder": "Search commands...",
+  "cmd.no_results": "No results found",
+  "cmd.navigation": "Navigation",
+  "cmd.switch_mode": "Switch Mode",
+  "cmd.chat_section": "Chat",
+  "cmd.new_chat_desc": "New Chat Session",
 
   // Breadcrumbs / Page headers
   "page.dashboard": "Dashboard",
@@ -78,12 +133,10 @@ const en: Record<string, string> = {
   "cmd.create_agent": "Create new Agent",
   "cmd.create_scene": "Create new Scene",
   "cmd.pages": "Pages",
-  "cmd.no_results": "No results found",
 
   // Login
   "login.title": "CocoCat Control Panel",
   "login.password": "Enter password",
-  "login.submit": "Login",
   "login.invalid": "Invalid password",
 
   // Dashboard
@@ -131,13 +184,6 @@ const en: Record<string, string> = {
   "knowledge.title": "Knowledge Bases",
   "knowledge.no_kbs": "No knowledge bases yet",
   "knowledge.browse": "Click to browse wiki pages",
-  "knowledge.entities": "Entities",
-  "knowledge.concepts": "Concepts",
-  "knowledge.sources": "Sources",
-  "knowledge.search": "Search wiki...",
-  "knowledge.search_results": "Search results ({count})",
-  "knowledge.no_results": "No results",
-  "knowledge.select_page": "Select a wiki page from the sidebar",
   "knowledge.page": "Page",
   "knowledge.origin": "Origin:",
   "knowledge.related": "Related",

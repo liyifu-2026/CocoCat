@@ -6,6 +6,7 @@ import {
   CheckCircle2, XCircle, Brain, MessageSquare,
   ArrowDown, Copy, Check
 } from "lucide-react"
+import { useT } from "@/context/LanguageContext"
 import { TOOL_DISPLAY_NAMES } from "@/lib/tool-names"
 import type { ToolCallRecord, Message } from "@/types/chat"
 
@@ -61,6 +62,7 @@ export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const [atBottom, setAtBottom] = useState(true)
+  const t = useT()
 
   const isNearBottom = useCallback(() => {
     const el = containerRef.current
@@ -96,9 +98,9 @@ export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
           <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
             <MessageSquare className="size-6 text-primary/60" />
           </div>
-          <h2 className="text-sm font-semibold text-foreground/70 mb-1">Coco</h2>
+          <h2 className="text-sm font-semibold text-foreground/70 mb-1">{t("chat.empty_title")}</h2>
           <p className="text-[11px] text-muted-foreground/50 max-w-[200px]">
-            Your workshop operator. Type a message to begin.
+            {t("chat.empty_desc")}
           </p>
         </div>
       )}
@@ -110,7 +112,7 @@ export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
               <details className="rounded-xl border border-accent/15 bg-accent/5 overflow-hidden">
                 <summary className="flex items-center gap-2 px-4 py-2 text-[10px] font-medium text-accent cursor-pointer">
                   <Brain className="size-3" />
-                  思考过程
+                  {t("chat.thinking")}
                 </summary>
                 <div className="px-4 pb-3 text-[10px] text-muted-foreground whitespace-pre-wrap max-h-40 overflow-y-auto">{m.reasoningText}</div>
               </details>
@@ -119,7 +121,7 @@ export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
               <details className="rounded-xl border border-border bg-card/50 overflow-hidden">
                 <summary className="flex items-center gap-2 px-4 py-2 text-[10px] font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
                   <Wrench className="size-3 text-blue-500" />
-                  工具调用 ({m.tools.length})
+                  {t("chat.tool_calls")} ({m.tools.length})
                 </summary>
                 <div className="px-4 pb-3 space-y-1">
                   {m.tools.map(tc => (
@@ -174,7 +176,7 @@ export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
               <div className="rounded-xl border border-accent/20 bg-card p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Brain className="size-3.5 text-accent" />
-                  <span className="text-[10px] font-medium">思考中</span>
+                  <span className="text-[10px] font-medium">{t("chat.thinking")}</span>
                   <Loader2 className="size-3 text-accent animate-spin" />
                 </div>
                 <div className="text-[10px] text-muted-foreground whitespace-pre-wrap max-h-40 overflow-y-auto">{ctrl.reasoningText}</div>
@@ -189,7 +191,7 @@ export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
                 >
                   <div className="flex items-center gap-2">
                     <Wrench className="size-3.5 text-blue-500" />
-                    <span className="text-[10px] font-medium">工具调用</span>
+                    <span className="text-[10px] font-medium">{t("chat.tool_calls")}</span>
                     <span className="text-[9px] text-muted-foreground">{ctrl.toolCalls.length}</span>
                     {ctrl.streaming && <Loader2 className="size-3 text-blue-500 animate-spin" />}
                   </div>

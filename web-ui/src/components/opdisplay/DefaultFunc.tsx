@@ -1,18 +1,20 @@
 import { useSessionStore } from "@/hooks/useSessionStore"
+import { useT } from "@/context/LanguageContext"
 import { cn } from "@/lib/utils"
 
 export default function DefaultFunc() {
   const store = useSessionStore("")
+  const t = useT()
 
   return (
     <div className="flex flex-col gap-2.5 p-4 animate-view-enter">
       <div className="bg-card border border-border rounded-xl p-3">
-        <div className="text-[10px] font-semibold text-muted-foreground mb-2.5">📋 Sessions</div>
+        <div className="text-[10px] font-semibold text-muted-foreground mb-2.5">{t("session.title")}</div>
         <button
           className="w-full border border-dashed border-border rounded-lg text-center py-2 text-[10px] text-muted-foreground/60 hover:border-primary/30 hover:text-muted-foreground transition-colors mb-2"
           onClick={() => store.newSession()}
         >
-          + New Session
+          + {t("session.new")}
         </button>
         {[...store.sessions].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5).map(s => (
           <div
@@ -24,7 +26,7 @@ export default function DefaultFunc() {
             onClick={() => store.selectSession(s.id)}
           >
             <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", s.id === store.currentId ? "bg-primary" : "bg-muted-foreground/30")} />
-            <span className="truncate flex-1">{s.title || "Untitled"}</span>
+            <span className="truncate flex-1">{s.title || t("session.untitled")}</span>
             <span className="text-[9px] text-muted-foreground/50 shrink-0">
               {timeAgo(s.createdAt)}
             </span>
@@ -33,9 +35,9 @@ export default function DefaultFunc() {
       </div>
 
       <div className="bg-card border border-border rounded-xl p-3">
-        <div className="text-[10px] font-semibold text-muted-foreground mb-2">🔧 Quick Actions</div>
+        <div className="text-[10px] font-semibold text-muted-foreground mb-2">{t("quick.actions")}</div>
         <div className="flex flex-wrap gap-1.5">
-          {["分析当前项目", "创建新任务", "今日摘要", "清理记忆"].map(action => (
+          {[t("quick.analyze_project"), t("quick.create_task"), t("quick.daily_summary"), t("quick.clear_memory")].map(action => (
             <span key={action} className="inline-block bg-muted/50 border border-border rounded-full px-2.5 py-1 text-[9px] text-muted-foreground cursor-pointer hover:bg-muted hover:text-foreground transition-colors">
               {action}
             </span>

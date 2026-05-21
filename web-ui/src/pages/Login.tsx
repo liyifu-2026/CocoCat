@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
+import { useT } from "@/context/LanguageContext"
 import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
@@ -11,6 +12,7 @@ export default function LoginPage() {
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
   const { login, isAuthenticated } = useAuth()
   const navigate = useNavigate()
+  const t = useT()
 
   useEffect(() => {
     if (isAuthenticated) { navigate("/chat", { replace: true }); return }
@@ -28,7 +30,7 @@ export default function LoginPage() {
       await login(username.trim(), password)
       navigate("/chat", { replace: true })
     } catch {
-      setError("用户名或密码错误")
+      setError(t("login.invalid"))
     } finally {
       setLoading(false)
     }
@@ -47,14 +49,14 @@ export default function LoginPage() {
       })
       if (!resp.ok) {
         const d = await resp.json().catch(() => ({}))
-        setError(d.detail || "初始化失败")
+        setError(d.detail || t("component.failed_load"))
         return
       }
       const data = await resp.json()
       localStorage.setItem("cococat_token", data.access_token)
       window.location.href = "/chat"
     } catch {
-      setError("网络错误")
+      setError(t("component.failed_load"))
     } finally {
       setLoading(false)
     }
@@ -65,23 +67,23 @@ export default function LoginPage() {
       <div className="flex items-center justify-center min-h-screen bg-background">
         <form onSubmit={handleSetup} className="w-full max-w-sm mx-4 space-y-4">
           <div className="text-center space-y-2">
-            <h1 className="text-xl font-bold text-foreground">CocoCat</h1>
-            <p className="text-sm text-muted-foreground">首次使用，创建管理员账户</p>
+            <h1 className="text-xl font-bold text-foreground">{t("login.welcome")}</h1>
+            <p className="text-sm text-muted-foreground">{t("login.setup_desc")}</p>
           </div>
           <input
-            type="text" value={username} autoFocus placeholder="用户名"
+            type="text" value={username} autoFocus placeholder={t("login.username_placeholder")}
             onChange={e => setUsername(e.target.value)}
             className="w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <input
-            type="password" value={password} placeholder="密码（至少4位）"
+            type="password" value={password} placeholder={t("login.password_min")}
             onChange={e => setPassword(e.target.value)}
             className="w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <button type="submit" disabled={loading || !username.trim() || password.length < 4}
             className="w-full rounded-xl bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-40">
-            {loading ? <Loader2 className="size-4 animate-spin mx-auto" /> : "创建管理员账户"}
+            {loading ? <Loader2 className="size-4 animate-spin mx-auto" /> : t("login.create_admin")}
           </button>
         </form>
       </div>
@@ -94,23 +96,23 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <form onSubmit={handleLogin} className="w-full max-w-sm mx-4 space-y-4">
         <div className="text-center space-y-2">
-          <h1 className="text-xl font-bold text-foreground">CocoCat</h1>
-          <p className="text-sm text-muted-foreground">登录管理面板</p>
+          <h1 className="text-xl font-bold text-foreground">{t("login.welcome")}</h1>
+          <p className="text-sm text-muted-foreground">{t("login.desc")}</p>
         </div>
         <input
-          type="text" value={username} autoFocus placeholder="用户名"
+          type="text" value={username} autoFocus placeholder={t("login.username_placeholder")}
           onChange={e => setUsername(e.target.value)}
           className="w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
         <input
-          type="password" value={password} placeholder="密码"
+          type="password" value={password} placeholder={t("login.password_placeholder")}
           onChange={e => setPassword(e.target.value)}
           className="w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
         {error && <p className="text-sm text-destructive">{error}</p>}
         <button type="submit" disabled={loading || !username.trim() || !password.trim()}
           className="w-full rounded-xl bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-40">
-          {loading ? <Loader2 className="size-4 animate-spin mx-auto" /> : "登录"}
+          {loading ? <Loader2 className="size-4 animate-spin mx-auto" /> : t("login.submit")}
         </button>
       </form>
     </div>

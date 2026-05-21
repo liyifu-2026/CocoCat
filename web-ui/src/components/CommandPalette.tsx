@@ -2,6 +2,7 @@ import { useEffect, useCallback } from "react"
 import { Command } from "cmdk"
 import { Search } from "lucide-react"
 import { useMode } from "@/context/ModeContext"
+import { useT } from "@/context/LanguageContext"
 
 interface CommandPaletteProps {
   open: boolean
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
 
 export function CommandPalette({ open, onClose, onNavigate }: CommandPaletteProps) {
   const { modes, setMode } = useMode()
+  const t = useT()
 
   useEffect(() => {
     if (!open) return
@@ -44,14 +46,14 @@ export function CommandPalette({ open, onClose, onNavigate }: CommandPaletteProp
             <Search className="size-4 text-muted-foreground shrink-0" />
             <Command.Input
               autoFocus
-              placeholder="Search commands..."
+              placeholder={t("cmd.search_placeholder")}
               className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground/50"
             />
           </div>
           <Command.List className="max-h-[280px] overflow-y-auto p-2">
-            <Command.Empty className="py-6 text-center text-xs text-muted-foreground">No results found</Command.Empty>
+            <Command.Empty className="py-6 text-center text-xs text-muted-foreground">{t("cmd.no_results")}</Command.Empty>
 
-            <Command.Group heading="Navigation" className="text-[9px] font-semibold text-muted-foreground px-2 py-1.5">
+            <Command.Group heading={t("cmd.navigation")} className="text-[9px] font-semibold text-muted-foreground px-2 py-1.5">
               {NAV_ITEMS.map(item => (
                 <Command.Item
                   key={item.key}
@@ -65,7 +67,7 @@ export function CommandPalette({ open, onClose, onNavigate }: CommandPaletteProp
               ))}
             </Command.Group>
 
-            <Command.Group heading="Switch Mode" className="text-[9px] font-semibold text-muted-foreground px-2 py-1.5">
+            <Command.Group heading={t("cmd.switch_mode")} className="text-[9px] font-semibold text-muted-foreground px-2 py-1.5">
               {modes.map(m => (
                 <Command.Item
                   key={m.id}
@@ -79,14 +81,14 @@ export function CommandPalette({ open, onClose, onNavigate }: CommandPaletteProp
               ))}
             </Command.Group>
 
-            <Command.Group heading="Chat" className="text-[9px] font-semibold text-muted-foreground px-2 py-1.5">
+            <Command.Group heading={t("cmd.chat_section")} className="text-[9px] font-semibold text-muted-foreground px-2 py-1.5">
               <Command.Item
-                value="New Chat"
+                value={t("chat.new_chat")}
                 keywords={["new", "chat", "session"]}
                 onSelect={() => runCommand(() => onNavigate("chat"))}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs cursor-pointer aria-selected:bg-primary/10 aria-selected:text-primary"
               >
-                New Chat Session
+                {t("cmd.new_chat_desc")}
               </Command.Item>
             </Command.Group>
           </Command.List>

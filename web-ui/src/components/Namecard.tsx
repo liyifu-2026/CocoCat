@@ -1,20 +1,21 @@
 import { useState } from "react"
 import { useMode } from "@/context/ModeContext"
+import { useT } from "@/context/LanguageContext"
 import { cn } from "@/lib/utils"
 
 const MODE_STYLES = {
   default: {
     icon: "💬",
-    title: "Coco",
-    subtitle: "Workshop Operator",
-    status: '"Hello! 12 tools ready."',
+    titleKey: "chat.empty_title",
+    subtitleKey: "mode.default",
+    statusKey: "mode.default_status",
     gradient: "bg-gradient-to-b from-blue-500/10 to-transparent",
   },
   "kb-admin": {
     icon: "📚",
-    title: "Coco · KB Admin",
-    subtitle: "Knowledge Base Operator",
-    status: '"3 KB active. Tools ready."',
+    titleKey: "mode.kb-admin",
+    subtitleKey: "mode.kb_admin_subtitle",
+    statusKey: "mode.kb_admin_status",
     gradient: "bg-gradient-to-b from-amber-500/10 to-transparent",
   },
 } as const
@@ -24,6 +25,7 @@ type ModeKey = keyof typeof MODE_STYLES
 export default function Namecard() {
   const { currentMode, modes, setMode } = useMode()
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const t = useT()
 
   const style = MODE_STYLES[(currentMode in MODE_STYLES ? currentMode : "default") as ModeKey]
 
@@ -36,8 +38,8 @@ export default function Namecard() {
         {style.icon}
       </div>
 
-      <h2 className="text-[15px] font-semibold text-foreground">{style.title}</h2>
-      <p className="text-[10px] text-muted-foreground mt-0.5">{style.subtitle}</p>
+      <h2 className="text-[15px] font-semibold text-foreground">{t(style.titleKey)}</h2>
+      <p className="text-[10px] text-muted-foreground mt-0.5">{t(style.subtitleKey)}</p>
 
       <div className="relative inline-block mt-2">
         <button
@@ -70,7 +72,7 @@ export default function Namecard() {
         )}
       </div>
 
-      <p className="text-[10px] text-muted-foreground/70 italic mt-1.5">{style.status}</p>
+      <p className="text-[10px] text-muted-foreground/70 italic mt-1.5">{t(style.statusKey)}</p>
 
       {dropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />}
     </div>

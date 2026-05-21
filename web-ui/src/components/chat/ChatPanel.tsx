@@ -2,6 +2,7 @@ import { useCallback, useRef, useEffect, useState } from "react"
 import { useSessionStore } from "@/hooks/useSessionStore"
 import { useStreaming } from "@/hooks/useStreaming"
 import { useMode } from "@/context/ModeContext"
+import { useT } from "@/context/LanguageContext"
 import { Trash2, MessageSquare, Plus, ChevronDown, Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ScheduleModal } from "@/components/ScheduleModal"
@@ -16,6 +17,7 @@ export default function ChatPanel() {
   const skipClearUntilId = useRef<string | null>(null)
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [sessionsExpanded, setSessionsExpanded] = useState(false)
+  const t = useT()
 
   useEffect(() => {
     currentIdRef.current = store.currentId
@@ -96,7 +98,7 @@ export default function ChatPanel() {
           </button>
           <button
             onClick={() => {
-              store.createSession("New Chat")
+              store.createSession(t("chat.new_chat"))
               ctrl.clear()
             }}
             className="w-6 h-6 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
@@ -112,7 +114,7 @@ export default function ChatPanel() {
               className="flex items-center gap-1.5 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <ChevronDown className={cn("size-3 transition-transform", sessionsExpanded && "rotate-180")} />
-              Sessions ({sortedSessions.length})
+              {t("chat.sessions")} ({sortedSessions.length})
             </button>
             {sessionsExpanded && (
               <div className="mt-1.5 max-h-[140px] overflow-y-auto space-y-0.5">
@@ -126,7 +128,7 @@ export default function ChatPanel() {
                     onClick={() => store.selectSession(s.id)}
                   >
                     <MessageSquare className="size-3 shrink-0 opacity-50" />
-                    <span className="truncate flex-1">{s.title || "Untitled"}</span>
+                    <span className="truncate flex-1">{s.title || t("session.untitled")}</span>
                     <button
                       onClick={(e) => { e.stopPropagation(); store.deleteSession(s.id) }}
                       className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400 transition-all p-0.5"
