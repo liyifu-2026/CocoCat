@@ -1,5 +1,6 @@
 import { useMode } from "@/context/ModeContext"
 import Namecard from "./Namecard"
+import VizEngine from "./viz/VizEngine"
 import DefaultFunc from "./opdisplay/DefaultFunc"
 import KbAdminFunc from "./opdisplay/KbAdminFunc"
 import ScenesView from "./opdisplay/ScenesView"
@@ -35,6 +36,7 @@ export default function OpDisplay({ activeNav }: OpDisplayProps) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       <Namecard />
+      <VizEngine />
       <div className="flex-1 overflow-y-auto no-scrollbar">
         {renderFunc()}
       </div>
