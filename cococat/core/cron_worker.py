@@ -104,11 +104,11 @@ def _to_timestamp(value) -> float:
     return 0
 
 
-async def _dispatch(task: str, target_agent_id: str, sub_executor) -> None:
+async def _dispatch(task: str, mode: str, sub_executor) -> None:
     if not sub_executor:
         raise RuntimeError("No sub_executor available for dispatch")
 
-    result = await sub_executor.dispatch(task, from_agent="cron")
+    result = await sub_executor.dispatch(task, from_agent="cron", mode=mode)
     if not result:
         raise RuntimeError("Sub-agent dispatch returned no result for task")
     return
@@ -224,16 +224,16 @@ class CronWorker:
 
         task = entry.get("task", "")
         task_id = entry.get("id", "unknown")
-        target_agent_id = entry.get("agent_id", "")
+        mode = entry.get("mode", "default")
         is_system = entry.get("type") == "system" or task.startswith("__")
 
-        logger.info("CronWorker dispatching %s -> %s: %s", task_id, target_agent_id or "sub_executor", task)
+        logger.info("CronWorker dispatching %s -> mode=%s: %s", task_id, mode, task)
 
         try:
             if is_system and task.startswith("__"):
                 entry["status"] = await _dispatch_system_task(task)
             else:
-                await _dispatch(task, target_agent_id, self._sub_executor)
+                await _dispatch(task, mode, self._sub_executor)
                 entry["status"] = "completed"
         except Exception as e:
             logger.exception("CronWorker task %s failed", task_id)
