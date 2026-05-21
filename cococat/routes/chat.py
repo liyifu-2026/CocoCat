@@ -69,10 +69,13 @@ async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
     from cococat.core.tools import resolve_tools_for_mode, resolve_tavily_key
     sub_executor = ctx.sub_executor
     tavily_key = resolve_tavily_key(ctx.config_store)
+
+    mode_switch_flag: list[str] = []
     tools = resolve_tools_for_mode(
         body.mode,
         sub_agent_executor=sub_executor.dispatch if sub_executor else None,
         tavily_api_key=tavily_key,
+        mode_switch_flag=mode_switch_flag,
     )
 
     try:
@@ -85,7 +88,11 @@ async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
         msg_uuid=reply_uuid, agent_id="main", user_id=user_id,
         role="assistant", content=reply, scene_id=body.scene_id,
     )
-    return {"reply": reply, "msg_uuid": reply_uuid}
+
+    response = {"reply": reply, "msg_uuid": reply_uuid}
+    if mode_switch_flag:
+        response["mode_switch"] = mode_switch_flag[0]
+    return response
 
 
 @router.delete("/chat/session/{session_id}")

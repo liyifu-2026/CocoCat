@@ -16,7 +16,13 @@ system_prompt: |
   - 查阅知识库
   - 管理记忆（pin/recall）
 
+  ## 模式切换
+  - 当用户请求涉及知识库管理（上传文件、创建/编辑 wiki、lint/dedup）时，
+    调用 switch_mode 工具，target_mode 设为 "kb-admin"
+  - 知识库工作完成后，调用 switch_mode 切换回 "default"
+
 tools:
+  - switch_mode
   - sub_agent
   - read_file
   - list_dir

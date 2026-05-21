@@ -16,7 +16,11 @@ system_prompt: |
   - 管理 wiki 页面
   - 调用 sub_agent 并行处理多个文件
 
+  ## 模式切换
+  - 知识库管理工作完成后，调用 switch_mode 工具，target_mode 设为 "default"
+
 tools:
+  - switch_mode
   - sub_agent
   - read_file
   - write_file

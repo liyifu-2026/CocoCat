@@ -7,7 +7,7 @@ from cococat.core.tools.file_ops import make_file_tools, make_readonly_file_tool
 from cococat.core.tools.execution import make_execution_tools
 from cococat.core.tools.web import make_web_tools
 from cococat.core.tools.memory_tools import make_memory_tools
-from cococat.core.tools.meta import make_meta_tools
+from cococat.core.tools.meta import make_meta_tools, make_switch_mode_tool
 from cococat.core.tools.kb_tools import make_kb_tools, make_kb_admin_tools
 
 
@@ -47,10 +47,11 @@ _ALL_TOOL_FACTORIES = {
     "cron": lambda: make_meta_tools()[0],
     "wait": lambda: make_meta_tools()[2],
     "current_status": lambda: make_meta_tools()[1],
+    "switch_mode": lambda flag=None: make_switch_mode_tool(flag),
 }
 
 
-def resolve_tools_for_mode(mode_id: str, sub_agent_executor=None, tavily_api_key=None):
+def resolve_tools_for_mode(mode_id: str, sub_agent_executor=None, tavily_api_key=None, mode_switch_flag=None):
     from cococat.core.modes import load_mode
 
     mode = load_mode(mode_id)
@@ -64,6 +65,8 @@ def resolve_tools_for_mode(mode_id: str, sub_agent_executor=None, tavily_api_key
                     parameters={"task": "string", "agent_id": "string"},
                     execute=lambda params, ctx, executor=sub_agent_executor: executor(params.get("task", ""), params.get("agent_id", "sub")),
                 ))
+        elif tool_name == "switch_mode":
+            tools.append(make_switch_mode_tool(mode_switch_flag))
         elif tool_name in _ALL_TOOL_FACTORIES:
             try:
                 factory = _ALL_TOOL_FACTORIES[tool_name]

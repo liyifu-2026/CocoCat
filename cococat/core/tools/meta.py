@@ -74,3 +74,27 @@ def make_meta_tools() -> list:
              parameters={"seconds": "number"},
              execute=lambda p, ctx: _wait(p.get("seconds", 0))),
     ]
+
+
+def make_switch_mode_tool(mode_switch_flag: list | None = None):
+    """Create a switch_mode tool that writes the target mode to a mutable flag list.
+
+    The flag list is provided by the chat route and checked after Agent.run()
+    returns to include mode_switch in the response JSON.
+    """
+    from cococat.core.tools.types import _make
+
+    def _switch_mode(params: dict, ctx) -> str:
+        target = params.get("target_mode", "")
+        if not target:
+            return "Error: 'target_mode' is required"
+        if mode_switch_flag is not None:
+            mode_switch_flag.append(target)
+        return f"Mode switch suggested: {target}"
+
+    return _make(
+        name="switch_mode",
+        description="Suggest switching to another mode for upcoming messages. Use when the user's request needs tools available in a different mode.",
+        params={"target_mode": "string", "reason": "string"},
+        execute_fn=_switch_mode,
+    )
