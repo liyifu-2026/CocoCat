@@ -1,5 +1,8 @@
 """KB routes — file upload, list, search, wiki pages."""
 import asyncio
+import shutil
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from cococat.app import get_ctx
@@ -35,6 +38,50 @@ def _trigger_ingest(ctx: AppContext, kb_name: str, filename: str) -> None:
             mode="kb-admin",
             tools=tools,
         ))
+
+
+RAW_DIR_NAME = ".raw"
+
+
+def _raw_dir(ctx: AppContext) -> Path:
+    return Path(str(ctx.config_store.knowledge_dir)) / RAW_DIR_NAME
+
+
+@router.get("/.raw")
+async def list_raw_files(ctx: AppContext = Depends(get_ctx)):
+    raw = _raw_dir(ctx)
+    if not raw.exists():
+        return {"files": []}
+    files = []
+    for f in raw.iterdir():
+        if f.is_file():
+            files.append({"name": f.name, "size": f.stat().st_size})
+    return {"files": files}
+
+
+@router.post("/.raw/upload")
+async def upload_raw_file(
+    file: UploadFile = File(...),
+    ctx: AppContext = Depends(get_ctx),
+):
+    raw = _raw_dir(ctx)
+    raw.mkdir(parents=True, exist_ok=True)
+    dest = raw / file.filename
+    with dest.open("wb") as f:
+        shutil.copyfileobj(file.file, f)
+    return {"ok": True, "filename": file.filename}
+
+
+@router.delete("/.raw/{filename}")
+async def delete_raw_file(
+    filename: str,
+    ctx: AppContext = Depends(get_ctx),
+):
+    raw = _raw_dir(ctx)
+    fpath = raw / filename
+    if fpath.exists():
+        fpath.unlink()
+    return {"ok": True}
 
 
 @router.post("/{kb_name}/upload")
