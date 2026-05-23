@@ -599,5 +599,10 @@ const en: Record<string, string> = {
   "display.avatar": "Avatar Icon",
   "display.color": "Color",
   "display.gender_default": "gender default:",
+
+  // Bookshelf
+  "bookshelf.search": "Search KB...",
+  "bookshelf.select_kb": "Select a knowledge base",
+  "bookshelf.new_kb": "New KB",
 }
 export default en

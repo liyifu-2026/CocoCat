@@ -599,5 +599,10 @@ const zh: Record<string, string> = {
   "display.avatar": "头像图标",
   "display.color": "颜色",
   "display.gender_default": "性别默认：",
+
+  // Bookshelf
+  "bookshelf.search": "搜索知识库...",
+  "bookshelf.select_kb": "选择一个知识库",
+  "bookshelf.new_kb": "新建知识库",
 }
 export default zh
