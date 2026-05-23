@@ -1,6 +1,6 @@
 """Web tools — search and fetch."""
 
-from cococat.core.types import ToolContext
+from cococat.core.types import ToolContext, WebEnv
 
 try:
     from tavily import TavilyClient
@@ -8,12 +8,7 @@ except ImportError:
     TavilyClient = None
 
 
-def _resolve(ctx) -> ToolContext:
-    return ToolContext.from_dict(ctx)
-
-
 def _web_search(query: str, ctx: ToolContext) -> str:
-    ctx = _resolve(ctx)
     if not query:
         return "Error: 'query' is required"
     api_key = ctx.web.tavily_api_key
@@ -54,14 +49,13 @@ def _web_fetch(url: str) -> str:
         return f"Error fetching {url}: {e}"
 
 
-def make_web_tools(tavily_api_key=None) -> list:
-    from cococat.core.tools.types import Tool, _merge_ctx
-    from cococat.core.types import WebEnv
-    return [
-        Tool(name="web_search", description="Search the web",
+def make_web_tools(tavily_api_key=None) -> dict:
+    from cococat.core.tools.types import Tool, _with_env
+    return {
+        "web_search": Tool(name="web_search", description="Search the web",
              parameters={"query": "string"},
-             execute=lambda p, ctx: _web_search(p.get("query", ""), _merge_ctx(ctx, web=WebEnv(tavily_api_key=tavily_api_key)))),
-        Tool(name="web_fetch", description="Fetch URL content",
+             execute=lambda p, ctx: _web_search(p.get("query", ""), _with_env(ctx, web=WebEnv(tavily_api_key=tavily_api_key)))),
+        "web_fetch": Tool(name="web_fetch", description="Fetch URL content",
              parameters={"url": "string"},
              execute=lambda p, ctx: _web_fetch(p.get("url", ""))),
-    ]
+    }

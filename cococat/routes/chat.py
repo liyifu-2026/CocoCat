@@ -2,9 +2,9 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from cococat.db import new_uuid
 from cococat.app import get_ctx
 from cococat.context import AppContext
+from cococat.core.chat_service import ChatService
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -17,82 +17,17 @@ class ChatRequest(BaseModel):
     mode: str = "default"
 
 
-# ── shared sandbox chat runner ──────────────────────────────
-
-async def _run_sandbox_chat(
-    ctx: AppContext,
-    agent_id: str,
-    prompt: str,
-    session_id: str | None,
-    tools: list,
-    mode: str = "default",
-    scene_id: str = "default",
-    user_id: str = "local",
-) -> str:
-    sandbox_provider = ctx.sandbox_provider
-    if not sandbox_provider:
-        return f"[System] ExecutorProvider not available for agent '{agent_id}'"
-
-    async def on_event(event_type: str, data: dict):
-        await ctx.ws_manager.broadcast(event_type, {
-            **(data or {}),
-            "agent_id": agent_id,
-            "session_id": session_id,
-        })
-
-    return await sandbox_provider.run_once(
-        prompt=prompt,
-        agent_id=agent_id,
-        tools=tools,
-        on_event=on_event,
-        session_id=session_id,
-        mode=mode,
-        scene_id=scene_id,
-        user_id=user_id,
-    )
-
-
-# ── Routes ─────────────────────────────────────────────────
-
-
 @router.post("/chat")
 async def chat(body: ChatRequest, ctx: AppContext = Depends(get_ctx)):
     user_id = ctx.user_id or body.user_id or "local"
-    msg_uuid = new_uuid()
-    msg_store = ctx.db.messages
-    msg_store.save(
-        msg_uuid=msg_uuid, agent_id="main", user_id=user_id,
-        role="user", content=body.content, scene_id=body.scene_id,
-        channel_type="web",
+    service = ChatService(ctx)
+    return await service.chat(
+        body.content,
+        user_id=user_id,
+        scene_id=body.scene_id,
+        session_id=body.session_id,
+        mode=body.mode,
     )
-
-    from cococat.core.tools import resolve_tools_for_mode, resolve_tavily_key
-    sub_executor = ctx.sub_executor
-    tavily_key = resolve_tavily_key(ctx.config_store)
-
-    mode_switch_flag: list[str] = []
-    tools = resolve_tools_for_mode(
-        body.mode,
-        sub_agent_executor=sub_executor.dispatch if sub_executor else None,
-        tavily_api_key=tavily_key,
-        mode_switch_flag=mode_switch_flag,
-    )
-
-    try:
-        reply = await _run_sandbox_chat(ctx, "main", body.content, body.session_id, tools, mode=body.mode, scene_id=body.scene_id, user_id=user_id)
-    except Exception as e:
-        reply = f"Error: {e}"
-
-    reply_uuid = new_uuid()
-    msg_store.save(
-        msg_uuid=reply_uuid, agent_id="main", user_id=user_id,
-        role="assistant", content=reply, scene_id=body.scene_id,
-    )
-
-    response = {"reply": reply, "msg_uuid": reply_uuid}
-    if mode_switch_flag:
-        response["mode_switch"] = mode_switch_flag[0]
-    return response
 
 
 @router.delete("/chat/session/{session_id}")
@@ -136,22 +71,5 @@ async def list_modes_route():
 
 @router.get("/chat/history")
 async def chat_history(ctx: AppContext = Depends(get_ctx), scene_id: str = "default", limit: int = 50, session_id: str = ""):
-    """Get chat history. If session_id provided, reads from session file."""
-    if session_id:
-        import os, json as _json
-        user = ctx.user_id or "local"
-        path = os.path.join("scenes", scene_id, "sessions", user, f"{session_id}.jsonl")
-        if not os.path.exists(path):
-            return {"messages": []}
-        msgs = []
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
-                        msg = _json.loads(line)
-                        msgs.append({"role": msg.get("role", ""), "content": msg.get("content", "")})
-                    except _json.JSONDecodeError:
-                        pass
-        return {"messages": msgs}
-    return {"messages": ctx.db.messages.get_chat_history(scene_id, limit, user_id=ctx.user_id)}
+    service = ChatService(ctx)
+    return await service.get_history(scene_id=scene_id, limit=limit, session_id=session_id)

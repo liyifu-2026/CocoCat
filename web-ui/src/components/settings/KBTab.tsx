@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import { useT } from "@/context/LanguageContext"
 import type { TabData } from '@/types/settings'
 export function KBTab({ data, onUpdate }: { data: TabData; onUpdate: () => void }) {
   const [uploading, setUploading] = useState(false)
   const kbs = data?.kbs || []
+  const t = useT()
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -20,13 +22,13 @@ export function KBTab({ data, onUpdate }: { data: TabData; onUpdate: () => void 
   return (
     <div className="space-y-4 stagger-1">
       <div className="flex gap-2 overflow-x-auto pb-2">
-{kbs.map((kb: { id: string; purpose?: string }) => (
+        {kbs.map((kb: { id: string; purpose?: string }) => (
           <button key={kb.id} className="shrink-0 rounded-full bg-secondary/10 text-secondary px-4 py-1.5 text-sm hover:bg-secondary/20 transition-all duration-200">
             {kb.id}
           </button>
         ))}
         <button className="shrink-0 rounded-full border border-dashed border-border px-4 py-1.5 text-sm text-muted-foreground/60 hover:text-foreground hover:border-foreground/30 transition-all duration-200">
-          + New KB
+          {t("kb.new")}
         </button>
       </div>
 
@@ -37,7 +39,7 @@ export function KBTab({ data, onUpdate }: { data: TabData; onUpdate: () => void 
             {uploading ? <Loader2 className="inline size-5 animate-spin" /> : "📄"}
           </p>
           <p className="text-sm text-muted-foreground/60">
-            {uploading ? "Uploading..." : "Click or drag files to upload"}
+            {uploading ? t("kb.uploading") : t("kb.drop_hint")}
           </p>
         </label>
       </div>

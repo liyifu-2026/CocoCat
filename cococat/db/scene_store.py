@@ -73,7 +73,9 @@ class SceneStore:
             tuple(values),
         )
         self._db.commit()
-        return self._db._conn.total_changes > 0
+        return self._db.fetch_one(
+            "SELECT changes() AS n"
+        )["n"] > 0
 
     def set_status(self, scene_id: str, status: str) -> bool:
         """Transition scene to new status."""
@@ -89,14 +91,16 @@ class SceneStore:
                 (status, now, scene_id),
             )
         self._db.commit()
-        return self._db._conn.total_changes > 0
+        return self._db.fetch_one(
+            "SELECT changes() AS n"
+        )["n"] > 0
 
     def get_full(self, scene_id: str) -> dict | None:
         """Get scene with all config fields hydrated."""
         import json
-        row = self._db._conn.execute(
+        row = self._db.fetch_one(
             "SELECT * FROM scenes WHERE id = ?", (scene_id,)
-        ).fetchone()
+        )
         if not row:
             return None
         d = dict(row)

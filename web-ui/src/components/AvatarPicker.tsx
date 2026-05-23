@@ -1,3 +1,4 @@
+import { useT } from "@/context/LanguageContext"
 import { AVATAR_ICONS, GENDER_COLORS, DEFAULT_COLORS } from "./avatars"
 
 interface AvatarPickerProps {
@@ -10,13 +11,14 @@ interface AvatarPickerProps {
 
 export function AvatarPicker({ currentAvatar, currentColor, gender, onAvatarChange, onColorChange }: AvatarPickerProps) {
   const genderPalette = gender ? GENDER_COLORS[gender] : null
+  const t = useT()
 
   return (
     <div className="space-y-4">
       <div>
         <label className="text-sm font-medium mb-2 block">
-          Avatar Icon
-          {gender && <span className="text-muted-foreground ml-1">({gender === "male" ? "Suggest: tech icons" : "Suggest: nature icons"})</span>}
+          {t("avatar.icon")}
+          {gender && <span className="text-muted-foreground ml-1">({gender === "male" ? t("avatar.suggest_tech") : t("avatar.suggest_nature")})</span>}
         </label>
         <div className="flex gap-1.5 flex-wrap">
           {AVATAR_ICONS.map(icon => {
@@ -36,8 +38,8 @@ export function AvatarPicker({ currentAvatar, currentColor, gender, onAvatarChan
       </div>
       <div>
         <label className="text-sm font-medium mb-2 block">
-          Color
-          {genderPalette && <span className="text-muted-foreground ml-1">(gender default: <span style={{ color: genderPalette.bg }}>●</span>)</span>}
+          {t("avatar.color")}
+          {genderPalette && <span className="text-muted-foreground ml-1">({t("avatar.gender_default")} <span style={{ color: genderPalette.bg }}>●</span>)</span>}
         </label>
         <div className="flex gap-2 flex-wrap">
           {DEFAULT_COLORS.map(c => (

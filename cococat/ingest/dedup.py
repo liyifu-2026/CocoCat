@@ -7,7 +7,7 @@ import logging
 import os
 from typing import Any
 
-from cococat.ingest.merge import parse_frontmatter, backup_page
+from cococat.ingest.merge import parse_frontmatter, backup_page, merge_page, update_index_remove
 
 logger = logging.getLogger("cococat.ingest.dedup")
 
@@ -145,9 +145,10 @@ Return empty array [] if no duplicates found."""
         if len(slugs) < 2:
             return False
 
-        # Find all pages in the group
         pages = self._summarize_all()
         group_pages = [p for p in pages if p["slug"] in slugs]
+        if len(group_pages) < 2:
+            return False
 
         keeper = group_pages[0]
         to_merge = group_pages[1:]
@@ -155,70 +156,17 @@ Return empty array [] if no duplicates found."""
         keeper_path = os.path.join(self._kb_dir, "wiki", keeper["path"])
         backup_dir = os.path.join(self._kb_dir, ".llm-wiki", "page-history")
 
-        with open(keeper_path, encoding="utf-8") as f:
-            keeper_content = f.read()
-
         for dup in to_merge:
             dup_path = os.path.join(self._kb_dir, "wiki", dup["path"])
-
             with open(dup_path, encoding="utf-8") as f:
                 dup_content = f.read()
 
-            # Merge via LLM
-            merged = await self._llm_merge(keeper_content, dup_content)
-
-            # Write merged content
+            merged = await merge_page(keeper_path, dup_content, self._llm, backup_dir)
             with open(keeper_path, "w", encoding="utf-8") as f:
                 f.write(merged)
 
-            keeper_content = merged
-
-            # Remove duplicate
             backup_page(dup_path, backup_dir)
             os.remove(dup_path)
 
-        # Update index
-        slugs_to_remove = set(slugs[1:])
-        self._update_index_remove(slugs_to_remove)
-
+        update_index_remove(self._kb_dir, set(slugs[1:]))
         return True
-
-    async def _llm_merge(self, page1: str, page2: str) -> str:
-        """LLM merges two wiki pages into one."""
-        prompt = f"""Merge these two wiki pages into one coherent page.
-Combine all information. Remove duplicates. Preserve structure and wikilinks.
-Union frontmatter fields (sources, tags, related).
-
-PAGE 1:
-{page1[:3000]}
-
-PAGE 2:
-{page2[:3000]}
-
-MERGED:"""
-
-        try:
-            result = await self._llm.chat(
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return result.content or ""
-        except Exception:
-            return page1 + "\n\n## From merged page\n" + page2
-
-    def _update_index_remove(self, slugs: set[str]) -> None:
-        """Remove entries from index.md."""
-        index_path = os.path.join(self._kb_dir, "index.md")
-        if not os.path.exists(index_path):
-            return
-        with open(index_path, encoding="utf-8") as f:
-            lines = f.readlines()
-
-        new_lines = []
-        for line in lines:
-            stripped = line.strip()
-            if stripped.startswith("- ") and stripped[2:].strip() in slugs:
-                continue
-            new_lines.append(line)
-
-        with open(index_path, "w", encoding="utf-8") as f:
-            f.writelines(new_lines)

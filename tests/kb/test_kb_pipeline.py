@@ -529,13 +529,13 @@ def test_remove_wikilink():
 
 
 def test_cascade_update_index_remove():
-    from cococat.ingest.cascade import _update_index_remove
+    from cococat.ingest.merge import update_index_remove
     with tempfile.TemporaryDirectory() as d:
         index_path = os.path.join(d, "index.md")
         with open(index_path, "w") as f:
             f.write("# Index\n- page-a\n- page-b\n- page-c\n")
 
-        _update_index_remove({"page-b"}, d)
+        update_index_remove(d, {"page-b"})
         with open(index_path) as f:
             content = f.read()
         assert "page-a" in content
@@ -601,17 +601,14 @@ def test_dedup_load_save_not_duplicates():
 
 
 def test_dedup_update_index_remove():
-    from cococat.ingest.dedup import DedupPipeline
-
-    class FakeLLM: pass
+    from cococat.ingest.merge import update_index_remove
 
     with tempfile.TemporaryDirectory() as d:
-        dp = DedupPipeline(FakeLLM(), d)
         index_path = os.path.join(d, "index.md")
         with open(index_path, "w") as f:
             f.write("- slug-a\n- slug-b\n- slug-c\n- slug-d\n")
 
-        dp._update_index_remove({"slug-b", "slug-d"})
+        update_index_remove(d, {"slug-b", "slug-d"})
         with open(index_path) as f:
             content = f.read()
         assert "slug-a" in content

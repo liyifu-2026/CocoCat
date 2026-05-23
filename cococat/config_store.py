@@ -42,7 +42,6 @@ class ConfigStore:
         self._channels_cache: dict | None = None
         self._env_cache: dict[str, str] | None = None
         self._coco_prompt_cache: str | None | _MISSING = _MISSING
-        self._residents_cache: dict[str, dict] | None = None
 
     # ── paths ────────────────────────────────────────────────
 
@@ -288,28 +287,7 @@ class ConfigStore:
         return False
 
     # ── residents ────────────────────────────────────────────
-
-    def get_resident_configs(self) -> dict[str, dict]:
-        if self._residents_cache is None:
-            configs: dict[str, dict] = {}
-            dir_ = self.residents_dir
-            if dir_.is_dir():
-                for f in sorted(dir_.iterdir()):
-                    if f.suffix.lower() in (".yaml", ".yml"):
-                        try:
-                            data = yaml.safe_load(f.read_text(encoding="utf-8"))
-                            if isinstance(data, dict) and "id" in data:
-                                configs[data["id"]] = data
-                        except (yaml.YAMLError, OSError):
-                            logger.warning("Failed to load resident config: %s", f)
-            self._residents_cache = configs
-        return dict(self._residents_cache)
-
-    def save_resident_config(self, agent_id: str, config: dict) -> None:
-        self.residents_dir.mkdir(parents=True, exist_ok=True)
-        path = self.residents_dir / f"{agent_id}.yaml"
-        path.write_text(yaml.safe_dump(config, allow_unicode=True), encoding="utf-8")
-        self._residents_cache = None  # invalidate
+    # residents_dir property kept per ADR-0003
 
     def invalidate(self) -> None:
         """Clear all caches. Useful after config file changes outside this store."""
@@ -320,7 +298,6 @@ class ConfigStore:
         self._channels_cache = None
         self._env_cache = None
         self._coco_prompt_cache = _MISSING
-        self._residents_cache = None
 
 
 class _Missing:

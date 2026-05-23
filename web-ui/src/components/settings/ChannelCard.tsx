@@ -1,4 +1,5 @@
 import { Circle } from "lucide-react"
+import { useT } from "@/context/LanguageContext"
 import type { ChannelTypeInfo, MainChannelInfo } from "@/types/settings"
 import { CHANNEL_ICONS } from "@/lib/channel-icons"
 
@@ -8,50 +9,43 @@ interface ChannelCardProps {
   onClick: () => void
 }
 
-const CAPABILITY_LABELS: Record<string, string> = {
-  text: "文字", image: "图片", voice: "语音", file: "文件",
-  video: "视频", card: "卡片", streaming: "流式", threads: "多线程",
-  reactions: "反馈", sticker: "表情", link: "链接", post: "富文本",
-  event: "事件", location: "位置",
-}
-
-const STATUS_STYLES: Record<string, { border: string; bg: string; dot: string; text: string; label: string }> = {
-  connected: {
-    border: "border-green-400", bg: "bg-emerald-500/10",
-    dot: "text-green-500 fill-green-500", text: "text-emerald-400",
-    label: "已连接",
-  },
-  connecting: {
-    border: "border-blue-400", bg: "bg-blue-500/10",
-    dot: "text-blue-500 fill-blue-500", text: "text-blue-400",
-    label: "连接中",
-  },
-  configured: {
-    border: "border-amber-400", bg: "bg-amber-500/10",
-    dot: "text-amber-500 fill-amber-500", text: "text-amber-400",
-    label: "已配置",
-  },
-  unconfigured: {
-    border: "border-border", bg: "",
-    dot: "text-muted-foreground/30 fill-muted-foreground/30", text: "text-muted-foreground/50",
-    label: "未配置",
-  },
-}
-
 export function ChannelCard({ typeInfo, mainInfo, onClick }: ChannelCardProps) {
+  const t = useT()
   const IconComp = CHANNEL_ICONS[typeInfo.channel_type]
   const status = mainInfo?.status ?? "unconfigured"
+
+  const STATUS_STYLES: Record<string, { border: string; bg: string; dot: string; text: string; labelKey: string }> = {
+    connected: {
+      border: "border-green-400", bg: "bg-emerald-500/10",
+      dot: "text-green-500 fill-green-500", text: "text-emerald-400",
+      labelKey: "channel.status_connected",
+    },
+    connecting: {
+      border: "border-blue-400", bg: "bg-blue-500/10",
+      dot: "text-blue-500 fill-blue-500", text: "text-blue-400",
+      labelKey: "channel.status_connecting",
+    },
+    configured: {
+      border: "border-amber-400", bg: "bg-amber-500/10",
+      dot: "text-amber-500 fill-amber-500", text: "text-amber-400",
+      labelKey: "channel.status_configured",
+    },
+    unconfigured: {
+      border: "border-border", bg: "",
+      dot: "text-muted-foreground/30 fill-muted-foreground/30", text: "text-muted-foreground/50",
+      labelKey: "channel.status_unconfigured",
+    },
+  }
   const style = STATUS_STYLES[status]!
 
-  // Collect capability tag labels
   const tags: string[] = []
   const caps = typeInfo.capabilities
-  for (const key of ["text", "image", "voice", "file", "video"] as const) {
-    if (caps.send.includes(key) || caps.receive.includes(key)) tags.push(CAPABILITY_LABELS[key]!)
+  const capKeys = ["text", "image", "voice", "file", "video", "card", "streaming", "threads", "reactions", "sticker", "link", "post", "event", "location"] as const
+  for (const key of capKeys) {
+    if (key === "card" ? caps.cards : key === "streaming" ? caps.streaming : key === "threads" ? caps.threads : key === "reactions" ? caps.reactions : caps.send.includes(key) || caps.receive.includes(key)) {
+      tags.push(t(`channel.cap_${key}`))
+    }
   }
-  if (caps.cards) tags.push(CAPABILITY_LABELS["card"]!)
-  if (caps.streaming) tags.push(CAPABILITY_LABELS["streaming"]!)
-  if (caps.threads) tags.push(CAPABILITY_LABELS["threads"]!)
 
   return (
     <button
@@ -74,7 +68,7 @@ export function ChannelCard({ typeInfo, mainInfo, onClick }: ChannelCardProps) {
       </div>
       <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium ${style.bg ? style.bg : 'bg-muted'} ${style.text}`}>
         <Circle className={`size-1.5 ${style.dot}`} />
-        {style.label}
+        {t(style.labelKey)}
       </div>
     </button>
   )

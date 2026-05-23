@@ -1,4 +1,5 @@
 import { AlertCircle, RefreshCw } from "lucide-react"
+import { useT } from "@/context/LanguageContext"
 import type { ChannelTypeInfo, MainChannelInfo } from "@/types/settings"
 import { ChannelCard } from "./ChannelCard"
 
@@ -12,6 +13,8 @@ interface PlatformGridProps {
 }
 
 export function PlatformGrid({ typeInfos, mainChannels, onCardClick, loading, error, onRetry }: PlatformGridProps) {
+  const t = useT()
+
   if (loading) {
     return (
       <div className="grid grid-cols-3 gap-3">
@@ -30,7 +33,7 @@ export function PlatformGrid({ typeInfos, mainChannels, onCardClick, loading, er
         {onRetry && (
           <button onClick={onRetry} className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent transition-colors">
             <RefreshCw className="size-3" />
-            重试
+            {t("platform.retry")}
           </button>
         )}
       </div>
@@ -40,7 +43,7 @@ export function PlatformGrid({ typeInfos, mainChannels, onCardClick, loading, er
   if (typeInfos.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-12 text-center">
-        <p className="text-sm text-muted-foreground/60">暂无可用的渠道类型</p>
+        <p className="text-sm text-muted-foreground/60">{t("platform.empty")}</p>
       </div>
     )
   }

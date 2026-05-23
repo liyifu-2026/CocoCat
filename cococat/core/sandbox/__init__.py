@@ -9,83 +9,14 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
+from cococat.core.sandbox.base import Executor  # noqa: F401 — re-export
 from cococat.core.sandbox.sandbox import Sandbox  # noqa: F401 — re-export
 from cococat.core.sandbox.local_executor import InProcessExecutor  # noqa: F401 — re-export
 from cococat.core.sandbox.cubesandbox import CubeSandboxExecutor  # noqa: F401 — re-export
 
-__all__ = ["Sandbox", "ExecutorProvider", "InProcessExecutor", "CubeSandboxExecutor"]
+__all__ = ["Sandbox", "ExecutorProvider", "Executor", "InProcessExecutor", "CubeSandboxExecutor"]
 
 logger = logging.getLogger("cococat.sandbox")
-
-
-
-import os as _os
-
-
-def _resolve_agents_dir(scene_id: str | None = None, user_id: str | None = None) -> str:
-    from cococat.core.paths import session_dir
-    return session_dir(scene_id or "default", user_id or "local")
-
-
-async def _make_and_run_agent(
-    agent_id: str,
-    prompt: str,
-    tools: list[dict],
-    resolve_llm: Callable[[str], Any],
-    session_id: str | None = None,
-    on_event: Callable | None = None,
-    agents_dir: str | None = None,
-    mode: str = "default",
-    scene_id: str | None = None,
-    user_id: str | None = None,
-) -> str:
-    """Create an Agent with WORKER role and run it, returning the result.
-
-    Shared by InProcessExecutor and CubeSandboxExecutor to avoid
-    duplicating Agent construction and agent.run() boilerplate.
-    """
-    from cococat.core.agent import Agent, AgentRole, load_agent_config
-
-    llm = resolve_llm(agent_id)
-    if not llm:
-        return f"[System] No LLM provider for agent '{agent_id}'"
-
-    if agents_dir is None:
-        agents_dir = _resolve_agents_dir(scene_id=scene_id, user_id=user_id)
-
-    agent_dir = _os.path.join(agents_dir, agent_id)
-    agent_config = load_agent_config(agent_dir, base_tools=tools)
-    agent = Agent(config=agent_config, llm=llm)
-
-    try:
-        ctx = {"session_id": session_id, "scene_id": scene_id, "user_id": user_id}
-        result = await agent.run(
-            prompt,
-            context=ctx,
-            on_text=(lambda t: on_event("text_delta", {"content": t})) if on_event else None,
-            on_tool=(lambda n, s, d=None: on_event("stream_tool", {"name": n, "status": s, **(d or {})})) if on_event else None,
-            on_reasoning=(lambda c: on_event("stream_reasoning", {"content": c})) if on_event else None,
-        )
-        return result
-    except Exception as e:
-        logger.exception("_make_and_run_agent failed for %s", agent_id)
-        return f"Error: {e}"
-
-class Executor:
-    """Abstract executor backend."""
-
-    async def create(self, template: str, permissions: dict) -> Sandbox:
-        raise NotImplementedError
-
-    async def run(self, sandbox: Sandbox, task: str,
-                  agent_id: str = "coco", mode: str = "default",
-                  scene_id: str | None = None, user_id: str | None = None,
-                  on_event: Callable | None = None, tools: list | None = None,
-                  session_id: str | None = None) -> str:
-        raise NotImplementedError
-
-    async def destroy(self, sandbox: Sandbox) -> None:
-        raise NotImplementedError
 
 
 class ExecutorProvider:

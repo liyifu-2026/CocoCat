@@ -1,11 +1,12 @@
 import { Users, Lightbulb, BookOpen, FileText, Calendar, ArrowUpRight, Layers, Tag } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useT } from "@/context/LanguageContext"
 
-const TYPE_CONFIG: Record<string, { icon: typeof Users; label: string; color: string }> = {
-  entity:    { icon: Users,     label: "Entity",    color: "text-blue-500" },
-  concept:   { icon: Lightbulb, label: "Concept",   color: "text-purple-500" },
-  source:    { icon: BookOpen,  label: "Source",    color: "text-orange-500" },
-  query:     { icon: FileText,  label: "Query",     color: "text-green-500" },
+const TYPE_CONFIG: Record<string, { icon: typeof Users; labelKey: string; color: string }> = {
+  entity:    { icon: Users,     labelKey: "frontmatter.entity",    color: "text-blue-500" },
+  concept:   { icon: Lightbulb, labelKey: "frontmatter.concept",   color: "text-purple-500" },
+  source:    { icon: BookOpen,  labelKey: "frontmatter.source",    color: "text-orange-500" },
+  query:     { icon: FileText,  labelKey: "frontmatter.query",     color: "text-green-500" },
 }
 
 interface FrontmatterPanelProps {
@@ -13,8 +14,9 @@ interface FrontmatterPanelProps {
 }
 
 export function FrontmatterPanel({ frontmatter }: FrontmatterPanelProps) {
+  const t = useT()
   const type = frontmatter.type?.toLowerCase() ?? ""
-  const typeStyle = TYPE_CONFIG[type] ?? { icon: FileText, label: type || "Page", color: "text-muted-foreground" }
+  const typeStyle = TYPE_CONFIG[type] ?? { icon: FileText, labelKey: "frontmatter.page", color: "text-muted-foreground" }
   const TypeIcon = typeStyle.icon
   const tags = frontmatter.tags?.split(",").map(t => t.trim()).filter(Boolean) ?? []
   const sources = frontmatter.sources?.split(",").map(s => s.trim()).filter(Boolean) ?? []
@@ -31,7 +33,7 @@ export function FrontmatterPanel({ frontmatter }: FrontmatterPanelProps) {
             <div className="text-base font-semibold">{frontmatter.title}</div>
           )}
           <div className="flex flex-wrap items-center gap-1.5 mt-1">
-            <Badge variant="outline" className="text-xs">{typeStyle.label}</Badge>
+            <Badge variant="outline" className="text-xs">{t(typeStyle.labelKey)}</Badge>
             {frontmatter.created && (
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                 <Calendar className="size-3" /> {frontmatter.created}
@@ -52,14 +54,14 @@ export function FrontmatterPanel({ frontmatter }: FrontmatterPanelProps) {
 
       {frontmatter.origin && (
         <div className="rounded border-l-2 border-primary/40 bg-primary/5 px-3 py-1.5 text-xs text-foreground/80">
-          <span className="font-medium text-muted-foreground">Origin: </span>{frontmatter.origin}
+          <span className="font-medium text-muted-foreground">{t("frontmatter.origin")} </span>{frontmatter.origin}
         </div>
       )}
 
       {sources.length > 0 && (
         <div>
           <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
-            <Layers className="size-3" /> Sources ({sources.length})
+            <Layers className="size-3" /> {t("frontmatter.sources")} ({sources.length})
           </div>
           <div className="flex flex-wrap gap-1">
             {sources.map((s, i) => (
@@ -74,7 +76,7 @@ export function FrontmatterPanel({ frontmatter }: FrontmatterPanelProps) {
       {related.length > 0 && (
         <div>
           <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
-            <ArrowUpRight className="size-3" /> Related
+            <ArrowUpRight className="size-3" /> {t("frontmatter.related")}
           </div>
           <div className="flex flex-wrap gap-1">
             {related.map((r, i) => (

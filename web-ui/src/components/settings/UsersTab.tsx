@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Loader2, Plus, Trash2, KeyRound } from "lucide-react"
 import { toast } from "sonner"
+import { useT } from "@/context/LanguageContext"
 
 interface User {
   id: string
@@ -18,6 +19,7 @@ export function UsersTab() {
   const [pwTarget, setPwTarget] = useState<string | null>(null)
   const [pwVal, setPwVal] = useState("")
   const [pwSaving, setPwSaving] = useState(false)
+  const t = useT()
 
   const load = () => {
     fetch("/api/users")
@@ -26,7 +28,7 @@ export function UsersTab() {
       .finally(() => setLoaded(true))
   }
 
-  if (!loaded) { load(); return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> 加载中...</div> }
+  if (!loaded) { load(); return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> {t("users.loading")}</div> }
 
   const add = async () => {
     if (!newUser.trim() || newPass.length < 4) return
@@ -37,8 +39,8 @@ export function UsersTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: newUser.trim(), password: newPass }),
       })
-      if (!resp.ok) { toast.error("创建失败"); return }
-      toast.success(`用户 ${newUser.trim()} 已创建`)
+      if (!resp.ok) { toast.error(t("users.create_fail")); return }
+      toast.success(`${t("users.created")}: ${newUser.trim()}`)
       setNewUser("")
       setNewPass("")
       load()
@@ -49,9 +51,9 @@ export function UsersTab() {
     setDeleting(id)
     try {
       await fetch(`/api/users/${encodeURIComponent(id)}`, { method: "DELETE" })
-      toast.success(`用户 ${id} 已删除`)
+      toast.success(`${t("users.deleted")}: ${id}`)
       load()
-    } catch { toast.error("删除失败") }
+    } catch { toast.error(t("users.delete_fail")) }
     finally { setDeleting(null) }
   }
 
@@ -64,8 +66,8 @@ export function UsersTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: pwVal }),
       })
-      if (!resp.ok) { toast.error("改密失败"); return }
-      toast.success(`用户 ${pwTarget} 密码已重置`)
+      if (!resp.ok) { toast.error(t("users.pw_fail")); return }
+      toast.success(`${pwTarget} ${t("users.pw_reset")}`)
       setPwTarget(null)
       setPwVal("")
     } finally { setPwSaving(false) }
@@ -74,9 +76,9 @@ export function UsersTab() {
   return (
     <div className="space-y-4 py-3">
       <div className="space-y-3">
-        <h3 className="text-sm font-medium">用户列表</h3>
+        <h3 className="text-sm font-medium">{t("users.list_title")}</h3>
         {users.length === 0 ? (
-          <p className="text-xs text-muted-foreground">暂无用户</p>
+          <p className="text-xs text-muted-foreground">{t("users.empty")}</p>
         ) : (
           <div className="space-y-1">
             {users.map(u => (
@@ -90,7 +92,7 @@ export function UsersTab() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button onClick={() => { setPwTarget(pwTarget === u.id ? null : u.id); setPwVal("") }}
-                      className="text-muted-foreground hover:text-foreground transition-colors p-1" title="修改密码">
+                      className="text-muted-foreground hover:text-foreground transition-colors p-1" title={t("users.change_pw")}>
                       <KeyRound className="size-3.5" />
                     </button>
                     <button onClick={() => remove(u.id)} disabled={deleting === u.id}
@@ -101,13 +103,13 @@ export function UsersTab() {
                 </div>
                 {pwTarget === u.id && (
                   <div className="flex gap-2 mt-1 pl-1">
-                    <input type="password" value={pwVal} placeholder="新密码（≥4位）" autoFocus autoComplete="new-password"
+                    <input type="password" value={pwVal} placeholder={t("users.new_pw_placeholder")} autoFocus autoComplete="new-password"
                       onChange={e => setPwVal(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") resetPw() }}
                       className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
                     <button onClick={resetPw} disabled={pwSaving || pwVal.length < 4}
                       className="shrink-0 rounded-lg bg-blue-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-blue-700 disabled:opacity-40">
-                      {pwSaving ? <Loader2 className="size-3.5 animate-spin" /> : "确认"}
+                      {pwSaving ? <Loader2 className="size-3.5 animate-spin" /> : t("users.confirm")}
                     </button>
                   </div>
                 )}
@@ -118,20 +120,20 @@ export function UsersTab() {
       </div>
 
       <div className="border-t border-border/50 pt-4 space-y-3">
-        <h3 className="text-sm font-medium">添加用户</h3>
+        <h3 className="text-sm font-medium">{t("users.add_title")}</h3>
         <div className="flex gap-2">
-          <input type="text" value={newUser} placeholder="用户名" autoComplete="off"
+          <input type="text" value={newUser} placeholder={t("users.username_placeholder")} autoComplete="off"
             onChange={e => setNewUser(e.target.value)}
             className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           />
-          <input type="password" value={newPass} placeholder="密码（≥4位）" autoComplete="new-password"
+          <input type="password" value={newPass} placeholder={t("users.password_placeholder")} autoComplete="new-password"
             onChange={e => setNewPass(e.target.value)}
             className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           />
           <button onClick={add} disabled={adding || !newUser.trim() || newPass.length < 4}
             className="shrink-0 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-xs font-medium hover:bg-primary/90 disabled:opacity-40 flex items-center gap-1.5">
             {adding ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-            添加
+            {t("users.add_btn")}
           </button>
         </div>
       </div>

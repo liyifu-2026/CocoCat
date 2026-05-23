@@ -55,6 +55,9 @@ class MemoryStore:
         return await self._dream.dream(session_path)
 
     # summarize
+    async def compress_session(self, messages: list[dict], session_id: str, last_activity: float | None = None) -> list[dict]:
+        return await self._summarize.compress_session(messages, session_id, last_activity=last_activity)
+
     async def notify_turn(self, session: Any) -> None:
         return await self._summarize.notify_turn(session)
 

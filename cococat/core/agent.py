@@ -11,7 +11,7 @@ from typing import Any, Callable, Optional
 from cococat.core.agent_builder import build_system_prompt, load_memory_from_agent_dir
 from cococat.core.agent_builder import resolve_skills, skills_to_prompt, skills_to_tools
 from cococat.core.agent_builder import load_agent_system_prompt, get_agent_skills
-from cococat.core.session import Session, load_session, save_session_pair
+from cococat.core.session import Session
 from cococat.core.tool_executor import make_assistant_msg, execute_tool_calls
 from cococat.providers.base import ToolCallRequest
 from cococat.core.types import ToolContext
@@ -157,6 +157,7 @@ async def run_agent(
     on_tool: Optional[Callable[[str, str, dict], Any]] = None,
     on_reasoning: Optional[Callable[[str], Any]] = None,
     max_iterations: int = 0,
+    memory_store: Any = None,
 ) -> str:
     context = ToolContext()
     context.agent_id = config.id
@@ -173,7 +174,10 @@ async def run_agent(
         history = await session.sanitized_read()
     else:
         session_path = _resolve_session_path(config.agent_dir, sid)
-        history = load_session(session_path)
+        dir_path = os.path.dirname(session_path)
+        file_id = os.path.splitext(os.path.basename(session_path))[0]
+        session = Session(file_id, dir_path)
+        history = await session.sanitized_read()
     messages.extend(history)
 
     messages.append({"role": "user", "content": message})
@@ -201,20 +205,19 @@ async def run_agent(
                 final_text.append(content)
             break
 
-        from cococat.memory.summarize import compress_session
-        summary_dir = os.path.join(config.agent_dir, "memory", "summaries") if config.agent_dir else "memory/summaries"
-        messages = await compress_session(messages, sid, summary_dir=summary_dir, last_activity=time.time())
+        if memory_store:
+            messages = await memory_store.compress_session(messages, sid, last_activity=time.time())
+        else:
+            from cococat.memory.summarize import compress_session
+            summary_dir = os.path.join(config.agent_dir, "memory", "summaries") if config.agent_dir else "memory/summaries"
+            messages = await compress_session(messages, sid, summary_dir=summary_dir, last_activity=time.time())
     else:
         final_text.append("[ReAct loop exceeded max iterations]")
 
     result = "\n\n".join(filter(None, final_text))
 
     try:
-        if session is not None:
-            await session.append_pair(message, result)
-        else:
-            session_path = _resolve_session_path(config.agent_dir, sid)
-            save_session_pair(session_path, message, result)
+        await session.append_pair(message, result)
     except Exception:
         pass
 
@@ -261,3 +264,44 @@ class Agent:
 
     def get_tools(self):
         return self.config.tools
+
+
+async def build_and_run_agent(
+    agent_id: str,
+    prompt: str,
+    tools: list[dict],
+    resolve_llm,
+    session_id: str | None = None,
+    on_event=None,
+    agents_dir: str | None = None,
+    mode: str = "default",
+    scene_id: str | None = None,
+    user_id: str | None = None,
+) -> str:
+    import os as _os
+    llm = resolve_llm(agent_id)
+    if not llm:
+        return f"[System] No LLM provider for agent '{agent_id}'"
+
+    if agents_dir is None:
+        from cococat.core.paths import session_dir
+        agents_dir = session_dir(scene_id or "default", user_id or "local")
+
+    agent_dir = _os.path.join(agents_dir, agent_id)
+    agent_config = load_agent_config(agent_dir, base_tools=tools)
+    agent = Agent(config=agent_config, llm=llm)
+
+    try:
+        ctx = {"session_id": session_id, "scene_id": scene_id, "user_id": user_id}
+        result = await agent.run(
+            prompt,
+            context=ctx,
+            on_text=(lambda t: on_event("text_delta", {"content": t})) if on_event else None,
+            on_tool=(lambda n, s, d=None: on_event("stream_tool", {"name": n, "status": s, **(d or {})})) if on_event else None,
+            on_reasoning=(lambda c: on_event("stream_reasoning", {"content": c})) if on_event else None,
+        )
+        return result
+    except Exception as e:
+        import logging
+        logging.getLogger("cococat.agent").exception("build_and_run_agent failed for %s", agent_id)
+        return f"Error: {e}"

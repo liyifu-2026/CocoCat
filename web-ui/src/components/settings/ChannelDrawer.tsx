@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { X, Circle, Eye, EyeOff, Loader2, QrCode } from "lucide-react"
+import { useT } from "@/context/LanguageContext"
 import type { ChannelTypeInfo, MainChannelInfo, ChannelConfigField } from "@/types/settings"
 import { CHANNEL_ICONS } from "@/lib/channel-icons"
 
@@ -20,16 +21,16 @@ interface QrState {
 }
 
 const CAP_LABELS: Record<string, string> = {
-  text: "文字", image: "图片", voice: "语音", file: "文件", video: "视频",
-  card: "卡片", sticker: "表情", link: "链接", post: "富文本", event: "事件", location: "位置",
+  text: "channel.cap_text", image: "channel.cap_image", voice: "channel.cap_voice", file: "channel.cap_file", video: "channel.cap_video",
+  card: "channel.cap_card", sticker: "channel.cap_sticker", link: "channel.cap_link", post: "channel.cap_post", event: "channel.cap_event", location: "channel.cap_location",
 }
 
 const QR_STATUS_LABELS: Record<string, string> = {
-  waiting: "等待扫码",
-  scanned: "已扫码, 确认中...",
-  confirmed: "登录成功",
-  expired: "二维码已过期",
-  timeout: "二维码已超时",
+  waiting: "channel.qr_waiting",
+  scanned: "channel.qr_scanned",
+  confirmed: "channel.qr_confirmed",
+  expired: "channel.qr_expired",
+  timeout: "channel.qr_timeout",
 }
 
 function FieldInput({ field, value, onChange }: {
@@ -64,6 +65,7 @@ function FieldInput({ field, value, onChange }: {
 }
 
 export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onConnect, onDisconnect }: ChannelDrawerProps) {
+  const t = useT()
   const IconComp = CHANNEL_ICONS[typeInfo.channel_type]
   const status = mainInfo?.status ?? "unconfigured"
 
@@ -214,7 +216,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
           <div className="flex flex-wrap gap-1.5">
             {typeInfo.capabilities.send.map(k => (
               <span key={k} className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400">
-                {CAP_LABELS[k] || k}
+                {t(CAP_LABELS[k] ?? k)}
               </span>
             ))}
           </div>
@@ -243,7 +245,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                     <>
                       <img src={src} alt="登录二维码" className="w-48 h-48 rounded-lg border border-border"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; setError("无法加载二维码，请重试") }} />
-                      <p className="text-xs text-muted-foreground">请使用微信扫描二维码</p>
+                      <p className="text-xs text-muted-foreground">{t("channel.scan_qr_hint")}</p>
                     </>
                   )
                 })()
@@ -256,12 +258,12 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                 "bg-blue-500/15 text-blue-400"
               }`}>
                 {qrPolling && qrState.status !== "confirmed" && <Loader2 className="size-3 animate-spin inline mr-1.5" />}
-                {QR_STATUS_LABELS[qrState.status] || qrState.status}
+                {t(QR_STATUS_LABELS[qrState.status] ?? qrState.status)}
               </span>
               {(qrState.status === "expired" || qrState.status === "timeout") && (
                 <button onClick={() => { setQrState(null); setError(""); handleConnect() }}
                   className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent transition-colors">
-                  重新扫码
+                  {t("channel.rescan")}
                 </button>
               )}
             </div>
@@ -271,22 +273,22 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
           {status === "connecting" && !qrState && (
             <div className="flex items-center gap-2 rounded-lg bg-blue-500/10 border border-blue-500/30 px-3 py-2 text-xs">
               <Loader2 className="size-2 animate-spin text-blue-500" />
-              <span className="font-semibold text-blue-400">连接中...</span>
+              <span className="font-semibold text-blue-400">{t("channel.connecting_status")}</span>
             </div>
           )}
           {status === "connected" && !qrState && (
             <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 text-xs">
               <Circle className="size-2 text-green-400 fill-green-500" />
-              <span className="font-semibold text-emerald-400">已连接</span>
+              <span className="font-semibold text-emerald-400">{t("channel.connected_status")}</span>
               {mainInfo?.connected_since && (
-                <span className="text-green-400/70">· {mainInfo.message_count} 条消息</span>
+                <span className="text-green-400/70">· {mainInfo.message_count}{t("channel.msg_count")}</span>
               )}
             </div>
           )}
           {status === "configured" && !qrState && (
             <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-xs">
               <Circle className="size-2 text-amber-500 fill-amber-500" />
-              <span className="font-semibold text-amber-400">凭证已保存，等待连接</span>
+              <span className="font-semibold text-amber-400">{t("channel.credentials_saved")}</span>
             </div>
           )}
 
@@ -300,7 +302,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
           {/* Config form */}
           {hasConfigFields && !qrState && (
             <div>
-              <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-3">配置</div>
+              <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-3">{t("channel.configure")}</div>
               {typeInfo.config_fields.map(f => (
                 <FieldInput
                   key={f.key}
@@ -329,7 +331,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                   className="w-full rounded-lg bg-indigo-600 text-white px-4 py-2.5 text-xs font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {(saving || connecting) && <Loader2 className="size-3 animate-spin" />}
-                  {saving ? "保存中..." : connecting ? "连接中..." : "保存并连接"}
+                  {saving ? t("general.save_btn") + "..." : connecting ? t("channel.connecting_status") : t("channel.connect_btn")}
                 </button>
               )}
 
@@ -341,7 +343,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                     className="w-full rounded-lg bg-green-600 text-white px-4 py-2.5 text-xs font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {connecting && <Loader2 className="size-3 animate-spin" />}
-                    {typeInfo.channel_type === "weixin" ? "扫码连接" : "连接"}
+                    {typeInfo.channel_type === "weixin" ? t("channel.scan_qr_hint") : t("channel.connect_btn")}
                   </button>
                   <button
                     onClick={handleDisconnect}
@@ -349,7 +351,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                     className="w-full rounded-lg border border-red-500/30 text-red-400 bg-card px-4 py-2.5 text-xs font-semibold hover:bg-red-500/100/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {disconnecting && <Loader2 className="size-3 animate-spin" />}
-                    重置并清除凭证
+                    {t("channel.disconnect_btn")}
                   </button>
                 </div>
               )}
@@ -362,7 +364,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                     className="w-full rounded-lg border border-red-500/30 text-red-400 bg-card px-4 py-2.5 text-xs font-semibold hover:bg-red-500/100/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {disconnecting && <Loader2 className="size-3 animate-spin" />}
-                    断开连接
+                    {t("channel.disconnect_btn")}
                   </button>
                   {hasConfigFields && (
                     <button
@@ -371,7 +373,7 @@ export function ChannelDrawer({ open, onClose, typeInfo, mainInfo, onSave, onCon
                       className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-xs hover:bg-accent transition-colors flex items-center justify-center gap-2"
                     >
                       {saving && <Loader2 className="size-3 animate-spin" />}
-                      更新凭证
+                      {t("channel.save_config")}
                     </button>
                   )}
                 </div>

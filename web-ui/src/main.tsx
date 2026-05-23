@@ -3,9 +3,7 @@ import { createRoot } from "react-dom/client"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ThemeProvider } from "@/context/ThemeContext"
 import { ModeProvider } from "@/context/ModeContext"
-import { SidebarProvider } from "@/context/SidebarContext"
 import { AuthProvider } from "@/context/AuthContext"
-import { DialogProvider } from "@/context/DialogContext"
 import { LanguageProvider } from "@/context/LanguageContext"
 import { LiveUpdatesProvider } from "@/context/LiveUpdatesContext"
 import { PanelProvider } from "@/context/PanelContext"
@@ -34,18 +32,14 @@ createRoot(document.getElementById("root")!).render(
       <AuthProvider>
         <ThemeProvider>
           <ModeProvider>
-            <SidebarProvider>
-              <DialogProvider>
-                <LanguageProvider>
-                <LiveUpdatesProvider>
-                  <PanelProvider>
-                    <App />
-                    <Toaster richColors closeButton position="top-right" />
-                  </PanelProvider>
-                </LiveUpdatesProvider>
-                </LanguageProvider>
-              </DialogProvider>
-            </SidebarProvider>
+            <LanguageProvider>
+            <LiveUpdatesProvider>
+              <PanelProvider>
+                <App />
+                <Toaster richColors closeButton position="top-right" />
+              </PanelProvider>
+            </LiveUpdatesProvider>
+            </LanguageProvider>
           </ModeProvider>
         </ThemeProvider>
       </AuthProvider>

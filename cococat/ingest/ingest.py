@@ -167,12 +167,10 @@ Generate wiki pages:"""
 
     def _update_index(self, written_files: list[str]) -> None:
         """Update index.md with entries for new pages."""
-        index_path = os.path.join(self._kb_dir, "index.md")
-        entries = []
+        from cococat.ingest.merge import update_index_add
 
         for fpath in written_files:
             rel = os.path.relpath(fpath, self._kb_dir)
-            # Determine category from path
             if "/entities/" in rel:
                 category = "Entities"
             elif "/concepts/" in rel:
@@ -180,30 +178,7 @@ Generate wiki pages:"""
             else:
                 category = "Pages"
             name = os.path.splitext(os.path.basename(rel))[0]
-            entries.append((category, name))
-
-        # Read existing index
-        existing = ""
-        if os.path.exists(index_path):
-            with open(index_path, encoding="utf-8") as f:
-                existing = f.read()
-
-        # Append new entries
-        new_lines = []
-        current_cat = None
-        for cat, name in entries:
-            if cat != current_cat:
-                new_lines.append(f"\n## {cat}")
-                current_cat = cat
-            new_lines.append(f"- {name}")
-
-        if existing:
-            content = existing.rstrip() + "\n" + "\n".join(new_lines)
-        else:
-            content = "# Index\n" + "\n".join(new_lines)
-
-        with open(index_path, "w", encoding="utf-8") as f:
-            f.write(content)
+            update_index_add(self._kb_dir, category, name)
 
     def _update_log(self, filename: str, kb_name: str) -> None:
         """Append to log.md."""

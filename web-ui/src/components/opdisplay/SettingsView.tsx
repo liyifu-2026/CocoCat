@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react"
 import { Settings, Plug, Layers, Wrench, Book, Radio, Users, Pin, Palette } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useT } from "@/context/LanguageContext"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { TabData } from "@/types/settings"
 
@@ -15,15 +16,15 @@ const AppearanceTab = lazy(() => import("@/components/settings/AppearanceTab").t
 const GeneralTab = lazy(() => import("@/components/settings/GeneralTab").then(m => ({ default: m.GeneralTab })))
 
 const TABS = [
-  { key: "providers", label: "Providers", icon: Plug, endpoint: "/api/providers" },
-  { key: "scenes", label: "Scenes", icon: Layers, endpoint: "/api/scenes" },
-  { key: "skills", label: "Skills", icon: Wrench, endpoint: "/api/skills" },
-  { key: "kb", label: "KB", icon: Book, endpoint: "/api/knowledge" },
-  { key: "channels", label: "Channels", icon: Radio },
-  { key: "users", label: "Users", icon: Users, endpoint: "/api/settings" },
-  { key: "pinned", label: "Pinned", icon: Pin },
-  { key: "appearance", label: "Appearance", icon: Palette },
-  { key: "general", label: "General", icon: Settings, endpoint: "/api/settings" },
+  { key: "providers", labelKey: "settings.tab.providers", icon: Plug, endpoint: "/api/providers" },
+  { key: "scenes", labelKey: "settings.tab.scenes", icon: Layers, endpoint: "/api/scenes" },
+  { key: "skills", labelKey: "settings.tab.skills", icon: Wrench, endpoint: "/api/skills" },
+  { key: "kb", labelKey: "settings.tab.kb", icon: Book, endpoint: "/api/knowledge" },
+  { key: "channels", labelKey: "settings.tab.channels", icon: Radio },
+  { key: "users", labelKey: "settings.tab.users", icon: Users, endpoint: "/api/settings" },
+  { key: "pinned", labelKey: "settings.tab.pinned", icon: Pin },
+  { key: "appearance", labelKey: "settings.tab.appearance", icon: Palette },
+  { key: "general", labelKey: "settings.tab.general", icon: Settings, endpoint: "/api/settings" },
 ]
 
 function TabSkeleton() {
@@ -42,11 +43,12 @@ function TabSkeleton() {
 export default function SettingsView() {
   const [tab, setTab] = useState("providers")
   const [tabData, setTabData] = useState<TabData>({} as TabData)
+  const t = useT()
 
   const loadTabData = (tabKey: string) => {
-    const t = TABS.find(t => t.key === tabKey)
-    if (t?.endpoint) {
-      fetch(t.endpoint)
+    const tabInfo = TABS.find(item => item.key === tabKey)
+    if (tabInfo?.endpoint) {
+      fetch(tabInfo.endpoint)
         .then(r => r.json())
         .then(d => setTabData(d))
         .catch(() => {})
@@ -62,19 +64,19 @@ export default function SettingsView() {
   return (
     <div className="flex h-full animate-view-enter">
       <div className="w-[150px] border-r border-sidebar-border bg-sidebar/30 p-2.5 flex flex-col gap-1 shrink-0">
-        {TABS.map(t => (
+        {TABS.map(item => (
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
+            key={item.key}
+            onClick={() => setTab(item.key)}
             className={cn(
               "flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] transition-all text-left",
-              tab === t.key
+              tab === item.key
                 ? "bg-tertiary text-tertiary-foreground font-medium"
                 : "text-muted-foreground hover:bg-card"
             )}
           >
-            <t.icon className="size-4 shrink-0" />
-            {t.label}
+            <item.icon className="size-4 shrink-0" />
+            {t(item.labelKey)}
           </button>
         ))}
       </div>

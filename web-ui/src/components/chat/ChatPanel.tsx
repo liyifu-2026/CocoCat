@@ -2,18 +2,25 @@ import { useCallback, useRef, useEffect, useState } from "react"
 import { useSessionStore } from "@/hooks/useSessionStore"
 import { useStreaming } from "@/hooks/useStreaming"
 import { useMode } from "@/context/ModeContext"
+import { useAuth } from "@/context/AuthContext"
 import { useT } from "@/context/LanguageContext"
 import { Trash2, MessageSquare, Plus, ChevronDown, Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ScheduleModal } from "@/components/ScheduleModal"
 import ChatMessages from "./ChatMessages"
 import ChatInput from "./ChatInput"
+import type { QuickSendFn } from "../Layout"
 
-export default function ChatPanel() {
+interface ChatPanelProps {
+  registerQuickSend?: (fn: QuickSendFn) => () => void
+}
+
+export default function ChatPanel({ registerQuickSend }: ChatPanelProps) {
   const store = useSessionStore("")
   const currentIdRef = useRef(store.currentId)
   const ctrl = useStreaming(currentIdRef)
   const { currentMode, setMode } = useMode()
+  const { token } = useAuth()
   const skipClearUntilId = useRef<string | null>(null)
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [sessionsExpanded, setSessionsExpanded] = useState(false)
@@ -63,27 +70,33 @@ export default function ChatPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: userMsg,
-          user_id: "local",
+          user_id: token ? "authenticated" : "local",
           session_id: currentIdRef.current || undefined,
           mode: currentMode,
         }),
       })
       if (!resp.ok) throw new Error(`Server returned ${resp.status}`)
       const data = await resp.json()
-      const reply = data.reply || "(no response)"
+      const reply = data.reply || t("common.no_data")
       if (data.mode_switch) setMode(data.mode_switch)
       const snap = ctrl.snapshot()
       store.addAssistantMessage(reply, snap)
     } catch (e) {
-      store.addAssistantMessage("Error: " + String(e))
+      store.addAssistantMessage(t("common.error") + ": " + String(e))
     }
     ctrl.complete()
   }, [store, ctrl, currentMode])
 
+  // Register this panel's sendMessage so parent can trigger quick-sends
+  useEffect(() => {
+    if (!registerQuickSend) return
+    return registerQuickSend(sendMessage)
+  }, [registerQuickSend, sendMessage])
+
   const sortedSessions = [...store.sessions].sort((a, b) => b.createdAt - a.createdAt)
 
   return (
-    <div className="w-[380px] bg-sidebar border-l border-sidebar-border flex flex-col shrink-0">
+    <div className="w-[420px] bg-sidebar border-l border-sidebar-border flex flex-col shrink-0">
       <div className="px-4 py-3 border-b border-sidebar-border space-y-2">
         <div className="flex items-center gap-2.5">
           <div className="w-2 h-2 rounded-full bg-emerald-500" />

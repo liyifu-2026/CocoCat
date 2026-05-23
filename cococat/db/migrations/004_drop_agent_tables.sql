@@ -7,7 +7,7 @@ CREATE TABLE scenes_new (
     name TEXT NOT NULL DEFAULT '',
     description TEXT DEFAULT '',
     context TEXT DEFAULT '',
-    status TEXT DEFAULT 'active',
+    status TEXT DEFAULT 'running',
     purpose TEXT DEFAULT '',
     kbs TEXT DEFAULT '[]',
     skills TEXT DEFAULT '[]',

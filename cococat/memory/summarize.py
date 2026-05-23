@@ -138,10 +138,8 @@ def _build_summary_prompt(entries: list[dict]) -> str:
     return "## Prior Conversation Summary\n" + "\n\n".join(lines)
 
 
-# ── backward compat ────────────────────────────────────────
-
 class SummarizeMemory:
-    """Backward-compat wrapper — delegates to compress_session."""
+    """On-the-fly session summarization (Ticker pattern)."""
 
     def __init__(self, memory_dir: str = "memory", get_llm: Callable[[], Any] | None = None):
         self._memory_dir = memory_dir
@@ -152,6 +150,27 @@ class SummarizeMemory:
 
     async def notify_session_end(self, session: Any) -> None:
         pass
+
+    @property
+    def _summary_dir(self) -> str:
+        return os.path.join(self._memory_dir, "summaries")
+
+    async def compress_session(
+        self,
+        messages: list[dict],
+        session_id: str,
+        last_activity: float | None = None,
+    ) -> list[dict]:
+        """Compress oldest messages into summary if token count exceeds threshold.
+
+        Returns a new messages list (does not mutate input).
+        """
+        return await compress_session(
+            messages, session_id,
+            summary_dir=self._summary_dir,
+            get_llm=self._get_llm,
+            last_activity=last_activity,
+        )
 
     @staticmethod
     def _hash_messages(messages: list[dict]) -> str:

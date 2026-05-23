@@ -13,14 +13,9 @@ logger = logging.getLogger("cococat.sub_agent")
 
 
 class SubAgentExecutor:
-    """Manages async sub-agent task dispatch and result delivery.
+    """Dispatches sub-agent tasks via ExecutorProvider (fire-and-forget).
 
-    Two modes:
-    1. AgentPool mode: finds free sub agents from pool, runs synchronously
-    2. ExecutorProvider mode: create-per-task via ExecutorProvider
-
-    Fire-and-forget pattern for tools; synchronous for DAG worker.
-    Returns the task result string (not task_id) for caller convenience.
+    Publishes sub_agent_complete events with task results.
     """
 
     def __init__(
@@ -30,20 +25,15 @@ class SubAgentExecutor:
     ):
         self._bus = bus
         self._sandbox = sandbox_provider
-        self._busy: set[str] = set()
 
     async def dispatch(self, task: str, from_agent: str = "main",
-                       session_id: str | None = None,
-                       mode: str = "default") -> str | None:
-        if self._sandbox:
-            return await self._dispatch_via_sandbox(task, from_agent, session_id, mode)
+                        session_id: str | None = None,
+                        mode: str = "default") -> str:
+        """Dispatch a task to a sub-agent sandbox. Returns result string."""
+        if not self._sandbox:
+            logger.warning("No executor configured for dispatch from %s", from_agent)
+            return "Error: No executor configured"
 
-        logger.warning("No executor configured for dispatch from %s", from_agent)
-        return None
-
-    async def _dispatch_via_sandbox(self, task: str, from_agent: str,
-                                    session_id: str | None = None,
-                                    mode: str = "default") -> str | None:
         task_id = uuid.uuid4().hex[:12]
 
         try:
@@ -69,7 +59,3 @@ class SubAgentExecutor:
                 "error": str(e),
             })
             return f"Error: {e}"
-
-    async def get_pending_tasks(self) -> list[str]:
-        """Return list of active task IDs (stub — real impl tracks tasks)."""
-        return []

@@ -1,5 +1,7 @@
+import { useT } from "@/context/LanguageContext"
 import type { TabData } from '@/types/settings'
 export function ScenesTab({ data }: { data: TabData }) {
+  const t = useT()
   const scenes = data?.scenes || []
   return (
     <div className="space-y-3 stagger-1">
@@ -17,9 +19,7 @@ export function ScenesTab({ data }: { data: TabData }) {
         </div>
       ))}
       {scenes.length === 0 && (
-        <p className="text-sm text-muted-foreground/60">
-          No scenes configured. Create scene.yaml files in the scenes/ directory.
-        </p>
+        <p className="text-sm text-muted-foreground/60">{t("scenes.tab.empty")}</p>
       )}
     </div>
   )

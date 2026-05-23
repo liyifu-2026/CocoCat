@@ -81,18 +81,8 @@ class ChannelManager:
         elif target_type == "main":
             self._wire_main(ch, channel_type, ctx, reuse_instance=False)
 
-        success, _ = ch.wait_startup(timeout=0.5)
-        status = "connected" if success else "connecting"
+        status = self._start_and_status(key, ch, channel_type, timeout=0.5)
 
-        if not success:
-            self._watch_async(channel_type, key, ch)
-
-        self._status[key] = {
-            "status": status,
-            "channel_type": channel_type,
-            "connected_since": datetime.datetime.now().isoformat() if success else None,
-            "message_count": 0,
-        }
         return {"status": status}
 
     # ── disconnect ───────────────────────────────────────────
@@ -147,16 +137,7 @@ class ChannelManager:
                 self._instances[key] = ch
                 self._wire_main(ch, ct, ctx, reuse_instance=True)
                 ch.start("main", config)
-                success, _ = ch.wait_startup(timeout=3)
-                status = "connected" if success else "connecting"
-                self._status[key] = {
-                    "status": status,
-                    "channel_type": ct,
-                    "connected_since": datetime.datetime.now().isoformat() if success else None,
-                    "message_count": 0,
-                }
-                if not success:
-                    self._watch_async(ct, key, ch)
+                status = self._start_and_status(key, ch, ct, timeout=3)
                 logger.info("Auto-reconnected global channel: %s (status=%s)", ct, status)
             except Exception as e:
                 logger.exception("Failed to auto-reconnect channel %s: %s", ct, e)
@@ -188,110 +169,117 @@ class ChannelManager:
                     self._instances[key] = ch
                     self._wire_main(ch, ct, ctx, reuse_instance=True)
                     ch.start(username, config)
-                    success, _ = ch.wait_startup(timeout=3)
-                    status = "connected" if success else "connecting"
-                    self._status[key] = {
-                        "status": status,
-                        "channel_type": ct,
-                        "connected_since": datetime.datetime.now().isoformat() if success else None,
-                        "message_count": 0,
-                    }
-                    if not success:
-                        self._watch_async(ct, key, ch)
+                    status = self._start_and_status(key, ch, ct, timeout=3)
                     logger.info("Auto-reconnected %s's channel: %s (status=%s)", username, ct, status)
                 except Exception as e:
                     logger.exception("Failed to auto-reconnect %s's channel %s: %s", username, ct, e)
 
     # ── internal wiring ──────────────────────────────────────
 
-    def _wire_scene(self, ch, scene_id: str, channel_type: str, ctx: 'AppContext') -> None:
+    def _make_handler(
+        self, ch, get_reply_fn, ctx: 'AppContext', *,
+        scene_id: str = "default", channel_type: str = "",
+    ):
+        """Create an on_message handler: thinking → get_reply → send → publish."""
         from cococat.core.channels.context import Reply, ReplyType, Context, ContextType
 
-        pool = ctx.pool
         bus = ctx.bus
         loop = asyncio.get_running_loop()
 
-        def on_message(msg, scene_id=scene_id, ct=channel_type):
+        def on_message(msg):
             async def _handle():
-                agent = pool.get_scene_agent(scene_id)
-                if not agent:
-                    logger.warning("No agent bound to scene %s", scene_id)
-                    return
                 _send_thinking(ch, msg)
-                reply_text = await agent.run(msg.content)
+                reply_text = await get_reply_fn(msg)
+                if reply_text is None:
+                    return
                 reply = Reply(ReplyType.TEXT, reply_text)
                 user_ctx = Context(ContextType.TEXT, msg.content,
-                                   user_id=msg.user_id, scene_id=scene_id)
+                                   user_id=msg.user_id, receiver=msg.user_id)
                 ch.send(reply, user_ctx)
                 await bus.publish("scene_message", {
                     "scene_id": scene_id,
-                    "channel": ct,
+                    "channel": channel_type,
                     "user_id": msg.user_id,
                     "content": msg.content,
                 })
             _schedule_coro(_handle(), loop)
 
-        ch.on_message = on_message
+        return on_message
+
+    def _start_and_status(self, key: str, ch, channel_type: str, timeout: float = 3.0) -> str:
+        """Start a channel and record its status. Returns 'connected' or 'connecting'."""
+        success, _ = ch.wait_startup(timeout=timeout)
+        status = "connected" if success else "connecting"
+
+        self._status[key] = {
+            "status": status,
+            "channel_type": channel_type,
+            "connected_since": datetime.datetime.now().isoformat() if success else None,
+            "message_count": 0,
+        }
+
+        if not success:
+            self._watch_async(channel_type, key, ch)
+
+        return status
+
+    def _wire_scene(self, ch, scene_id: str, channel_type: str, ctx: 'AppContext') -> None:
+        pool = ctx.pool
+
+        async def _get_reply(msg):
+            agent = pool.get_scene_agent(scene_id)
+            if not agent:
+                logger.warning("No agent bound to scene %s", scene_id)
+                return None
+            return await agent.run(msg.content)
+
+        ch.on_message = self._make_handler(
+            ch, _get_reply, ctx, scene_id=scene_id, channel_type=channel_type)
         ch.start(scene_id, {})
 
     def _wire_main(self, ch, channel_type: str, ctx: 'AppContext', reuse_instance: bool = False) -> None:
-        from cococat.core.channels.context import Reply, ReplyType, Context, ContextType
-
-        bus = ctx.bus
         sandbox_provider = ctx.sandbox_provider
-        loop = asyncio.get_running_loop()
 
-        def on_message(msg, ct=channel_type):
-            async def _handle():
-                try:
-                    logger.info("Main channel handler: msg from %s/%s: %s",
-                                ct, msg.user_id, msg.content[:50])
-                    resolved = _resolve_channel_user(ctx, ct, msg.user_id)
-                    if resolved:
-                        ctx.user_id = resolved
-                    _send_thinking(ch, msg)
-                    reply_text = await sandbox_provider.run_once(msg.content, agent_id="main")
-                    reply = Reply(ReplyType.TEXT, reply_text)
-                    user_ctx = Context(ContextType.TEXT, msg.content,
-                                       user_id=msg.user_id, receiver=msg.user_id)
-                    ch.send(reply, user_ctx)
+        async def _get_reply(msg):
+            try:
+                resolved = _resolve_channel_user(ctx, channel_type, msg.user_id)
+                if resolved:
+                    ctx.user_id = resolved
+                reply_text = await sandbox_provider.run_once(msg.content, agent_id="main")
 
-                    # Persist message to DB for history
-                    try:
-                        resolved = _resolve_channel_user(ctx, ct, msg.user_id)
-                        user = resolved or "channel"
-                        db = getattr(ctx, 'db', None)
-                        if db:
-                            db.messages.save(
-                                msg_uuid=str(__import__('uuid').uuid4()),
-                                agent_id="main", user_id=user,
-                                role="user", content=msg.content[:2000],
-                                scene_id="default",
-                            )
-                            db.messages.save(
-                                msg_uuid=str(__import__('uuid').uuid4()),
-                                agent_id="main", user_id=user,
-                                role="assistant", content=reply_text[:5000],
-                                scene_id="default",
-                            )
-                    except Exception:
-                        pass
+                self._persist_message(ctx, channel_type, msg, reply_text)
 
-                    await bus.publish("main_message", {
-                        "channel": ct,
-                        "user_id": msg.user_id,
-                        "content": msg.content,
-                        "reply": reply_text,
-                    })
-                except Exception:
-                    logger.exception("Main channel message handler failed for %s", ct)
-            _schedule_coro(_handle(), loop)
+                return reply_text
+            except Exception:
+                logger.exception("Main channel message handler failed for %s", channel_type)
+                return None
 
-        ch.on_message = on_message
+        ch.on_message = self._make_handler(
+            ch, _get_reply, ctx, scene_id="default", channel_type=channel_type)
         if not reuse_instance:
             ch.start("main", {})
 
-    # ── internal helper ──────────────────────────────────────
+    def _persist_message(self, ctx: 'AppContext', channel_type: str, msg, reply_text: str) -> None:
+        """Persist channel message to DB history."""
+        try:
+            resolved = _resolve_channel_user(ctx, channel_type, msg.user_id)
+            user = resolved or "channel"
+            db = getattr(ctx, 'db', None)
+            if db:
+                db.messages.save(
+                    msg_uuid=str(__import__('uuid').uuid4()),
+                    agent_id="main", user_id=user,
+                    role="user", content=msg.content[:2000],
+                    scene_id="default",
+                )
+                db.messages.save(
+                    msg_uuid=str(__import__('uuid').uuid4()),
+                    agent_id="main", user_id=user,
+                    role="assistant", content=reply_text[:5000],
+                    scene_id="default",
+                )
+        except Exception:
+            pass
 
     def _watch_async(self, channel_type: str, key: str, ch) -> None:
         def _watch():
@@ -352,10 +340,10 @@ def _resolve_channel_user(ctx, channel_type: str, channel_user_id: str) -> str |
     if not db:
         return None
     try:
-        row = db._conn.execute(
+        row = db.fetch_one(
             "SELECT user_id FROM channel_identities WHERE channel_type = ? AND channel_user_id = ?",
             (channel_type, channel_user_id),
-        ).fetchone()
+        )
         return row["user_id"] if row else None
     except Exception:
         return None

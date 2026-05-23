@@ -142,3 +142,49 @@ MERGED:"""
     except Exception:
         logger.exception("LLM body merge failed")
         return old_body + "\n\n## Updates\n" + new_body
+
+
+def update_index_remove(kb_dir: str, slugs: set[str]) -> None:
+    """Remove entries from index.md for given slugs."""
+    index_path = os.path.join(kb_dir, "index.md")
+    if not os.path.exists(index_path):
+        return
+    with open(index_path, encoding="utf-8") as f:
+        lines = f.readlines()
+    new_lines = [l for l in lines
+                 if not (l.strip().startswith("- ") and l.strip()[2:].strip() in slugs)]
+    with open(index_path, "w", encoding="utf-8") as f:
+        f.writelines(new_lines)
+
+
+def update_index_add(kb_dir: str, category: str, name: str) -> None:
+    """Ensure a page entry exists in index.md under the correct category."""
+    index_path = os.path.join(kb_dir, "index.md")
+
+    if os.path.exists(index_path):
+        with open(index_path, encoding="utf-8") as f:
+            existing = f.read()
+    else:
+        existing = ""
+
+    if re.search(rf"^- {re.escape(name)}$", existing, re.MULTILINE):
+        return
+
+    if not existing:
+        content = f"# Index\n\n## {category}\n- {name}\n"
+    else:
+        heading = f"## {category}"
+        idx = existing.find(heading)
+        if idx >= 0:
+            next_heading = existing.find("\n## ", idx + len(heading))
+            if next_heading >= 0:
+                before = existing[:next_heading]
+                after = existing[next_heading:]
+                content = before.rstrip() + f"\n- {name}\n\n" + after.lstrip()
+            else:
+                content = existing.rstrip() + f"\n- {name}\n"
+        else:
+            content = existing.rstrip() + f"\n\n## {category}\n- {name}\n"
+
+    with open(index_path, "w", encoding="utf-8") as f:
+        f.write(content)

@@ -7,12 +7,11 @@ import os
 import re
 from typing import Any
 
-from cococat.ingest.merge import parse_frontmatter, write_frontmatter, backup_page
+from cococat.ingest.merge import parse_frontmatter, write_frontmatter, backup_page, update_index_remove
 
 logger = logging.getLogger("cococat.ingest.cascade")
 
 _WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
-_SOURCES_RE = re.compile(r"(sources:\s*\[).*?(\])", re.DOTALL)
 
 
 async def cascade_delete_source(
@@ -84,7 +83,7 @@ async def cascade_delete_source(
                     modified.append(path)
 
     # 5. Update index.md
-    _update_index_remove(slugs_to_remove, kb_dir)
+    update_index_remove(kb_dir, slugs_to_remove)
 
     # 6. Delete the source file
     src_path = os.path.join(kb_dir, "raw", "sources", source_filename)
@@ -118,16 +117,3 @@ def _find_pages_by_source(source_filename: str, kb_dir: str) -> list[str]:
 def _remove_wikilink(body: str, slug: str) -> str:
     """Remove all [[slug]] references from body text."""
     return re.sub(rf"\[\[{re.escape(slug)}\]\]", slug, body)
-
-
-def _update_index_remove(slugs: set[str], kb_dir: str) -> None:
-    """Remove entries from index.md."""
-    index_path = os.path.join(kb_dir, "index.md")
-    if not os.path.exists(index_path):
-        return
-    with open(index_path, encoding="utf-8") as f:
-        lines = f.readlines()
-    new_lines = [l for l in lines
-                 if not (l.strip().startswith("- ") and l.strip()[2:].strip() in slugs)]
-    with open(index_path, "w", encoding="utf-8") as f:
-        f.writelines(new_lines)

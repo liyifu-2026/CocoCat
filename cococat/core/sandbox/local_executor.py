@@ -7,11 +7,12 @@ import os
 from typing import Any, Callable
 
 from cococat.core.sandbox.sandbox import Sandbox
+from cococat.core.sandbox.base import Executor
 
 logger = logging.getLogger("cococat.sandbox.local")
 
 
-class InProcessExecutor:
+class InProcessExecutor(Executor):
     """In-process agent executor — runs Agent code in same Python process.
 
     Creates temporary Agent instances on each run() call.
@@ -55,12 +56,12 @@ class InProcessExecutor:
                       on_event: Callable | None, tools: list | None,
                       session_id: str | None) -> str:
         logger.info("InProcessExecutor: running task in %s", sandbox.id)
-        from cococat.core.sandbox import _make_and_run_agent
+        from cococat.core.agent import build_and_run_agent
 
         if tools is None:
             tools = self._resolve_tools_for_mode(mode)
 
-        return await _make_and_run_agent(
+        return await build_and_run_agent(
             agent_id=agent_id,
             prompt=task,
             tools=tools,

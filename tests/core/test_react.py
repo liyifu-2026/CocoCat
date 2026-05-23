@@ -11,7 +11,7 @@ from cococat.providers.base import LLMResponse, ToolCallRequest
 
 
 def _create_test_tools():
-    return make_execution_tools() + make_readonly_file_tools()
+    return list(make_execution_tools().values()) + list(make_readonly_file_tools().values())
 
 
 class ReActMockLLM:

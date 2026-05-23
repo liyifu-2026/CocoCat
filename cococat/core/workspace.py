@@ -1,20 +1,25 @@
-"""Workspace manager — singleton for unified workspace path resolution."""
+"""Workspace manager — injectable workspace path resolution."""
 import os
 from pathlib import Path
 
 
 class WorkspaceManager:
-    """Singleton that resolves and manages the agent workspace directory.
+    """Resolves and manages the agent workspace directory.
 
     Resolution order: COCOCAT_WORKSPACE env > project root.
+    Accepts optional _path for test injection. Singleton for default instance.
     """
 
     _instance: "WorkspaceManager | None" = None
 
-    def __new__(cls) -> "WorkspaceManager":
+    def __new__(cls, path: str | Path | None = None) -> "WorkspaceManager":
+        if path is not None:
+            instance = super().__new__(cls)
+            instance._path = Path(path).resolve()
+            return instance
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._path: Path | None = None
+            cls._instance._path = None
         return cls._instance
 
     @property
@@ -33,18 +38,12 @@ class WorkspaceManager:
         return Path(__file__).resolve().parent.parent.parent
 
     def ensure(self) -> None:
-        """Create workspace directory if it does not exist."""
         self.path.mkdir(parents=True, exist_ok=True)
 
     def reload(self) -> None:
-        """Clear cached path. Next .path access re-reads COCOCAT_WORKSPACE env."""
         self._path = None
 
-    def validate_path(self, file_path: str) -> tuple:
-        """Check if *file_path* lies inside the workspace.
-
-        Returns (True, "") on success or (False, reason) on failure.
-        """
+    def validate_path(self, file_path: str) -> tuple[bool, str]:
         try:
             resolved = Path(file_path).resolve()
             if not str(resolved).startswith(str(self.path)):

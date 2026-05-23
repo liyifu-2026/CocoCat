@@ -53,9 +53,9 @@ def verify_password(password: str) -> bool:
 
 def verify_user_password(username: str, password: str, db) -> bool:
     """Verify username/password against the users table using bcrypt."""
-    row = db._conn.execute(
+    row = db.fetch_one(
         "SELECT password_hash FROM users WHERE id = ?", (username,)
-    ).fetchone()
+    )
     if not row:
         return False
     return bcrypt.checkpw(password.encode(), row["password_hash"].encode())

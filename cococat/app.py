@@ -8,6 +8,7 @@ from cococat.context import AppContext
 from cococat.auth import auth_middleware
 from cococat.config_store import ConfigStore
 from cococat.core.channel_manager import ChannelManager
+from cococat.core.auth_service import AuthService
 
 
 def create_app(db_path: str = "cococat.db") -> FastAPI:
@@ -41,7 +42,6 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
         await cron_worker.start()
         app.state.ctx.cron_worker = cron_worker
 
-        import asyncio as _asyncio
         await app.state.ctx.channel_manager.auto_reconnect(app.state.ctx)
 
         yield
@@ -88,76 +88,42 @@ def create_app(db_path: str = "cococat.db") -> FastAPI:
 
     @app.post("/api/auth/login")
     async def login(request: Request):
-        from cococat.auth import create_access_token, verify_password, verify_user_password
         from fastapi.responses import JSONResponse
         try:
             body = await request.json()
         except Exception:
             return JSONResponse(status_code=400, content={"detail": "Invalid JSON"})
-        password = body.get("password", "")
         username = body.get("username", "")
+        password = body.get("password", "")
 
-        # Multi-user: check against users table if username provided and table has rows
-        db = app.state.ctx.db
-        has_users = db._conn.execute(
-            "SELECT COUNT(*) FROM users"
-        ).fetchone()[0] > 0 if username else False
-
-        if has_users:
-            if not verify_user_password(username, password, db):
-                return JSONResponse(status_code=401, content={"detail": "Incorrect username or password"})
-            token = create_access_token({"sub": username})
-        else:
-            # Legacy single-password auth (dev mode / pre-migration)
-            if not verify_password(password):
-                return JSONResponse(status_code=401, content={"detail": "Incorrect password"})
-            token = create_access_token({"sub": "admin"})
+        auth = AuthService(app.state.ctx.db)
+        token, error = auth.authenticate(username, password)
+        if error:
+            return JSONResponse(status_code=401, content={"detail": error})
 
         return {"access_token": token, "token_type": "bearer"}
 
     @app.get("/api/auth/status")
     async def auth_status():
-        db = app.state.ctx.db
-        has_users = db._conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0
-        return {"has_users": has_users}
+        auth = AuthService(app.state.ctx.db)
+        return {"has_users": auth.has_users()}
 
     @app.post("/api/auth/init")
     async def init_admin(request: Request):
-        """First-run: create initial admin user. Only works when no users exist."""
-        from cococat.auth import create_access_token
         from fastapi.responses import JSONResponse
         try:
             body = await request.json()
         except Exception:
             return JSONResponse(status_code=400, content={"detail": "Invalid JSON"})
 
-        db = app.state.ctx.db
-        has_users = db._conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0
-        if has_users:
-            return JSONResponse(status_code=400, content={"detail": "Users already exist"})
-
         username = (body.get("username", "")).strip()
         password = (body.get("password", ""))
-        if not username or len(password) < 4 or not password.strip():
-            return JSONResponse(status_code=400, content={"detail": "Username required, password >= 4 chars"})
 
-        import bcrypt
-        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-        db._conn.execute(
-            "INSERT INTO users (id, password_hash, display_name) VALUES (?, ?, ?)",
-            (username, password_hash, username),
-        )
-        db._conn.commit()
+        auth = AuthService(app.state.ctx.db)
+        token, error = auth.initialize(username, password)
+        if error:
+            return JSONResponse(status_code=400, content={"detail": error})
 
-        import os
-        from cococat.core.paths import memory_dir, session_dir
-        os.makedirs(f"config/users/{username}", exist_ok=True)
-        os.makedirs(memory_dir("default", username), exist_ok=True)
-        os.makedirs(os.path.join(memory_dir("default", username), "compiled"), exist_ok=True)
-        os.makedirs(os.path.join(memory_dir("default", username), "summaries"), exist_ok=True)
-        os.makedirs(session_dir("default", username), exist_ok=True)
-
-        token = create_access_token({"sub": username})
         return {"access_token": token, "token_type": "bearer", "username": username}
 
     return app
@@ -175,7 +141,7 @@ def _seed_defaults(db: Database) -> None:
 
 def _seed_scenes_from_yaml(db: Database) -> None:
     from cococat.scene.config import list_scenes
-    existing = {r["id"] for r in db._conn.execute("SELECT id FROM scenes").fetchall()}
+    existing = {r["id"] for r in db.query("SELECT id FROM scenes")}
     for sc in list_scenes():
         if sc.id in existing:
             continue

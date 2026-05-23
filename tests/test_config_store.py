@@ -91,32 +91,6 @@ def test_get_custom_providers_defaults_to_empty_list(store):
     assert store.get_custom_providers() == []
 
 
-# ── residents ─────────────────────────────────────────────────
-
-def test_get_resident_configs_from_yaml(store):
-    residents_dir = store.residents_dir
-    residents_dir.mkdir(parents=True, exist_ok=True)
-    (residents_dir / "agent_a.yaml").write_text(
-        yaml.safe_dump({"id": "agent_a", "name": "Alice"})
-    )
-    (residents_dir / "agent_b.yml").write_text(
-        yaml.safe_dump({"id": "agent_b", "name": "Bob"})
-    )
-    configs = store.get_resident_configs()
-    assert configs == {
-        "agent_a": {"id": "agent_a", "name": "Alice"},
-        "agent_b": {"id": "agent_b", "name": "Bob"},
-    }
-
-
-def test_resident_save_roundtrip(store):
-    config = {"id": "agent_x", "role": "assistant"}
-    store.save_resident_config("agent_x", config)
-    configs = store.get_resident_configs()
-    assert configs == {"agent_x": config}
-    assert (store.residents_dir / "agent_x.yaml").is_file()
-
-
 # ── coco prompt ───────────────────────────────────────────────
 
 def test_get_coco_prompt_returns_none_when_no_file(store):

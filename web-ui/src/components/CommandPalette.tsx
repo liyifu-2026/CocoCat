@@ -10,12 +10,12 @@ interface CommandPaletteProps {
   onNavigate: (nav: string) => void
 }
 
-const NAV_ITEMS = [
-  { key: "chat", label: "Chat", keywords: ["chat", "message", "conversation"] },
-  { key: "scenes", label: "Scenes", keywords: ["scene", "workflow", "automation"] },
-  { key: "knowledge", label: "Knowledge Base", keywords: ["kb", "knowledge", "wiki"] },
-  { key: "memory", label: "Memory", keywords: ["memory", "history", "timeline"] },
-  { key: "settings", label: "Settings", keywords: ["settings", "config", "preferences"] },
+const NAV_ITEMS: { key: string; labelKey: string; keywords: string[] }[] = [
+  { key: "chat", labelKey: "nav.chat", keywords: ["chat", "message", "conversation"] },
+  { key: "scenes", labelKey: "nav.scenes", keywords: ["scene", "workflow", "automation"] },
+  { key: "knowledge", labelKey: "nav.knowledge", keywords: ["kb", "knowledge", "wiki"] },
+  { key: "memory", labelKey: "nav.memory", keywords: ["memory", "history", "timeline"] },
+  { key: "settings", labelKey: "nav.settings", keywords: ["settings", "config", "preferences"] },
 ]
 
 export function CommandPalette({ open, onClose, onNavigate }: CommandPaletteProps) {
@@ -57,12 +57,12 @@ export function CommandPalette({ open, onClose, onNavigate }: CommandPaletteProp
               {NAV_ITEMS.map(item => (
                 <Command.Item
                   key={item.key}
-                  value={item.label}
-                  keywords={item.keywords}
+                  value={t(item.labelKey)}
+                  keywords={[t(item.labelKey), ...item.keywords]}
                   onSelect={() => runCommand(() => onNavigate(item.key))}
                   className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs cursor-pointer aria-selected:bg-primary/10 aria-selected:text-primary"
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Command.Item>
               ))}
             </Command.Group>

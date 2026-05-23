@@ -1,5 +1,4 @@
 """Provider routes — list, configure, test LLM providers and manage models."""
-import json
 import httpx
 import logging
 import os
@@ -14,20 +13,6 @@ from cococat.providers.registry import create_builtin_registry
 logger = logging.getLogger("cococat.routes.providers")
 
 router = APIRouter(prefix="/api", tags=["providers"])
-
-
-# ── config paths ──
-
-def _auth_path() -> str:
-    return os.environ.get("COCOCAT_AUTH_FILE", "config/auth.json")
-
-
-def _models_path() -> str:
-    return os.environ.get("COCOCAT_MODELS_FILE", "config/models.json")
-
-
-def _custom_providers_path() -> str:
-    return os.environ.get("COCOCAT_CUSTOM_PROVIDERS_FILE", "config/providers.json")
 
 
 # ── request models ──
@@ -72,30 +57,15 @@ _MODELS_DEFAULT: dict[str, str] = {}
 
 # ── custom providers persistence ──
 
-def _load_custom_providers(store=None) -> list[dict]:
-    if store is not None:
-        return store.get_custom_providers()
-    path = _custom_providers_path()
-    if os.path.exists(path):
-        try:
-            with open(path, encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError):
-            pass
-    return []
+def _load_custom_providers(store) -> list[dict]:
+    return store.get_custom_providers()
 
 
-def _save_custom_providers(data: list[dict], store=None) -> None:
-    if store is not None:
-        store.save_custom_providers(data)
-        return
-    path = _custom_providers_path()
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+def _save_custom_providers(data: list[dict], store) -> None:
+    store.save_custom_providers(data)
 
 
-def _find_custom_provider(name: str, store=None) -> dict | None:
+def _find_custom_provider(name: str, store) -> dict | None:
     custom = _load_custom_providers(store)
     for p in custom:
         if p.get("name") == name:
@@ -110,68 +80,35 @@ def _is_builtin(name: str) -> bool:
 
 # ── models persistence ──
 
-def _load_user_models(store=None) -> dict[str, list[str]]:
-    if store is not None:
-        data = store.get_models()
-        if isinstance(data, dict):
-            return {k: v for k, v in data.items() if k != "__defaults__"}
-    return _load_user_models_fallback()
-
-
-def _save_user_models(data: dict[str, list[str]], store=None) -> None:
-    if store is not None:
-        existing = store.get_models()
-        defaults = existing.get("__defaults__", {})
-        existing.update(data)
-        existing["__defaults__"] = defaults
-        store.save_models(existing)
-        return
-    path = _models_path()
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-
-def _load_user_models_fallback() -> dict[str, list[str]]:
-    path = _models_path()
-    if os.path.exists(path):
-        try:
-            with open(path, encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError):
-            pass
+def _load_user_models(store) -> dict[str, list[str]]:
+    data = store.get_models()
+    if isinstance(data, dict):
+        return {k: v for k, v in data.items() if k != "__defaults__"}
     return {}
 
 
-def _load_default_models(store=None) -> dict[str, str]:
-    if store is not None:
-        data = store.get_models()
-        if isinstance(data, dict):
-            return data.get("__defaults__", {})
-    path = _models_path()
-    if os.path.exists(path):
-        try:
-            with open(path, encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    return data.get("__defaults__", {})
-        except (json.JSONDecodeError, OSError):
-            pass
+def _save_user_models(data: dict[str, list[str]], store) -> None:
+    existing = store.get_models()
+    defaults = existing.get("__defaults__", {}) if isinstance(existing, dict) else {}
+    existing = existing if isinstance(existing, dict) else {}
+    existing.update(data)
+    existing["__defaults__"] = defaults
+    store.save_models(existing)
+
+
+def _load_default_models(store) -> dict[str, str]:
+    data = store.get_models()
+    if isinstance(data, dict):
+        return data.get("__defaults__", {})
     return {}
 
 
-def _save_default_models(defaults: dict[str, str], store=None) -> None:
-    if store is not None:
-        data = store.get_models()
-        data["__defaults__"] = defaults
-        store.save_models(data)
-        return
-    path = _models_path()
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    data = _load_user_models()
+def _save_default_models(defaults: dict[str, str], store) -> None:
+    data = store.get_models()
+    if not isinstance(data, dict):
+        data = {}
     data["__defaults__"] = defaults
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    store.save_models(data)
 
 
 def _resolve_key(name: str, creds=None, env_key: str = "") -> str | None:
@@ -185,22 +122,8 @@ def _resolve_key(name: str, creds=None, env_key: str = "") -> str | None:
     return None
 
 
-def _save_auth_key(name: str, key: str, store=None) -> None:
-    if store is not None:
-        store.set_auth(name, key)
-        return
-    path = _auth_path()
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    auth_data: dict = {}
-    if os.path.exists(path):
-        try:
-            with open(path, encoding="utf-8") as f:
-                auth_data = json.load(f)
-        except (json.JSONDecodeError, OSError):
-            auth_data = {}
-    auth_data[name] = key
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(auth_data, f, indent=2, ensure_ascii=False)
+def _save_auth_key(name: str, key: str, store) -> None:
+    store.set_auth(name, key)
 
 
 async def _test_connection(base_url: str, api_key: str | None = None) -> dict:

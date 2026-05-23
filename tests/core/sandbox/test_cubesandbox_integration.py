@@ -5,7 +5,7 @@ from cococat.core.tools.file_ops import make_readonly_file_tools
 
 
 def _create_tools(sandbox_run=None):
-    return make_execution_tools(sandbox_run) + make_readonly_file_tools()
+    return list(make_execution_tools(sandbox_run).values()) + list(make_readonly_file_tools().values())
 
 
 class TestCubeSandboxIntegration:

@@ -45,37 +45,9 @@ class ToolContext:
     cron_path: str = "runs/cron"
     _llm: Any = None             # LLM instance (for kb tools)
 
-    @classmethod
-    def from_dict(cls, d: dict | None) -> ToolContext:
-        """Convert legacy flat dict to typed ToolContext."""
-        if d is None:
-            return cls()
-        if isinstance(d, cls):
-            return d
-        sandbox = SandboxEnv(
-            run=d.get("sandbox_run"),
-        )
-
-        mem_kw = {}
-        if "memory_path" in d:
-            mem_kw["memory_path"] = d["memory_path"]
-        if "agent_dir" in d:
-            mem_kw["agent_dir"] = d["agent_dir"]
-        if "exp_path" in d:
-            mem_kw["exp_path"] = d["exp_path"]
-        memory = MemoryEnv(**mem_kw) if mem_kw else MemoryEnv()
-
-        web = WebEnv(
-            tavily_api_key=d.get("tavily_api_key"),
-        )
-
-        direct_keys = {"agent_id", "agent_dir", "scene_id", "user_id", "bound_scene", "role", "session_id",
-                       "db", "sub_agent_executor", "cron_path", "_llm"}
-        direct = {k: v for k, v in d.items() if k in direct_keys}
-
-        return cls(
-            sandbox=sandbox,
-            memory=memory,
-            web=web,
-            **direct,
-        )
+    def copy_with(self, **overrides) -> ToolContext:
+        """Return a new ToolContext with overridden fields."""
+        import dataclasses
+        fields = {f.name: getattr(self, f.name) for f in dataclasses.fields(self)}
+        fields.update(overrides)
+        return ToolContext(**fields)

@@ -156,6 +156,20 @@ class Database:
     def commit(self) -> None:
         self._conn.commit()
 
+    def fetch_one(self, sql: str, params: tuple = ()) -> dict | None:
+        """Run SELECT and return first row as dict, or None."""
+        cursor = self._conn.execute(sql, params)
+        row = cursor.fetchone()
+        cursor.close()
+        return dict(row) if row else None
+
+    def fetch_all(self, sql: str, params: tuple = ()) -> list[dict]:
+        """Run SELECT and return all rows as dicts."""
+        cursor = self._conn.execute(sql, params)
+        rows = cursor.fetchall()
+        cursor.close()
+        return [dict(r) for r in rows]
+
     @property
     def scenes(self):
         if not hasattr(self, "_scenes"):

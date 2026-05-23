@@ -1,11 +1,10 @@
 """User management routes."""
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-
-import bcrypt
 
 from cococat.app import get_ctx
 from cococat.context import AppContext
+from cococat.core.auth_service import AuthService
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -21,71 +20,31 @@ class ResetPasswordRequest(BaseModel):
 
 @router.get("")
 async def list_users(ctx: AppContext = Depends(get_ctx)):
-    rows = ctx.db._conn.execute(
-        "SELECT id, display_name, created_at FROM users ORDER BY created_at"
-    ).fetchall()
-    return [{"id": r["id"], "display_name": r["display_name"] or "", "created_at": r["created_at"]} for r in rows]
+    return AuthService(ctx.db).list_users()
 
 
 @router.post("")
 async def create_user(body: CreateUserRequest, ctx: AppContext = Depends(get_ctx)):
     username = body.username.strip()
-    if not username or len(body.password) < 4 or not body.password.strip():
-        raise HTTPException(status_code=400, detail="Username required, password >= 4 chars and not whitespace-only")
-
-    existing = ctx.db._conn.execute("SELECT id FROM users WHERE id = ?", (username,)).fetchone()
-    if existing:
-        raise HTTPException(status_code=409, detail="User already exists")
-
-    password_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
-    ctx.db._conn.execute(
-        "INSERT INTO users (id, password_hash) VALUES (?, ?)",
-        (username, password_hash),
-    )
-    ctx.db._conn.commit()
-
-    import os
-    from cococat.core.paths import memory_dir, session_dir
-    os.makedirs(f"config/users/{username}", exist_ok=True)
-    os.makedirs(memory_dir("default", username), exist_ok=True)
-    os.makedirs(os.path.join(memory_dir("default", username), "compiled"), exist_ok=True)
-    os.makedirs(os.path.join(memory_dir("default", username), "summaries"), exist_ok=True)
-    os.makedirs(session_dir("default", username), exist_ok=True)
-
-    return {"id": username, "status": "created"}
+    service = AuthService(ctx.db)
+    result, error = service.create_user(username, body.password)
+    if error == "User already exists":
+        raise HTTPException(status_code=409, detail=error)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"id": result, "status": "created"}
 
 
 @router.delete("/{username}")
 async def delete_user(username: str, ctx: AppContext = Depends(get_ctx)):
-    existing = ctx.db._conn.execute("SELECT id FROM users WHERE id = ?", (username,)).fetchone()
-    if not existing:
+    if not AuthService(ctx.db).delete_user(username):
         raise HTTPException(status_code=404, detail="User not found")
-
-    ctx.db._conn.execute("DELETE FROM users WHERE id = ?", (username,))
-    ctx.db._conn.commit()
-
-    import shutil, os
-    for d in [f"config/users/{username}", f"agents/{username}"]:
-        if os.path.isdir(d):
-            shutil.rmtree(d, ignore_errors=True)
-
     return {"status": "deleted", "username": username}
 
 
 @router.put("/{username}/password")
 async def reset_password(username: str, body: ResetPasswordRequest, ctx: AppContext = Depends(get_ctx)):
-    existing = ctx.db._conn.execute("SELECT id FROM users WHERE id = ?", (username,)).fetchone()
-    if not existing:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if len(body.password) < 4:
-        raise HTTPException(status_code=400, detail="Password must be >= 4 chars")
-
-    password_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
-    ctx.db._conn.execute(
-        "UPDATE users SET password_hash = ? WHERE id = ?",
-        (password_hash, username),
-    )
-    ctx.db._conn.commit()
-
+    ok, error = AuthService(ctx.db).reset_password(username, body.password)
+    if not ok:
+        raise HTTPException(status_code=404 if "not found" in error else 400, detail=error)
     return {"status": "password_reset", "username": username}

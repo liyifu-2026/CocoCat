@@ -7,7 +7,7 @@ from cococat.core.tools.execution import make_execution_tools
 
 
 def _browser_tools():
-    return resolve_tools_for_mode("kb-admin") + make_execution_tools(None)
+    return resolve_tools_for_mode("kb-admin") + list(make_execution_tools(None).values())
 
 
 class TestBrowser:

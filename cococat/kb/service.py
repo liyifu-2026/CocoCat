@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from typing import Any
 
 logger = logging.getLogger("cococat.kb.service")
@@ -18,8 +17,9 @@ logger = logging.getLogger("cococat.kb.service")
 class KBService:
     """Unified KB operations. All file I/O, no side effects beyond the KB directory."""
 
-    def __init__(self, knowledge_dir: str = "knowledge"):
-        self._knowledge_dir = knowledge_dir
+    def __init__(self, knowledge_dir: str = ""):
+        from cococat.core.paths import knowledge_dir as _kb_dir
+        self._knowledge_dir = knowledge_dir or _kb_dir()
 
     def _kb_path(self, kb_name: str) -> str:
         return os.path.join(self._knowledge_dir, kb_name)
@@ -129,37 +129,8 @@ class KBService:
 
     def _update_index(self, kb_path: str, page_type: str, slug: str) -> None:
         """Ensure slug appears in index.md under the correct category."""
-        index_path = os.path.join(kb_path, "index.md")
-        category = page_type.capitalize()
-
-        if os.path.exists(index_path):
-            with open(index_path, encoding="utf-8") as f:
-                existing = f.read()
-        else:
-            existing = ""
-
-        if re.search(rf"^- {re.escape(slug)}$", existing, re.MULTILINE):
-            return
-
-        if not existing:
-            content = f"# Index\n\n## {category}\n- {slug}\n"
-        else:
-            heading = f"## {category}"
-            idx = existing.find(heading)
-            if idx >= 0:
-                # Find end of this section (next ## or EOF)
-                next_heading = existing.find("\n## ", idx + len(heading))
-                if next_heading >= 0:
-                    before = existing[:next_heading]
-                    after = existing[next_heading:]
-                    content = before.rstrip() + f"\n- {slug}\n\n" + after.lstrip()
-                else:
-                    content = existing.rstrip() + f"\n- {slug}\n"
-            else:
-                content = existing.rstrip() + f"\n\n## {category}\n- {slug}\n"
-
-        with open(index_path, "w", encoding="utf-8") as f:
-            f.write(content)
+        from cococat.ingest.merge import update_index_add
+        update_index_add(kb_path, page_type.capitalize(), slug)
 
     def _append_log(self, kb_path: str, entry: str) -> None:
         """Append an entry to log.md."""
@@ -175,12 +146,13 @@ class KBService:
             f.write(line)
 
 
-# Singleton convenience
-_service: KBService | None = None
+# Singleton convenience — keyed by knowledge_dir for correct multi-dir support
+_services: dict[str, KBService] = {}
 
 
-def get_kb_service(knowledge_dir: str = "knowledge") -> KBService:
-    global _service
-    if _service is None or knowledge_dir != "knowledge":
-        _service = KBService(knowledge_dir)
-    return _service
+def get_kb_service(knowledge_dir: str = "") -> KBService:
+    from cococat.core.paths import knowledge_dir as _kb_dir
+    key = knowledge_dir or _kb_dir()
+    if key not in _services:
+        _services[key] = KBService(key)
+    return _services[key]

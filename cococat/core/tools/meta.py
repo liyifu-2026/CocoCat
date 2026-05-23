@@ -5,14 +5,9 @@ import os
 from cococat.core.types import ToolContext
 
 
-def _resolve(ctx):
-    return ToolContext.from_dict(ctx)
-
-
 def _cron(schedule: str, task: str, ctx: ToolContext) -> str:
     if not schedule or not task:
         return "Error: 'schedule' and 'task' are required"
-    ctx = _resolve(ctx)
     cron_dir = ctx.cron_path or "runs/cron"
     os.makedirs(cron_dir, exist_ok=True)
     import uuid
@@ -28,7 +23,6 @@ def _cron(schedule: str, task: str, ctx: ToolContext) -> str:
 
 
 def _current_status(ctx: ToolContext) -> str:
-    ctx = _resolve(ctx)
     lines = [f"Agent: {ctx.agent_id}"]
     if ctx.bound_scene:
         lines.append(f"Scene: {ctx.bound_scene}")
@@ -60,19 +54,19 @@ def _wait(seconds_str: str) -> str:
     return f"Waited for {seconds}s"
 
 
-def make_meta_tools():
-    from cococat.core.tools.types import Tool
-    return [
-        Tool(name="cron", description="Schedule a delayed or recurring task",
+def make_meta_tools() -> dict:
+    from cococat.core.tools.types import Tool, _ensure_tool_context
+    return {
+        "cron": Tool(name="cron", description="Schedule a delayed or recurring task",
              parameters={"schedule": "string", "task": "string"},
-             execute=lambda p, ctx: _cron(p.get("schedule", ""), p.get("task", ""), ctx)),
-        Tool(name="current_status", description="Show current agent state — identity, scene, working directory",
+             execute=lambda p, ctx: _cron(p.get("schedule", ""), p.get("task", ""), _ensure_tool_context(ctx))),
+        "current_status": Tool(name="current_status", description="Show current agent state — identity, scene, working directory",
              parameters={},
-             execute=lambda p, ctx: _current_status(ctx)),
-        Tool(name="wait", description="Wait for N seconds before the next step",
+             execute=lambda p, ctx: _current_status(_ensure_tool_context(ctx))),
+        "wait": Tool(name="wait", description="Wait for N seconds before the next step",
              parameters={"seconds": "string"},
              execute=lambda p, ctx: _wait(p.get("seconds", ""))),
-    ]
+    }
 
 
 def make_switch_mode_tool(mode_switch_flag: list | None = None):

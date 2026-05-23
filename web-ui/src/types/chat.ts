@@ -14,6 +14,7 @@ export interface Message {
   content: string
   tools?: ToolCallRecord[]
   reasoningText?: string
+  timestamp: number
 }
 
 export interface Session {

@@ -92,25 +92,25 @@ def _forget(keyword: str, ctx: ToolContext) -> str:
 
 
 
-def make_memory_tools() -> list:
+def make_memory_tools() -> dict:
     from cococat.core.tools.types import Tool, _ensure_tool_context
-    return [
-        Tool(name="recall", description="Search memory by keyword (FTS5)",
+    return {
+        "recall": Tool(name="recall", description="Search memory by keyword (FTS5)",
              parameters={"query": "string"},
              execute=lambda p, ctx: _recall(p.get("query", ""), _ensure_tool_context(ctx))),
-        Tool(name="remember", description="Add a note to the current whiteboard",
+        "remember": Tool(name="remember", description="Add a note to the current whiteboard",
              parameters={"note": "string"},
              execute=lambda p, ctx: _remember(p.get("note", ""), _ensure_tool_context(ctx))),
-        Tool(name="forget", description="Remove matching notes from whiteboard",
+        "forget": Tool(name="forget", description="Remove matching notes from whiteboard",
              parameters={"keyword": "string"},
              execute=lambda p, ctx: _forget(p.get("keyword", ""), _ensure_tool_context(ctx))),
-        Tool(name="pin", description="Pin a fact to persistent context",
+        "pin": Tool(name="pin", description="Pin a fact to persistent context",
              parameters={"fact": "string"},
              execute=lambda p, ctx: _pin(p.get("fact", ""), _ensure_tool_context(ctx))),
-        Tool(name="unpin", description="Unpin a fact",
+        "unpin": Tool(name="unpin", description="Unpin a fact",
              parameters={"keyword": "string"},
              execute=lambda p, ctx: _unpin(p.get("keyword", ""), _ensure_tool_context(ctx))),
-        Tool(name="list_pins", description="List all pinned facts",
+        "list_pins": Tool(name="list_pins", description="List all pinned facts",
              parameters={},
              execute=lambda p, ctx: _list_pins(_ensure_tool_context(ctx))),
-    ]
+    }

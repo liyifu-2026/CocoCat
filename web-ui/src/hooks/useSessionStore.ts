@@ -57,7 +57,7 @@ function reducer(state: State, action: Action): State {
       }
 
     case "ADD_USER_MESSAGE": {
-      const msg: Message = { id: uuid(), role: "user", content: action.content }
+      const msg: Message = { id: uuid(), role: "user", content: action.content, timestamp: Date.now() }
       return {
         ...state,
         sessions: state.sessions.map(s =>
@@ -73,6 +73,7 @@ function reducer(state: State, action: Action): State {
         content: action.content,
         tools: action.tools,
         reasoningText: action.reasoningText,
+        timestamp: Date.now(),
       }
       return {
         ...state,

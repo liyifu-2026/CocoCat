@@ -4,7 +4,8 @@ from pathlib import Path
 import yaml
 
 
-MODES_DIR = Path(__file__).resolve().parent.parent.parent / "config" / "modes"
+def _default_modes_dir() -> Path:
+    return Path(__file__).resolve().parent.parent.parent / "config" / "modes"
 
 
 @dataclass(frozen=True)
@@ -15,11 +16,6 @@ class ModeConfig:
     system_prompt: str
     tools: tuple[str, ...]
     skills: tuple[str, ...]
-
-
-def _load_yaml(path: Path) -> dict:
-    with open(path) as f:
-        return yaml.safe_load(f)
 
 
 def _dict_to_mode_config(data: dict) -> ModeConfig:
@@ -33,15 +29,21 @@ def _dict_to_mode_config(data: dict) -> ModeConfig:
     )
 
 
-def load_mode(mode_id: str) -> ModeConfig:
-    path = MODES_DIR / f"{mode_id}.yaml"
+def load_mode(mode_id: str, modes_dir: Path | None = None) -> ModeConfig:
+    dir_ = modes_dir or _default_modes_dir()
+    path = dir_ / f"{mode_id}.yaml"
     if not path.is_file():
         raise FileNotFoundError(f"Mode config not found: {path}")
-    return _dict_to_mode_config(_load_yaml(path))
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    return _dict_to_mode_config(data)
 
 
-def list_modes() -> list[ModeConfig]:
+def list_modes(modes_dir: Path | None = None) -> list[ModeConfig]:
+    dir_ = modes_dir or _default_modes_dir()
     modes = []
-    for path in sorted(MODES_DIR.glob("*.yaml")):
-        modes.append(_dict_to_mode_config(_load_yaml(path)))
+    for path in sorted(dir_.glob("*.yaml")):
+        with open(path) as f:
+            data = yaml.safe_load(f)
+        modes.append(_dict_to_mode_config(data))
     return modes

@@ -1,6 +1,7 @@
 import { Search, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { useT } from "@/context/LanguageContext"
 
 interface FilterOption {
   key: string
@@ -16,7 +17,9 @@ interface FilterBarProps {
   onFilterToggle?: (key: string) => void
 }
 
-export function FilterBar({ search, onSearchChange, searchPlaceholder = "Search...", filters, onFilterToggle }: FilterBarProps) {
+export function FilterBar({ search, onSearchChange, searchPlaceholder, filters, onFilterToggle }: FilterBarProps) {
+  const t = useT()
+  const placeholder = searchPlaceholder ?? t("filter.search_placeholder")
   return (
     <div className="flex items-center gap-2">
       <div className="relative flex-1 max-w-xs">
@@ -24,7 +27,7 @@ export function FilterBar({ search, onSearchChange, searchPlaceholder = "Search.
         <Input
           value={search}
           onChange={e => onSearchChange(e.target.value)}
-          placeholder={searchPlaceholder}
+          placeholder={placeholder}
           className="pl-8 h-9 text-sm rounded-xl border-border/60 bg-background/80 focus:bg-background transition-all duration-200"
         />
       </div>

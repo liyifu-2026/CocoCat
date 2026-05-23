@@ -162,9 +162,9 @@ export default function KnowledgeView() {
               </div>
               <button onClick={() => setSelectedKb(null)} className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
             </div>
-            <p className="text-[10px] text-muted-foreground">KB detail viewer will be expanded in future updates. Use Chat to interact with Coco in kb-admin mode for full KB operations.</p>
+            <p className="text-[10px] text-muted-foreground">Select a knowledge base above to view details. Switch to kb-admin mode in Chat for full operations.</p>
             <div className="flex gap-2">
-              <button onClick={() => setSelectedKb(null)} className="text-[10px] px-3 py-1.5 rounded-lg bg-muted border border-border hover:bg-card transition-colors">Close</button>
+              <button onClick={() => setSelectedKb(null)} className="text-[10px] px-3 py-1.5 rounded-lg bg-muted border border-border hover:bg-card transition-colors">{t("common.cancel")}</button>
             </div>
           </div>
         )}

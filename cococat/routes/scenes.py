@@ -53,12 +53,11 @@ class SceneUpdateFull(BaseModel):
 
 @router.get("")
 async def list_scenes(ctx: AppContext = Depends(get_ctx)):
-    rows = ctx.db._conn.execute(
+    rows = ctx.db.fetch_all(
         "SELECT * FROM scenes WHERE status != 'deleted' ORDER BY created_at DESC"
-    ).fetchall()
+    )
     scenes = []
-    for row in rows:
-        d = dict(row)
+    for d in rows:
         for field in ("kbs", "skills", "tools", "channels"):
             try:
                 d[field] = json.loads(d.get(field, "[]"))

@@ -3,15 +3,9 @@ import json
 import os
 import subprocess
 
-from cococat.core.types import ToolContext
-
-
-def _resolve(ctx) -> ToolContext:
-    return ToolContext.from_dict(ctx)
-
+from cococat.core.types import ToolContext, SandboxEnv
 
 async def _bash(command: str, ctx: ToolContext) -> str:
-    ctx = _resolve(ctx)
     if not command:
         return "Error: 'command' is required"
 
@@ -180,16 +174,15 @@ async def _browser(action_str: str) -> str:
         return f"Error in browser {action_type}: {e}"
 
 
-def make_execution_tools(sandbox_run=None) -> list:
-    from cococat.core.tools.types import Tool, _merge_ctx
-    from cococat.core.types import SandboxEnv
-    return [
-        Tool(name="bash", description="Execute shell command",
+def make_execution_tools(sandbox_run=None) -> dict:
+    from cococat.core.tools.types import Tool, _with_env
+    return {
+        "bash": Tool(name="bash", description="Execute shell command",
              parameters={"command": "string"},
-             execute=lambda p, ctx: _bash(p.get("command", ""), _merge_ctx(ctx, sandbox=SandboxEnv(run=sandbox_run))),
+             execute=lambda p, ctx: _bash(p.get("command", ""), _with_env(ctx, sandbox=SandboxEnv(run=sandbox_run))),
              requires_sandbox=True, sandbox_operation="exec"),
-        Tool(name="browser", description="Browser control — navigate, get_text, get_content, screenshot, click, type, scroll, execute_js, go_back",
+        "browser": Tool(name="browser", description="Browser control — navigate, get_text, get_content, screenshot, click, type, scroll, execute_js, go_back",
              parameters={"action": "string"},
              execute=lambda p, ctx: _browser(p.get("action", "")),
              requires_sandbox=True, sandbox_operation="exec"),
-    ]
+    }

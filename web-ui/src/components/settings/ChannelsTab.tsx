@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
+import { useT } from "@/context/LanguageContext"
 import type { ChannelTypeInfo, MainChannelInfo } from "@/types/settings"
 import { PlatformGrid } from "./PlatformGrid"
 import { ChannelDrawer } from "./ChannelDrawer"
@@ -19,11 +20,11 @@ export function ChannelsTab() {
   const [typesError, setTypesError] = useState("")
   const [mainLoading, setMainLoading] = useState(true)
   const [mainError, setMainError] = useState("")
+  const t = useT()
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selectedType, setSelectedType] = useState<ChannelTypeInfo | null>(null)
 
-  // Derive current status from latest mainChannels (not stale snapshot)
   const selectedMain = selectedType
     ? mainChannels.find(m => m.channel_type === selectedType.channel_type)
     : undefined
@@ -35,11 +36,11 @@ export function ChannelsTab() {
       const data = await fetchJSON<{ types: ChannelTypeInfo[] }>(`${API_BASE}/types`)
       setTypes(data.types)
     } catch (e: any) {
-      setTypesError(e?.message || "加载渠道类型失败")
+      setTypesError(e?.message || t("channels.load_types_fail"))
     } finally {
       setTypesLoading(false)
     }
-  }, [])
+  }, [t])
 
   const loadMain = useCallback(async () => {
     setMainLoading(true)
@@ -48,13 +49,12 @@ export function ChannelsTab() {
       const data = await fetchJSON<{ channels: MainChannelInfo[] }>(`${API_BASE}/main`)
       setMainChannels(data.channels)
     } catch (e: any) {
-      setMainError(e?.message || "加载 Main AI 渠道状态失败")
+      setMainError(e?.message || t("channels.load_main_fail"))
     } finally {
       setMainLoading(false)
     }
-  }, [])
+  }, [t])
 
-  // Fetch on mount
   useEffect(() => { loadTypes(); loadMain() }, [loadTypes, loadMain])
 
   const handleCardClick = (typeInfo: ChannelTypeInfo, _mainInfo?: MainChannelInfo) => {
@@ -73,7 +73,7 @@ export function ChannelsTab() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ channel_type: channelType, config }),
     })
-    toast.success("配置已保存")
+    toast.success(t("channels.config_saved"))
     await loadMain()
   }
 
@@ -84,10 +84,10 @@ export function ChannelsTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target_type: "main", target_id: "main", channel_type: channelType }),
       })
-      toast.success(`${channelType} 已连接`)
+      toast.success(`${channelType} ${t("channels.connected")}`)
       await loadMain()
     } catch {
-      throw new Error("连接失败")
+      throw new Error(t("channels.connect_fail"))
     }
   }
 
@@ -98,10 +98,10 @@ export function ChannelsTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target_type: "main", target_id: "main", channel_type: channelType }),
       })
-      toast.success(`${channelType} 已断开`)
+      toast.success(`${channelType} ${t("channels.disconnected")}`)
       await loadMain()
     } catch {
-      throw new Error("断开失败")
+      throw new Error(t("channels.disconnect_fail"))
     }
   }
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from cococat.core.types import ToolContext
+from cococat.core.types import ToolContext, SandboxEnv, MemoryEnv, WebEnv
 
 
 @dataclass
@@ -39,8 +39,11 @@ class Tool:
 class ToolRegistry:
     """Registry for executing tools."""
 
-    def __init__(self, tools: list):
-        self._tools = {t["name"]: t for t in tools}
+    def __init__(self, tools: list | dict):
+        if isinstance(tools, dict):
+            self._tools = tools
+        else:
+            self._tools = {t["name"]: t for t in tools}
 
     async def execute(self, name: str, params: dict, context: ToolContext | None = None) -> str:
         """Execute a tool by name. Returns string result."""
@@ -65,14 +68,23 @@ def _make(name: str, description: str, params: dict, execute_fn, **extra) -> Too
     return Tool(name=name, description=description, parameters=params, execute=execute_fn, **extra)
 
 
-def _ensure_tool_context(ctx: dict | ToolContext | None) -> ToolContext:
-    """Convert a dict or None to a ToolContext safely."""
-    return ToolContext.from_dict(ctx)
+def _ensure_tool_context(ctx):
+    """Convert dict to ToolContext if needed (test/direct-call compat)."""
+    if isinstance(ctx, ToolContext):
+        return ctx
+    sandbox = SandboxEnv(run=ctx.get("sandbox_run"))
+    mem = MemoryEnv(
+        memory_path=ctx.get("memory_path", ""),
+        agent_dir=ctx.get("agent_dir", ""),
+        exp_path=ctx.get("exp_path", "memory/experiences"),
+    )
+    web = WebEnv(tavily_api_key=ctx.get("tavily_api_key"))
+    fields = {"agent_id", "agent_dir", "scene_id", "user_id", "bound_scene", "role", "session_id",
+              "db", "sub_agent_executor", "cron_path", "_llm"}
+    direct = {k: v for k, v in ctx.items() if k in fields}
+    return ToolContext(sandbox=sandbox, memory=mem, web=web, **direct)
 
 
-def _merge_ctx(ctx: dict | ToolContext | None, **overrides) -> ToolContext:
-    """Merge overrides into ctx, returning a new ToolContext."""
-    base = _ensure_tool_context(ctx)
-    for key, val in overrides.items():
-        setattr(base, key, val)
-    return base
+def _with_env(ctx: ToolContext | dict, **overrides) -> ToolContext:
+    """Return a new ToolContext with overridden environment fields."""
+    return _ensure_tool_context(ctx).copy_with(**overrides)

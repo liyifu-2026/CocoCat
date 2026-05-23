@@ -1,10 +1,12 @@
 import { usePanel } from "@/context/PanelContext"
+import { useT } from "@/context/LanguageContext"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function PropertiesPanel() {
   const { content, visible, closePanel } = usePanel()
+  const t = useT()
 
   if (!content) return null
 
@@ -16,7 +18,7 @@ export function PropertiesPanel() {
       )}
     >
       <div className="flex items-center justify-between border-b border-border px-4 h-12 shrink-0">
-        <span className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">Properties</span>
+        <span className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">{t("properties.title")}</span>
         <button
           onClick={closePanel}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-all duration-200"

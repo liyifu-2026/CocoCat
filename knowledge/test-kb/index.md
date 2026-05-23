@@ -21,3 +21,4 @@
 
 ## Note
 - test-note
+- cubesandbox-readme-zh

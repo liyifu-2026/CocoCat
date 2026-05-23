@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react"
-import { Send, Plus, Loader2 } from "lucide-react"
+import { Send, Loader2 } from "lucide-react"
 import { useMode } from "@/context/ModeContext"
 import { useT } from "@/context/LanguageContext"
 
@@ -42,9 +42,6 @@ export default function ChatInput({ onSend, streaming }: ChatInputProps) {
   return (
     <div className="p-3 border-t border-border">
       <div className="flex items-center gap-2 bg-input border border-border rounded-xl px-3 py-2 focus-within:border-primary/30 transition-colors">
-        <button className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground rounded-lg transition-colors">
-          <Plus className="size-4" />
-        </button>
         <textarea
           ref={textareaRef}
           value={input}
