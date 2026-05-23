@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 import { ScheduleModal } from "@/components/ScheduleModal"
 import ChatMessages from "./ChatMessages"
 import ChatInput from "./ChatInput"
-import type { QuickSendFn } from "../Layout"
+type QuickSendFn = (message: string) => void
 
 interface ChatPanelProps {
   registerQuickSend?: (fn: QuickSendFn) => () => void
