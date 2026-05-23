@@ -5,6 +5,7 @@ import ChatPanel from "./chat/ChatPanel"
 import { MobileBottomNav } from "./MobileBottomNav"
 import { CommandPalette } from "./CommandPalette"
 import { useChatOverlay } from "@/context/ChatOverlayContext"
+import FilePreviewOverlay from "@/components/FilePreviewOverlay"
 import { cn } from "@/lib/utils"
 import { ChevronLeft, MessageSquare } from "lucide-react"
 import { useMode } from "@/context/ModeContext"
@@ -13,7 +14,7 @@ export type QuickSendFn = (message: string) => void
 
 export default function Layout() {
   const location = useLocation()
-  const { chatState, setChatState } = useChatOverlay()
+  const { chatState, setChatState, filePreview, closeFilePreview } = useChatOverlay()
   const quickSendRef = useRef<QuickSendFn | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const { currentMode } = useMode()
@@ -67,8 +68,16 @@ export default function Layout() {
           isOverlay ? "mr-0" : "mr-[72px]"
         )}
       >
-        <div className="flex-1 overflow-y-auto no-scrollbar">
+        <div className="flex-1 overflow-y-auto no-scrollbar relative">
           <Outlet />
+          {filePreview && (
+            <FilePreviewOverlay
+              filename={filePreview.filename}
+              content={filePreview.content}
+              fileType={filePreview.type}
+              onClose={closeFilePreview}
+            />
+          )}
         </div>
       </div>
 

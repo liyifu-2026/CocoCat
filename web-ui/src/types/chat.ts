@@ -15,6 +15,7 @@ export interface Message {
   tools?: ToolCallRecord[]
   reasoningText?: string
   timestamp: number
+  files?: { name: string; type: string; url?: string }[]
 }
 
 export interface Session {

@@ -6,7 +6,9 @@ import {
   Brain, MessageSquare, ArrowDown, Copy, Check, Clock,
 } from "lucide-react"
 import { useT } from "@/context/LanguageContext"
+import { useChatOverlay } from "@/context/ChatOverlayContext"
 import { TOOL_DISPLAY_NAMES } from "@/lib/tool-names"
+import FileCard from "./FileCard"
 import type { ToolCallRecord, Message } from "@/types/chat"
 
 interface StreamingCtrl {
@@ -109,6 +111,7 @@ export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
   const endRef = useRef<HTMLDivElement>(null)
   const [atBottom, setAtBottom] = useState(true)
   const t = useT()
+  const { openFilePreview } = useChatOverlay()
 
   const isNearBottom = useCallback(() => {
     const el = containerRef.current
@@ -199,6 +202,20 @@ export default function ChatMessages({ messages, ctrl }: ChatMessagesProps) {
                 </ReactMarkdown>
               </div>
             </div>
+
+            {/* File cards */}
+            {m.role === "assistant" && m.files && m.files.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-1.5">
+                {m.files.map((f, i) => (
+                  <FileCard
+                    key={i}
+                    filename={f.name}
+                    fileType={f.type}
+                    onClick={() => openFilePreview({ filename: f.name, content: f.url || "", type: f.type })}
+                  />
+                ))}
+              </div>
+            )}
 
             {/* Timestamp */}
             <div className="flex items-center gap-1 text-[9px] text-muted-foreground/40 px-1">
