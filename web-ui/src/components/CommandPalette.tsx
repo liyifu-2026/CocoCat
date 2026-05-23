@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from "react"
+import { useNavigate } from "react-router-dom"
 import { Command } from "cmdk"
 import { Search } from "lucide-react"
 import { useMode } from "@/context/ModeContext"
@@ -7,7 +8,6 @@ import { useT } from "@/context/LanguageContext"
 interface CommandPaletteProps {
   open: boolean
   onClose: () => void
-  onNavigate: (nav: string) => void
 }
 
 const NAV_ITEMS: { key: string; labelKey: string; keywords: string[] }[] = [
@@ -18,7 +18,8 @@ const NAV_ITEMS: { key: string; labelKey: string; keywords: string[] }[] = [
   { key: "settings", labelKey: "nav.settings", keywords: ["settings", "config", "preferences"] },
 ]
 
-export function CommandPalette({ open, onClose, onNavigate }: CommandPaletteProps) {
+export function CommandPalette({ open, onClose }: CommandPaletteProps) {
+  const navigate = useNavigate()
   const { modes, setMode } = useMode()
   const t = useT()
 
@@ -59,7 +60,7 @@ export function CommandPalette({ open, onClose, onNavigate }: CommandPaletteProp
                   key={item.key}
                   value={t(item.labelKey)}
                   keywords={[t(item.labelKey), ...item.keywords]}
-                  onSelect={() => runCommand(() => onNavigate(item.key))}
+                  onSelect={() => runCommand(() => navigate(`/${item.key}`))}
                   className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs cursor-pointer aria-selected:bg-primary/10 aria-selected:text-primary"
                 >
                   {t(item.labelKey)}
@@ -85,7 +86,7 @@ export function CommandPalette({ open, onClose, onNavigate }: CommandPaletteProp
               <Command.Item
                 value={t("chat.new_chat")}
                 keywords={["new", "chat", "session"]}
-                onSelect={() => runCommand(() => onNavigate("chat"))}
+                onSelect={() => runCommand(() => navigate("/chat"))}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs cursor-pointer aria-selected:bg-primary/10 aria-selected:text-primary"
               >
                 {t("cmd.new_chat_desc")}
